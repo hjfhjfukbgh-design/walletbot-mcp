@@ -66,7 +66,7 @@ export async function configureGrid(env: Env, args: string[]): Promise<string> {
   if (err) return `Config inválida: ${err}`;
   const s = await loadState(env);
   if (s.grid?.position) return "Há uma posição aberta no grid atual. Use /closeall antes de reconfigurar.";
-  const price = await w.rate(contract);
+  const price = state.mode === "live" ? await (await walt(env)).rate(contract) : await publicMid(market);
   const sizeErr = sizeError(cfg, Math.min(price, cfg.high));
   if (sizeErr) return `Config inválida: ${sizeErr}`;
   s.grid = { cfg };
