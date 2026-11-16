@@ -2,14 +2,15 @@
   color-scheme:light;
   --kg-bg:#F2F1F4;
   --kg-card:#FFFFFF;
+  --kg-divider:#E5E4E7;
   --kg-text:#16171A;
   --kg-muted:#8E8E93;
   --kg-blue:#007DFF;
   --kg-green:#34C759;
-  --kg-red:#FF3B30;
+  --kg-red:#FF322A;
   --kg-soft-blue:rgba(0,125,255,.10);
   --kg-soft-green:rgba(52,199,89,.12);
-  --kg-soft-red:rgba(255,59,48,.12);
+  --kg-soft-red:rgba(255,50,42,.12);
   --kg-radius:20px;
   --kg-radius-sm:14px;
   --kg-shadow:0 2px 12px rgba(20,25,35,.045);
