@@ -41,6 +41,7 @@ let state = null;
 let contracts = [];
 let selectedMarket = '';
 let showAssetGrid = false;
+let lastQuoteUpdate = null;
 let topSort = 'up';
 let favoritesOnly = false;
 const FAVORITES_KEY = 'kripto-guru:favorites:v1';
@@ -132,7 +133,8 @@ function renderState() {
   $('#wallet-grid-run').classList.toggle('secondary', !!s.running && !s.paused);
   $('#wallet-grid-run').classList.toggle('primary', !s.running || !!s.paused);
   $('#demo-capital').textContent = usd(equity);
-  $('#market-updated').textContent = s.lastTick ? `Live · ${new Date(s.lastTick).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}` : 'Live · ждём котировку';
+  const quoteTime = lastQuoteUpdate || (s.lastTick ? new Date(s.lastTick) : null);
+  $('#market-updated').textContent = quoteTime ? `Live · ${quoteTime.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}` : 'Live · ждём котировку';
 
 
   const notes = [
@@ -335,8 +337,8 @@ $('#pairs').addEventListener('click', async (ev) => {
     box.innerHTML =
       '<div class="asset-topline"><button id="asset-back" class="asset-back secondary" type="button">' + icon('chevron') + 'Рынки</button><button id="asset-favorite" class="asset-favorite ' + (isFav ? 'is-favorite' : '') + '" type="button">' + (isFav ? '★ В избранном' : '☆ В избранное') + '</button></div>' +
       '<div class="asset-identity"><span class="asset-coin">' + esc(market.slice(0,1)) + '</span><div><h2>' + esc(market) + '</h2><small>Криптовалюта · Демо-рынок</small></div></div>' +
-      '<div class="asset-detail-price">' + usd(price, moneyDecimals(price)) + '</div>' +
-      '<div class="asset-change ' + (change >= 0 ? 'up' : 'down') + '">' + pctText(change) + ' <span>за 24 часа</span></div>' +
+      '<div id="asset-live-price" class="asset-detail-price">' + usd(price, moneyDecimals(price)) + '</div>' +
+      '<div id="asset-live-change" class="asset-change ' + (change >= 0 ? 'up' : 'down') + '">' + pctText(change) + ' <span>за 24 часа</span></div>' +
       '<div class="asset-chart-wrap"><div class="chart-detail-head"><b>График цены</b><span id="asset-chart-source">Рыночные данные</span></div>' +
       '<div class="asset-chart-controls"><div class="timeframe-control" id="pair-timeframes">' + ['1m','5m','15m','1h','4h','1d'].map((v)=>'<button type="button" data-interval="' + v + '" class="' + (v==='15m'?'selected':'') + '">' + ({'1m':'1м','5m':'5м','15m':'15м','1h':'1Ч','4h':'4Ч','1d':'1Д'}[v]) + '</button>').join('') + '</div><button id="asset-grid-toggle" class="grid-layer-toggle" type="button" ' + (state?.grid?.market === market ? '' : 'disabled') + '>Показать сетку</button></div>' +
       '<svg id="pair-chart" viewBox="0 0 360 220" preserveAspectRatio="none" role="img" aria-label="Свечной график ' + esc(market) + '"></svg><div class="asset-chart-legend"><span><i class="legend-level"></i>Уровни сетки</span><span><i class="legend-entry"></i>Вход</span><span><i class="legend-tp"></i>Тейк-профит</span><span><i class="legend-sl"></i>Стоп-лосс</span></div>' +
@@ -388,7 +390,18 @@ $('#pairs').addEventListener('click', async (ev) => {
 async function loadMarketPreview() {
   try {
     contracts = (await call('contracts')).contracts;
+    lastQuoteUpdate = new Date();
     renderPairs();
+    if (selectedMarket && !$('#pair-detail').classList.contains('hidden')) {
+      const active = contracts.find((x) => x.market === selectedMarket);
+      if (active) {
+        $('#asset-live-price').textContent = usd(active.price, moneyDecimals(active.price));
+        $('#asset-live-change').textContent = pctText(active.change24hPct || 0) + ' за 24 часа';
+        $('#asset-live-change').className = 'asset-change ' + ((active.change24hPct || 0) >= 0 ? 'up' : 'down');
+        const interval = $('#pair-timeframes button.selected')?.dataset.interval || '15m';
+        loadChart(selectedMarket, 'pair-chart', interval);
+      }
+    }
     if (!state?.grid && contracts[0]) loadChart(contracts[0].market);
     $('#market-updated').textContent = `Live · ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
   } catch (error) {
