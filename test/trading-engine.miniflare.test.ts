@@ -29,12 +29,24 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   async function boot() {
     mf = new Miniflare({
       workers: [{
-        config: { name: "engine-test", compatibilityDate: "2025-06-01" },
-        modules: true,
-        compatibilityDate: "2025-06-01",
-        script: source,
-        durableObjects: { ENGINE: { className: "TradingEngine", useSQLite: true } },
-        bindings: { ENGINE_MAX_QUOTE_AGE_MS: "10000", ENGINE_DISABLE_SOCKET: "true" },
+        config: {
+          name: "engine-test",
+          compatibilityDate: "2025-06-01",
+          env: {
+            ENGINE: { type: "durable-object", worker: "engine-test", exportName: "TradingEngine" },
+            ENGINE_MAX_QUOTE_AGE_MS: { type: "text", value: "10000" },
+            ENGINE_DISABLE_SOCKET: { type: "text", value: "true" },
+          },
+          exports: {
+            TradingEngine: { type: "durable-object", storage: "sqlite" },
+          },
+          manifest: {
+            mainModule: "engine.mjs",
+            modules: {
+              "engine.mjs": { type: "ESModule", contents: source },
+            },
+          },
+        },
       }],
       resourcePersistencePath: root,
     });
