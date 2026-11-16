@@ -182,3 +182,9 @@ input,select,textarea{border:1px solid #dfe6f0!important;border-radius:11px!impo
 body.asset-open .bottom-nav{display:none!important;pointer-events:none!important}
 main{padding-bottom:calc(220px + env(safe-area-inset-bottom))!important}
 @media(max-width:380px){main{padding-bottom:calc(210px + env(safe-area-inset-bottom))!important}}
+
+/* Narrow settings/history heading: stack title and supporting copy instead of forcing a two-column row. */
+.page-heading{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:5px!important}
+.page-heading h1,.page-heading p{display:block!important;max-width:100%!important;width:100%!important}
+.page-heading h1{line-height:1.12!important;margin:0!important}
+.page-heading p{line-height:1.4!important;margin:0!important;white-space:normal!important}
