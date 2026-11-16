@@ -1,11 +1,12 @@
 name = "walletbot-mcp"
 main = "src/index.ts"
+compatibility_date = "2025-06-01"
 
 [assets]
 directory = "./miniapp/web"
 binding = "ASSETS"
+not_found_handling = "single-page-application"
 run_worker_first = ["/api/*", "/telegram", "/oauth/*", "/setup", "/tools.json"]
-compatibility_date = "2025-06-01"
 
 # Estado do bot (tokens OAuth, grid, modo paper) — namespace "walletbot-mcp-STATE".
 [[kv_namespaces]]
