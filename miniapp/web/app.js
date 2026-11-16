@@ -116,36 +116,43 @@ async function loadChart(market) {
 
 function drawChart(candles) {
   const svg = $('#chart');
-  const W = 360, H = 220, P = 6;
+  const W = 360, H = 220, P = 8;
   const g = state.grid;
-  const closes = candles.map((c) => c[4]);
-  const lines = [];
-  if (g) lines.push(...g.levelPrices.map((v) => ({ v, cls: 'var(--hint)', dash: '2 3' })));
-  if (state.position) lines.push({ v: state.position.takeProfit, cls: 'var(--green)' }, { v: state.position.entryPrice, cls: 'var(--link)' });
-  const all = closes.concat(lines.map((l) => l.v)).filter((v) => Number.isFinite(v));
+  const valid = (candles || []).filter((c) => c.length >= 5 && c.slice(1, 5).every((v) => Number.isFinite(+v)));
+  const levels = g ? g.levelPrices.map((v) => ({ v, color: 'var(--hint)', dash: '3 4' })) : [];
+  if (state.position) levels.push(
+    { v: state.position.takeProfit, color: 'var(--green)' },
+    { v: state.position.entryPrice, color: 'var(--link)' },
+  );
+  const all = valid.flatMap((c) => [+c[2], +c[3]]).concat(levels.map((l) => l.v));
   if (!all.length) {
-    svg.innerHTML = '<text x="10" y="20" fill="currentColor" font-size="12">Sem dados ainda.</text>';
+    svg.innerHTML = '<text x="10" y="22" fill="currentColor" font-size="12">Нет данных для графика.</text>';
     return;
   }
-  // a escala segue preço + grid; o SL (normalmente bem abaixo) é desenhado preso na borda com o valor
   let lo = Math.min(...all), hi = Math.max(...all);
-  const pad = (hi - lo) * 0.04 || hi * 0.01;
+  const pad = (hi - lo) * .06 || hi * .01;
   lo -= pad; hi += pad;
   const y = (v) => H - P - ((v - lo) / (hi - lo)) * (H - 2 * P);
-  const x = (i) => P + (i / Math.max(1, closes.length - 1)) * (W - 2 * P);
-  let out = lines
-    .map((l) => `<line x1="0" x2="${W}" y1="${y(l.v)}" y2="${y(l.v)}" stroke="${l.cls}" stroke-width="1" ${l.dash ? `stroke-dasharray="${l.dash}"` : ''} vector-effect="non-scaling-stroke"/>`)
-    .join('');
+  const stepX = (W - 2 * P) / Math.max(1, valid.length);
+  const bodyW = Math.max(2, Math.min(7, stepX * .62));
+  let out = levels.map((l) =>
+    `<line x1="0" x2="${W}" y1="${y(l.v)}" y2="${y(l.v)}" stroke="${l.color}" stroke-width="1" ${l.dash ? `stroke-dasharray="${l.dash}"` : ''} vector-effect="non-scaling-stroke"/>`
+  ).join('');
+  for (let i = 0; i < valid.length; i++) {
+    const [, o, h, l, c] = valid[i].map(Number);
+    const x = P + stepX * (i + .5);
+    const rising = c >= o;
+    const color = rising ? 'var(--green)' : 'var(--red)';
+    const top = Math.min(y(o), y(c));
+    const height = Math.max(1.2, Math.abs(y(c) - y(o)));
+    out += `<line x1="${x}" x2="${x}" y1="${y(h)}" y2="${y(l)}" stroke="${color}" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    out += `<rect x="${x - bodyW/2}" y="${top}" width="${bodyW}" height="${height}" rx=".7" fill="${color}"/>`;
+  }
   const sl = g ? (state.position?.stopLoss ?? g.stopLoss) : null;
   if (Number.isFinite(sl)) {
     const ys = Math.min(H - 2, Math.max(2, y(sl)));
-    out += `<line x1="0" x2="${W}" y1="${ys}" y2="${ys}" stroke="var(--red)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
-    out += `<text x="${W - P}" y="${ys - 4}" text-anchor="end" fill="var(--red)" font-size="11">SL ${usd(sl)}</text>`;
-  }
-  if (closes.length > 1) {
-    const d = closes.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
-    out += `<path d="${d}" fill="none" stroke="var(--text)" stroke-width="1.6" vector-effect="non-scaling-stroke"/>`;
-    out += `<circle cx="${x(closes.length - 1)}" cy="${y(closes[closes.length - 1])}" r="3" fill="var(--link)"/>`;
+    out += `<line x1="0" x2="${W}" y1="${ys}" y2="${ys}" stroke="var(--red)" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+    out += `<text x="${W - P}" y="${ys - 4}" text-anchor="end" fill="var(--red)" font-size="10">SL ${usd(sl)}</text>`;
   }
   svg.innerHTML = out;
 }
