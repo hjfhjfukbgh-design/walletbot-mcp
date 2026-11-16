@@ -12,10 +12,18 @@
   const authHeaders = () => ({ Authorization: `tma ${window.Telegram?.WebApp?.initData || ""}` });
 
   async function demoRequest(path, options = {}) {
-    const response = await fetch(path, { ...options, headers: { ...authHeaders(), ...(options.headers || {}) } });
-    const data = await response.json().catch(() => ({ ok:false, error:`Ошибка ответа: ${response.status}` }));
-    if (!response.ok || data.ok === false) throw new Error(data.error || `Ошибка API ${response.status}`);
-    return data;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    try {
+      const response = await fetch(path, { ...options, signal: controller.signal, headers: { ...authHeaders(), ...(options.headers || {}) } });
+      let data;
+      try { data = await response.json(); } catch { throw new Error(`Некорректный JSON API (HTTP ${response.status})`); }
+      if (!response.ok || data?.ok === false) throw new Error(data?.error || `Ошибка API ${response.status}`);
+      return data;
+    } catch (error) {
+      if (controller.signal.aborted) throw new Error('Таймаут API /api/demo (12 с)');
+      throw error instanceof TypeError ? new Error('Сетевая ошибка API: ' + error.message) : error;
+    } finally { clearTimeout(timer); }
   }
 
   function getMarket(symbol) {
@@ -278,9 +286,10 @@
   function showFavoritesError(message) {
     const strip = $ui("#wallet-favorites");
     if (!strip) return;
-    strip.innerHTML = '<div class="favorites-state favorites-error"><span>Не удалось загрузить избранное: ' +
-      escapeHtml(message || "ошибка сети") +
-      '</span><button type="button" data-favorites-retry>Повторить</button></div>';
+    favoritesViewState = message === 'Список рынков пуст.' ? 'empty' : 'error';
+    strip.innerHTML = favoritesViewState === 'empty'
+      ? '<div class="favorites-state">Рынки не найдены.</div>'
+      : '<div class="favorites-state favorites-error"><span>Не удалось загрузить рынки: ' + escapeHtml(message || "ошибка сети") + '</span><button type="button" data-favorites-retry>Повторить</button></div>';
   }
   $ui("#wallet-favorites")?.addEventListener("click", (event) => {
     if (event.target.closest("[data-favorites-retry]") && typeof loadMarketPreview === "function") {
