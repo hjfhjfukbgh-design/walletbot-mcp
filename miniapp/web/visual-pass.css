@@ -68,3 +68,77 @@ main{max-width:540px!important;padding:17px 15px 190px!important}
 .wallet-actions{position:relative;margin-top:-1px!important}
 .wallet-action:active{background:#edf3ff!important}
 .section-heading{scroll-margin-top:75px}
+
+
+/* iOS Telegram corrective pass: compact layout, predictable scroll clearance. */
+main{
+  padding-bottom:calc(88px + env(safe-area-inset-bottom, 0px))!important;
+}
+.section-heading{margin:16px 2px 8px!important}
+.wallet-actions{margin-bottom:15px!important}
+.wallet-head{min-height:126px!important;padding:18px 17px 15px!important}
+.wallet-performance{padding:0 17px 13px!important}
+.wallet-balance{font-size:36px!important}
+.empty-wallet{min-height:94px!important;padding:12px!important}
+.empty-wallet-icon{width:32px!important;height:32px!important;margin-bottom:4px!important}
+.empty-wallet .primary-button{min-height:36px!important;margin-top:6px!important}
+.favorites-strip{
+  display:grid!important;
+  grid-auto-flow:column!important;
+  grid-auto-columns:calc((100% - 9px)/2)!important;
+  grid-template-rows:1fr!important;
+  gap:9px!important;
+  overflow-x:auto!important;
+  overscroll-behavior-inline:contain;
+  scroll-snap-type:x mandatory!important;
+  padding:1px 1px 6px!important;
+}
+.favorite-card,.favorite-skeleton{
+  width:auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  min-height:112px!important;
+  flex:none!important;
+  scroll-snap-align:start!important;
+}
+.favorite-card{padding:10px!important}
+.favorite-price{font-size:15px!important;margin-top:7px!important}
+.bottom-nav{
+  position:fixed!important;
+  left:12px!important;right:12px!important;
+  bottom:calc(8px + env(safe-area-inset-bottom, 0px))!important;
+  height:60px!important;min-height:60px!important;
+  padding:5px 7px!important;
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  align-items:stretch!important;
+  border:1px solid #e7ebf2!important;
+  border-radius:17px!important;
+  background:rgba(255,255,255,.97)!important;
+  box-shadow:0 5px 20px rgba(25,42,70,.12)!important;
+  backdrop-filter:blur(18px)!important;
+  -webkit-backdrop-filter:blur(18px)!important;
+}
+.bottom-nav button{
+  min-width:0!important;min-height:48px!important;height:48px!important;
+  padding:3px 0!important;margin:0!important;
+  display:flex!important;flex-direction:column!important;
+  align-items:center!important;justify-content:center!important;
+  gap:2px!important;border-radius:12px!important;
+  background:transparent!important;
+  font-size:9px!important;line-height:1.1!important;
+}
+.bottom-nav button .ic{width:18px!important;height:18px!important}
+.bottom-nav button span{display:block!important;font-size:9px!important;line-height:1.1!important}
+.bottom-nav button.active{background:#edf3ff!important;color:#2563eb!important}
+.nav-indicator{display:none!important}
+@media(max-width:380px){
+  main{padding-left:13px!important;padding-right:13px!important}
+  .wallet-head{min-height:118px!important;padding:16px 14px 13px!important}
+  .wallet-balance{font-size:33px!important}
+  .section-heading{margin-top:14px!important}
+  .bottom-nav{left:9px!important;right:9px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .tab{animation:none!important}
+}
