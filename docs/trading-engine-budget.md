@@ -35,9 +35,9 @@ Worst-case always-on watchdog with at least one open position:
 - one snapshot row/minute: 1,440 writes/day;
 - each trade event: 1 account row + 1 position row + 1 ledger row = 3 writes;
 - first-time account seed: 1 account row + 1 ledger row = 2N writes;
-- S = initial `setAlarm()` calls when the first position opens after an idle period; D = `deleteAlarm()` calls when the last position closes. Cloudflare counts alarm set and delete operations as row writes. Both depend on how often the Engine transitions between idle and active.
+- S = extra `setAlarm()` calls when the first position opens after idle; D = `deleteAlarm()` calls when the last position closes; B = alarm re-scheduling after a cold start. Cloudflare counts alarm set and delete operations as row writes.
 
-Estimated writes: W = 4,320 + 3E + 2N + S + D.
+Estimated writes: W = 4,320 + 3E + 2N + S + D + B.
 
 | N users | Avg positions/user | M total | E events/day | Estimated writes/day | Free quota used |
 |---:|---:|---:|---:|---:|---:|
@@ -45,7 +45,7 @@ Estimated writes: W = 4,320 + 3E + 2N + S + D.
 | 1,000 | 2 | 2,000 | 20,000 | 86,320 | 86.32% |
 | 1,000 | 5 | 5,000 | 50,000 | 206,320 | 206.32% |
 
-The table assumes S = E/2 and D = E/2 (every open starts a new active session and every close empties the Engine). This is a conservative upper bound for this simplified example. This is a model, not a measured production profile. It excludes schema migrations and exceptional retries. The 1,000-user / 5-position scenario does not fit the Free write quota at 50,000 events/day.
+The table assumes S = E/2 and D = E/2 (every open starts a new active session and every close empties the Engine), with B = 0. Add B for actual cold starts. This is a conservative upper bound for the trade-session pattern shown, but not a guarantee for an Engine with frequent restarts. This is a model, not a measured production profile. It excludes schema migrations and exceptional retries. The 1,000-user / 5-position scenario does not fit the Free write quota at 50,000 events/day.
 
 ## Daily read estimate
 
