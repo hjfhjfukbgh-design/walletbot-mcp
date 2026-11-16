@@ -10,7 +10,7 @@ Status: Draft. Do not enable LIVE or deploy this branch before the open issues b
 - After eviction/restart, memory is treated as empty. The constructor restores open positions from SQLite, rebuilds the symbol index, then reconnects the market socket. The subscription snapshot repopulates prices.
 - The watchdog uses a 30-second DO Alarm while at least one position is open. Outgoing WebSockets cannot hibernate; Cloudflare says each outbound connection prevents eviction for up to 15 minutes, then normal eviction can resume. The Engine proactively reconnects at about 14 minutes.
 - A continuously active 128 MB DO uses 0.128 GB × 86,400 s = 11,059.2 GB-s/day. Against the 13,000 GB-s/day Free duration allowance, the theoretical headroom is only 1,940.8 GB-s/day (about 14.9%), before any extra active periods. This is the principal scaling constraint, not SQLite reads. The watchdog checks socket state/silence, forces a reconnect after about 14 minutes, restores positions after a successful reconnect, and checks per-symbol quote freshness before execution. With no open positions, the socket and alarm are stopped.
-- Quote age defaults to 10 seconds. Older or future-dated quotes are rejected for open/close execution.
+- Quote age defaults to 10 seconds. Older or future-dated quotes are rejected for open/close execution. Hyperliquid `allMids` supplies mid prices, not mark prices; the demo must label them as mid/quote, never `Mark Price`.
 - A gap is executed using the current fresh quote with adverse slippage, not the crossed TP/SL/liquidation level.
 
 ## Cloudflare Workers Free SQLite quotas
@@ -18,8 +18,10 @@ Status: Draft. Do not enable LIVE or deploy this branch before the open issues b
 Current Cloudflare documentation lists 5,000,000 SQL rows read/day, 100,000 SQL rows written/day, and 5 GB stored data/account for SQLite-backed Durable Objects. Every `setAlarm()` counts as one row written. Free operations fail when a quota is exceeded; daily counters reset at 00:00 UTC.
 
 Sources:
-- https://developers.cloudflare.com/durable-objects/platform/pricing/\n- https://developers.cloudflare.com/durable-objects/platform/limits/
-- https://developers.cloudflare.com/durable-objects/platform/limits/\n- https://developers.cloudflare.com/durable-objects/best-practices/websockets/\n- https://developers.cloudflare.com/durable-objects/concepts/durable-object-lifecycle/
+- https://developers.cloudflare.com/durable-objects/platform/pricing/
+- https://developers.cloudflare.com/durable-objects/platform/limits/
+- https://developers.cloudflare.com/durable-objects/best-practices/websockets/
+- https://developers.cloudflare.com/durable-objects/concepts/durable-object-lifecycle/
 
 ## Daily write estimate
 
