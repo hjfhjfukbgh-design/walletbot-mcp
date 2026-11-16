@@ -101,7 +101,7 @@ export async function setMode(env: Env, args: string[]): Promise<string> {
   if (target !== "paper" && target !== "live") return `Modo atual: ${s.mode === "paper" ? "ДЕМО" : "LIVE"}. Используйте /demo или /live CONFIRMO.`;
   if (s.grid?.position) return "Feche a posição (/closeall) antes de trocar de modo.";
   if (target === "live") {
-    if (args[1] !== "CONFIRMO") return "⚠️ Live usa dinheiro real em perpétuos alavancados. Envie: /mode live CONFIRMO";
+    if (args[1] !== "CONFIRMO") return "⚠️ LIVE использует реальные деньги и кредитное плечо. Для подтверждения отправьте /live CONFIRMO";
     const w = await walt(env);
     const r = await w.readiness();
     if (!r.ok) return `Conta Perps não está pronta: ${r.issues.map((i) => i.code).join(", ")} — use /conta.`;
