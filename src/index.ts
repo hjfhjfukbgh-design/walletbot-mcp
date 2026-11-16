@@ -4,6 +4,8 @@ import { handleUpdate } from "./commands";
 import type { Env } from "./env";
 import { handleCallback } from "./oauth";
 import { loadTools } from "./state";
+import { handleTenantTick, listTenantIds, oauthTenantId, tenantEnv } from "./tenants";
+import { send } from "./telegram";
 import { COMMANDS, notifyOwner, tg, timingSafeEqual, type TgUpdate } from "./telegram";
 
 export default {
@@ -24,10 +26,12 @@ export default {
 
     if (req.method === "GET" && url.pathname === "/oauth/callback") {
       try {
-        await handleCallback(env, url.searchParams);
-        ctx.waitUntil(
-          notifyOwner(env, ["✅ Walt conectado! Use /tools para ver as tools e revisar o mapeamento."]),
-        );
+        const stateId = url.searchParams.get("state") ?? "";
+        const userId = await oauthTenantId(env, stateId);
+        if (!userId) throw new Error("OAuth state desconhecido ou expirado. Volte ao Telegram e use /connect novamente.");
+        const scoped = tenantEnv(env, userId);
+        await handleCallback(scoped, url.searchParams);
+        ctx.waitUntil(send(env, userId, "✅ Walt conectado! Use /tools para ver as tools e revisar o mapeamento."));
         return html("Walt conectado ✅", "Pode fechar esta página e voltar ao Telegram.");
       } catch (e) {
         return html("Falha na conexão", (e as Error).message, 400);
@@ -75,8 +79,9 @@ export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(
       (async () => {
-        // sem lock no KV: o plano grátis tem 1000 escritas/dia e o tick leva segundos (cron de 5 min)
-        await notifyOwner(env, await tick(env));
+        // Cada usuário roda em namespace isolado; notificações nunca vão para outro usuário.
+        const userIds = await listTenantIds(env);
+        await Promise.all(userIds.map((userId) => handleTenantTick(env, userId, tick)));
       })(),
     );
   },
