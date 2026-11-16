@@ -124,9 +124,9 @@ async function status(env: Env): Promise<string> {
 async function conta(env: Env, confirm: boolean): Promise<string> {
   const w = await walt(env);
   const r = await w.readiness();
-  if (r.ok) return "✅ Conta Perps do agente pronta (perps_readiness ok). Deposite USDC no Walt antes do modo live.";
+  if (r.ok) return "✅ Perps-счёт агента готов (проверка пройдена). Перед реальным режимом пополните баланс USDC в Walt.";
   const issues = r.issues.map((i) => `• ${i.code}: ${i.description ?? ""}`).join("\n");
-  if (!r.issues.some((i) => i.code === "agent.account.not_found")) return `⚠️ Pendências:\n${issues}`;
+  if (!r.issues.some((i) => i.code === "agent.account.not_found")) return `⚠️ Что нужно исправить:\n${issues}`;
   if (!confirm) {
     const p = await w.preview("perps_prepare_account_create", {});
     return [
@@ -184,7 +184,7 @@ function risk(env: Env): string {
 }
 
 async function paperCmd(env: Env, args: string[]): Promise<string> {
-  if (args[0] !== "reset") return "Uso: /paper reset [saldo]";
+  if (args[0] !== "reset") return "Использование: /paper reset [сумма]";
   const s = await loadState(env);
   if (s.mode !== "paper") return "Доступно только в демо-режиме.";
   const cash = Number(args[1] ?? 1000);
