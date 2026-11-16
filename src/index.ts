@@ -69,7 +69,7 @@ export default {
       });
     }
 
-    return env.ASSETS.fetch(req);
+    return env.ASSETS ? env.ASSETS.fetch(req) : new Response("static assets not configured", { status: 404 });
   },
 
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
