@@ -115,12 +115,13 @@ function renderState() {
   const demo = s.paper || {};
   const equity = Number(demo.equity ?? demo.cash ?? 1000);
   const cash = Number(demo.cash ?? 1000);
-  const pnl = equity - cash;
+  const startCash = Number(demo.startCash ?? 1000);
+  const pnl = equity - startCash;
   $('#home-equity').innerHTML = balanceMarkup(equity);
   $('#home-equity').setAttribute('aria-label', usd(equity));
   $('#home-cash').textContent = usd(cash);
   $('#home-pnl').textContent = (pnl >= 0 ? '+' : '−') + usd(Math.abs(pnl));
-  $('#home-change').textContent = signedPct(equity ? pnl / 1000 * 100 : 0);
+  $('#home-change').textContent = signedPct(startCash ? pnl / startCash * 100 : 0);
   $('#home-change').className = `change-chip ${pnl >= 0 ? 'up' : 'down'}`;
   $('#home-pnl').className = pnl >= 0 ? 'up' : 'down';
   $('#home-positions').textContent = s.position ? '1' : '0';
@@ -235,7 +236,8 @@ function drawChart(candles, target = 'chart', market = '') {
     out += `<rect x="${x - bodyW/2}" y="${top}" width="${bodyW}" height="${height}" rx=".7" fill="${color}"/>`;
   }
   const last = valid[valid.length - 1];
-  const lastPrice = +last[4], lastColor = +last[4] >= +last[1] ? 'var(--green)' : 'var(--red)';
+  const quote = contracts.find((item) => item.market === market);
+  const lastPrice = Number(quote?.price ?? last[4]), lastColor = Number(quote?.change24hPct ?? (lastPrice - +last[1])) >= 0 ? 'var(--green)' : 'var(--red)';
   out += '<line x1="0" x2="' + plotW + '" y1="' + y(lastPrice) + '" y2="' + y(lastPrice) + '" stroke="' + lastColor + '" stroke-width="1.2" stroke-dasharray="4 3"/>';
   out += '<text x="312" y="' + Math.max(11, Math.min(190, y(lastPrice) - 4)) + '" fill="' + lastColor + '" font-size="10" font-weight="700">' + fmt(lastPrice, lastPrice >= 1000 ? 1 : 3) + '</text>';
   const firstTime = new Date(+valid[0][0]).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
@@ -349,6 +351,7 @@ $('#pairs').addEventListener('click', async (ev) => {
       '<div class="row"><span>Минимальная маржа</span><b>' + usd(p.minMargin) + '</b></div>' +
       '<div class="row"><span>Рекомендуемый диапазон</span><b>' + usd(p.suggestion.low, moneyDecimals(p.suggestion.low)) + ' – ' + usd(p.suggestion.high, moneyDecimals(p.suggestion.high)) + '</b></div></div>' +
       '<p class="disclaimer">Данные рынка могут обновляться с задержкой. Это не инвестиционная рекомендация.</p>';
+    showAssetGrid = false;
     loadChart(market, 'pair-chart', '15m');
     $('#pair-timeframes').addEventListener('click', (event) => {
       const button = event.target.closest('[data-interval]');
@@ -357,7 +360,6 @@ $('#pairs').addEventListener('click', async (ev) => {
       loadChart(market, 'pair-chart', button.dataset.interval);
       tg.HapticFeedback?.selectionChanged?.();
     });
-    showAssetGrid = false;
     $('#asset-grid-toggle').addEventListener('click', () => { showAssetGrid = !showAssetGrid; $('#asset-grid-toggle').textContent = showAssetGrid ? 'Скрыть сетку' : 'Показать сетку'; loadChart(market, 'pair-chart', $('#pair-timeframes button.selected')?.dataset.interval || '15m'); });
     $('#asset-back').addEventListener('click', () => { box.classList.add('hidden'); $('#q').focus(); });
     $('#asset-favorite').addEventListener('click', () => {
