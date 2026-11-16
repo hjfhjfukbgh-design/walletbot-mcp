@@ -2,7 +2,7 @@
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
-try { tg.setHeaderColor?.('#EDECF3'); tg.setBackgroundColor?.('#EDECF3'); } catch {}
+try { tg.setHeaderColor?.('#F2F2F7'); tg.setBackgroundColor?.('#F2F2F7'); tg.setBottomBarColor?.('#F2F2F7'); } catch {}
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: Math.min(d, 2) }));
