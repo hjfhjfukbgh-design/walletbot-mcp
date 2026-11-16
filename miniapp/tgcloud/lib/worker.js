@@ -38,7 +38,7 @@ export async function workerCall(path, { method = 'GET', body, apiKey, userId } 
 /** Telegram Serverless validates initData; return the authenticated Telegram user id. */
 export async function assertUser(ctx) {
   const userId = ctx.initData?.user?.id;
-  if (!userId || !/^\\d+$/.test(String(userId))) {
+  if (!userId || !/^\d+$/.test(String(userId))) {
     throw new EndpointError('Abra o painel pelo Telegram para autenticar sua conta.', { code: 'FORBIDDEN' });
   }
   return String(userId);
