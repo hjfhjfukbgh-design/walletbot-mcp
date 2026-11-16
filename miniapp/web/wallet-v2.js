@@ -60,7 +60,7 @@
     const positions = account.positions || [];
     $ui("#wallet-position-count").textContent = String(positions.length);
     if (!positions.length) {
-      $ui("#engine-positions").innerHTML = `<div class="empty-wallet"><span class="empty-wallet-icon">${icon("chart")}</span><b>Позиций пока нет</b><small>Выберите актив и откройте демо-сделку.</small><button id="empty-open-markets" class="primary-button" type="button">Открыть рынки</button></div>`;
+      $ui("#engine-positions").innerHTML = `<div class="empty-wallet"><span class="empty-wallet-icon">${icon("chart")}</span><b>Позиций пока нет</b><button id="empty-open-markets" class="primary-button" type="button">Открыть рынки</button></div>`;
       return;
     }
     $ui("#engine-positions").innerHTML = positions.map((position) => {
