@@ -176,7 +176,7 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
   // no tick seguinte com preço, nível e limites de risco atualizados.
   if (live && (state.liveExecutionMode ?? "confirm") === "confirm") {
     const pending = state.pendingLiveApproval;
-    if (!pending || pending.expiresAt <= Date.now() || pending.level !== plan.level) {
+    if (!pending || pending.expiresAt <= Date.now() || pending.level !== plan.level || Math.abs(price - pending.price) / pending.price > 0.0025) {
       state.pendingLiveApproval = {
         level: plan.level,
         price,
