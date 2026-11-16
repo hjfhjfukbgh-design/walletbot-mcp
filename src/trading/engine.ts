@@ -1,7 +1,7 @@
 import { closePosition, checkTrigger, manualCloseTrigger, openPosition, type Position, type PositionInput } from "./positions";
-import { MONEY_SCALE, PRICE_SCALE, parseFixed } from "./money";
+import { MONEY_SCALE, PRICE_SCALE, divRound, parseFixed } from "./money";
 
-interface EngineEnv { HYPERLIQUID_WS_URL?: string; ENGINE_MAX_QUOTE_AGE_MS?: string; }
+interface EngineEnv { HYPERLIQUID_WS_URL?: string; ENGINE_MAX_QUOTE_AGE_MS?: string; ENGINE_DISABLE_SOCKET?: string; }
 interface Quote { price: bigint; observedAt: number; }
 const MAX_AGE_DEFAULT = 10_000;
 const WATCHDOG_MS = 45_000;
@@ -20,10 +20,9 @@ function parsePosition(raw: string): Position {
 function estimateDemoLiquidation(entry: bigint, leverage: bigint, side: "long" | "short", maintenancePpm: bigint): bigint {
   if (leverage <= 0n || maintenancePpm < 0n || maintenancePpm >= 1_000_000n) throw new Error("Некорректные параметры расчёта ликвидации.");
   const scale = 1_000_000n;
-  const factor = side === "long"
-    ? (scale - scale / leverage + maintenancePpm) * scale / (scale - maintenancePpm)
-    : (scale + scale / leverage - maintenancePpm) * scale / (scale + maintenancePpm);
-  return entry * factor / scale;
+  return side === "long"
+    ? divRound(entry * (scale - scale / leverage + maintenancePpm), scale - maintenancePpm, "ceil")
+    : divRound(entry * (scale + scale / leverage - maintenancePpm), scale + maintenancePpm, "floor");
 }
 function safeSymbol(v: unknown): string {
   const s = String(v ?? "").trim().toUpperCase();
@@ -249,6 +248,7 @@ export class TradingEngine {
   }
 
   private connectMarketSocket(): void {
+    if (this.env.ENGINE_DISABLE_SOCKET === "true") return;
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) return;
     try {
       const socket = new WebSocket(this.env.HYPERLIQUID_WS_URL || "wss://api.hyperliquid.xyz/ws");
