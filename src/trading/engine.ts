@@ -58,8 +58,10 @@ export class TradingEngine {
     this.restorePositions();
     const snapshot = sql.exec("SELECT value FROM engine_meta WHERE key = 'snapshot'").toArray()[0] as { value?: string } | undefined;
     this.lastSnapshotAt = Number(snapshot?.value ? (JSON.parse(snapshot.value) as { at?: number }).at ?? 0 : 0);
-    if (this.positions.size) this.connectMarketSocket();
-    void ctx.storage.setAlarm(Date.now() + WATCHDOG_MS);
+    if (this.positions.size) {
+      this.connectMarketSocket();
+      void ctx.storage.setAlarm(Date.now() + WATCHDOG_MS);
+    }
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -148,6 +150,8 @@ export class TradingEngine {
         "open:" + input.id, userId, input.id, "open", opened.balanceDeltaMicro.toString(), before.toString(), opened.balanceAfterMicro.toString(), Date.now());
     });
     this.indexPosition(opened.position);
+    this.connectMarketSocket();
+    void this.ctx.storage.setAlarm(Date.now() + WATCHDOG_MS);
     return { ok: true, position: opened.position, balanceMicro: opened.balanceAfterMicro.toString() };
   }
 
@@ -177,6 +181,11 @@ export class TradingEngine {
     });
     this.positions.delete(id);
     this.bySymbol.get(position.symbol)?.delete(id);
+    if (this.positions.size === 0) {
+      this.socket?.close();
+      this.socket = null;
+      void this.ctx.storage.deleteAlarm();
+    }
     return { ok: true, closed: true, result: { ...result, balanceAfterMicro: after.toString() } };
   }
 
@@ -200,12 +209,29 @@ export class TradingEngine {
 
   private reconcile(): { ok: true; openPositions: number; ledgerRows: number } {
     this.restorePositions();
+    const accounts = this.ctx.storage.sql.exec("SELECT user_id, balance_micro FROM accounts").toArray() as Array<{ user_id: string; balance_micro: string }>;
+    for (const account of accounts) {
+      const rows = this.ctx.storage.sql.exec("SELECT amount_micro, balance_before_micro, balance_after_micro FROM ledger WHERE user_id = ? ORDER BY id", account.user_id).toArray() as Array<{ amount_micro: string; balance_before_micro: string; balance_after_micro: string }>;
+      let expected = 0n;
+      for (const row of rows) {
+        const before = BigInt(row.balance_before_micro), amount = BigInt(row.amount_micro), after = BigInt(row.balance_after_micro);
+        if (before !== expected || before + amount !== after) throw new Error("Обнаружено расхождение в ledger пользователя " + account.user_id + ".");
+        expected = after;
+      }
+      if (expected !== BigInt(account.balance_micro)) throw new Error("Баланс счёта не совпадает с последней записью ledger.");
+    }
     const ledgerRows = this.ctx.storage.sql.exec("SELECT COUNT(*) AS count FROM ledger").toArray()[0] as { count: number };
     return { ok: true, openPositions: this.positions.size, ledgerRows: Number(ledgerRows.count) };
   }
 
   async alarm(): Promise<void> {
     const now = Date.now();
+    if (this.positions.size === 0) {
+      this.socket?.close();
+      this.socket = null;
+      await this.ctx.storage.deleteAlarm();
+      return;
+    }
     const staleSocket = this.socket?.readyState === WebSocket.OPEN && (now - this.lastMessageAt > SOCKET_SILENCE_MS || now - this.socketOpenedAt > SOCKET_MAX_AGE_MS);
     if (staleSocket) {
       this.socket?.close();
