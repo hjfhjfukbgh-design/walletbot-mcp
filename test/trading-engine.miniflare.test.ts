@@ -5,7 +5,7 @@ import { build } from "esbuild";
 const P = 100_000_000n;
 const U = 1_000_000n;
 const userId = "123456789";
-type EngineStub = { fetch(input: string, init?: RequestInit): Promise<Response> };
+type EngineStub = any;
 
 describe("TradingEngine SQLite integration (Miniflare)", () => {
   let source = "";
@@ -28,11 +28,26 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
 
   async function boot() {
     mf = new Miniflare({
-      modules: true,
-      compatibilityDate: "2025-06-01",
-      script: source,
-      durableObjects: { ENGINE: { className: "TradingEngine", useSQLite: true } },
-      bindings: { ENGINE_MAX_QUOTE_AGE_MS: "10000", ENGINE_DISABLE_SOCKET: "true" },
+      workers: [{
+        config: {
+          name: "engine-test",
+          compatibilityDate: "2025-06-01",
+          env: {
+            ENGINE: { type: "durable-object", worker: "engine-test", exportName: "TradingEngine" },
+            ENGINE_MAX_QUOTE_AGE_MS: { type: "text", value: "10000" },
+            ENGINE_DISABLE_SOCKET: { type: "text", value: "true" },
+          },
+          exports: {
+            TradingEngine: { type: "durable-object", storage: "sqlite" },
+          },
+          manifest: {
+            mainModule: "engine.mjs",
+            modules: {
+              "engine.mjs": { type: "esm", contents: source },
+            },
+          },
+        },
+      }],
       resourcePersistencePath: root,
     });
     const ns = await mf.getDurableObjectNamespace("ENGINE");
