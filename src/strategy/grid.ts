@@ -40,12 +40,12 @@ export interface GridPosition {
 }
 
 export function validateConfig(cfg: GridConfig): string | null {
-  if (!(cfg.low > 0) || !(cfg.high > cfg.low)) return "faixa inválida: precisa 0 < low < high";
-  if (!Number.isInteger(cfg.levels) || cfg.levels < 2 || cfg.levels > 50) return "níveis devem ser inteiro entre 2 e 50";
-  if (!Number.isInteger(cfg.leverage) || cfg.leverage < 1) return "alavancagem deve ser inteiro >= 1";
-  if (cfg.leverage > cfg.contract.maxLeverage) return `alavancagem máx do contrato é ${cfg.contract.maxLeverage}x`;
-  if (cfg.marginUsd < cfg.contract.minSizeQuote) return `margem mínima por trade é $${cfg.contract.minSizeQuote}`;
-  if (cfg.marginUsd > cfg.contract.maxSizeQuote) return `margem máxima por trade é $${cfg.contract.maxSizeQuote}`;
+  if (!(cfg.low > 0) || !(cfg.high > cfg.low)) return "Некорректный диапазон: должно выполняться 0 < low < high";
+  if (!Number.isInteger(cfg.levels) || cfg.levels < 2 || cfg.levels > 50) return "Число уровней должно быть целым от 2 до 50";
+  if (!Number.isInteger(cfg.leverage) || cfg.leverage < 1) return "Плечо должно быть целым числом не меньше 1";
+  if (cfg.leverage > cfg.contract.maxLeverage) return `Максимальное плечо для контракта — ${cfg.contract.maxLeverage}x`;
+  if (cfg.marginUsd < cfg.contract.minSizeQuote) return `Минимальная маржа на сделку — ${cfg.contract.minSizeQuote}`;
+  if (cfg.marginUsd > cfg.contract.maxSizeQuote) return `Максимальная маржа на сделку — ${cfg.contract.maxSizeQuote}`;
   return null;
 }
 
@@ -84,7 +84,7 @@ export function baseSize(cfg: GridConfig, price: number): number {
 export function sizeError(cfg: GridConfig, price: number): string | null {
   const size = baseSize(cfg, price);
   if (size < cfg.contract.minSizeBase)
-    return `tamanho ${size.toPrecision(3)} ${cfg.market} < mínimo ${cfg.contract.minSizeBase}; aumente margem ou alavancagem`;
+    return `Размер ${size.toPrecision(3)} ${cfg.market} меньше минимума ${cfg.contract.minSizeBase}; увеличьте маржу или плечо`;
   return null;
 }
 
