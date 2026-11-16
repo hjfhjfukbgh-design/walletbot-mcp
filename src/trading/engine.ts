@@ -47,7 +47,8 @@ export class TradingEngine {
   private socket: WebSocket | null = null;
   private lastMessageAt = 0;
   private socketOpenedAt = 0;
-  private reconnecting = false;
+  private reconnectAttempts = 0;
+  private nextReconnectAt = 0;
   private lastSnapshotAt = 0;
   private readonly maxQuoteAgeMs: number;
 
@@ -254,9 +255,9 @@ export class TradingEngine {
     if (staleSocket) {
       this.socket?.close();
       this.socket = null;
+      this.nextReconnectAt = now;
     }
-    if (!this.socket || this.socket.readyState === WebSocket.CLOSED) {
-      this.restorePositions(); // full persisted-position reconciliation after a disconnect/eviction
+    if ((!this.socket || this.socket.readyState === WebSocket.CLOSED) && now >= this.nextReconnectAt) {
       this.connectMarketSocket();
     }
     if (now - this.lastSnapshotAt >= SNAPSHOT_MS) {
@@ -276,6 +277,9 @@ export class TradingEngine {
       socket.addEventListener("open", () => {
         this.lastMessageAt = Date.now();
         this.socketOpenedAt = Date.now();
+        this.reconnectAttempts = 0;
+        this.nextReconnectAt = 0;
+        this.restorePositions(); // full SQLite reconciliation after a successful reconnect
         socket.send(JSON.stringify({ method: "subscribe", subscription: { type: "allMids" } }));
       });
       socket.addEventListener("message", (event) => {
@@ -291,8 +295,16 @@ export class TradingEngine {
           }
         } catch { /* malformed upstream frames are ignored; watchdog will reconnect if feed goes stale */ }
       });
-      socket.addEventListener("close", () => { this.lastMessageAt = 0; if (this.socket === socket) this.socket = null; });
-      socket.addEventListener("error", () => { this.lastMessageAt = 0; if (this.socket === socket) this.socket = null; });
+      const failed = () => {
+        if (this.socket !== socket) return;
+        this.lastMessageAt = 0;
+        this.socket = null;
+        this.reconnectAttempts = Math.min(this.reconnectAttempts + 1, 6);
+        const backoff = Math.min(300_000, 5_000 * 2 ** (this.reconnectAttempts - 1));
+        this.nextReconnectAt = Date.now() + backoff + Math.floor(Math.random() * 1_000);
+      };
+      socket.addEventListener("close", failed);
+      socket.addEventListener("error", failed);
     } catch {
       this.socket = null;
       this.lastMessageAt = 0;
