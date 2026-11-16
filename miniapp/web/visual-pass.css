@@ -195,3 +195,19 @@ main{padding-bottom:calc(220px + env(safe-area-inset-bottom))!important}
 .empty-wallet-icon .ic{width:20px!important;height:20px!important}
 .empty-wallet b{line-height:1.2!important}
 .empty-wallet .primary-button{min-height:34px!important;padding:8px 14px!important;line-height:1.15!important}
+
+/* PR22: reclaim vertical space on 390px wallet so empty-state CTA clears the dock. */
+@media(max-width:400px){
+ .wallet-head{padding:14px 15px 10px!important}
+ .wallet-balance{font-size:31px!important;margin-top:6px!important}
+ .wallet-performance{padding:0 15px 10px!important;font-size:10px!important}
+ .wallet-actions{padding:7px 6px!important;margin-bottom:12px!important}
+ .wallet-action{min-height:52px!important;gap:4px!important}
+ .action-icon{width:26px!important;height:26px!important}
+ .section-heading{margin-top:14px!important;margin-bottom:7px!important}
+ .favorite-card{padding:9px!important}
+ .favorite-card .sparkline{height:20px!important}
+ .empty-wallet{padding:7px 10px!important;gap:4px!important}
+ .empty-wallet-icon{display:none!important}
+ .empty-wallet .primary-button{min-height:30px!important;padding:6px 12px!important}
+}
