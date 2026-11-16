@@ -442,7 +442,7 @@ async function loadHistory() {
                     ? `<span class="ev down">${icon('sl')}SL</span>`
                     : `<span class="ev">${icon('hand')}Вручную</span>`;
             const pnl = t.pnl === undefined ? '' : `<span class="${t.pnl >= 0 ? 'up' : 'down'}">${usd(t.pnl, 4)}</span>`;
-            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(paper)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
+            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(демо)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
           })
           .join('')}</table>`
       : 'Сделок пока нет.';
