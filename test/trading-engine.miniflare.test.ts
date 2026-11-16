@@ -21,10 +21,9 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
 
   afterAll(async () => {
     await mf?.dispose();
-
   });
 
-  beforeEach(() => { objectName = "engine-test-" + (++testSequence); });
+  beforeEach(async () => { await mf?.dispose(); mf = undefined; objectName = "engine-test-" + (++testSequence); });
 
   async function boot() {
     mf = new Miniflare({
