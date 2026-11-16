@@ -53,15 +53,7 @@
 
       <div id="alert" class="alert hidden"></div>
 
-      <!-- Runtime compatibility for the existing grid engine; visible grid controls live in Settings. -->
-      <div class="runtime-compat" aria-hidden="true">
-        <span id="mode">ДЕМО</span><span id="home-equity">$1 000,00</span><span id="home-cash">$1 000,00</span><span id="home-pnl">+$0,00</span><span id="home-change">↑0,00%</span><span id="home-positions">0</span><span id="run">ДЕМО</span><span id="market-updated">—</span>
-        <span id="metric-trades">0</span><span id="metric-wins">0 / 0</span><span id="metric-pnl">—</span><span id="demo-capital">$1 000,00</span><div id="stats"></div><div id="pos"></div>
-        <div id="education-banner"></div><button id="home-open-markets-sell" type="button"></button><button id="home-open-grid" type="button"></button>
-        <div id="home-timeframes"></div><svg id="chart"></svg><span id="chart-src"></span>
-        <button id="portfolio-trigger" type="button"></button><div id="g-desc"></div><div id="g-trade"></div><div id="g-recenter-row"></div><div id="g-recenter"></div><div id="grid-status"></div>
-      </div>
-    </section>
+   </section>
 
     <section id="tab-pares" class="tab">
       <div class="trade-search"><i data-icon="search"></i><input id="q" type="search" placeholder="Поиск: BTC, ETH…" autocomplete="off" /></div>
@@ -118,6 +110,15 @@
       <p class="disclaimer">Реальная торговля отключена. Все сделки в этом приложении виртуальные.</p>
     </section>
   </main>
+
+  <!-- Runtime compatibility for the existing grid engine; visible grid controls live in Settings. -->
+      <div class="runtime-compat" aria-hidden="true">
+        <span id="mode">ДЕМО</span><span id="home-equity">$1 000,00</span><span id="home-cash">$1 000,00</span><span id="home-pnl">+$0,00</span><span id="home-change">↑0,00%</span><span id="home-positions">0</span><span id="run">ДЕМО</span><span id="market-updated">—</span>
+        <span id="metric-trades">0</span><span id="metric-wins">0 / 0</span><span id="metric-pnl">—</span><span id="demo-capital">$1 000,00</span><div id="stats"></div><div id="pos"></div>
+        <div id="education-banner"></div><button id="home-open-markets-sell" type="button"></button><button id="home-open-grid" type="button"></button>
+        <div id="home-timeframes"></div><svg id="chart"></svg><span id="chart-src"></span>
+        <button id="portfolio-trigger" type="button"></button><div id="g-desc"></div><div id="g-trade"></div><div id="g-recenter-row"></div><div id="g-recenter"></div><div id="grid-status"></div>
+
 
   <div id="onboarding" class="onboarding-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-title"><div class="onboarding-sheet"><div class="onboarding-progress"><span id="onboarding-progress"></span></div><div class="onboarding-step" id="onboarding-step">ШАГ 1 ИЗ 3</div><h2 id="onboarding-title">Начните с демо</h2><p id="onboarding-copy">Вы торгуете виртуальными средствами. Реальные деньги не используются.</p><div class="onboarding-actions"><button id="onboarding-skip" class="secondary" type="button">Пропустить</button><button id="onboarding-next" type="button">Далее</button></div></div></div>
 
