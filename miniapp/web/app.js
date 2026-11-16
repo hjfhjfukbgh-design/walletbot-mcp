@@ -46,7 +46,7 @@ async function call(name, input = {}, { timeoutMs = 12_000, signal: externalSign
     signal: controller.signal,
     method,
     headers: {
-      Authorization: `tma ${tg.initData}`,
+      Authorization: `tma ${tg?.initData || ''}`,
       ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
     },
     ...(method === "POST" ? { body: JSON.stringify(input) } : {}),
@@ -148,7 +148,7 @@ document.querySelectorAll('.bottom-nav button').forEach((b, index) =>
     document.querySelectorAll('.bottom-nav button').forEach((x) => x.classList.toggle('active', x === b));
     $('#nav-indicator').style.transform = 'translateX(' + (index * 100) + '%)';
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.id === `tab-${b.dataset.tab}`));
-    tg.HapticFeedback?.selectionChanged?.();
+    tg?.HapticFeedback?.selectionChanged?.();
     if (b.dataset.tab === 'pares' && !contracts.length) loadPairs();
     if (b.dataset.tab === 'hist') loadHistory();
   }),
@@ -550,7 +550,7 @@ $('#pairs').addEventListener('click', async (ev) => {
         try {
           const result = await call('manual', { action:'open', market, side:tradeForm.elements.side.value, marginUsd:Number(tradeForm.elements.marginUsd.value), leverage:Number(tradeForm.elements.leverage.value), takeProfit:Number(tradeForm.elements.takeProfit.value), stopLoss:Number(tradeForm.elements.stopLoss.value) });
           tradeForm.remove();
-          tg.showAlert?.(result.message);
+          tg?.showAlert?.(result.message);
           await loadState();
           setTab('painel');
         } catch (error) {
@@ -568,8 +568,8 @@ $('#pairs').addEventListener('click', async (ev) => {
 
 // ---------- home market preview ----------
 let marketPreviewLoading = false;
-async function loadMarketPreview() {
-  if (document.hidden || marketPreviewLoading) return;
+async function loadMarketPreview({ force = false } = {}) {
+  if ((!force && document.hidden) || marketPreviewLoading) return;
   marketPreviewLoading = true;
   try {
     await getContracts({ force: true });
@@ -715,7 +715,7 @@ function ctrlMessage(text, ic = 'save') {
 }
 
 function confirm(text) {
-  return new Promise((resolve) => tg.showConfirm(text, resolve));
+  return new Promise((resolve) => tg?.showConfirm ? tg.showConfirm(text, resolve) : resolve(false));
 }
 
 $('#grid-form').addEventListener('submit', async (ev) => {
@@ -822,6 +822,7 @@ $('#onboarding').addEventListener('click', (event) => { if (event.target === $('
 try { if (!localStorage.getItem('kripto-guru:onboarding:v1')) showOnboarding(); } catch {}
 
 
+if (telegramInitError) showError(new Error(telegramInitError));
 loadState().then(fillForm);
 const statePoll = setInterval(loadState, 30_000);
 const marketPoll = setInterval(loadMarketPreview, 60_000);
