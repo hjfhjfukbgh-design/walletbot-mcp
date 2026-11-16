@@ -116,6 +116,23 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(invalid.body.ok).toBe(false);
   });
 
+  it("allows a manual close before TP or SL is reached", async () => {
+    const stub = await boot();
+    await quote(stub, 50_000n * P);
+    const opened = await post(stub, "/open", {
+      userId, mode: "demo", symbol: "BTC", side: "long",
+      marginMicro: (100n * U).toString(), leverage: "2",
+      feePpm: "350", slippagePpm: "1000",
+      maxOrderBps: "10000", maxTotalExposureBps: "10000",
+    });
+    expect(opened.body.ok).toBe(true);
+    const id = opened.body.position.id as string;
+    const closed = await post(stub, "/close", { userId, positionId: id, manual: true });
+    expect(closed.body.ok).toBe(true);
+    expect(closed.body.closed).toBe(true);
+    expect(closed.body.result.reason).toBe("manual");
+  });
+
   it("closes once under Promise.all and duplicate ticks do not duplicate ledger credits", async () => {
     const stub = await boot();
     await quote(stub, 50_000n * P);
