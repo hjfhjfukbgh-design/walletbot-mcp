@@ -178,6 +178,8 @@ async function openDemoTrade(env: Env, userId: string, body: Json): Promise<Resp
   return engineRequest(env, "/open", {
     symbol, side, marginMicro: marginMicro.toString(), leverage: String(leverage),
     takeProfitPrice, stopLossPrice, feePpm, slippagePpm,
+    maxOrderBps: String(Math.round(limits.maxOrderPct * 100)),
+    maxTotalExposureBps: String(Math.round(limits.maxTotalExposurePct * 100)),
     userId, mode: "demo",
   });
 }
