@@ -196,7 +196,7 @@ $('#pairs').addEventListener('click', async (ev) => {
       <div class="row"><span>Margem mínima a ${p.leverage}x</span><b>${usd(p.minMargin)}</b></div>
       <div class="row"><span>Рекомендуемый диапазон (−6% / +2%)</span><b>${usd(p.suggestion.low, 6)} – ${usd(p.suggestion.high, 6)}</b></div>
       <div class="row"><span>Комиссия тейкера</span><b>${fmt((c?.takerFeePct ?? 0) * 100, 3)}%</b></div>
-      ${c?.allowed ? `<button id="use-pair">${icon('sliders')}Usar no grid</button>` : '<p class="meta">Par fora dos critérios de liquidez/whitelist do bot.</p>'}`;
+      ${c?.allowed ? `<button id="use-pair">${icon('sliders')}Использовать в сетке</button>` : '<p class="meta">Пара не проходит ограничения ликвидности или список разрешённых рынков.</p>'}`;
     const btn = $('#use-pair');
     if (btn)
       btn.onclick = () => {
@@ -229,7 +229,7 @@ async function loadHistory() {
                   ? `<span class="ev up">${icon('tp')}TP</span>`
                   : t.reason === 'sl'
                     ? `<span class="ev down">${icon('sl')}SL</span>`
-                    : `<span class="ev">${icon('hand')}manual</span>`;
+                    : `<span class="ev">${icon('hand')}вручную</span>`;
             const pnl = t.pnl === undefined ? '' : `<span class="${t.pnl >= 0 ? 'up' : 'down'}">${usd(t.pnl, 4)}</span>`;
             return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(ДЕМО)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
           })
