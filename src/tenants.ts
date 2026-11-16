@@ -13,16 +13,16 @@ const KEY_PREFIX = "tenant:";
 export function tenantEnv(env: Env, userId: string): Env {
   const prefix = `${KEY_PREFIX}${userId}:`;
   const state = {
-    get: (key: string, options?: unknown) => env.STATE.get(prefix + key, options as never),
+    get: (key: string, options?: unknown) => env.STATE.get(key === "oauth:client" ? key : prefix + key, options as never),
     put: async (key: string, value: string, options?: unknown) => {
-      await env.STATE.put(prefix + key, value, options as never);
+      await env.STATE.put(key === "oauth:client" ? key : prefix + key, value, options as never);
       if (key.startsWith("oauth:pending:")) {
         const stateId = key.slice("oauth:pending:".length);
         await env.STATE.put(`oauth:tenant:${stateId}`, userId, { expirationTtl: 900 });
       }
     },
     delete: async (key: string) => {
-      await env.STATE.delete(prefix + key);
+      await env.STATE.delete(key === "oauth:client" ? key : prefix + key);
       if (key.startsWith("oauth:pending:")) {
         await env.STATE.delete(`oauth:tenant:${key.slice("oauth:pending:".length)}`);
       }
