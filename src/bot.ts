@@ -209,11 +209,16 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
 export async function closeAll(env: Env): Promise<string> {
   const state = await loadState(env);
   if (!state.grid) return "Сетка не настроена.";
+  if (state.mode === "live") {
+    state.running = false;
+    await saveState(env, state);
+    return "LIVE заблокирован в Kripto Guru. Автоматические операции с реальным кошельком отключены; проверьте возможную открытую позицию непосредственно в биржевом приложении.";
+  }
   const { cfg } = state.grid;
-  const walt = state.mode === "live" ? await connectWalt(env) : null;
+  const walt = null;
   state.running = false;
   if (state.mode === "live") {
-    if (!walt) return "Walt не подключён — закройте позицию в приложении Walt.";
+    if (!walt) return "LIVE заблокирован.";
     if (await walt.openPosition(cfg.contract.contractId)) await walt.closePosition(cfg.contract.contractId);
     const pos = state.grid.position;
     if (pos) {
