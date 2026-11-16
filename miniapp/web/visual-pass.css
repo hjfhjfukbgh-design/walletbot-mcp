@@ -142,3 +142,7 @@ main{
 @media(prefers-reduced-motion:reduce){
   .tab{animation:none!important}
 }
+
+
+/* Asset detail owns the lower action area; hide wallet tabs while LONG/SHORT bar is active. */
+body.asset-open .bottom-nav{display:none!important}
