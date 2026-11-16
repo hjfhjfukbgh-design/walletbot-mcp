@@ -18,6 +18,7 @@ export interface ManualPosition {
   stopLoss: number | null;
   liquidationPrice: number;
   takerFeePct: number;
+  entryFeeUsd: number;
   openedAt: string;
 }
 const KEY = "paper:manual:positions:v1";
@@ -90,7 +91,7 @@ export async function openManualTrade(
   if (input.side === "short" && stopLoss !== null && stopLoss >= liquidationPrice) throw new Error("Стоп-лосс SHORT должен быть ниже расчётной цены ликвидации.");
   const position: ManualPosition = {
     id: crypto.randomUUID(), market, side: input.side, entryPrice: price, qty, marginUsd, notionalUsd, leverage,
-    takeProfit, stopLoss, liquidationPrice, takerFeePct: contract.takerFeePct, openedAt: new Date().toISOString(),
+    takeProfit, stopLoss, liquidationPrice, takerFeePct: contract.takerFeePct, entryFeeUsd: fee, openedAt: new Date().toISOString(),
   };
   state.paper.cash -= marginUsd + fee;
   await saveState(env, state);
@@ -104,9 +105,10 @@ export async function closeManualTrade(env: Env, id: string): Promise<string> {
   const position = positions.find((p) => p.id === id);
   if (!position) throw new Error("Открытая демо-позиция не найдена.");
   const price = await publicMid(position.market);
-  const pnl = directionalPnl(position, price);
+  const grossPnl = directionalPnl(position, price);
+  const pnl = grossPnl - position.entryFeeUsd;
   const state = await loadState(env);
-  state.paper.cash += position.marginUsd + pnl;
+  state.paper.cash += position.marginUsd + grossPnl;
   state.stats.trades++;
   state.stats.realizedPnl += pnl;
   if (pnl >= 0) state.stats.wins++; else state.stats.losses++;
@@ -127,9 +129,10 @@ export async function monitorManualTrades(env: Env): Promise<string[]> {
     try { price = await publicMid(position.market); } catch { remaining.push(position); continue; }
     const reason = exitReason(position, price);
     if (!reason) { remaining.push(position); continue; }
-    const pnl = reason === "liquidation" ? -position.marginUsd : directionalPnl(position, price);
+    const grossPnl = reason === "liquidation" ? -position.marginUsd : directionalPnl(position, price);
+    const pnl = grossPnl - position.entryFeeUsd;
     const exit = reason === "liquidation" ? position.liquidationPrice : price;
-    state.paper.cash += position.marginUsd + pnl;
+    state.paper.cash += position.marginUsd + grossPnl;
     state.stats.trades++;
     state.stats.realizedPnl += pnl;
     if (pnl >= 0) state.stats.wins++; else state.stats.losses++;
@@ -149,7 +152,8 @@ export async function manualPositionsView(env: Env) {
   return Promise.all(positions.map(async (p) => {
     let markPrice = p.entryPrice;
     try { markPrice = await publicMid(p.market); } catch {}
-    const unrealizedPnl = directionalPnl(p, markPrice);
-    return { ...p, markPrice, unrealizedPnl, estimatedEquity: p.marginUsd + unrealizedPnl };
+    const grossUnrealizedPnl = directionalPnl(p, markPrice);
+    const unrealizedPnl = grossUnrealizedPnl - p.entryFeeUsd;
+    return { ...p, markPrice, unrealizedPnl, estimatedEquity: p.marginUsd + grossUnrealizedPnl };
   }));
 }
