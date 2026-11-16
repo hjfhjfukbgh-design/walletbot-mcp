@@ -266,7 +266,7 @@ function drawChart(candles, target = 'chart', market = '') {
   [vline,hline].forEach((line) => { line.setAttribute('stroke','#59636d'); line.setAttribute('stroke-dasharray','3 3'); line.setAttribute('stroke-width','1'); });
   dot.setAttribute('r','3.5'); dot.setAttribute('fill','#007DFF'); dot.setAttribute('stroke','#fff'); dot.setAttribute('stroke-width','1.5');
   const tip = document.createElementNS(ns, 'rect');
-  tip.setAttribute('width','132'); tip.setAttribute('height','62'); tip.setAttribute('rx','8'); tip.setAttribute('fill','rgba(35,42,50,.92)');
+  tip.setAttribute('width','150'); tip.setAttribute('height','78'); tip.setAttribute('rx','8'); tip.setAttribute('fill','rgba(35,42,50,.92)');
   const label = document.createElementNS(ns, 'text'); label.setAttribute('fill','#fff'); label.setAttribute('font-size','9');
   layer.append(vline,hline,dot,tip,label); svg.appendChild(layer);
   const tipLines = [];
@@ -293,10 +293,22 @@ function drawChart(candles, target = 'chart', market = '') {
 
 // ---------- pares ----------
 async function loadPairs() {
+  $('#pairs').innerHTML = '<div class="market-loading skeleton-row"></div><div class="market-loading skeleton-row"></div><div class="market-loading skeleton-row"></div>';
+  try {
+    contracts = (await call('contracts')).contracts;
+    renderPairs();
+  } catch (error) {
+    $('#pairs').innerHTML = '<div class="empty-state card-empty">' + esc(error.message) + '</div>';
+  }
+}
+
+function renderPairs() {
+  const q = $('#q').value.trim().toUpperCase();
+  const list = contracts.filter((c) => (!q || c.market.includes(q)) && (!favoritesOnly || favorites.has(c.market)));
   $('#pairs').innerHTML = list.map((c) => {
     const favorite = favorites.has(c.market);
     const change = c.change24hPct === undefined ? '—' : pctText(c.change24hPct);
-    return '<div class="item market-row ' + (c.allowed ? '' : 'blocked') + '" data-market="' + esc(c.market) + '" role="button" tabindex="0">' +
+    return '<div class="item market-row ' + (c.allowed ? '' : 'blocked') + '" data-market="' + esc(c.market) + '" role="button" tabindex="0" aria-label="Открыть ' + esc(c.market) + '">' +
       '<span class="coin-avatar">' + esc(c.market.slice(0,1)) + '</span>' +
       '<div class="market-copy"><div class="name">' + esc(c.market) + '</div><div class="meta">' + (c.allowed ? 'Доступен в демо-сетке' : icon('lock') + ' Недоступен для сетки') + '</div></div>' +
       '<div class="market-quote"><b>' + usd(c.price, moneyDecimals(c.price)) + '</b><small class="' + ((c.change24hPct || 0) >= 0 ? 'up' : 'down') + '">' + change + '</small></div>' +
