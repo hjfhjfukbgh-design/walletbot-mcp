@@ -400,7 +400,7 @@ $('#notifications-trigger').addEventListener('click', () => tg.showAlert?.('Ув
 $('#pos').addEventListener('click', (event) => { if (event.target.closest('#empty-open-markets')) document.querySelector('nav button[data-tab="pares"]').click(); });
 $('#wallet-grid-settings').addEventListener('click', () => document.querySelector('nav button[data-tab="ctrl"]').click());
 $('#wallet-grid-run').addEventListener('click', async () => { if (!state?.grid) { setTab('ctrl'); return; } try { const action = state.paused ? 'resume' : state.running ? 'stop' : 'run'; const r=await call('control',{action}); ctrlMessage(r.message); await loadState(); } catch(e) { showError(e); } });
-$('#home-reset-demo').addEventListener('click', () => tg.showAlert?.('Сброс демо-счёта пока недоступен. Баланс, история и настройки не изменены.'));
+$('#home-reset-demo').addEventListener('click', () => tg.showAlert?.('Для сброса отправьте боту команду /paper reset. Виртуальный баланс вернётся к $1 000, сетка остановится. История операций сохранится.'));
 $('#home-open-grid').addEventListener('click', () => setTab('ctrl'));
 document.querySelectorAll('[data-preset]').forEach((button) => button.addEventListener('click', async () => {
   try {
