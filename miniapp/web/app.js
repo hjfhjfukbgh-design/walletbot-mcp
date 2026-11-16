@@ -39,7 +39,10 @@ async function loadState() {
     state = await call('state');
     $('#alert').classList.add('hidden');
     renderState();
-    if (state.grid) {\n      loadChart(state.grid.market);\n      refreshQuote(state.grid.market);\n    }
+    if (state.grid) {
+      loadChart(state.grid.market);
+      refreshQuote(state.grid.market);
+    }
   } catch (e) {
     showError(e);
   }
@@ -93,7 +96,10 @@ function renderState() {
 
   const st = s.stats;
   const eq = s.mode === 'paper' ? s.paper?.equity : null;
-  $('#metric-trades').textContent = String(st.trades);\n  $('#metric-wins').textContent = `${st.wins}/${st.losses}`;\n  $('#metric-pnl').textContent = usd(st.realizedPnl, 4);\n  $('#stats').innerHTML = [
+  $('#metric-trades').textContent = String(st.trades);
+  $('#metric-wins').textContent = `${st.wins}/${st.losses}`;
+  $('#metric-pnl').textContent = usd(st.realizedPnl, 4);
+  $('#stats').innerHTML = [
     [`${st.trades}`, 'trades'],
     [`${st.wins}/${st.losses}`, 'TP / SL'],
     [usd(st.realizedPnl, 4), 'Результат закрытых сделок'],
