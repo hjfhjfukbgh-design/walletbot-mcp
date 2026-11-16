@@ -438,7 +438,8 @@ $('#pairs').addEventListener('click', async (ev) => {
         <div class="manual-trade-note">Цена входа берётся по текущей публичной котировке. Ликвидация рассчитывается ориентировочно по упрощённой модели.</div>
         <button type="submit">Открыть демо-позицию</button>`;
       box.querySelector('.asset-actions').after(tradeForm);
-      tradeForm.addEventListener('change', () => {
+      tradeForm.addEventListener('change', (event) => {
+        if (event.target.name !== 'side') return;
         const side = tradeForm.elements.side.value;
         tradeForm.elements.takeProfit.value = (price * (side === 'long' ? 1.02 : .98)).toFixed(decimals);
         tradeForm.elements.stopLoss.value = (price * (side === 'long' ? .99 : 1.01)).toFixed(decimals);
@@ -511,6 +512,16 @@ $('#portfolio-trigger').addEventListener('click', () => document.querySelector('
 $('#notifications-trigger').addEventListener('click', () => tg.showAlert?.('Уведомлений пока нет.'));
 $('#pos').addEventListener('click', async (event) => {
   if (event.target.closest('#empty-open-markets')) { setTab('pares'); return; }
+  const manualClose = event.target.closest('[data-manual-close]');
+  if (manualClose) {
+    if (!(await confirm('Закрыть ручную демо-позицию по текущей рыночной цене?'))) return;
+    try {
+      const result = await call('manual', { action:'close', id:manualClose.dataset.manualClose });
+      ctrlMessage(result.message);
+      await loadState();
+    } catch (error) { showError(error); }
+    return;
+  }
   if (event.target.closest('#position-close')) {
     if (!(await confirm('Закрыть демо-позицию по текущей рыночной цене и остановить сетку?'))) return;
     try { const result = await call('control', { action: 'closeall' }); ctrlMessage(result.message); await loadState(); }
@@ -554,7 +565,7 @@ async function loadHistory() {
             const when = new Date(t.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
             const ev =
               t.event === 'open'
-                ? `<span class="ev ev-open">${icon('open')}Покупка ${esc(t.market)}</span>`
+                ? `<span class="ev ev-open">${icon('open')}${t.side === 'short' ? 'SHORT' : t.side === 'long' ? 'LONG' : 'Покупка'} ${esc(t.market)}</span>`
                 : t.reason === 'tp'
                   ? `<span class="ev up">${icon('tp')}TP</span>`
                   : t.reason === 'sl'
