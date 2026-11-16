@@ -29,10 +29,10 @@ const cfg: GridConfig = { market: "BTC", contract: btc, low: 100000, high: 11000
 describe("grid de posição única", () => {
   it("valida a configuração contra o contrato", () => {
     expect(validateConfig(cfg)).toBeNull();
-    expect(validateConfig({ ...cfg, high: 90000 })).toMatch(/faixa/);
-    expect(validateConfig({ ...cfg, leverage: 2.5 })).toMatch(/inteiro/);
-    expect(validateConfig({ ...cfg, leverage: 60 })).toMatch(/máx do contrato/);
-    expect(validateConfig({ ...cfg, marginUsd: 0.5 })).toMatch(/mínima/);
+    expect(validateConfig({ ...cfg, high: 90000 })).toMatch(/диапазон/);
+    expect(validateConfig({ ...cfg, leverage: 2.5 })).toMatch(/целым/);
+    expect(validateConfig({ ...cfg, leverage: 60 })).toMatch(/Максимальное плечо/);
+    expect(validateConfig({ ...cfg, marginUsd: 0.5 })).toMatch(/Минимальная маржа/);
   });
 
   it("acha o degrau cuja faixa contém o preço", () => {
@@ -60,7 +60,7 @@ describe("grid de posição única", () => {
 
   it("rejeita tamanho abaixo do mínimo do contrato", () => {
     expect(sizeError(cfg, 105000)).toBeNull(); // ~0.00014 BTC
-    expect(sizeError({ ...cfg, marginUsd: 1, leverage: 1 }, 105000)).toMatch(/mínimo/);
+    expect(sizeError({ ...cfg, marginUsd: 1, leverage: 1 }, 105000)).toMatch(/минимума/);
   });
 
   it("detecta preço fora da faixa (acima do high ou abaixo do degrau 0)", () => {
