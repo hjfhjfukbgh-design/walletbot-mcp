@@ -117,6 +117,7 @@ try {
     await page.locator("#wallet-balance-main").waitFor({state:"visible"});
     await assertViewport(page,"wallet");
     await page.screenshot({path:`wallet-${width}x${height}-dsf3.png`,fullPage:false});
+    await assertHitAboveNav(page,".empty-wallet .primary-button","wallet initial CTA hit-test");
     await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});
     await assertBottomAccessible(page,"#wallet-asset-list","wallet asset list scroll end");
     await assertBottomAccessible(page,".empty-wallet .primary-button","wallet empty-state CTA scroll end");
