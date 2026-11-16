@@ -205,6 +205,7 @@ async function priceView(env: Env, market: string, leverage: number) {
     market: market.toUpperCase(),
     price,
     leverage: lev,
+    maxDemoLeverage: riskLimits(env).maxLeverage,
     minMargin: Number(minMargin(contract, price * 1.02, lev).toFixed(2)),
     suggestion: { low: Number((price * 0.94).toFixed(contract.priceDecimals)), high: Number((price * 1.02).toFixed(contract.priceDecimals)) },
   };
