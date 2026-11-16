@@ -178,6 +178,8 @@
 
   $ui("#wallet-favorites")?.addEventListener("click", (event) => {
     if (event.target.closest("[data-favorites-retry]")) {
+      const retry = event.target.closest("[data-favorites-retry]");
+      retry.disabled = true;
       favoritesViewState = 'loading';
       renderFavorites();
       if (typeof loadMarketPreview === "function") loadMarketPreview({ force: true });
@@ -291,12 +293,6 @@
       ? '<div class="favorites-state">Рынки не найдены.</div>'
       : '<div class="favorites-state favorites-error"><span>Не удалось загрузить рынки: ' + escapeHtml(message || "ошибка сети") + '</span><button type="button" data-favorites-retry>Повторить</button></div>';
   }
-  $ui("#wallet-favorites")?.addEventListener("click", (event) => {
-    if (event.target.closest("[data-favorites-retry]") && typeof loadMarketPreview === "function") {
-      event.target.closest("[data-favorites-retry]").disabled = true;
-      loadMarketPreview();
-    }
-  });
   window.kriptoGuruDemo = {
     getAccount: () => account,
     refresh: loadWallet,
