@@ -68,6 +68,7 @@ try {
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     await page.waitForTimeout(1800);
     await page.screenshot({path:`wallet-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});
     await page.locator('nav button[data-tab="pares"]').click();
     await page.waitForTimeout(900);
     await page.screenshot({path:`trade-${width}x${height}-dsf3.png`,fullPage:false});
