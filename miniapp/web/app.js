@@ -453,7 +453,7 @@ function fillForm() {
 }
 
 $('#chart-interval').addEventListener('change', () => {
-  if (state?.grid?.market) loadChart(state.grid.market, 'chart', $('#chart-interval').value);
+  if (state?.grid?.market || contracts[0]?.market) loadChart(state?.grid?.market || contracts[0].market, 'chart', $('#chart-interval').value);
 });
 
 loadState().then(fillForm);
