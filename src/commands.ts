@@ -4,7 +4,8 @@ import { configureGrid, resumeGrid, runGrid, setMode, stopGrid, walt } from "./s
 import { callbackParams, disconnect, getAccessToken, handleCallback, startAuthorization } from "./oauth";
 import { defaultState, loadState, saveState, saveTools } from "./state";
 import { notional, step } from "./strategy/grid";
-import { COMMANDS, notifyOwner, send, type TgUpdate } from "./telegram";
+import { COMMANDS, notifyOwner, type TgUpdate } from "./telegram";
+import { handleTenantUpdate } from "./tenants";
 import { previewReason } from "./walt";
 
 /** Processa um comando do dono e devolve a resposta em texto. */
@@ -51,6 +52,10 @@ export async function handleCommand(env: Env, text: string): Promise<string> {
       return stopGrid(env);
     case "closeall":
       return closeAll(env);
+    case "demo":
+      return setMode(env, ["paper"]);
+    case "live":
+      return setMode(env, ["live", args[0] ?? ""]);
     case "mode":
       return setMode(env, args);
     case "risk":
@@ -69,24 +74,28 @@ export async function handleCommand(env: Env, text: string): Promise<string> {
 
 function help(): string {
   return [
-    "🤖 walletbot-mcp — grid automático no Walt Perps",
+    "Walt Grid — управление торговой сеткой",
     "",
-    ...COMMANDS.map(([c, d]) => `/${c} — ${d}`),
-    "/call <tool> [json] — chamar uma tool do Walt diretamente",
-    "/paper reset [saldo] — reiniciar a carteira simulada",
-    "/disconnect — remover tokens do Walt",
-    "/testalert — testar o envio de alertas para o canal",
+    "Основные команды:",
+    "/demo — включить демо-режим без кошелька",
+    "/live CONFIRMO — запросить включение LIVE",
+    "/status — состояние, баланс и результат",
+    "/grid — настроить рынок и параметры сетки",
+    "/run — запустить сетку",
+    "/stop — остановить сетку",
+    "/closeall — закрыть позицию и остановить",
+    "/resume — снять автоматическую паузу",
     "",
-    "Fluxo: /connect → /conta → /grid … → /run (paper) → depositar USDC → /mode live CONFIRMO",
+    "Для подключения Walt в LIVE: /connect. Код авторизации отправляется через /code.",
+    "В ДЕМО используются виртуальные средства и публичные рыночные данные. Реальные ордера не отправляются."
   ].join("\n");
 }
-
 
 async function status(env: Env): Promise<string> {
   const s = await loadState(env);
   const connected = !!(await getAccessToken(env).catch(() => null));
   const lines = [
-    `Modo: ${s.mode.toUpperCase()} | ${s.running ? "▶️ rodando" : "⏹️ parado"}${s.paused ? ` | ⏸️ ${s.paused}` : ""}`,
+    `Режим: ${s.mode === "paper" ? "ДЕМО" : "LIVE"} | ${s.running ? "▶️ rodando" : "⏹️ parado"}${s.paused ? ` | ⏸️ ${s.paused}` : ""}`,
     `Walt: ${connected ? "conectado ✅" : "não conectado (/connect)"}`,
   ];
   if (s.grid) {
@@ -104,7 +113,7 @@ async function status(env: Env): Promise<string> {
     `Trades ${s.stats.trades} (✅${s.stats.wins} ❌${s.stats.losses}) | PnL realizado ~$${s.stats.realizedPnl.toFixed(2)}`,
   );
   if (s.mode === "paper")
-    lines.push(`Paper: patrimônio $${(s.lastPrice ? paperEquity(s, s.lastPrice) : s.paper.cash).toFixed(2)} (início $${s.paper.startCash})`);
+    lines.push(`ДЕМО: виртуальный капитал $${(s.lastPrice ? paperEquity(s, s.lastPrice) : s.paper.cash).toFixed(2)} (início $${s.paper.startCash})`);
   if (s.lastRecenter)
     lines.push(`Último recentro: ${s.lastRecenter.at} → $${s.lastRecenter.low}–$${s.lastRecenter.high} (preço $${s.lastRecenter.price})`);
   if (s.lastTick) lines.push(`Último tick: ${s.lastTick}`);
@@ -187,21 +196,7 @@ async function paperCmd(env: Env, args: string[]): Promise<string> {
   return `Carteira paper reiniciada com $${cash}.`;
 }
 
-/** Processa um update do Telegram (webhook direto ou encaminhado pelo tgcloud). */
+/** Route every private Telegram chat to its isolated tenant namespace. */
 export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
-  const msg = update.message;
-  if (!msg?.text) return;
-  const chatId = String(msg.chat.id);
-  if (!env.OWNER_CHAT_ID) {
-    await send(env, chatId, `Seu chat id é ${chatId}. Configure o secret OWNER_CHAT_ID com esse valor.`);
-    return;
-  }
-  if (chatId !== env.OWNER_CHAT_ID) return; // só o dono controla o bot
-  let reply: string;
-  try {
-    reply = await handleCommand(env, msg.text);
-  } catch (e) {
-    reply = `❌ ${(e as Error).message}`;
-  }
-  await send(env, chatId, reply);
+  await handleTenantUpdate(env, update);
 }

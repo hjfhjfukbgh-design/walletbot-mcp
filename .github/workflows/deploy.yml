@@ -63,23 +63,3 @@ jobs:
         env:
           TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
 
-  deploy-miniapp:
-    needs: test
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    environment: TELEGRAM_BOT_TOKEN
-    defaults:
-      run:
-        working-directory: miniapp
-    env:
-      TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-      - name: Push to Telegram Serverless
-        if: env.TGCLOUD_TOKEN != ''
-        run: |
-          npm install --no-audit --no-fund
-          npx tgcloud fetch
-          npx tgcloud push
-          npx tgcloud migrate --safe

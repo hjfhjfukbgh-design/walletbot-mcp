@@ -1,17 +1,30 @@
-// Mini App do walletbot-mcp: chama os endpoints do Telegram Serverless (que repassam ao Worker).
+// Mini App: API protegida por initData assinado do Telegram e servida pelo mesmo Worker.
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 
 const $ = (sel) => document.querySelector(sel);
-const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '—' : (+n).toLocaleString('pt-BR', { maximumFractionDigits: d, minimumFractionDigits: Math.min(d, 2) }));
+const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: Math.min(d, 2) }));
 const usd = (n, d = 2) => (n === null || n === undefined ? '—' : `$${fmt(n, d)}`);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
-function call(name, input = {}) {
-  return new Promise((resolve, reject) => {
-    tg.Serverless.call(name, input, (err, result) => (err ? reject(err) : resolve(result)));
+async function call(name, input = {}) {
+  const route = name === 'configure' ? 'grid' : name;
+  const method = name === 'configure' || name === 'control' ? 'POST' : 'GET';
+  const query = method === "GET"
+    ? Object.entries(input).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&")
+    : "";
+  const response = await fetch(`/api/${route}${query ? `?${query}` : ""}`, {
+    method,
+    headers: {
+      Authorization: `tma ${tg.initData}`,
+      ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(method === "POST" ? { body: JSON.stringify(input) } : {}),
   });
+  const data = await response.json().catch(() => ({ ok: false, error: `HTTP ${response.status}` }));
+  if (!response.ok || data.ok === false) throw new Error(data.error || `Ошибка API: ${response.status}`);
+  return data;
 }
 
 function showError(err) {
@@ -39,7 +52,10 @@ async function loadState() {
     state = await call('state');
     $('#alert').classList.add('hidden');
     renderState();
-    if (state.grid) loadChart(state.grid.market);
+    if (state.grid) {
+      loadChart(state.grid.market);
+      refreshQuote(state.grid.market);
+    }
   } catch (e) {
     showError(e);
   }
@@ -47,9 +63,9 @@ async function loadState() {
 
 function renderState() {
   const s = state;
-  $('#mode').textContent = s.mode.toUpperCase();
+  $('#mode').textContent = s.mode === 'paper' ? 'ДЕМО' : 'LIVE';
   $('#mode').className = `pill ${s.mode === 'live' ? 'live' : ''}`;
-  $('#run').textContent = s.paused ? 'pausado' : s.running ? 'rodando' : 'parado';
+  $('#run').textContent = s.paused ? 'пауза' : s.running ? 'работает' : 'остановлен';
   $('#run').className = `pill ${s.running && !s.paused ? 'on' : ''}`;
   $('#price').textContent = s.grid ? `${s.grid.market} ${usd(s.lastPrice, 2)}` : '—';
 
@@ -57,17 +73,17 @@ function renderState() {
     s.paused && ['pause', s.paused],
     s.lastBlock && ['ban', s.lastBlock],
     s.lastError && ['alert', s.lastError],
-    !s.connected && ['plug', 'Walt não conectado (/connect no bot)'],
+    s.mode === 'live' && !s.connected && ['plug', 'Walt не подключён (/connect в боте)'],
   ].filter(Boolean);
   $('#alert').innerHTML = notes.map(([ic, t]) => `<div class="note">${icon(ic)}<span>${esc(t)}</span></div>`).join('');
   $('#alert').classList.toggle('hidden', !notes.length);
 
   const g = s.grid;
-  $('#g-desc').textContent = g ? `${g.market} ${usd(g.low)}–${usd(g.high)} · ${g.levels} degraus de ${usd(g.step)}` : 'não configurado';
+  $('#g-desc').textContent = g ? `${g.market} ${usd(g.low)}–${usd(g.high)} · ${g.levels} уровней по ${usd(g.step)}` : 'не настроена';
   const rc = s.lastRecenter;
   $('#g-recenter-row').classList.toggle('hidden', !rc);
-  if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · preço ${usd(rc.price)}`;
-  $('#g-trade').textContent = g ? `margem ${usd(g.marginUsd)} ${g.leverage}x ≈ ${usd(g.notional)} · SL ${usd(g.stopLoss)}` : '—';
+  if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · preço ${usd(rc.price)}`;
+  $('#g-trade').textContent = g ? `маржа ${usd(g.marginUsd)} ${g.leverage}x ≈ ${usd(g.notional)} · SL ${usd(g.stopLoss)}` : '—';
 
   const p = s.position;
   const lp = s.livePosition;
@@ -88,26 +104,38 @@ function renderState() {
     }
     $('#pos').innerHTML = rows.map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('');
   } else {
-    $('#pos').textContent = g ? 'Nenhuma posição aberta — aguardando o preço entrar num degrau.' : 'Configure um grid em Controles.';
+    $('#pos').textContent = g ? 'Позиции нет — ждём входа цены на уровень сетки.' : 'Сначала настройте сетку в разделе «Настройки».';
   }
 
   const st = s.stats;
   const eq = s.mode === 'paper' ? s.paper?.equity : null;
+  $('#metric-trades').textContent = String(st.trades);
+  $('#metric-wins').textContent = `${st.wins}/${st.losses}`;
+  $('#metric-pnl').textContent = usd(st.realizedPnl, 4);
   $('#stats').innerHTML = [
     [`${st.trades}`, 'trades'],
     [`${st.wins}/${st.losses}`, 'TP / SL'],
-    [usd(st.realizedPnl, 4), 'PnL realizado'],
-    ...(eq !== null && eq !== undefined ? [[usd(eq), 'patrimônio paper']] : []),
-    [s.lastTick ? new Date(s.lastTick).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—', 'último tick'],
+    [usd(st.realizedPnl, 4), 'Результат закрытых сделок'],
+    ...(eq !== null && eq !== undefined ? [[usd(eq), 'капитал ДЕМО']] : []),
+    [s.lastTick ? new Date(s.lastTick).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '—', 'последнее обновление'],
   ]
     .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`)
     .join('');
 }
 
+async function refreshQuote(market) {
+  try {
+    const q = await call('price', { market, leverage: 3 });
+    $('#price').textContent = `${market} ${usd(q.price, 2)}`;
+  } catch (e) {
+    $('#price').textContent = `${market} · котировка недоступна`;
+  }
+}
+
 async function loadChart(market) {
   try {
     const c = await call('chart', { market });
-    $('#chart-src').textContent = c.source === 'hyperliquid' ? '· 15 min, 48 h' : '· preços do bot';
+    $('#chart-src').textContent = c.source === 'hyperliquid' ? 'Hyperliquid · 15 мин · 48 ч' : 'Локальные котировки';
     drawChart(c.candles);
   } catch (e) {
     $('#chart').innerHTML = `<text x="10" y="20" fill="currentColor" font-size="12">${esc(e.message)}</text>`;
@@ -116,43 +144,50 @@ async function loadChart(market) {
 
 function drawChart(candles) {
   const svg = $('#chart');
-  const W = 360, H = 220, P = 6;
+  const W = 360, H = 220, P = 8;
   const g = state.grid;
-  const closes = candles.map((c) => c[4]);
-  const lines = [];
-  if (g) lines.push(...g.levelPrices.map((v) => ({ v, cls: 'var(--hint)', dash: '2 3' })));
-  if (state.position) lines.push({ v: state.position.takeProfit, cls: 'var(--green)' }, { v: state.position.entryPrice, cls: 'var(--link)' });
-  const all = closes.concat(lines.map((l) => l.v)).filter((v) => Number.isFinite(v));
+  const valid = (candles || []).filter((c) => c.length >= 5 && c.slice(1, 5).every((v) => Number.isFinite(+v)));
+  const levels = g ? g.levelPrices.map((v) => ({ v, color: 'var(--hint)', dash: '3 4' })) : [];
+  if (state.position) levels.push(
+    { v: state.position.takeProfit, color: 'var(--green)' },
+    { v: state.position.entryPrice, color: 'var(--link)' },
+  );
+  const all = valid.flatMap((c) => [+c[2], +c[3]]).concat(levels.map((l) => l.v));
   if (!all.length) {
-    svg.innerHTML = '<text x="10" y="20" fill="currentColor" font-size="12">Sem dados ainda.</text>';
+    svg.innerHTML = '<text x="10" y="22" fill="currentColor" font-size="12">Нет данных для графика.</text>';
     return;
   }
-  // a escala segue preço + grid; o SL (normalmente bem abaixo) é desenhado preso na borda com o valor
   let lo = Math.min(...all), hi = Math.max(...all);
-  const pad = (hi - lo) * 0.04 || hi * 0.01;
+  const pad = (hi - lo) * .06 || hi * .01;
   lo -= pad; hi += pad;
   const y = (v) => H - P - ((v - lo) / (hi - lo)) * (H - 2 * P);
-  const x = (i) => P + (i / Math.max(1, closes.length - 1)) * (W - 2 * P);
-  let out = lines
-    .map((l) => `<line x1="0" x2="${W}" y1="${y(l.v)}" y2="${y(l.v)}" stroke="${l.cls}" stroke-width="1" ${l.dash ? `stroke-dasharray="${l.dash}"` : ''} vector-effect="non-scaling-stroke"/>`)
-    .join('');
+  const stepX = (W - 2 * P) / Math.max(1, valid.length);
+  const bodyW = Math.max(2, Math.min(7, stepX * .62));
+  let out = levels.map((l) =>
+    `<line x1="0" x2="${W}" y1="${y(l.v)}" y2="${y(l.v)}" stroke="${l.color}" stroke-width="1" ${l.dash ? `stroke-dasharray="${l.dash}"` : ''} vector-effect="non-scaling-stroke"/>`
+  ).join('');
+  for (let i = 0; i < valid.length; i++) {
+    const [, o, h, l, c] = valid[i].map(Number);
+    const x = P + stepX * (i + .5);
+    const rising = c >= o;
+    const color = rising ? 'var(--green)' : 'var(--red)';
+    const top = Math.min(y(o), y(c));
+    const height = Math.max(1.2, Math.abs(y(c) - y(o)));
+    out += `<line x1="${x}" x2="${x}" y1="${y(h)}" y2="${y(l)}" stroke="${color}" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    out += `<rect x="${x - bodyW/2}" y="${top}" width="${bodyW}" height="${height}" rx=".7" fill="${color}"/>`;
+  }
   const sl = g ? (state.position?.stopLoss ?? g.stopLoss) : null;
   if (Number.isFinite(sl)) {
     const ys = Math.min(H - 2, Math.max(2, y(sl)));
-    out += `<line x1="0" x2="${W}" y1="${ys}" y2="${ys}" stroke="var(--red)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
-    out += `<text x="${W - P}" y="${ys - 4}" text-anchor="end" fill="var(--red)" font-size="11">SL ${usd(sl)}</text>`;
-  }
-  if (closes.length > 1) {
-    const d = closes.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
-    out += `<path d="${d}" fill="none" stroke="var(--text)" stroke-width="1.6" vector-effect="non-scaling-stroke"/>`;
-    out += `<circle cx="${x(closes.length - 1)}" cy="${y(closes[closes.length - 1])}" r="3" fill="var(--link)"/>`;
+    out += `<line x1="0" x2="${W}" y1="${ys}" y2="${ys}" stroke="var(--red)" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+    out += `<text x="${W - P}" y="${ys - 4}" text-anchor="end" fill="var(--red)" font-size="10">SL ${usd(sl)}</text>`;
   }
   svg.innerHTML = out;
 }
 
 // ---------- pares ----------
 async function loadPairs() {
-  $('#pairs').textContent = 'Carregando…';
+  $('#pairs').textContent = 'Загрузка…';
   try {
     contracts = (await call('contracts')).contracts;
     renderPairs();
@@ -171,7 +206,7 @@ function renderPairs() {
         (c) => `<div class="item ${c.allowed ? '' : 'blocked'}" data-market="${esc(c.market)}">
       <div><div class="name">${esc(c.market)}</div>
       <div class="meta">vol 24h ${usd(c.volume24hUsd, 0)} · funding ${fmt((c.fundingRateHourly ?? 0) * 100, 4)}%/h · até ${c.maxLeverage}x</div></div>
-      <div class="tag">${c.allowed ? icon('chevron') : c.liquid ? 'bloqueado' : 'pouca liquidez'}</div></div>`,
+      <div class="tag">${c.allowed ? icon('chevron') : c.liquid ? 'недоступен' : 'низкая ликвидность'}</div></div>`,
       )
       .join('') || '<div class="card">Nenhum par encontrado.</div>';
 }
@@ -183,16 +218,16 @@ $('#pairs').addEventListener('click', async (ev) => {
   const market = item.dataset.market;
   const box = $('#pair-detail');
   box.classList.remove('hidden');
-  box.textContent = `Carregando ${market}…`;
+  box.textContent = `Загружаем ${market}…`;
   window.scrollTo({ top: 0, behavior: 'smooth' });
   try {
     const p = await call('price', { market, leverage: 3 });
     const c = contracts.find((x) => x.market === market);
     box.innerHTML = `<h3>${esc(market)}</h3>
       <div class="row"><span>Preço</span><b>${usd(p.price, 6)}</b></div>
-      <div class="row"><span>Margem mínima a ${p.leverage}x</span><b>${usd(p.minMargin)}</b></div>
+      <div class="row"><span>Минимальная маржа при ${p.leverage}x</span><b>${usd(p.minMargin)}</b></div>
       <div class="row"><span>Faixa sugerida (−6% / +2%)</span><b>${usd(p.suggestion.low, 6)} – ${usd(p.suggestion.high, 6)}</b></div>
-      <div class="row"><span>Taxa taker</span><b>${fmt((c?.takerFeePct ?? 0) * 100, 3)}%</b></div>
+      <div class="row"><span>Комиссия тейкера</span><b>${fmt((c?.takerFeePct ?? 0) * 100, 3)}%</b></div>
       ${c?.allowed ? `<button id="use-pair">${icon('sliders')}Usar no grid</button>` : '<p class="meta">Par fora dos critérios de liquidez/whitelist do bot.</p>'}`;
     const btn = $('#use-pair');
     if (btn)
@@ -218,7 +253,7 @@ async function loadHistory() {
     $('#trades').innerHTML = h.trades.length
       ? `<table><tr><th>Quando</th><th>Evento</th><th>Preço</th><th>PnL</th></tr>${h.trades
           .map((t) => {
-            const when = new Date(t.at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            const when = new Date(t.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
             const ev =
               t.event === 'open'
                 ? `<span class="ev ev-open">${icon('open')}long ${esc(t.market)}</span>`
@@ -231,7 +266,7 @@ async function loadHistory() {
             return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(paper)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
           })
           .join('')}</table>`
-      : 'Nenhum trade ainda.';
+      : 'Сделок пока нет.';
   } catch (e) {
     $('#trades').textContent = e.message;
   }
@@ -294,11 +329,11 @@ document.querySelectorAll('[data-action]').forEach((b) =>
     if (action === 'mode') {
       input.mode = b.dataset.mode;
       if (input.mode === 'live') {
-        if (!(await confirm('Modo LIVE usa dinheiro real em perpétuos alavancados. Confirmar?'))) return;
+        if (!(await confirm('LIVE использует реальные деньги и кредитное плечо. Подтверждаете?'))) return;
         input.confirm = true;
       }
     }
-    if (action === 'closeall' && !(await confirm('Fechar a posição do grid agora e parar o bot?'))) return;
+    if (action === 'closeall' && !(await confirm('Закрыть позицию и остановить сетку?'))) return;
     try {
       tg.HapticFeedback?.impactOccurred('light');
       const r = await call('control', input);

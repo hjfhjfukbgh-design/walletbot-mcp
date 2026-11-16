@@ -1,7 +1,7 @@
 import type { Env } from "./env";
 
 export interface TgUpdate {
-  message?: { chat: { id: number }; from?: { id: number }; text?: string };
+  message?: { chat: { id: number; type?: string }; from?: { id: number }; text?: string };
 }
 
 export async function tg(env: Env, method: string, body: unknown): Promise<unknown> {
@@ -38,20 +38,17 @@ export async function notifyOwner(env: Env, msgs: string[]): Promise<void> {
 }
 
 export const COMMANDS: Array<[string, string]> = [
-  ["help", "Ajuda"],
-  ["status", "Estado do bot, grid e PnL"],
-  ["connect", "Conectar a conta Walt (OAuth)"],
-  ["code", "Concluir o /connect: /code <endereço localhost>"],
-  ["conta", "Checar/criar a conta Perps do agente"],
-  ["saldo", "Saldo USDC no Walt"],
-  ["tools", "Listar tools do Walt"],
-  ["grid", "Configurar: /grid BTC 100000 110000 10 5 3"],
-  ["run", "Iniciar o grid"],
-  ["stop", "Parar o grid (posição fica com TP/SL)"],
-  ["closeall", "Fechar a posição do grid e parar"],
-  ["mode", "paper | live CONFIRMO"],
-  ["risk", "Ver travas de risco"],
-  ["resume", "Retomar após pausa automática"],
+  ["start", "Открыть главное меню"],
+  ["help", "Список команд"],
+  ["demo", "Включить демо без кошелька"],
+  ["live", "Запросить включение LIVE"],
+  ["status", "Состояние бота и результат"],
+  ["grid", "Настроить торговую сетку"],
+  ["run", "Запустить сетку"],
+  ["stop", "Остановить сетку"],
+  ["closeall", "Закрыть позицию и остановить"],
+  ["resume", "Снять автоматическую паузу"],
+  ["connect", "Подключить Walt для LIVE"],
 ];
 
 export function timingSafeEqual(a: string, b: string): boolean {

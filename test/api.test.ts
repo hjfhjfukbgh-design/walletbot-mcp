@@ -6,10 +6,11 @@ import { marketAllowed } from "../src/risk";
 import { defaultState, saveState } from "../src/state";
 import { minMargin } from "../src/strategy/grid";
 import { env } from "./helpers";
+import { tenantEnv } from "../src/tenants";
 
 const ctx = { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext;
-const call = (e: ReturnType<typeof env>, path: string, key?: string, init: RequestInit = {}) =>
-  handleApi(new Request(`https://w.dev/api/${path}`, { ...init, headers: key ? { "X-Api-Key": key } : {} }), e, ctx);
+const call = (e: ReturnType<typeof env>, path: string, key?: string, init: RequestInit = {}, userId = "12345") =>
+  handleApi(new Request(`https://w.dev/api/${path}`, { ...init, headers: { ...(key ? { "X-Api-Key": key } : {}), ...(userId ? { "X-Telegram-User-Id": userId } : {}) } }), e, ctx);
 
 describe("API da Mini App", () => {
   it("exige X-Api-Key correta", async () => {
@@ -17,6 +18,7 @@ describe("API da Mini App", () => {
     expect((await call(e, "state")).status).toBe(401);
     expect((await call(e, "state", "errada")).status).toBe(401);
     expect((await call(e, "state", "chave-teste")).status).toBe(200);
+    expect((await call(e, "state", "chave-teste", {}, "")).status).toBe(401);
   });
 
   it("recusa tudo se API_SECRET não estiver configurado", async () => {
@@ -28,7 +30,7 @@ describe("API da Mini App", () => {
     const e = env();
     const s = defaultState();
     pushEquity(s, 1000);
-    await saveState(e, s);
+    await saveState(tenantEnv(e, "12345"), s);
     const st = (await (await call(e, "state", "chave-teste")).json()) as { mode: string; grid: unknown };
     expect(st.mode).toBe("paper");
     expect(st.grid).toBeNull();
@@ -36,6 +38,17 @@ describe("API da Mini App", () => {
     expect(tr.trades).toEqual([]);
     expect(tr.equity).toHaveLength(1);
     expect((await call(e, "nada", "chave-teste")).status).toBe(404);
+  });
+
+  it("isola estado entre usuários Telegram", async () => {
+    const e = env();
+    const alice = defaultState();
+    alice.mode = "live";
+    await saveState(tenantEnv(e, "111"), alice);
+    const a = (await (await call(e, "state", "chave-teste", {}, "111")).json()) as { mode: string };
+    const b = (await (await call(e, "state", "chave-teste", {}, "222")).json()) as { mode: string };
+    expect(a.mode).toBe("live");
+    expect(b.mode).toBe("paper");
   });
 
   it("valida campos do grid", async () => {

@@ -4,7 +4,9 @@ import { handleUpdate } from "./commands";
 import type { Env } from "./env";
 import { handleCallback } from "./oauth";
 import { loadTools } from "./state";
-import { COMMANDS, notifyOwner, tg, timingSafeEqual, type TgUpdate } from "./telegram";
+import { handleTenantTick, listTenantIds, oauthTenantId, tenantEnv } from "./tenants";
+import { send } from "./telegram";
+import { COMMANDS, tg, timingSafeEqual, type TgUpdate } from "./telegram";
 
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -24,10 +26,12 @@ export default {
 
     if (req.method === "GET" && url.pathname === "/oauth/callback") {
       try {
-        await handleCallback(env, url.searchParams);
-        ctx.waitUntil(
-          notifyOwner(env, ["✅ Walt conectado! Use /tools para ver as tools e revisar o mapeamento."]),
-        );
+        const stateId = url.searchParams.get("state") ?? "";
+        const userId = await oauthTenantId(env, stateId);
+        if (!userId) throw new Error("OAuth state desconhecido ou expirado. Volte ao Telegram e use /connect novamente.");
+        const scoped = tenantEnv(env, userId);
+        await handleCallback(scoped, url.searchParams);
+        ctx.waitUntil(send(env, userId, "✅ Walt conectado! Use /tools para ver as tools e revisar o mapeamento."));
         return html("Walt conectado ✅", "Pode fechar esta página e voltar ao Telegram.");
       } catch (e) {
         return html("Falha na conexão", (e as Error).message, 400);
@@ -38,22 +42,18 @@ export default {
       const secret = url.searchParams.get("secret") ?? "";
       if (!env.TELEGRAM_WEBHOOK_SECRET || !timingSafeEqual(secret, env.TELEGRAM_WEBHOOK_SECRET))
         return new Response("forbidden", { status: 403 });
-      // Com o Telegram Serverless ligado o webhook é do tgcloud (que encaminha para /api/telegram);
-      // só registra o webhook direto no Worker quando não há Mini App configurada.
-      const webhook = env.MINIAPP_URL
-        ? "gerenciado pelo Telegram Serverless"
-        : await tg(env, "setWebhook", {
-            url: `${url.origin}/telegram`,
-            secret_token: env.TELEGRAM_WEBHOOK_SECRET,
-            allowed_updates: ["message"],
-            drop_pending_updates: true,
-          });
+      const webhook = await tg(env, "setWebhook", {
+        url: `${url.origin}/telegram`,
+        secret_token: env.TELEGRAM_WEBHOOK_SECRET,
+        allowed_updates: ["message"],
+        drop_pending_updates: true,
+      });
       const commands = await tg(env, "setMyCommands", {
         commands: COMMANDS.map(([command, description]) => ({ command, description })),
       });
       const menu = env.MINIAPP_URL
         ? await tg(env, "setChatMenuButton", {
-            menu_button: { type: "web_app", text: "Painel", web_app: { url: env.MINIAPP_URL } },
+            menu_button: { type: "web_app", text: "Панель", web_app: { url: env.MINIAPP_URL } },
           })
         : "sem MINIAPP_URL";
       return Response.json({ webhook, commands, menu });
@@ -69,14 +69,15 @@ export default {
       });
     }
 
-    return new Response("walletbot-mcp ok");
+    return env.ASSETS ? env.ASSETS.fetch(req) : new Response("static assets not configured", { status: 404 });
   },
 
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(
       (async () => {
-        // sem lock no KV: o plano grátis tem 1000 escritas/dia e o tick leva segundos (cron de 5 min)
-        await notifyOwner(env, await tick(env));
+        // Cada usuário roda em namespace isolado; notificações nunca vão para outro usuário.
+        const userIds = await listTenantIds(env);
+        await Promise.all(userIds.map((userId) => handleTenantTick(env, userId, tick)));
       })(),
     );
   },

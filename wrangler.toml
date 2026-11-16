@@ -2,6 +2,12 @@ name = "walletbot-mcp"
 main = "src/index.ts"
 compatibility_date = "2025-06-01"
 
+[assets]
+directory = "./miniapp/web"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/telegram", "/oauth/*", "/setup", "/tools.json"]
+
 # Estado do bot (tokens OAuth, grid, modo paper) — namespace "walletbot-mcp-STATE".
 [[kv_namespaces]]
 binding = "STATE"
@@ -27,9 +33,9 @@ RECENTER_UP_PCT = "2"
 # "*" = todos os contratos ativos do Walt com volume 24h >= MIN_VOLUME_24H_USD
 ALLOWED_MARKETS = "*"
 MIN_VOLUME_24H_USD = "1000000"
-# URL da Mini App no Telegram Serverless (https://app<id>.tgcloud.ai/), impressa pelo `npx tgcloud push`.
-# Com ela preenchida, /setup cria o botão de menu e NÃO mexe no webhook (que é do tgcloud).
-MINIAPP_URL = ""
+# Адрес Mini App, которая публикуется вместе с Worker на Cloudflare.
+# /setup устанавливает прямой webhook Telegram и кнопку меню.
+MINIAPP_URL = "https://walletbot-mcp.hjfhjfukbgh.workers.dev/"
 # Canal/grupo que recebe os alertas automáticos (o bot precisa ser admin com permissão de postar).
 # Vazio = alertas vão para OWNER_CHAT_ID.
 ALERT_CHAT_ID = ""

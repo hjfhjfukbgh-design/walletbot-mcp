@@ -78,15 +78,21 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
   const grid = state.grid!;
   const { cfg } = grid;
   const limits = riskLimits(env);
-  const walt = await connectWalt(env);
   const live = state.mode === "live";
+  if (live) {
+    state.running = false;
+    state.paused = "LIVE временно заблокирован до включения подтверждения каждой сделки и проверки лимитов риска";
+    msgs.push(`⏸️ ${state.paused}`);
+    return;
+  }
+  const walt = live ? await connectWalt(env) : null;
   if (live && !walt) {
     state.paused = "modo live sem conexão com o Walt (/connect)";
     msgs.push(`⏸️ Pausado: ${state.paused}`);
     return;
   }
 
-  const price = await currentPrice(cfg, walt);
+  const price = await currentPrice(cfg, live ? walt : null);
   state.lastPrice = price;
   pushPrice(state, cfg.market, price);
   if (live) {
@@ -204,14 +210,14 @@ export async function closeAll(env: Env): Promise<string> {
   const state = await loadState(env);
   if (!state.grid) return "Nenhum grid configurado.";
   const { cfg } = state.grid;
-  const walt = await connectWalt(env);
+  const walt = state.mode === "live" ? await connectWalt(env) : null;
   state.running = false;
   if (state.mode === "live") {
     if (!walt) return "Walt não conectado — feche a posição pelo app Walt.";
     if (await walt.openPosition(cfg.contract.contractId)) await walt.closePosition(cfg.contract.contractId);
     const pos = state.grid.position;
     if (pos) {
-      const price = await currentPrice(cfg, walt);
+      const price = await currentPrice(cfg, state.mode === "live" ? walt : null);
       await recordClose(env, state, pos, price, positionPnl(pos, price, cfg.contract.takerFeePct), "manual");
     }
     state.grid.position = undefined;
