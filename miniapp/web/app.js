@@ -82,9 +82,10 @@ $('#profile-demo').addEventListener('click', async () => {
 // Реальный режим намеренно заблокирован и не отправляет запросы к API.
 
 // ---------- abas ----------
-document.querySelectorAll('nav button').forEach((b) =>
+document.querySelectorAll('.bottom-nav button').forEach((b, index) =>
   b.addEventListener('click', () => {
-    document.querySelectorAll('nav button').forEach((x) => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.bottom-nav button').forEach((x) => x.classList.toggle('active', x === b));
+    $('#nav-indicator').style.transform = 'translateX(' + (index * 100) + '%)';
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.id === `tab-${b.dataset.tab}`));
     tg.HapticFeedback?.selectionChanged?.();
     if (b.dataset.tab === 'pares' && !contracts.length) loadPairs();
@@ -334,7 +335,7 @@ document.querySelectorAll('[data-top-sort]').forEach((b) => b.addEventListener('
 function renderMarketVisuals(source) {
   const items=[...source].filter(c=>Number.isFinite(+c.price)).sort((a,b)=>(b.volume24hUsd||0)-(a.volume24hUsd||0)).slice(0,12);
   const max=Math.max(1,...items.map(c=>+c.volume24hUsd||1));
-  $('#heatmap').innerHTML=items.map(c=>{const pct=Number(c.change24hPct||0),strength=Math.min(1,Math.abs(pct)/8),hue=pct>=0?145:0,light=86-strength*48,ratio=Math.max(0.01,(+c.volume24hUsd||1)/max),span=Math.max(1,Math.min(12,Math.round(Math.sqrt(ratio)*12))),rowSpan=Math.max(1,Math.min(4,Math.round(Math.sqrt(ratio)*4)));return `<button type="button" class="heat-cell" style="grid-column:span ${span};grid-row:span ${rowSpan};background:hsl(${hue} 62% ${light}%)" data-heat-market="${esc(c.market)}"><b>${esc(c.market)}</b><small>${signedPct(pct)}</small></button>`;}).join('')||'<div class="market-loading">Нет данных для тепловой карты.</div>';
+  $('#heatmap').innerHTML=items.map(c=>{const pct=Number(c.change24hPct||0),strength=Math.min(1,Math.abs(pct)/8),hue=pct>=0?145:0,light=58-strength*26,ratio=Math.max(0.01,(+c.volume24hUsd||1)/max),span=Math.max(1,Math.min(12,Math.round(Math.sqrt(ratio)*12))),rowSpan=Math.max(1,Math.min(4,Math.round(Math.sqrt(ratio)*4)));return `<button type="button" class="heat-cell" style="grid-column:span ${span};grid-row:span ${rowSpan};background:hsl(${hue} 62% ${light}%)" data-heat-market="${esc(c.market)}"><b>${esc(c.market)}</b><small>${signedPct(pct)}</small></button>`;}).join('')||'<div class="market-loading">Нет данных для тепловой карты.</div>';
   const ranked=[...source].sort((a,b)=>topSort==='up'?(b.change24hPct||0)-(a.change24hPct||0):(a.change24hPct||0)-(b.change24hPct||0)).slice(0,8);
   $('#top-day').innerHTML=ranked.map(c=>`<button type="button" class="top-coin" data-heat-market="${esc(c.market)}"><span>${esc(c.market.slice(0,1))}</span><b>${esc(c.market)}</b><small class="${(c.change24hPct||0)>=0?'up':'down'}">${signedPct(c.change24hPct||0)}</small></button>`).join('');
 }
@@ -371,7 +372,7 @@ $('#pairs').addEventListener('click', async (ev) => {
       '<div class="section-title">Подробнее</div><div class="card asset-tech">' +
       '<div class="row"><span>Объём за 24 часа</span><b>' + usd(c?.volume24hUsd, 0) + '</b></div>' +
       '<div class="row"><span>Фандинг за час <button type="button" class="help-dot" data-help="funding">?</button></span><b>' + (Number.isFinite(funding) ? (funding >= 0 ? '+' : '') + fmt(funding, 4) + '%' : '—') + '</b></div>' +
-      '<div class="row"><span>Максимальное плечо рынка</span><b>' + (c?.maxLeverage ?? '—') + 'x</b></div>' +
+      '<div class="row"><span>Доступное плечо</span><b>' + (c?.maxLeverage ?? '—') + 'x</b></div>' +
       '<div class="row"><span>Комиссия тейкера</span><b>' + fmt((c?.takerFeePct ?? 0) * 100, 3) + '%</b></div>' +
       '<div class="row"><span>Минимальная маржа</span><b>' + usd(p.minMargin) + '</b></div>' +
       '<div class="row"><span>Рекомендуемый диапазон</span><b>' + usd(p.suggestion.low, moneyDecimals(p.suggestion.low)) + ' – ' + usd(p.suggestion.high, moneyDecimals(p.suggestion.high)) + '</b></div></div>' +
