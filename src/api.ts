@@ -14,7 +14,7 @@ import { buyPrice, minMargin, notional, step, stopLossPrice } from "./strategy/g
 import { timingSafeEqual, type TgUpdate } from "./telegram";
 import { findContract } from "./walt";
 import { tenantEnv } from "./tenants";
-import { parseFixed, PRICE_SCALE } from "./trading/money";
+import { MONEY_SCALE, parseFixed, PRICE_SCALE, pnlMicro } from "./trading/money";
 import { closeManualTrade, manualPositionsView, monitorManualTrades, openManualTrade } from "./manual";
 
 type Json = Record<string, unknown>;
@@ -46,20 +46,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
     switch (route) {
       case "GET demo":
         return engineRequest(env, "/account?userId=" + encodeURIComponent(telegramUserId));
-      case "POST demo/open": {
-        const symbol = String(body.symbol ?? "").toUpperCase();
-        const leverage = Number(body.leverage);
-        const maxLeverage = riskLimits(env).maxLeverage;
-        if (!symbol) return fail("Не указан торговый актив.");
-        if (!Number.isSafeInteger(leverage) || leverage < 1 || leverage > maxLeverage)
-          return fail(`Максимальное плечо демо-счёта: ${maxLeverage}×.`);
-        const mid = await publicMid(symbol);
-        if (!Number.isFinite(mid) || mid <= 0) return fail("Не удалось получить свежую цену актива.", 503);
-        const price = parseFixed(mid.toFixed(8), PRICE_SCALE, 8);
-        const quote = await engineRequest(env, "/quote", { symbol, price: price.toString(), observedAt: Date.now() });
-        if (!quote.ok) return quote;
-        return engineRequest(env, "/open", { ...body, symbol, userId: telegramUserId, mode: "demo" });
-      }
+      case "POST demo/open":
+        return openDemoTrade(env, telegramUserId, body);
       case "POST demo/close":
         return engineRequest(env, "/close", { ...body, userId: telegramUserId });
       case "GET state":
@@ -101,6 +89,97 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
   } catch (e) {
     return fail((e as Error).message, 500);
   }
+}
+
+ 
+/**
+ * Enforce all DEMO order limits on the trusted server. Never accept fees,
+ * slippage, leverage limits, market eligibility, or account sizing from the client.
+ */
+async function openDemoTrade(env: Env, userId: string, body: Json): Promise<Response> {
+  const symbol = String(body.symbol ?? "").trim().toUpperCase();
+  const side = String(body.side ?? "");
+  const leverage = Number(body.leverage);
+  const limits = riskLimits(env);
+  if (!/^[A-Z0-9:_-]{2,32}$/.test(symbol)) return fail("Некорректный торговый актив.");
+  if (side !== "long" && side !== "short") return fail("Направление должно быть LONG или SHORT.");
+  if (!Number.isSafeInteger(leverage) || leverage < 1 || leverage > limits.maxLeverage)
+    return fail(`Максимальное плечо демо-счёта: ${limits.maxLeverage}×.`);
+
+  const rawMargin = String(body.marginMicro ?? "");
+  if (!/^\\d{1,18}$/.test(rawMargin)) return fail("Некорректная сумма маржи.");
+  const marginMicro = BigInt(rawMargin);
+  if (marginMicro <= 0n) return fail("Маржа должна быть положительной.");
+
+  const contracts = await publicContracts();
+  const contract = contracts.find((item) => item.name.replace(/-USDC?$/i, "").toUpperCase() === symbol);
+  if (!contract) return fail("Этот актив сейчас недоступен для демо-торговли.");
+  if (!marketAllowed(limits, symbol)) return fail("Этот рынок не входит в список разрешённых.", 403);
+  if ((contract.volume24hUsd ?? 0) < limits.minVolume24hUsd)
+    return fail("Недостаточная ликвидность рынка для демо-сделки.");
+  const allowedLeverage = Math.min(limits.maxLeverage, contract.maxLeverage);
+  if (leverage > allowedLeverage) return fail(`Для этого актива доступно плечо не выше ${allowedLeverage}×.`);
+
+  const notionalMicro = marginMicro * BigInt(leverage);
+  const minNotional = BigInt(Math.ceil(contract.minSizeQuote * Number(MONEY_SCALE)));
+  const maxNotional = BigInt(Math.floor(contract.maxSizeQuote * Number(MONEY_SCALE)));
+  if (notionalMicro < minNotional || notionalMicro > maxNotional)
+    return fail(`Объём позиции должен быть от ${contract.minSizeQuote} до ${contract.maxSizeQuote} USDC.`);
+
+  const accountResponse = await engineRequest(env, "/account?userId=" + encodeURIComponent(userId));
+  if (!accountResponse.ok) return accountResponse;
+  const account = await accountResponse.json() as {
+    balanceMicro: string;
+    positions: Array<{ symbol: string; side: "long" | "short"; marginMicro: string; qtyUnits: string; entryPrice: string }>;
+  };
+  const balanceMicro = BigInt(account.balanceMicro);
+  let openMarginMicro = 0n;
+  let unrealizedMicro = 0n;
+  const marks = new Map<string, number>();
+  for (const position of account.positions ?? []) {
+    openMarginMicro += BigInt(position.marginMicro);
+    let mark = marks.get(position.symbol);
+    if (mark === undefined) {
+      mark = await publicMid(position.symbol);
+      marks.set(position.symbol, mark);
+    }
+    const markUnits = parseFixed(mark.toFixed(8), PRICE_SCALE, 8);
+    unrealizedMicro += pnlMicro(position.side, BigInt(position.qtyUnits), BigInt(position.entryPrice), markUnits);
+  }
+  const equityMicro = balanceMicro + openMarginMicro + unrealizedMicro;
+  if (equityMicro <= 0n) return fail("Демо-капитал исчерпан. Новые позиции заблокированы.");
+  const orderLimitBps = BigInt(Math.max(0, Math.round(limits.maxOrderPct * 100)));
+  const exposureLimitBps = BigInt(Math.max(0, Math.round(limits.maxTotalExposurePct * 100)));
+  if (marginMicro * 10_000n > equityMicro * orderLimitBps)
+    return fail(`Маржа превышает лимит одной сделки (${limits.maxOrderPct}% капитала).`);
+  if ((openMarginMicro + marginMicro) * 10_000n > equityMicro * exposureLimitBps)
+    return fail(`Общая маржа превысит лимит ${limits.maxTotalExposurePct}% капитала.`);
+
+  const mid = await publicMid(symbol);
+  if (!Number.isFinite(mid) || mid <= 0) return fail("Не удалось получить свежую цену актива.", 503);
+  const price = parseFixed(mid.toFixed(8), PRICE_SCALE, 8);
+  const quote = await engineRequest(env, "/quote", { symbol, price: price.toString(), observedAt: Date.now() });
+  if (!quote.ok) return quote;
+
+  const optionalPrice = (value: unknown, label: string): string | null | Response => {
+    if (value == null || value === "") return null;
+    const raw = String(value);
+    if (!/^\\d{1,30}$/.test(raw) || BigInt(raw) <= 0n) return fail(`Некорректное значение ${label}.`);
+    return raw;
+  };
+  const takeProfitPrice = optionalPrice(body.takeProfitPrice, "TP");
+  if (takeProfitPrice instanceof Response) return takeProfitPrice;
+  const stopLossPrice = optionalPrice(body.stopLossPrice, "SL");
+  if (stopLossPrice instanceof Response) return stopLossPrice;
+
+  // Contract parameters are server-derived. Client-supplied feePpm/slippagePpm are ignored.
+  const feePpm = String(Math.max(0, Math.round(contract.takerFeePct * 1_000_000)));
+  const slippagePpm = String(Math.max(0, Math.round(contract.priceSlippage * 1_000_000)));
+  return engineRequest(env, "/open", {
+    symbol, side, marginMicro: marginMicro.toString(), leverage: String(leverage),
+    takeProfitPrice, stopLossPrice, feePpm, slippagePpm,
+    userId, mode: "demo",
+  });
 }
 
 async function control(env: Env, body: Json): Promise<string> {
