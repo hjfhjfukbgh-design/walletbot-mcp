@@ -62,7 +62,7 @@ try {
     await page.route("https://telegram.org/js/telegram-web-app.js",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     await page.waitForTimeout(1800);
-    await page.screenshot({path:`wallet-${width}x844.png`,fullPage:true});
+    await page.screenshot({path:`wallet-${width}x844.png`,fullPage:false});
     await page.close();
   }
 } finally {
