@@ -194,7 +194,7 @@ function drawChart(candles, target = 'chart', market = '') {
     { v: state.position.entryPrice, color: 'var(--link)' },
   );
   const all = valid.flatMap((c) => [+c[2], +c[3]]).concat(levels.map((l) => l.v));
-  if (!all.length) {
+  if (!valid.length) {
     svg.innerHTML = '<text x="10" y="22" fill="currentColor" font-size="12">Нет данных для графика.</text>';
     return;
   }
