@@ -49,8 +49,9 @@ server.listen(4173,"127.0.0.1");
 
 const browser = await chromium.launch({headless:true});
 try {
-  for (const width of [390,430]) {
-    const page = await browser.newPage({viewport:{width,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
+  for (const device of [{width:390,height:844},{width:430,height:932}]) {
+    const {width,height}=device;
+    const page = await browser.newPage({viewport:{width,height},deviceScaleFactor:3,isMobile:true,hasTouch:true});
     await page.addInitScript(()=>{
       localStorage.setItem("kripto-guru:onboarding:v1","done");
       localStorage.setItem("kg:recent:v1", JSON.stringify(["BTC","ETH"]));
@@ -63,16 +64,16 @@ try {
     await page.route("https://telegram.org/js/telegram-web-app.js",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     await page.waitForTimeout(1800);
-    await page.screenshot({path:`wallet-${width}x844.png`,fullPage:false});
+    await page.screenshot({path:`wallet-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator('nav button[data-tab="pares"]').click();
     await page.waitForTimeout(900);
-    await page.screenshot({path:`trade-${width}x844.png`,fullPage:false});
+    await page.screenshot({path:`trade-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#pairs").scrollIntoViewIfNeeded();
     await page.waitForTimeout(250);
-    await page.screenshot({path:`trade-list-${width}x844.png`,fullPage:false});
+    await page.screenshot({path:`trade-list-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#pairs .market-row").first().click();
     await page.waitForTimeout(1100);
-    await page.screenshot({path:`asset-${width}x844.png`,fullPage:false});
+    await page.screenshot({path:`asset-${width}x${height}-dsf3.png`,fullPage:false});
     await page.close();
   }
 } finally {
