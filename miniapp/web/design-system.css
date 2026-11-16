@@ -216,9 +216,9 @@ body.asset-open main{padding-top:5px}
 .asset-trade-bar .long-button{background:var(--kg-blue)}.asset-trade-bar .short-button{background:var(--kg-blue)}
 .ticket-market-chip{display:flex;justify-content:center;align-items:center;gap:6px;min-height:36px;padding:7px 10px;border-radius:999px;background:#F2F2F7;color:#636366;font-size:11px}
 .ticket-market-chip b{color:var(--kg-text);font-variant-numeric:tabular-nums}
-.ticket-amount-wrap{display:flex;align-items:center;gap:7px;margin:18px 0 4px}
+.ticket-amount-wrap{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:7px;width:100%;box-sizing:border-box;margin:18px 0 4px}
 .ticket-amount-wrap>span{color:#AEAEB2;font-size:27px;font-weight:650}
-.ticket-amount-wrap .number-input{display:block;box-sizing:border-box;width:100%;min-width:0;flex:1 1 0}
+.ticket-amount-wrap .number-input{display:block;grid-column:2;box-sizing:border-box;width:100%;min-width:0;max-width:100%;flex:none}
 .ticket-volume{margin:0 0 9px;color:var(--kg-muted);font-size:12px}.ticket-volume b{color:var(--kg-text);font-variant-numeric:tabular-nums}
 .ticket-available{display:flex;align-items:center;gap:5px;color:var(--kg-muted);font-size:11px}.ticket-available b{color:var(--kg-text);font-variant-numeric:tabular-nums}.ticket-available .text-action{margin-left:auto}
 .ticket-actions{display:flex;justify-content:space-between;gap:8px;margin:18px 0 4px}.ticket-actions .sheet-chip{min-height:38px}
