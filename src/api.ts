@@ -22,13 +22,23 @@ const fail = (error: string, status = 400) => json({ ok: false, error }, status)
 
 export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const key = req.headers.get("X-Api-Key") ?? "";
-  if (!env.API_SECRET || !timingSafeEqual(key, env.API_SECRET)) return fail("unauthorized", 401);
   const url = new URL(req.url);
-  const route = `${req.method} ${url.pathname.replace(/^\/api\//, "")}`;
+  const route = `${req.method} ${url.pathname.replace(/^\\/api\\//, "")}`;
   const body = req.method === "POST" ? ((await req.json().catch(() => ({}))) as Json) : {};
-  const telegramUserId = req.headers.get("X-Telegram-User-Id") ?? "";
-  if (route !== "POST telegram" && !/^\d{1,20}$/.test(telegramUserId))
-    return fail("Telegram user authentication required", 401);
+  let telegramUserId = "";
+
+  if (route === "POST telegram") {
+    if (!env.API_SECRET || !timingSafeEqual(key, env.API_SECRET)) return fail("unauthorized", 401);
+  } else {
+    const authorization = req.headers.get("Authorization") ?? "";
+    if (authorization.startsWith("tma ")) {
+      telegramUserId = (await validateTelegramInitData(authorization.slice(4), env.TELEGRAM_BOT_TOKEN)) ?? "";
+    } else if (env.API_SECRET && timingSafeEqual(key, env.API_SECRET)) {
+      telegramUserId = req.headers.get("X-Telegram-User-Id") ?? "";
+    }
+    if (!/^\\d{1,20}$/.test(telegramUserId)) return fail("Требуется открыть приложение через Telegram.", 401);
+  }
+  if (route !== "POST telegram" && !/^\\d{1,20}$/.test(telegramUserId)) return fail("Telegram user authentication required", 401);
   const scopedEnv = telegramUserId ? tenantEnv(env, telegramUserId) : env;
   if (telegramUserId) {
     await env.STATE.put("tenant:user:" + telegramUserId, JSON.stringify({ chatId: telegramUserId, createdAt: new Date().toISOString() }));
@@ -187,4 +197,31 @@ async function chartView(env: Env, market: string) {
   const s = await loadState(env);
   const points = s.prices?.market === m ? s.prices.points : [];
   return { source: "ticks", candles: points.map(([t, p]) => [t, p, p, p, p]) };
+}
+
+/** Validate Telegram Mini App initData and return the signed Telegram user ID. */
+async function validateTelegramInitData(initData: string, botToken: string): Promise<string | null> {
+  if (!initData || !botToken) return null;
+  try {
+    const params = new URLSearchParams(initData);
+    const hash = params.get("hash") ?? "";
+    const authDate = Number(params.get("auth_date") ?? 0);
+    const now = Math.floor(Date.now() / 1000);
+    if (!/^[a-f0-9]{64}$/i.test(hash) || !Number.isFinite(authDate) || authDate < now - 86_400 || authDate > now + 60) return null;
+    params.delete("hash");
+    const checkString = [...params.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, v]) => `${k}=${v}`).join("\\n");
+    const encoder = new TextEncoder();
+    const hmac = async (keyBytes: Uint8Array, data: string) => {
+      const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+      return new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(data)));
+    };
+    const secret = await hmac(encoder.encode("WebAppData"), botToken);
+    const actual = [...await hmac(secret, checkString)].map((v) => v.toString(16).padStart(2, "0")).join("");
+    if (actual.length !== hash.length) return null;
+    let mismatch = 0;
+    for (let i = 0; i < actual.length; i++) mismatch |= actual.charCodeAt(i) ^ hash.toLowerCase().charCodeAt(i);
+    if (mismatch !== 0) return null;
+    const user = JSON.parse(params.get("user") ?? "{}") as { id?: number | string };
+    return user.id && /^\\d{1,20}$/.test(String(user.id)) ? String(user.id) : null;
+  } catch { return null; }
 }
