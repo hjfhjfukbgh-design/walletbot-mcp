@@ -60,3 +60,25 @@ nav button { flex-direction:column; gap:4px; padding:6px 0 3px; background:trans
 .chart-tools select,.chart-detail-head select { width:auto; min-width:64px; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:#111720; color:var(--text); font:inherit; font-size:11px; }
 .quote-price { margin-left:8px; color:var(--text); font-variant-numeric:tabular-nums; }
 .chart-detail-head { justify-content:space-between; margin:14px 0 6px; color:var(--hint); font-size:12px; }
+
+
+/* Walt-like account menu: trading mode lives behind the profile icon. */
+.top-actions { display:flex; align-items:center; gap:7px; position:relative; }
+.profile-trigger { width:34px; height:34px; padding:0; border-radius:50%; background:#253346; border:1px solid rgba(155,180,210,.2); color:#dce9f8; }
+.profile-trigger .ic { width:18px; height:18px; }
+.profile-menu { position:absolute; z-index:20; top:calc(100% + 12px); right:0; width:min(290px, calc(100vw - 28px)); padding:13px; border:1px solid rgba(173,190,211,.18); border-radius:17px; background:#171e28; box-shadow:0 18px 48px #0009; }
+.profile-menu-head { display:flex; align-items:center; gap:10px; padding:3px 3px 13px; border-bottom:1px solid var(--line); }
+.profile-avatar { width:36px; height:36px; display:grid; place-items:center; border-radius:50%; background:#263b55; color:#a9ceff; }
+.profile-avatar .ic { width:19px; height:19px; }
+.profile-menu-head b,.profile-menu-head small,.mode-option b,.mode-option small { display:block; }
+.profile-menu-head small,.mode-option small { margin-top:2px; color:var(--hint); font-size:10px; font-weight:500; }
+.profile-menu-label { margin:14px 3px 7px; color:var(--hint); font-size:9px; font-weight:800; letter-spacing:.8px; }
+.mode-option { display:flex; align-items:center; justify-content:space-between; width:100%; margin-top:6px; padding:11px 10px; border:1px solid transparent; border-radius:11px; background:#202a37; color:var(--text); text-align:left; }
+.mode-option > span { display:block; }
+.mode-option > .ic { color:var(--green); }
+.mode-option.selected { border-color:#287b61; background:#15352e; }
+.mode-option.locked { opacity:.52; cursor:not-allowed; background:#202630; }
+.mode-option.locked .ic { color:var(--hint); }
+.profile-menu-note { margin:10px 3px 2px; color:var(--hint); font-size:10px; line-height:1.45; }
+.demo-pill { color:#8ee5c3; border-color:#24624d; background:#15372e; }
+.soft-tag { padding:4px 7px; border-radius:7px; color:#8ee5c3; background:#15372e; font-size:9px; font-weight:800; letter-spacing:.5px; }

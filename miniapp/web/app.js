@@ -36,6 +36,35 @@ function showError(err) {
 let state = null;
 let contracts = [];
 
+// ---------- menu do perfil e modo ---------- 
+const profileTrigger = $('#profile-trigger');
+const profileMenu = $('#profile-menu');
+function closeProfileMenu() {
+  profileMenu.classList.add('hidden');
+  profileTrigger.setAttribute('aria-expanded', 'false');
+}
+profileTrigger.addEventListener('click', (event) => {
+  event.stopPropagation();
+  const opening = profileMenu.classList.contains('hidden');
+  profileMenu.classList.toggle('hidden', !opening);
+  profileTrigger.setAttribute('aria-expanded', String(opening));
+});
+profileMenu.addEventListener('click', (event) => event.stopPropagation());
+document.addEventListener('click', closeProfileMenu);
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeProfileMenu(); });
+$('#profile-demo').addEventListener('click', async () => {
+  closeProfileMenu();
+  if (state?.mode === 'paper') return;
+  try {
+    const result = await call('control', { action: 'mode', mode: 'paper' });
+    ctrlMessage(result.message);
+    await loadState();
+  } catch (error) {
+    showError(error);
+  }
+});
+// Реальный режим намеренно заблокирован и не отправляет запросы к API.
+
 // ---------- abas ----------
 document.querySelectorAll('nav button').forEach((b) =>
   b.addEventListener('click', () => {
@@ -64,7 +93,8 @@ async function loadState() {
 function renderState() {
   const s = state;
   $('#mode').textContent = s.mode === 'paper' ? 'ДЕМО' : 'LIVE';
-  $('#mode').className = `pill ${s.mode === 'live' ? 'live' : ''}`;
+  $('#mode').className = `pill ${s.mode === 'live' ? 'live' : 'demo-pill'}`;
+  $('#profile-demo').classList.toggle('selected', s.mode === 'paper');
   $('#run').textContent = s.paused ? 'пауза' : s.running ? 'работает' : 'остановлен';
   $('#run').className = `pill ${s.running && !s.paused ? 'on' : ''}`;
   $('#price').textContent = s.grid ? `${s.grid.market} ${usd(s.lastPrice, 2)}` : '—';
