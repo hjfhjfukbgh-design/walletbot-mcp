@@ -15,7 +15,7 @@ import { timingSafeEqual, type TgUpdate } from "./telegram";
 import { findContract } from "./walt";
 import { tenantEnv } from "./tenants";
 import { MONEY_SCALE, parseFixed, PRICE_SCALE, pnlMicro } from "./trading/money";
-import { closeManualTrade, manualPositionsView, monitorManualTrades, openManualTrade } from "./manual";
+import { closeManualTrade, manualPositionsView, openManualTrade } from "./manual";
 
 type Json = Record<string, unknown>;
 
@@ -51,7 +51,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
       case "POST demo/close":
         return engineRequest(env, "/close", { ...body, userId: telegramUserId });
       case "GET state":
-        await monitorManualTrades(scopedEnv);
+        // Read-only polling must not run the legacy KV position monitor:
+        // scheduled processing is the single monitor for that compatibility path.
         return json({ ok: true, ...(await stateView(scopedEnv)) });
       case "GET contracts":
         return json({ ok: true, contracts: await contractsView(scopedEnv) });
