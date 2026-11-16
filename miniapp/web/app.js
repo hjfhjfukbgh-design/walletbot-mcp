@@ -501,6 +501,8 @@ async function loadMarketPreview() {
   try {
     contracts = (await call('contracts')).contracts;
     lastQuoteUpdate = new Date();
+    const connection = $('#asset-connection');
+    if (connection) { connection.textContent = 'Обновлено ' + lastQuoteUpdate.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); connection.className = 'asset-connection updated'; }
     renderPairs();
     if (state) renderState();
     if (selectedMarket && !$('#pair-detail').classList.contains('hidden')) {
