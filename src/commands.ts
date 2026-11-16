@@ -7,6 +7,7 @@ import { notional, step } from "./strategy/grid";
 import { COMMANDS, notifyOwner, type TgUpdate } from "./telegram";
 import { handleTenantUpdate } from "./tenants";
 import { previewReason } from "./walt";
+import { loadManualPositions } from "./manual";
 
 /** Processa um comando do dono e devolve a resposta em texto. */
 export async function handleCommand(env: Env, text: string): Promise<string> {
@@ -188,6 +189,7 @@ async function paperCmd(env: Env, args: string[]): Promise<string> {
   if (args[0] !== "reset") return "Использование: /paper reset [сумма]";
   const s = await loadState(env);
   if (s.mode !== "paper") return "Доступно только в демо-режиме.";
+  if ((await loadManualPositions(env)).length) return "Перед сбросом закройте все ручные демо-позиции.";
   const cash = Number(args[1] ?? 1000);
   if (!(cash > 0)) return "Некорректный баланс.";
   const fresh = defaultState();

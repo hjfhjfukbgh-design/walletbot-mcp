@@ -6,6 +6,7 @@ import { cachedContracts, loadState, saveState } from "./state";
 import { marketAllowed } from "./risk";
 import { notional, sizeError, step, stopLossPrice, validateConfig, type GridConfig } from "./strategy/grid";
 import { findContract, type Walt } from "./walt";
+import { loadManualPositions } from "./manual";
 
 export async function walt(env: Env): Promise<Walt> {
   const w = await connectWalt(env);
@@ -84,6 +85,7 @@ export async function configureGrid(env: Env, args: string[]): Promise<string> {
 export async function runGrid(env: Env): Promise<string> {
   const s = await loadState(env);
   if (!s.grid) return "Сначала настройте сетку командой /grid.";
+  if (s.mode === "paper" && (await loadManualPositions(env)).length) return "Сначала закройте все ручные демо-позиции, затем запускайте сетку.";
   const price = await currentPrice(s.grid.cfg, s.mode === "live" ? await connectWalt(env) : null);
   const { low, high } = s.grid.cfg;
   const warn =

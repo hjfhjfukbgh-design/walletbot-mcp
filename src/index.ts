@@ -6,6 +6,7 @@ import { handleCallback } from "./oauth";
 import { loadTools } from "./state";
 import { handleTenantTick, listTenantIds, oauthTenantId, tenantEnv } from "./tenants";
 import { send } from "./telegram";
+import { monitorManualTrades } from "./manual";
 import { COMMANDS, tg, timingSafeEqual, type TgUpdate } from "./telegram";
 
 export default {
@@ -77,7 +78,7 @@ export default {
       (async () => {
         // Cada usuário roda em namespace isolado; notificações nunca vão para outro usuário.
         const userIds = await listTenantIds(env);
-        await Promise.all(userIds.map((userId) => handleTenantTick(env, userId, tick)));
+        await Promise.all(userIds.map((userId) => handleTenantTick(env, userId, async (scoped) => [...await tick(scoped), ...await monitorManualTrades(scoped)])));
       })(),
     );
   },
