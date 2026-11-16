@@ -1,3 +1,4 @@
+import { applyAdverseSlippage, applyEntrySlippage } from "../src/trading/positions";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { Miniflare } from "miniflare";
 import { build } from "esbuild";
@@ -152,5 +153,21 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     await quote(stub, 48_000n * P);
     const after = await post(stub, "/reconcile", {});
     expect(after.body.openPositions).toBe(0);
+  });
+});
+
+
+describe("DEMO execution price modelling", () => {
+  const mid = 50_000n * P;
+  const slip = 1_000n; // 0.1%
+
+  it("applies adverse entry slippage in the direction of the opening order", () => {
+    expect(applyEntrySlippage(mid, "long", slip)).toBe(50_050n * P);
+    expect(applyEntrySlippage(mid, "short", slip)).toBe(49_950n * P);
+  });
+
+  it("applies adverse exit slippage in the direction of the closing order", () => {
+    expect(applyAdverseSlippage(mid, "long", slip)).toBe(49_950n * P);
+    expect(applyAdverseSlippage(mid, "short", slip)).toBe(50_050n * P);
   });
 });
