@@ -107,7 +107,7 @@ async function openDemoTrade(env: Env, userId: string, body: Json): Promise<Resp
     return fail(`Максимальное плечо демо-счёта: ${limits.maxLeverage}×.`);
 
   const rawMargin = String(body.marginMicro ?? "");
-  if (!/^\\d{1,18}$/.test(rawMargin)) return fail("Некорректная сумма маржи.");
+  if (!/^\d{1,18}$/.test(rawMargin)) return fail("Некорректная сумма маржи.");
   const marginMicro = BigInt(rawMargin);
   if (marginMicro <= 0n) return fail("Маржа должна быть положительной.");
 
@@ -164,7 +164,7 @@ async function openDemoTrade(env: Env, userId: string, body: Json): Promise<Resp
   const optionalPrice = (value: unknown, label: string): string | null | Response => {
     if (value == null || value === "") return null;
     const raw = String(value);
-    if (!/^\\d{1,30}$/.test(raw) || BigInt(raw) <= 0n) return fail(`Некорректное значение ${label}.`);
+    if (!/^\d{1,30}$/.test(raw) || BigInt(raw) <= 0n) return fail(`Некорректное значение ${label}.`);
     return raw;
   };
   const takeProfitPrice = optionalPrice(body.takeProfitPrice, "TP");
