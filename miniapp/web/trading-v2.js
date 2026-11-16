@@ -203,7 +203,7 @@
     };
     input.addEventListener("input",update);
     update();
-    $v("#ticket-max",ticketOverlay).addEventListener("click",()=>{input.value=money(available,2).replace(/\s/g,"").replace(",",".");update();});
+    $v("#ticket-max",ticketOverlay).addEventListener("click",()=>{input.value=money(available/(1+s.leverage*.00035),2).replace(/\s/g,"").replace(",",".");update();});
     $v("#ticket-leverage",ticketOverlay).addEventListener("click",renderLeverageSheet);
     $v("#ticket-autoclose",ticketOverlay).addEventListener("click",renderAutoCloseSheet);
     button.addEventListener("click",()=>{try{validateStops(s);renderConfirmSheet();}catch(error){showTicketToast(error.message);}});
