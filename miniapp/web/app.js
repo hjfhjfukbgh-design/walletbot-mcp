@@ -10,9 +10,6 @@ const usd = (n, d = 2) => (n === null || n === undefined || !Number.isFinite(+n)
 const signedPct = (n) => `${n >= 0 ? '↑+' : '↓'}${fmt(Math.abs(n), 2)}%`;
 const pctText = (n) => (Number(n) >= 0 ? '↑' : '↓') + fmt(Math.abs(Number(n)) || 0, 2) + '%';
 const moneyDecimals = (n) => Math.abs(Number(n)) >= 1000 ? 2 : Math.abs(Number(n)) >= 1 ? 3 : 6;
-const moneyDecimals = (n) => Math.abs(Number(n)) >= 1000 ? 2 : Math.abs(Number(n)) >= 1 ? 3 : 6;
-const pctText = (n) => (Number(n) >= 0 ? '↑' : '↓') + fmt(Math.abs(Number(n) || 0), 2) + '%';
-const moneyDecimals = (n) => Math.abs(Number(n)) >= 1000 ? 2 : Math.abs(Number(n)) >= 1 ? 3 : 6;
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
 async function call(name, input = {}) {
@@ -247,6 +244,39 @@ function drawChart(candles, target = 'chart', market = '') {
     out += `<text x="312" y="${ys - 4}" text-anchor="end" fill="var(--red)" font-size="10">SL ${usd(sl)}</text>`;
   }
   svg.innerHTML = out;
+  const old = svg.querySelector('.crosshair-layer');
+  old?.remove();
+  const ns = 'http://www.w3.org/2000/svg';
+  const layer = document.createElementNS(ns, 'g');
+  layer.setAttribute('class', 'crosshair-layer');
+  layer.style.display = 'none';
+  const vline = document.createElementNS(ns, 'line');
+  const hline = document.createElementNS(ns, 'line');
+  const dot = document.createElementNS(ns, 'circle');
+  [vline,hline].forEach((line) => { line.setAttribute('stroke','#59636d'); line.setAttribute('stroke-dasharray','3 3'); line.setAttribute('stroke-width','1'); });
+  dot.setAttribute('r','3.5'); dot.setAttribute('fill','#007DFF'); dot.setAttribute('stroke','#fff'); dot.setAttribute('stroke-width','1.5');
+  const tip = document.createElementNS(ns, 'rect');
+  tip.setAttribute('width','132'); tip.setAttribute('height','62'); tip.setAttribute('rx','8'); tip.setAttribute('fill','rgba(35,42,50,.92)');
+  const label = document.createElementNS(ns, 'text'); label.setAttribute('fill','#fff'); label.setAttribute('font-size','9');
+  layer.append(vline,hline,dot,tip,label); svg.appendChild(layer);
+  const tipLines = [];
+  svg.addEventListener('pointermove', (event) => {
+    const rect = svg.getBoundingClientRect();
+    const px = Math.max(0, Math.min(306, (event.clientX - rect.left) / rect.width * 360));
+    const index = Math.max(0, Math.min(valid.length - 1, Math.floor((px - P) / stepX)));
+    const candle = valid[index].map(Number);
+    const x = P + stepX * (index + .5), closeY = y(candle[4]);
+    vline.setAttribute('x1',x); vline.setAttribute('x2',x); vline.setAttribute('y1',8); vline.setAttribute('y2',194);
+    hline.setAttribute('x1',0); hline.setAttribute('x2',306); hline.setAttribute('y1',closeY); hline.setAttribute('y2',closeY);
+    dot.setAttribute('cx',x); dot.setAttribute('cy',closeY);
+    const tx = x > 170 ? 5 : 220, ty = 12;
+    tip.setAttribute('x',tx); tip.setAttribute('y',ty);
+    label.setAttribute('x',tx+8); label.setAttribute('y',ty+13);
+    const date = new Date(candle[0]).toLocaleString('ru-RU',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    label.textContent = 'Откр. '+fmt(candle[1],moneyDecimals(candle[1]))+'  Закр. '+fmt(candle[4],moneyDecimals(candle[4]))+'  Макс. '+fmt(candle[2],moneyDecimals(candle[2]))+'  Мин. '+fmt(candle[3],moneyDecimals(candle[3]))+'  '+date;
+    layer.style.display = '';
+  });
+  svg.addEventListener('pointerleave', () => { layer.style.display = 'none'; });
 }
 
 // ---------- pares ----------
