@@ -5,7 +5,7 @@ import { publicContracts, publicMid } from "./prices";
 import { handleUpdate } from "./commands";
 import { riskLimits, type Env } from "./env";
 import { loadTrades } from "./history";
-import { publicContracts, publicMid } from "./prices";
+
 import { getAccessToken } from "./oauth";
 import { marketAllowed } from "./risk";
 import { configureGrid, resumeGrid, runGrid, setMode, stopGrid, walt } from "./service";
