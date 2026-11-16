@@ -53,6 +53,7 @@ try {
     const page = await browser.newPage({viewport:{width,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
     await page.addInitScript(()=>{
       localStorage.setItem("kripto-guru:onboarding:v1","done");
+      localStorage.setItem("kg:recent:v1", JSON.stringify(["BTC","ETH"]));
       window.Telegram={WebApp:{
         initData:"mock-preview-init-data",ready(){},expand(){},setHeaderColor(){},setBackgroundColor(){},
         HapticFeedback:{selectionChanged(){},impactOccurred(){},notificationOccurred(){}},
