@@ -10,6 +10,7 @@ const usd = (n, d = 2) => (n === null || n === undefined || !Number.isFinite(+n)
 const signedPct = (n) => `${n >= 0 ? '↑+' : '↓'}${fmt(Math.abs(n), 2)}%`;
 const pctText = (n) => (Number(n) >= 0 ? '↑' : '↓') + fmt(Math.abs(Number(n)) || 0, 2) + '%';
 const moneyDecimals = (n) => Math.abs(Number(n)) >= 1000 ? 2 : Math.abs(Number(n)) >= 1 ? 3 : 6;
+const moneyDecimals = (n) => Math.abs(Number(n)) >= 1000 ? 2 : Math.abs(Number(n)) >= 1 ? 3 : 6;
 const pctText = (n) => (Number(n) >= 0 ? '↑' : '↓') + fmt(Math.abs(Number(n) || 0), 2) + '%';
 const moneyDecimals = (n) => Math.abs(Number(n)) >= 1000 ? 2 : Math.abs(Number(n)) >= 1 ? 3 : 6;
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -278,40 +279,68 @@ $('#heatmap,#top-day').addEventListener('click',ev=>{const el=ev.target.closest(
 
 $('#pairs').addEventListener('click', async (ev) => {
   if (ev.target.closest('[data-favorite]')) return;
-  const item = ev.target.closest('.item');
+  const item = ev.target.closest('.market-row');
   if (!item) return;
   const market = item.dataset.market;
+  selectedMarket = market;
   const box = $('#pair-detail');
   box.classList.remove('hidden');
-  box.textContent = `Загружаем ${market}…`;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  box.innerHTML = '<div class="asset-loading"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>';
+  box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   try {
-    const p = await call('price', { market, leverage: 3 });
+    const p = await call('price', { market, leverage: 1 });
     const c = contracts.find((x) => x.market === market);
-    const displayPrice = c?.price ?? p.price;
-    box.innerHTML = `<h3>${esc(market)}</h3>
-      <div class="asset-detail-price">${usd(displayPrice, displayPrice >= 1000 ? 2 : displayPrice >= 1 ? 3 : 6)}</div><div class="asset-change ${c?.change24hPct >= 0 ? 'up' : 'down'}">${c?.change24hPct === undefined ? 'Изменение недоступно' : signedPct(c.change24hPct)}</div><div class="row"><span>Текущая цена</span><b>${usd(displayPrice, displayPrice >= 1000 ? 2 : displayPrice >= 1 ? 3 : 6)}</b></div>
-      <div class="row"><span>Минимальная маржа при ${p.leverage}x</span><b>${usd(p.minMargin)}</b></div>
-      <div class="row"><span>Рекомендуемый диапазон (−6% / +2%)</span><b>${usd(p.suggestion.low, 6)} – ${usd(p.suggestion.high, 6)}</b></div>
-      <div class="row"><span>Комиссия тейкера</span><b>${fmt((c?.takerFeePct ?? 0) * 100, 3)}%</b></div>
-      <div class="chart-detail-head"><b>График</b><select id="pair-interval"><option value="1m">1м</option><option value="5m">5м</option><option value="15m" selected>15м</option><option value="1h">1ч</option><option value="4h">4ч</option><option value="1d">1д</option></select></div>
-      <small data-chart-source="pair-chart"></small><svg id="pair-chart" viewBox="0 0 360 220" preserveAspectRatio="none"></svg>
-      ${c?.allowed ? `<button id="use-pair">${icon('sliders')}Использовать в сетке</button>` : '<p class="meta">Контракт недоступен по фильтрам ликвидности или LIVE-ограничениям.</p>'}`;
+    const price = Number(c?.price ?? p.price);
+    const change = Number(c?.change24hPct ?? 0);
+    const isFav = favorites.has(market);
+    const funding = Number(c?.fundingRateHourly ?? 0) * 100;
+    box.innerHTML =
+      '<div class="asset-topline"><button id="asset-back" class="asset-back secondary" type="button">' + icon('chevron') + 'Рынки</button><button id="asset-favorite" class="asset-favorite ' + (isFav ? 'is-favorite' : '') + '" type="button">' + (isFav ? '★ В избранном' : '☆ В избранное') + '</button></div>' +
+      '<div class="asset-identity"><span class="asset-coin">' + esc(market.slice(0,1)) + '</span><div><h2>' + esc(market) + '</h2><small>Криптовалюта · Демо-рынок</small></div></div>' +
+      '<div class="asset-detail-price">' + usd(price, moneyDecimals(price)) + '</div>' +
+      '<div class="asset-change ' + (change >= 0 ? 'up' : 'down') + '">' + pctText(change) + ' <span>за 24 часа</span></div>' +
+      '<div class="asset-chart-wrap"><div class="chart-detail-head"><b>График цены</b><span id="asset-chart-source">Рыночные данные</span></div>' +
+      '<div class="timeframe-control" id="pair-timeframes">' + ['1m','5m','15m','1h','4h','1d'].map((v)=>'<button type="button" data-interval="' + v + '" class="' + (v==='15m'?'selected':'') + '">' + ({'1m':'1м','5m':'5м','15m':'15м','1h':'1Ч','4h':'4Ч','1d':'1Д'}[v]) + '</button>').join('') + '</div>' +
+      '<svg id="pair-chart" viewBox="0 0 360 220" preserveAspectRatio="none" role="img" aria-label="Свечной график ' + esc(market) + '"></svg>' +
+      '<div class="chart-caption">Нажмите и ведите пальцем по графику, чтобы посмотреть значения свечи.</div></div>' +
+      '<div class="asset-actions"><button id="use-pair" type="button">' + icon('grid') + 'Настроить сетку</button><button id="manual-trade-unavailable" class="secondary" type="button" disabled>Сделка скоро</button></div>' +
+      '<div class="section-title">О криптовалюте</div><div class="card asset-about"><p>Цена формируется на открытом рынке и может быстро меняться.</p><p>Демо-режим показывает реальные котировки, но использует только виртуальные средства.</p><p>Изменение за 24 часа не гарантирует дальнейшего движения цены.</p></div>' +
+      '<div class="section-title">Подробнее</div><div class="card asset-tech">' +
+      '<div class="row"><span>Объём за 24 часа</span><b>' + usd(c?.volume24hUsd, 0) + '</b></div>' +
+      '<div class="row"><span>Funding за час</span><b>' + (Number.isFinite(funding) ? (funding >= 0 ? '+' : '') + fmt(funding, 4) + '%' : '—') + '</b></div>' +
+      '<div class="row"><span>Максимальное плечо рынка</span><b>' + (c?.maxLeverage ?? '—') + 'x</b></div>' +
+      '<div class="row"><span>Комиссия тейкера</span><b>' + fmt((c?.takerFeePct ?? 0) * 100, 3) + '%</b></div>' +
+      '<div class="row"><span>Минимальная маржа</span><b>' + usd(p.minMargin) + '</b></div>' +
+      '<div class="row"><span>Рекомендуемый диапазон</span><b>' + usd(p.suggestion.low, moneyDecimals(p.suggestion.low)) + ' – ' + usd(p.suggestion.high, moneyDecimals(p.suggestion.high)) + '</b></div></div>' +
+      '<p class="disclaimer">Данные рынка могут обновляться с задержкой. Это не инвестиционная рекомендация.</p>';
     loadChart(market, 'pair-chart', '15m');
-    $('#pair-interval').addEventListener('change', (event) => loadChart(market, 'pair-chart', event.target.value));
-    const btn = $('#use-pair');
-    if (btn)
-      btn.onclick = () => {
-        const f = $('#grid-form');
-        f.market.value = market;
-        f.low.value = p.suggestion.low;
-        f.high.value = p.suggestion.high;
-        f.marginUsd.value = Math.max(+f.marginUsd.value || 0, Math.ceil(p.minMargin * 1.1 * 100) / 100);
-        f.leverage.value = p.leverage;
-        document.querySelector('nav button[data-tab="ctrl"]').click();
-      };
-  } catch (e) {
-    box.textContent = e.message;
+    $('#pair-timeframes').addEventListener('click', (event) => {
+      const button = event.target.closest('[data-interval]');
+      if (!button) return;
+      $('#pair-timeframes').querySelectorAll('button').forEach((x) => x.classList.toggle('selected', x === button));
+      loadChart(market, 'pair-chart', button.dataset.interval);
+      tg.HapticFeedback?.selectionChanged?.();
+    });
+    $('#asset-back').addEventListener('click', () => { box.classList.add('hidden'); $('#q').focus(); });
+    $('#asset-favorite').addEventListener('click', () => {
+      favorites.has(market) ? favorites.delete(market) : favorites.add(market);
+      saveFavorites();
+      $('#asset-favorite').textContent = favorites.has(market) ? '★ В избранном' : '☆ В избранное';
+      $('#asset-favorite').classList.toggle('is-favorite', favorites.has(market));
+      renderPairs();
+    });
+    $('#use-pair').addEventListener('click', () => {
+      const form = $('#grid-form');
+      form.market.value = market;
+      form.low.value = p.suggestion.low;
+      form.high.value = p.suggestion.high;
+      form.marginUsd.value = Math.max(+form.marginUsd.value || 0, Math.ceil(p.minMargin * 1.1 * 100) / 100);
+      form.leverage.value = 1;
+      setTab('ctrl');
+    });
+  } catch (error) {
+    box.innerHTML = '<div class="empty-state"><b>Не удалось загрузить актив</b><small>' + esc(error.message) + '</small><button id="asset-back-error" class="secondary" type="button">Вернуться к рынкам</button></div>';
+    $('#asset-back-error').addEventListener('click', () => box.classList.add('hidden'));
   }
 });
 
