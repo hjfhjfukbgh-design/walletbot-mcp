@@ -35,17 +35,17 @@ Worst-case always-on watchdog with at least one open position:
 - one snapshot row/minute: 1,440 writes/day;
 - each trade event: 1 account row + 1 position row + 1 ledger row = 3 writes;
 - first-time account seed: 1 account row + 1 ledger row = 2N writes;
-- D = calls to `deleteAlarm()` per day. Cloudflare counts deletes as row writes; D is workload-dependent and is bounded by the number of close events that leave the Engine with no open positions.
+- S = initial `setAlarm()` calls when the first position opens after an idle period; D = `deleteAlarm()` calls when the last position closes. Cloudflare counts alarm set and delete operations as row writes. Both depend on how often the Engine transitions between idle and active.
 
-Estimated writes: W = 4,320 + 3E + 2N + D.
+Estimated writes: W = 4,320 + 3E + 2N + S + D.
 
 | N users | Avg positions/user | M total | E events/day | Estimated writes/day | Free quota used |
 |---:|---:|---:|---:|---:|---:|
-| 100 | 2 | 200 | 2,000 | 11,520 | 11.52% |
-| 1,000 | 2 | 2,000 | 20,000 | 76,320 | 76.32% |
-| 1,000 | 5 | 5,000 | 50,000 | 181,320 | 181.32% |
+| 100 | 2 | 200 | 2,000 | 12,520 | 12.52% |
+| 1,000 | 2 | 2,000 | 20,000 | 86,320 | 86.32% |
+| 1,000 | 5 | 5,000 | 50,000 | 206,320 | 206.32% |
 
-The table assumes D = E/2 (every close empties the final open position), a conservative upper bound for this simplified example. This is a model, not a measured production profile. It excludes schema migrations and exceptional retries. The 1,000-user / 5-position scenario does not fit the Free write quota at 50,000 events/day.
+The table assumes S = E/2 and D = E/2 (every open starts a new active session and every close empties the Engine). This is a conservative upper bound for this simplified example. This is a model, not a measured production profile. It excludes schema migrations and exceptional retries. The 1,000-user / 5-position scenario does not fit the Free write quota at 50,000 events/day.
 
 ## Daily read estimate
 
