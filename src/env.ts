@@ -1,5 +1,6 @@
 export interface Env {
   STATE: KVNamespace;
+  ASSETS: Fetcher;
   TELEGRAM_BOT_TOKEN: string;
   TELEGRAM_WEBHOOK_SECRET: string;
   OWNER_CHAT_ID: string;
