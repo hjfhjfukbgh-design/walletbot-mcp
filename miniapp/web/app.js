@@ -10,6 +10,8 @@ const usd = (n, d = 2) => (n === null || n === undefined || !Number.isFinite(+n)
 const signedPct = (n) => `${n >= 0 ? '↑+' : '↓'}${fmt(Math.abs(n), 2)}%`;
 const pctText = (n) => (Number(n) >= 0 ? '↑' : '↓') + fmt(Math.abs(Number(n)) || 0, 2) + '%';
 const moneyDecimals = (n) => { const value = Math.abs(Number(n)); return value >= 1000 ? 2 : value >= 1 ? 3 : value > 0 ? Math.min(10, Math.max(4, 5 - Math.floor(Math.log10(value)))) : 2; };
+const ASSET_NAMES = {BTC:'Bitcoin',ETH:'Ethereum',SOL:'Solana',BNB:'BNB',XRP:'XRP',DOGE:'Dogecoin',ADA:'Cardano',AVAX:'Avalanche',LINK:'Chainlink',SUI:'Sui',LTC:'Litecoin',BCH:'Bitcoin Cash',HYPE:'Hyperliquid'};
+const assetName = (market) => ASSET_NAMES[market] || market;
 const compactPrice = (n) => Math.abs(Number(n)) >= 1_000_000 ? (Number(n) / 1_000_000).toFixed(2) + 'M' : Math.abs(Number(n)) >= 1_000 ? (Number(n) / 1_000).toFixed(1) + 'K' : fmt(n, moneyDecimals(n));
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
@@ -266,10 +268,11 @@ function drawChart(candles, target = 'chart', market = '') {
   [vline,hline].forEach((line) => { line.setAttribute('stroke','#59636d'); line.setAttribute('stroke-dasharray','3 3'); line.setAttribute('stroke-width','1'); });
   dot.setAttribute('r','3.5'); dot.setAttribute('fill','#007DFF'); dot.setAttribute('stroke','#fff'); dot.setAttribute('stroke-width','1.5');
   const tip = document.createElementNS(ns, 'rect');
-  tip.setAttribute('width','150'); tip.setAttribute('height','78'); tip.setAttribute('rx','8'); tip.setAttribute('fill','rgba(35,42,50,.92)');
+  tip.setAttribute('width','150'); tip.setAttribute('height','92'); tip.setAttribute('rx','8'); tip.setAttribute('fill','rgba(35,42,50,.92)');
   const label = document.createElementNS(ns, 'text'); label.setAttribute('fill','#fff'); label.setAttribute('font-size','9');
   layer.append(vline,hline,dot,tip,label); svg.appendChild(layer);
   const tipLines = [];
+  svg.addEventListener('pointerdown', (event) => { svg.setPointerCapture?.(event.pointerId); });
   svg.addEventListener('pointermove', (event) => {
     const rect = svg.getBoundingClientRect();
     const px = Math.max(0, Math.min(306, (event.clientX - rect.left) / rect.width * 360));
@@ -284,7 +287,8 @@ function drawChart(candles, target = 'chart', market = '') {
     label.setAttribute('x',tx+8); label.setAttribute('y',ty+13);
     const date = new Date(candle[0]).toLocaleString('ru-RU',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
     label.textContent = '';
-    const rows = ['Откр. ' + fmt(candle[1],moneyDecimals(candle[1])), 'Закр. ' + fmt(candle[4],moneyDecimals(candle[4])), 'Макс. ' + fmt(candle[2],moneyDecimals(candle[2])), 'Мин. ' + fmt(candle[3],moneyDecimals(candle[3])), date];
+    const candleChange = candle[1] ? ((candle[4] - candle[1]) / candle[1]) * 100 : 0;
+    const rows = ['Откр. ' + fmt(candle[1],moneyDecimals(candle[1])), 'Закр. ' + fmt(candle[4],moneyDecimals(candle[4])), 'Макс. ' + fmt(candle[2],moneyDecimals(candle[2])), 'Мин. ' + fmt(candle[3],moneyDecimals(candle[3])), 'Изм. ' + pctText(candleChange), date];
     rows.forEach((value, row) => { const span = document.createElementNS(ns,'tspan'); span.setAttribute('x',tx+8); span.setAttribute('dy',row===0?0:13); span.textContent=value; label.appendChild(span); });
     layer.style.display = '';
   });
@@ -310,7 +314,7 @@ function renderPairs() {
     const change = c.change24hPct === undefined ? '—' : pctText(c.change24hPct);
     return '<div class="item market-row ' + (c.allowed ? '' : 'blocked') + '" data-market="' + esc(c.market) + '" role="button" tabindex="0" aria-label="Открыть ' + esc(c.market) + '">' +
       '<span class="coin-avatar">' + esc(c.market.slice(0,1)) + '</span>' +
-      '<div class="market-copy"><div class="name">' + esc(c.market) + '</div><div class="meta">' + (c.allowed ? 'Доступен в демо-сетке' : icon('lock') + ' Недоступен для сетки') + '</div></div>' +
+      '<div class="market-copy"><div class="name">' + esc(assetName(c.market)) + ' <small>' + esc(c.market) + '</small></div><div class="meta">' + (c.allowed ? 'Доступен в демо-сетке' : icon('lock') + ' Недоступен для сетки') + '</div></div>' +
       '<div class="market-quote"><b>' + usd(c.price, moneyDecimals(c.price)) + '</b><small class="' + ((c.change24hPct || 0) >= 0 ? 'up' : 'down') + '">' + change + '</small></div>' +
       '<button type="button" class="favorite-toggle ' + (favorite ? 'is-favorite' : '') + '" data-favorite="' + esc(c.market) + '" aria-label="' + (favorite ? 'Убрать из избранного' : 'Добавить в избранное') + '">' + (favorite ? '★' : '☆') + '</button></div>';
   }).join('') || '<div class="empty-state card-empty">Ничего не найдено</div>';
@@ -350,7 +354,7 @@ $('#pairs').addEventListener('click', async (ev) => {
     const funding = Number(c?.fundingRateHourly ?? 0) * 100;
     box.innerHTML =
       '<div class="asset-topline"><button id="asset-back" class="asset-back secondary" type="button">' + icon('chevron') + 'Рынки</button><button id="asset-favorite" class="asset-favorite ' + (isFav ? 'is-favorite' : '') + '" type="button">' + (isFav ? '★ В избранном' : '☆ В избранное') + '</button></div>' +
-      '<div class="asset-identity"><span class="asset-coin">' + esc(market.slice(0,1)) + '</span><div><h2>' + esc(market) + '</h2><small>Криптовалюта · Демо-рынок</small></div></div>' +
+      '<div class="asset-identity"><span class="asset-coin">' + esc(market.slice(0,1)) + '</span><div><h2>' + esc(assetName(market)) + '</h2><small>' + esc(market) + ' · Демо-рынок</small></div></div>' +
       '<div id="asset-live-price" class="asset-detail-price">' + usd(price, moneyDecimals(price)) + '</div>' +
       '<div id="asset-live-change" class="asset-change ' + (change >= 0 ? 'up' : 'down') + '">' + pctText(change) + ' <span>за 24 часа</span></div>' +
       '<div class="asset-chart-wrap"><div class="chart-detail-head"><b>График цены</b><span id="asset-chart-source">Рыночные данные</span></div>' +
