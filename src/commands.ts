@@ -4,7 +4,8 @@ import { configureGrid, resumeGrid, runGrid, setMode, stopGrid, walt } from "./s
 import { callbackParams, disconnect, getAccessToken, handleCallback, startAuthorization } from "./oauth";
 import { defaultState, loadState, saveState, saveTools } from "./state";
 import { notional, step } from "./strategy/grid";
-import { COMMANDS, notifyOwner, send, type TgUpdate } from "./telegram";
+import { COMMANDS, notifyOwner, type TgUpdate } from "./telegram";
+import { handleTenantUpdate } from "./tenants";
 import { previewReason } from "./walt";
 
 /** Processa um comando do dono e devolve a resposta em texto. */
@@ -187,21 +188,7 @@ async function paperCmd(env: Env, args: string[]): Promise<string> {
   return `Carteira paper reiniciada com $${cash}.`;
 }
 
-/** Processa um update do Telegram (webhook direto ou encaminhado pelo tgcloud). */
+/** Route every private Telegram chat to its isolated tenant namespace. */
 export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
-  const msg = update.message;
-  if (!msg?.text) return;
-  const chatId = String(msg.chat.id);
-  if (!env.OWNER_CHAT_ID) {
-    await send(env, chatId, `Seu chat id é ${chatId}. Configure o secret OWNER_CHAT_ID com esse valor.`);
-    return;
-  }
-  if (chatId !== env.OWNER_CHAT_ID) return; // só o dono controla o bot
-  let reply: string;
-  try {
-    reply = await handleCommand(env, msg.text);
-  } catch (e) {
-    reply = `❌ ${(e as Error).message}`;
-  }
-  await send(env, chatId, reply);
+  await handleTenantUpdate(env, update);
 }
