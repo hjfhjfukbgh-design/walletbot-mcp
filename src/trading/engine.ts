@@ -56,7 +56,13 @@ export class TradingEngine {
     sql.exec("CREATE TABLE IF NOT EXISTS engine_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
     this.restorePositions();
     const snapshot = sql.exec("SELECT value FROM engine_meta WHERE key = 'snapshot'").toArray()[0] as { value?: string } | undefined;
-    this.lastSnapshotAt = Number(snapshot?.value ? (JSON.parse(snapshot.value) as { at?: number }).at ?? 0 : 0);
+    if (snapshot?.value) {
+      const saved = JSON.parse(snapshot.value) as { at?: number; quotes?: Record<string, { price: string; observedAt: number }> };
+      this.lastSnapshotAt = Number(saved.at ?? 0);
+      for (const [symbol, quote] of Object.entries(saved.quotes ?? {})) {
+        this.quotes.set(symbol, { price: BigInt(quote.price), observedAt: Number(quote.observedAt) });
+      }
+    }
     if (this.positions.size) {
       this.connectMarketSocket();
       void ctx.storage.setAlarm(Date.now() + WATCHDOG_MS);
@@ -209,8 +215,10 @@ export class TradingEngine {
   private reconcile(): { ok: true; openPositions: number; ledgerRows: number } {
     this.restorePositions();
     const accounts = this.ctx.storage.sql.exec("SELECT user_id, balance_micro FROM accounts").toArray() as Array<{ user_id: string; balance_micro: string }>;
+    let ledgerRows = 0;
     for (const account of accounts) {
       const rows = this.ctx.storage.sql.exec("SELECT amount_micro, balance_before_micro, balance_after_micro FROM ledger WHERE user_id = ? ORDER BY id", account.user_id).toArray() as Array<{ amount_micro: string; balance_before_micro: string; balance_after_micro: string }>;
+      ledgerRows += rows.length;
       let expected = 0n;
       for (const row of rows) {
         const before = BigInt(row.balance_before_micro), amount = BigInt(row.amount_micro), after = BigInt(row.balance_after_micro);
@@ -219,8 +227,7 @@ export class TradingEngine {
       }
       if (expected !== BigInt(account.balance_micro)) throw new Error("Баланс счёта не совпадает с последней записью ledger.");
     }
-    const ledgerRows = this.ctx.storage.sql.exec("SELECT COUNT(*) AS count FROM ledger").toArray()[0] as { count: number };
-    return { ok: true, openPositions: this.positions.size, ledgerRows: Number(ledgerRows.count) };
+    return { ok: true, openPositions: this.positions.size, ledgerRows };
   }
 
   async alarm(): Promise<void> {
@@ -241,7 +248,8 @@ export class TradingEngine {
       this.connectMarketSocket();
     }
     if (now - this.lastSnapshotAt >= SNAPSHOT_MS) {
-      this.ctx.storage.sql.exec("INSERT OR REPLACE INTO engine_meta(key,value) VALUES('snapshot', ?)", JSON.stringify({ at: now, openPositions: this.positions.size }));
+      const quotes = Object.fromEntries([...this.quotes].map(([symbol, quote]) => [symbol, { price: quote.price.toString(), observedAt: quote.observedAt }]));
+      this.ctx.storage.sql.exec("INSERT OR REPLACE INTO engine_meta(key,value) VALUES('snapshot', ?)", JSON.stringify({ at: now, openPositions: this.positions.size, quotes }));
       this.lastSnapshotAt = now;
     }
     await this.ctx.storage.setAlarm(now + WATCHDOG_MS);
