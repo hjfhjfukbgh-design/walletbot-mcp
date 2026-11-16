@@ -368,10 +368,14 @@ function drawChart(candles, target = 'chart', market = '') {
 async function loadPairs() {
   $('#pairs').innerHTML = '<div class="market-loading skeleton-row"></div><div class="market-loading skeleton-row"></div><div class="market-loading skeleton-row"></div>';
   try {
-    contracts = (await call('contracts')).contracts;
+    const result = await call('contracts');
+    contracts = Array.isArray(result.contracts) ? result.contracts : [];
     renderPairs();
+    window.kriptoGuruDemo?.marketsUpdated?.();
+    if (!contracts.length) window.kriptoGuruDemo?.showFavoritesError?.('Список рынков пуст.');
   } catch (error) {
     $('#pairs').innerHTML = '<div class="empty-state card-empty">' + esc(error.message) + '</div>';
+    window.kriptoGuruDemo?.showFavoritesError?.(error.message);
   }
 }
 
@@ -519,7 +523,10 @@ async function loadMarketPreview() {
   if (document.hidden || marketPreviewLoading) return;
   marketPreviewLoading = true;
   try {
-    contracts = (await call('contracts')).contracts;
+    const result = await call('contracts');
+    contracts = Array.isArray(result.contracts) ? result.contracts : [];
+    window.kriptoGuruDemo?.marketsUpdated?.();
+    if (!contracts.length) window.kriptoGuruDemo?.showFavoritesError?.('Список рынков пуст.');
     lastQuoteUpdate = new Date();
     const connection = $('#asset-connection');
     if (connection) { connection.textContent = 'Обновлено ' + lastQuoteUpdate.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); connection.className = 'asset-connection updated'; }
@@ -540,6 +547,7 @@ async function loadMarketPreview() {
   } catch (error) {
     $('#heatmap').textContent = error.message;
     $('#pairs').textContent = error.message;
+    window.kriptoGuruDemo?.showFavoritesError?.(error.message);
   } finally { marketPreviewLoading = false; }
 }
 const helpCopy = {
