@@ -178,3 +178,24 @@ main{max-width:560px;padding:10px 16px 24px}
 .heat-cell{border-radius:7px}
 
 .top-coin.positive span{background:linear-gradient(145deg,#34C759,#1B9A46);color:#fff}.top-coin.negative span{background:linear-gradient(145deg,#FF6B63,#D92D25);color:#fff}
+
+/* Reusable modal sheets and numeric controls for the order flow */
+.sheet-backdrop{position:fixed;inset:0;z-index:70;display:flex;align-items:flex-end;justify-content:center;padding:12px 10px calc(10px + env(safe-area-inset-bottom));background:rgba(15,20,30,.32);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.bottom-sheet{width:min(100%,560px);max-height:88dvh;overflow:auto;border-radius:24px 24px 18px 18px;background:#fff;box-shadow:0 12px 42px rgba(15,20,30,.18);padding:9px 18px 16px;animation:kgSheetIn .22s ease both}
+@keyframes kgSheetIn{from{transform:translateY(18px);opacity:.7}to{transform:none;opacity:1}}
+.sheet-grabber{width:36px;height:4px;margin:1px auto 15px;border-radius:999px;background:#D1D1D6}
+.sheet-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.sheet-header h2{margin:0;font-size:18px;font-weight:750}
+.sheet-close{width:36px;height:36px;min-width:36px;min-height:36px;border-radius:50%;background:#F2F2F7;color:#6E6E73}
+.sheet-footer{position:sticky;bottom:-16px;margin:18px -18px -16px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border-top:1px solid #F0F0F4}
+.number-input{width:100%;min-height:64px;padding:9px 0;border:0!important;border-radius:0!important;background:transparent!important;color:var(--kg-text);font-size:44px;font-weight:760;letter-spacing:-1.5px;font-variant-numeric:tabular-nums;box-shadow:none!important}
+.number-input::placeholder{color:#C7C7CC}
+.sheet-info-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #F0F0F4;font-size:12px}
+.sheet-info-row span{color:var(--kg-muted)}.sheet-info-row b{font-weight:700;font-variant-numeric:tabular-nums}
+.leverage-range{width:100%;accent-color:var(--kg-blue)}
+.sheet-chip{min-height:34px;padding:7px 11px;border-radius:999px;background:#F2F2F7;color:#5E5E63;font-size:11px;font-weight:650}
+.segmented-control{display:flex;gap:3px;padding:3px;border-radius:999px;background:#F0F0F5}
+.segmented-control button{flex:1;min-height:34px;padding:6px 10px;border-radius:999px;background:transparent;color:#777D86;font-size:11px}
+.segmented-control button.selected{background:#fff;color:var(--kg-blue);box-shadow:0 1px 5px rgba(0,0,0,.09)}
+body.asset-open .bottom-nav{display:none}
+body.asset-open{padding-bottom:calc(100px + env(safe-area-inset-bottom))}
