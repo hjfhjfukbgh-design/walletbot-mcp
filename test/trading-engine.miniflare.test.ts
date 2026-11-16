@@ -29,6 +29,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   async function boot() {
     mf = new Miniflare({
       modules: true,
+      compatibilityDate: "2025-06-01",
       script: source,
       durableObjects: { ENGINE: { className: "TradingEngine", useSQLite: true } },
       bindings: { ENGINE_MAX_QUOTE_AGE_MS: "10000", ENGINE_DISABLE_SOCKET: "true" },
