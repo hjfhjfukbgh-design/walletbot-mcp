@@ -117,9 +117,15 @@ function renderState() {
   $('#mode').className = `pill ${s.mode === 'live' ? 'live' : 'demo-pill'}`;
   $('#profile-demo').classList.toggle('selected', s.mode === 'paper');
   const demo = s.paper || {};
-  const equity = Number(demo.equity ?? demo.cash ?? 1000);
   const cash = Number(demo.cash ?? 1000);
   const startCash = Number(demo.startCash ?? 1000);
+  const g = s.grid;
+  const p = s.position;
+  const activeContract = g ? contracts.find((item) => item.market === g.market) : null;
+  const currentPositionPnl = p && s.mode === 'paper' && Number(activeContract?.price) > 0
+    ? p.qty * (Number(activeContract.price) - p.entryPrice) - p.qty * Number(activeContract.price) * Number(activeContract.takerFeePct || 0)
+    : p?.unrealizedPnl;
+  const equity = Number(p && currentPositionPnl !== null && currentPositionPnl !== undefined ? cash + currentPositionPnl : demo.equity ?? cash ?? 1000);
   const pnl = equity - startCash;
   $('#home-equity').innerHTML = balanceMarkup(equity);
   $('#home-equity').setAttribute('aria-label', usd(equity));
@@ -150,17 +156,15 @@ function renderState() {
   $('#alert').innerHTML = notes.map(([ic, t]) => `<div class="note">${icon(ic)}<span>${esc(t)}</span></div>`).join('');
   $('#alert').classList.toggle('hidden', !notes.length);
 
-  const g = s.grid;
   $('#g-desc').textContent = g ? `${g.market} ${usd(g.low)}–${usd(g.high)} · ${g.levels} уровней` : 'Не настроена';
   const rc = s.lastRecenter;
   $('#g-recenter-row').classList.toggle('hidden', !rc);
   if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · цена ${usd(rc.price)}`;
   $('#g-trade').textContent = g ? `маржа ${usd(g.marginUsd)} ${g.leverage}x ≈ ${usd(g.notional)} · SL ${usd(g.stopLoss)}` : '—';
 
-  const p = s.position;
   const lp = s.livePosition;
   if (p) {
-    const pnl = p.unrealizedPnl;
+    const pnl = currentPositionPnl;
     const rows = [
       ['Цена входа', usd(p.entryPrice, moneyDecimals(p.entryPrice))],
       ['Тейк-профит <button type="button" class="help-dot" data-help="tp">?</button>', usd(p.takeProfit, moneyDecimals(p.takeProfit))],
@@ -411,6 +415,7 @@ async function loadMarketPreview() {
     contracts = (await call('contracts')).contracts;
     lastQuoteUpdate = new Date();
     renderPairs();
+    if (state) renderState();
     if (selectedMarket && !$('#pair-detail').classList.contains('hidden')) {
       const active = contracts.find((x) => x.market === selectedMarket);
       if (active) {
