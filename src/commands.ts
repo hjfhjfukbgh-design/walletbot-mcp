@@ -22,20 +22,20 @@ export async function handleCommand(env: Env, text: string): Promise<string> {
       return status(env);
     case "connect":
       return [
-        "1) Abra o link, autorize no Walt e confirme no Telegram:",
+        "1) Откройте ссылку, авторизуйтесь в Walt и подтвердите действие в Telegram:",
         await startAuthorization(env),
         "",
-        "2) O navegador vai abrir uma página http://localhost:8787/… que não carrega — é esperado.",
-        "3) Copie o endereço completo dessa página e envie aqui (com ou sem /code).",
-        "Faça em poucos minutos: o código expira rápido.",
+        "2) Браузер откроет страницу http://localhost:8787/… которая не загрузится — так и должно быть.",
+        "3) Скопируйте полный адрес этой страницы и отправьте сюда (с /code или без него).",
+        "Сделайте это в течение нескольких минут: код быстро истекает.",
       ].join("\n");
     case "code":
-      if (!args.length) return "Uso: /code <endereço completo da página localhost após autorizar>";
+      if (!args.length) return "Использование: /code <полный адрес страницы localhost после авторизации>";
       await handleCallback(env, callbackParams(args.join(" ")));
-      return "✅ Walt conectado! Próximo passo: /conta para checar/criar a conta Perps do agente.";
+      return "✅ Walt подключён! Следующий шаг: /conta — проверить или создать Perps-счёт агента.";
     case "disconnect":
       await disconnect(env);
-      return "Conta Walt desconectada.";
+      return "Аккаунт Walt отключён.";
     case "conta":
       return conta(env, args[0] === "CONFIRMO");
     case "saldo":
@@ -62,7 +62,7 @@ export async function handleCommand(env: Env, text: string): Promise<string> {
       return risk(env);
     case "testalert":
       await notifyOwner(env, ["🔔 Teste de alerta do walletbot-mcp."]);
-      return env.ALERT_CHAT_ID ? `Alerta de teste enviado para ${env.ALERT_CHAT_ID}.` : "Alerta de teste enviado (sem ALERT_CHAT_ID: vai para você).";
+      return env.ALERT_CHAT_ID ? `Тестовое уведомление отправлено в ${env.ALERT_CHAT_ID}.` : "Тестовое уведомление отправлено (ALERT_CHAT_ID не задан: сообщение направлено вам).";
     case "resume":
       return resumeGrid(env);
     case "paper":
@@ -74,7 +74,7 @@ export async function handleCommand(env: Env, text: string): Promise<string> {
 
 function help(): string {
   return [
-    "Walt Grid — управление торговой сеткой",
+    "Kripto Guru — управление демо-сеткой",
     "",
     "Основные команды:",
     "/demo — включить демо-режим без кошелька",
@@ -85,6 +85,7 @@ function help(): string {
     "/stop — остановить сетку",
     "/closeall — закрыть позицию и остановить",
     "/resume — снять автоматическую паузу",
+    "/paper reset — сбросить демо-счёт до $1 000 (история сохранится)",
     "",
     "Для подключения Walt в LIVE: /connect. Код авторизации отправляется через /code.",
     "В ДЕМО используются виртуальные средства и публичные рыночные данные. Реальные ордера не отправляются."
@@ -95,48 +96,48 @@ async function status(env: Env): Promise<string> {
   const s = await loadState(env);
   const connected = !!(await getAccessToken(env).catch(() => null));
   const lines = [
-    `Режим: ${s.mode === "paper" ? "ДЕМО" : "LIVE"} | ${s.running ? "▶️ rodando" : "⏹️ parado"}${s.paused ? ` | ⏸️ ${s.paused}` : ""}`,
-    `Walt: ${connected ? "conectado ✅" : "não conectado (/connect)"}`,
+    `Режим: ${s.mode === "paper" ? "ДЕМО" : "LIVE"} | ${s.running ? "▶️ работает" : "⏹️ остановлена"}${s.paused ? ` | ⏸️ ${s.paused}` : ""}`,
+    `Walt: ${connected ? "подключён ✅" : "не подключён (/connect)"}`,
   ];
   if (s.grid) {
     const { cfg, position: p } = s.grid;
     lines.push(
-      `Grid ${cfg.market} (#${cfg.contract.contractId}): $${cfg.low}–$${cfg.high}, ${cfg.levels} degraus de $${step(cfg).toFixed(cfg.contract.priceDecimals)}`,
-      `Por trade: margem $${cfg.marginUsd} ${cfg.leverage}x (~$${notional(cfg).toFixed(2)} nocional)`,
+      `Сетка ${cfg.market} (#${cfg.contract.contractId}): ${cfg.low}–${cfg.high}, ${cfg.levels} уровней с шагом ${step(cfg).toFixed(cfg.contract.priceDecimals)}`,
+      `На сделку: маржа ${cfg.marginUsd}, плечо ${cfg.leverage}x (объём ~${notional(cfg).toFixed(2)})`,
       p
-        ? `Posição: long nível ${p.level + 1} entrada ~$${p.entryPrice} | TP $${p.takeProfit} | SL $${p.stopLoss}`
-        : "Posição: nenhuma (aguardando degrau)",
+        ? `Позиция: покупка, уровень ${p.level + 1}, вход ~${p.entryPrice} | тейк-профит ${p.takeProfit} | стоп-лосс ${p.stopLoss}`
+        : "Позиции нет (ожидание ценового уровня)",
     );
-  } else lines.push("Grid: não configurado (/grid)");
-  if (s.lastPrice) lines.push(`Último preço: $${s.lastPrice}`);
+  } else lines.push("Сетка не настроена (/grid)");
+  if (s.lastPrice) lines.push(`Последняя цена: ${s.lastPrice}`);
   lines.push(
-    `Trades ${s.stats.trades} (✅${s.stats.wins} ❌${s.stats.losses}) | PnL realizado ~$${s.stats.realizedPnl.toFixed(2)}`,
+    `Сделок: ${s.stats.trades} (прибыльных: ${s.stats.wins}, убыточных: ${s.stats.losses}) | Реализованный результат: ~${s.stats.realizedPnl.toFixed(2)}`,
   );
   if (s.mode === "paper")
-    lines.push(`ДЕМО: виртуальный капитал $${(s.lastPrice ? paperEquity(s, s.lastPrice) : s.paper.cash).toFixed(2)} (início $${s.paper.startCash})`);
+    lines.push(`ДЕМО: виртуальный капитал $${(s.lastPrice ? paperEquity(s, s.lastPrice) : s.paper.cash).toFixed(2)} (начальный капитал ${s.paper.startCash})`);
   if (s.lastRecenter)
-    lines.push(`Último recentro: ${s.lastRecenter.at} → $${s.lastRecenter.low}–$${s.lastRecenter.high} (preço $${s.lastRecenter.price})`);
-  if (s.lastTick) lines.push(`Último tick: ${s.lastTick}`);
-  if (s.lastError) lines.push(`Último erro: ${s.lastError}`);
+    lines.push(`Последний перенос диапазона: ${s.lastRecenter.at} → ${s.lastRecenter.low}–${s.lastRecenter.high} (цена ${s.lastRecenter.price})`);
+  if (s.lastTick) lines.push(`Последнее обновление сетки: ${s.lastTick}`);
+  if (s.lastError) lines.push(`Последняя ошибка: ${s.lastError}`);
   return lines.join("\n");
 }
 
 async function conta(env: Env, confirm: boolean): Promise<string> {
   const w = await walt(env);
   const r = await w.readiness();
-  if (r.ok) return "✅ Conta Perps do agente pronta (perps_readiness ok). Deposite USDC no Walt antes do modo live.";
+  if (r.ok) return "✅ Perps-счёт агента готов (проверка пройдена). Перед реальным режимом пополните баланс USDC в Walt.";
   const issues = r.issues.map((i) => `• ${i.code}: ${i.description ?? ""}`).join("\n");
-  if (!r.issues.some((i) => i.code === "agent.account.not_found")) return `⚠️ Pendências:\n${issues}`;
+  if (!r.issues.some((i) => i.code === "agent.account.not_found")) return `⚠️ Что нужно исправить:\n${issues}`;
   if (!confirm) {
     const p = await w.preview("perps_prepare_account_create", {});
     return [
-      `A conta Perps deste agente ainda não existe:\n${issues}`,
+      `Perps-счёт этого агента ещё не создан:\n${issues}`,
       "",
-      p.ok ? "Preview ok. Para criar, envie: /conta CONFIRMO" : `Preview recusado: ${previewReason(p)}`,
+      p.ok ? "Предварительная проверка пройдена. Для создания отправьте: /conta CONFIRMO" : `Создание отклонено при предварительной проверке: ${previewReason(p)}`,
     ].join("\n");
   }
   await w.createAccount();
-  return "Criação solicitada ✅ (é assíncrona). Rode /conta de novo em alguns segundos para confirmar.";
+  return "Запрос на создание отправлен ✅ (операция асинхронная). Через несколько секунд выполните /conta ещё раз для проверки.";
 }
 
 async function tools(env: Env): Promise<string> {
@@ -144,7 +145,7 @@ async function tools(env: Env): Promise<string> {
   const list = await w.listTools();
   await saveTools(env, list);
   return [
-    `Tools do Walt (${list.length}):`,
+    `Инструменты Walt (${list.length}):`,
     ...list.map((t) => `• ${t.name}(${Object.keys(t.inputSchema?.properties ?? {}).join(", ")})`),
     "",
     "Schemas completos: /tools.json?secret=<TELEGRAM_WEBHOOK_SECRET>",
@@ -153,14 +154,14 @@ async function tools(env: Env): Promise<string> {
 
 async function call(env: Env, args: string[]): Promise<string> {
   const tool = args[0];
-  if (!tool) return "Uso: /call <tool> [json]";
-  if (tool === "perps_execute_operation") return "Use os comandos do bot para executar operações (evita execuções duplicadas).";
+  if (!tool) return "Использование: /call <инструмент> [json]";
+  if (tool === "perps_execute_operation") return "Используйте команды бота для операций: это предотвращает повторное выполнение.";
   let params: Record<string, unknown> = {};
   if (args.length > 1) {
     try {
       params = JSON.parse(args.slice(1).join(" "));
     } catch {
-      return "JSON inválido.";
+      return "Некорректный JSON.";
     }
   }
   const data = await (await walt(env)).call(tool, params);
@@ -173,27 +174,27 @@ async function call(env: Env, args: string[]): Promise<string> {
 function risk(env: Env): string {
   const l = riskLimits(env);
   return [
-    "Travas de risco:",
-    `• Alavancagem máx: ${l.maxLeverage}x`,
-    `• Margem máx por trade: ${l.maxOrderPct}% do patrimônio`,
-    `• Perda diária máx: ${l.maxDailyLossPct}% (pausa o bot)`,
-    `• Stop-loss: ${l.stopLossPct}% abaixo do low do grid (no Walt, via autoClose)`,
-    `• Mercados: ${l.allowedMarkets.join(", ")}`,
-    `• Recentro automático: ${l.autoRecenter ? `ligado (−${l.recenterDownPct}% / +${l.recenterUpPct}% do preço)` : "desligado"}`,
+    "Ограничения риска:",
+    `• Максимальное плечо: ${l.maxLeverage}x`,
+    `• Максимальная маржа на сделку: ${l.maxOrderPct}% капитала`,
+    `• Максимальный дневной убыток: ${l.maxDailyLossPct}% (бот остановится)`,
+    `• Стоп-лосс: ${l.stopLossPct}% ниже нижней границы сетки (на Walt через авто закрытие)`,
+    `• Разрешённые рынки: ${l.allowedMarkets.join(", ")}`,
+    `• Автоматический перенос диапазона: ${l.autoRecenter ? `включён (−${l.recenterDownPct}% / +${l.recenterUpPct}% от цены)` : "выключен"}`,
   ].join("\n");
 }
 
 async function paperCmd(env: Env, args: string[]): Promise<string> {
-  if (args[0] !== "reset") return "Uso: /paper reset [saldo]";
+  if (args[0] !== "reset") return "Использование: /paper reset [сумма]";
   const s = await loadState(env);
-  if (s.mode !== "paper") return "Só disponível no modo paper.";
+  if (s.mode !== "paper") return "Доступно только в демо-режиме.";
   const cash = Number(args[1] ?? 1000);
-  if (!(cash > 0)) return "Saldo inválido.";
+  if (!(cash > 0)) return "Некорректный баланс.";
   const fresh = defaultState();
   fresh.paper = { cash, startCash: cash };
   if (s.grid) fresh.grid = { cfg: s.grid.cfg };
   await saveState(env, fresh);
-  return `Carteira paper reiniciada com $${cash}.`;
+  return `Демо-счёт сброшен до ${cash}.`;
 }
 
 /** Route every private Telegram chat to its isolated tenant namespace. */

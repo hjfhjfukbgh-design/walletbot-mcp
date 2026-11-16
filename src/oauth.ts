@@ -34,14 +34,14 @@ async function metadata(env: Env): Promise<AuthServerMeta> {
   const issuer = new URL(env.WALT_AUTH_ISSUER);
   const url = `${issuer.origin}/.well-known/oauth-authorization-server${issuer.pathname.replace(/\/$/, "")}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`metadata OAuth indisponível (HTTP ${res.status})`);
+  if (!res.ok) throw new Error(`Метаданные OAuth недоступны (HTTP ${res.status})`);
   return (await res.json()) as AuthServerMeta;
 }
 
 async function ensureClient(env: Env, meta: AuthServerMeta, redirectUri: string): Promise<StoredClient> {
   const existing = await env.STATE.get<StoredClient>(K_CLIENT, "json");
   if (existing && existing.redirect_uri === redirectUri) return existing;
-  if (!meta.registration_endpoint) throw new Error("servidor OAuth não suporta registro dinâmico");
+  if (!meta.registration_endpoint) throw new Error("Сервер OAuth не поддерживает динамическую регистрацию");
   const res = await fetch(meta.registration_endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -54,7 +54,7 @@ async function ensureClient(env: Env, meta: AuthServerMeta, redirectUri: string)
       scope: SCOPE,
     }),
   });
-  if (!res.ok) throw new Error(`registro OAuth falhou (HTTP ${res.status}): ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new Error(`Ошибка регистрации OAuth (HTTP ${res.status}): ${(await res.text()).slice(0, 200)}`);
   const body = (await res.json()) as { client_id: string };
   const client = { client_id: body.client_id, redirect_uri: redirectUri };
   await env.STATE.put(K_CLIENT, JSON.stringify(client));
@@ -82,14 +82,14 @@ export async function startAuthorization(env: Env): Promise<string> {
 
 export async function handleCallback(env: Env, params: URLSearchParams): Promise<void> {
   const error = params.get("error");
-  if (error) throw new Error(`autorização negada: ${error} ${params.get("error_description") ?? ""}`);
+  if (error) throw new Error(`Авторизация отклонена: ${error} ${params.get("error_description") ?? ""}`);
   const state = params.get("state") ?? "";
   const code = params.get("code") ?? "";
   const verifier = state && (await env.STATE.get(pendingKey(state)));
-  if (!verifier || !code) throw new Error("state inválido ou expirado — rode /connect de novo");
+  if (!verifier || !code) throw new Error("Параметр state недействителен или истёк — запустите /connect ещё раз");
   await env.STATE.delete(pendingKey(state));
   const client = await env.STATE.get<StoredClient>(K_CLIENT, "json");
-  if (!client) throw new Error("cliente OAuth não registrado");
+  if (!client) throw new Error("Клиент OAuth не зарегистрирован");
   const meta = await metadata(env);
   await tokenRequest(env, meta, {
     grant_type: "authorization_code",
@@ -136,7 +136,7 @@ async function tokenRequest(env: Env, meta: AuthServerMeta, form: Record<string,
     headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
     body: new URLSearchParams(form),
   });
-  if (!res.ok) throw new Error(`token OAuth falhou (HTTP ${res.status}): ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new Error(`Ошибка получения токена OAuth (HTTP ${res.status}): ${(await res.text()).slice(0, 200)}`);
   const body = (await res.json()) as {
     access_token: string;
     refresh_token?: string;

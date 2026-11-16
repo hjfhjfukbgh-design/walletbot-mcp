@@ -27,17 +27,17 @@ export function checkOpen(
   limits: RiskLimits,
 ): RiskDecision {
   if (!marketAllowed(limits, market))
-    return { ok: false, reason: `mercado ${market} fora da whitelist (${limits.allowedMarkets.join(",")})` };
-  if (leverage > limits.maxLeverage) return { ok: false, reason: `alavancagem ${leverage}x > máx ${limits.maxLeverage}x` };
-  if (!(ctx.equityUsd > 0)) return { ok: false, reason: "patrimônio zero ou desconhecido (deposite USDC na conta do agente)" };
-  if (dailyLossExceeded(ctx, limits)) return { ok: false, reason: `perda diária >= ${limits.maxDailyLossPct}%` };
+    return { ok: false, reason: `рынок ${market} не входит в список разрешённых (${limits.allowedMarkets.join(", ")})` };
+  if (leverage > limits.maxLeverage) return { ok: false, reason: `плечо ${leverage}x превышает максимум ${limits.maxLeverage}x` };
+  if (!(ctx.equityUsd > 0)) return { ok: false, reason: "капитал равен нулю или неизвестен (пополните счёт агента в USDC)" };
+  if (dailyLossExceeded(ctx, limits)) return { ok: false, reason: `достигнут лимит дневного убытка ${limits.maxDailyLossPct}%` };
   const maxMargin = (ctx.equityUsd * limits.maxOrderPct) / 100;
   if (marginUsd > maxMargin)
     return {
       ok: false,
-      reason: `margem $${marginUsd.toFixed(2)} > ${limits.maxOrderPct}% do patrimônio ($${maxMargin.toFixed(2)})`,
+      reason: `маржа ${marginUsd.toFixed(2)} превышает ${limits.maxOrderPct}% капитала (${maxMargin.toFixed(2)})`,
     };
   if (ctx.openMarginUsd + marginUsd > (ctx.equityUsd * limits.maxTotalExposurePct) / 100)
-    return { ok: false, reason: `exposição total passaria de ${limits.maxTotalExposurePct}% do patrimônio` };
+    return { ok: false, reason: `общая экспозиция превысит ${limits.maxTotalExposurePct}% капитала` };
   return { ok: true };
 }

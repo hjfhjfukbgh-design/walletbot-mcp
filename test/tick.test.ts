@@ -30,7 +30,7 @@ describe("tick paper", () => {
     await saveState(e, s);
 
     priceIs(104500);
-    expect((await tick(e))[0]).toMatch(/Long BTC nível 6/);
+    expect((await tick(e))[0]).toMatch(/Покупка BTC, уровень 6/);
     expect((await loadState(e)).grid?.position?.takeProfit).toBe(106000);
 
     priceIs(105000);
@@ -38,14 +38,14 @@ describe("tick paper", () => {
 
     priceIs(106100);
     const tp = await tick(e);
-    expect(tp[0]).toMatch(/Take-profit/);
-    expect(tp[1]).toMatch(/Long BTC nível 8/); // reentra no degrau do preço atual (106000, 107000]
+    expect(tp[0]).toMatch(/Тейк-профит/);
+    expect(tp[1]).toMatch(/Покупка BTC/); // reentra no degrau do preço atual (106000, 107000]
     let st = await loadState(e);
     expect(st.stats.wins).toBe(1);
     expect(st.paper.cash).toBeGreaterThan(1000);
 
     priceIs(94000);
-    expect((await tick(e))[0]).toMatch(/Stop-loss/);
+    expect((await tick(e))[0]).toMatch(/Стоп-лосс/);
     st = await loadState(e);
     expect(st.running).toBe(false);
     expect(st.grid?.position).toBeUndefined();
@@ -60,7 +60,7 @@ describe("tick paper", () => {
     s.running = true;
     await saveState(e, s);
     priceIs(104500);
-    expect((await tick(e))[0]).toMatch(/bloqueada pelo risco/);
+    expect((await tick(e))[0]).toMatch(/вход заблокирован ограничениями риска/);
     expect((await loadState(e)).grid?.position).toBeUndefined();
   });
 
@@ -72,8 +72,8 @@ describe("tick paper", () => {
     await saveState(e, s);
     priceIs(120000);
     const msgs = await tick(e);
-    expect(msgs[0]).toMatch(/recentrado: \$112800–\$122400/);
-    expect(msgs[1]).toMatch(/Long BTC/);
+    expect(msgs[0]).toMatch(/Диапазон сетки BTC перенесён: 112800–122400/);
+    expect(msgs[1]).toMatch(/Покупка BTC/);
     const st = await loadState(e);
     expect(st.grid?.cfg.low).toBe(112800);
     expect(st.lastRecenter?.price).toBe(120000);
@@ -91,8 +91,8 @@ describe("tick paper", () => {
     await tick(e);
     priceIs(130000); // TP acontece; o recentro só vem sem posição
     const msgs = await tick(e);
-    expect(msgs[0]).toMatch(/Take-profit/);
-    expect(msgs[1]).toMatch(/recentrado/);
+    expect(msgs[0]).toMatch(/Тейк-профит/);
+    expect(msgs[1]).toMatch(/перенесён/);
   });
 
   it("com AUTO_RECENTER=false só avisa, uma vez", async () => {
@@ -102,7 +102,7 @@ describe("tick paper", () => {
     s.running = true;
     await saveState(e, s);
     priceIs(120000);
-    expect((await tick(e))[0]).toMatch(/fora da faixa/);
+    expect((await tick(e))[0]).toMatch(/вышла за диапазон/);
     expect(await tick(e)).toEqual([]);
     expect((await loadState(e)).grid?.cfg.low).toBe(100000);
   });

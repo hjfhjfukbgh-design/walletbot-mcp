@@ -87,8 +87,8 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
   }
   const walt = live ? await connectWalt(env) : null;
   if (live && !walt) {
-    state.paused = "modo live sem conexão com o Walt (/connect)";
-    msgs.push(`⏸️ Pausado: ${state.paused}`);
+    state.paused = "Реальный режим: нет подключения к Walt (/connect)";
+    msgs.push(`⏸️ Пауза: ${state.paused}`);
     return;
   }
 
@@ -122,14 +122,14 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
     await recordClose(env, state, pos, exit, pnl, closedBy);
     grid.position = undefined;
     if (closedBy === "tp") {
-      msgs.push(`🟢 Take-profit ${cfg.market} nível ${pos.level + 1}: saída ~$${exit} (PnL ~$${pnl.toFixed(2)})`);
+      msgs.push(`🟢 Тейк-профит ${cfg.market}, уровень ${pos.level + 1}: выход ~${exit} (результат ~${pnl.toFixed(2)})`);
     } else {
       state.running = false;
-      msgs.push(`🛑 Stop-loss ${cfg.market}: saída ~$${exit} (PnL ~$${pnl.toFixed(2)}). Grid parado — /run para reiniciar.`);
+      msgs.push(`🛑 Стоп-лосс ${cfg.market}: выход ~${exit} (результат ~${pnl.toFixed(2)}). Сетка остановлена — /run для перезапуска.`);
       return;
     }
   } else if (live && (await walt!.openPosition(cfg.contract.contractId))) {
-    const block = `já existe uma posição ${cfg.market} na conta que não foi aberta pelo grid — feche-a ou use /closeall`;
+    const block = `на счёте уже есть позиция ${cfg.market}, открытая не сеткой — закройте её или используйте /closeall`;
     if (block !== state.lastBlock) msgs.push(`🚫 ${block}`);
     state.lastBlock = block;
     return;
@@ -138,7 +138,7 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
   // 2) fora da faixa e sem posição: recentra (ou avisa uma vez)
   if (outOfRange(grid.cfg, price)) {
     if (!limits.autoRecenter) {
-      const block = `preço $${price} fora da faixa $${cfg.low}–$${cfg.high} — reconfigure com /grid`;
+      const block = `цена ${price} вышла за диапазон ${cfg.low}–${cfg.high} — настройте сетку заново через /grid`;
       if (block !== state.lastBlock) msgs.push(`↔️ ${block}`);
       state.lastBlock = block;
       return;
@@ -146,14 +146,14 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
     const next = recenter(grid.cfg, price, limits.recenterDownPct, limits.recenterUpPct);
     const err = sizeError(next, next.high);
     if (err) {
-      const block = `não recentrei o grid: ${err}`;
+      const block = `не удалось перенести диапазон сетки: ${err}`;
       if (block !== state.lastBlock) msgs.push(`🚫 ${block}`);
       state.lastBlock = block;
       return;
     }
     grid.cfg = next;
     state.lastRecenter = { at: new Date().toISOString(), low: next.low, high: next.high, price };
-    msgs.push(`🔄 Grid ${next.market} recentrado: $${next.low}–$${next.high} (preço $${price})`);
+    msgs.push(`🔄 Диапазон сетки ${next.market} перенесён: ${next.low}–${next.high} (цена ${price})`);
   }
 
   // 3) entrada no degrau
@@ -165,13 +165,13 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
   if (state.day?.date !== today) state.day = { date: today, startEquity: equity };
   const ctx = { equityUsd: equity, openMarginUsd: 0, dayStartEquityUsd: state.day.startEquity };
   if (dailyLossExceeded(ctx, limits)) {
-    state.paused = `perda diária >= ${limits.maxDailyLossPct}% ($${equity.toFixed(2)} vs $${state.day.startEquity.toFixed(2)}). Use /resume`;
-    msgs.push(`🛑 Pausado: ${state.paused}`);
+    state.paused = `дневной убыток достиг ${limits.maxDailyLossPct}% (${equity.toFixed(2)} против ${state.day.startEquity.toFixed(2)}). Используйте /resume`;
+    msgs.push(`🛑 Пауза: ${state.paused}`);
     return;
   }
   const decision = checkOpen(cfg.market, cfg.marginUsd, cfg.leverage, ctx, live ? limits : { ...limits, allowedMarkets: ["*"] });
   if (!decision.ok) {
-    const block = `entrada bloqueada pelo risco: ${decision.reason}`;
+    const block = `вход заблокирован ограничениями риска: ${decision.reason}`;
     if (block !== state.lastBlock) msgs.push(`🚫 ${block}`);
     state.lastBlock = block;
     return;
@@ -182,8 +182,8 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
       await walt!.openLong(cfg.contract, cfg.marginUsd, cfg.leverage, price, plan.takeProfit, plan.stopLoss);
     } catch (e) {
       // não repetir: o guia do Walt avisa que retry cego pode abrir duas vezes
-      state.paused = `falha ao abrir ordem (${(e as Error).message}). Confira /status e o app Walt, depois /resume`;
-      msgs.push(`⏸️ Pausado: ${state.paused}`);
+      state.paused = `не удалось открыть ордер (${(e as Error).message}). Проверьте /status и приложение Walt, затем используйте /resume`;
+      msgs.push(`⏸️ Пауза: ${state.paused}`);
       return;
     }
   } else {
@@ -201,19 +201,19 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
     mode: state.mode,
   });
   msgs.push(
-    `🔵 Long ${cfg.market} nível ${plan.level + 1} a ~$${price}: margem $${cfg.marginUsd} ${cfg.leverage}x | TP $${plan.takeProfit} | SL $${plan.stopLoss}${live ? "" : " (paper)"}`,
+    `🔵 Покупка ${cfg.market}, уровень ${plan.level + 1}, цена ~${price}: маржа ${cfg.marginUsd}, плечо ${cfg.leverage}x | TP ${plan.takeProfit} | SL ${plan.stopLoss}${live ? "" : " (демо)"}`,
   );
 }
 
 /** Fecha a posição do grid e para (comando /closeall). */
 export async function closeAll(env: Env): Promise<string> {
   const state = await loadState(env);
-  if (!state.grid) return "Nenhum grid configurado.";
+  if (!state.grid) return "Сетка не настроена.";
   const { cfg } = state.grid;
   const walt = state.mode === "live" ? await connectWalt(env) : null;
   state.running = false;
   if (state.mode === "live") {
-    if (!walt) return "Walt não conectado — feche a posição pelo app Walt.";
+    if (!walt) return "Walt не подключён — закройте позицию в приложении Walt.";
     if (await walt.openPosition(cfg.contract.contractId)) await walt.closePosition(cfg.contract.contractId);
     const pos = state.grid.position;
     if (pos) {
@@ -222,17 +222,17 @@ export async function closeAll(env: Env): Promise<string> {
     }
     state.grid.position = undefined;
     await saveState(env, state);
-    return `Ordem de fechamento enviada para ${cfg.market}. Grid parado. Confira com /status.`;
+    return `Запрос на закрытие позиции ${cfg.market} отправлен. Сетка остановлена. Проверьте статус через /status.`;
   }
   const pos = state.grid.position;
-  let msg = "Sem posição aberta. Grid parado.";
+  let msg = "Открытой позиции нет. Сетка остановлена.";
   if (pos) {
     const price = await currentPrice(cfg, walt);
     const pnl = positionPnl(pos, price, cfg.contract.takerFeePct);
     state.paper.cash += pnl;
     await recordClose(env, state, pos, price, pnl, "manual");
     state.grid.position = undefined;
-    msg = `Posição paper fechada a $${price} (PnL $${pnl.toFixed(2)}). Grid parado.`;
+    msg = `Демо-позиция закрыта по цене ${price} (результат ${pnl.toFixed(2)}). Сетка остановлена.`;
   }
   await saveState(env, state);
   return msg;

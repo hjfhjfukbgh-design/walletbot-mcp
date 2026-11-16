@@ -36,8 +36,8 @@
       </div>
       <button id="education-banner" class="education-banner" type="button"><span class="education-icon"><i data-icon="book"></i></span><span><b>Пройдите обучение: 3 шага до первой сделки</b><small>Демо-счёт · $1 000</small></span><i data-icon="chevron"></i></button>
       <div class="home-quick-actions">
-        <button id="home-open-markets" class="quick-action"><i data-icon="plus-circle"></i><span>Купить</span></button>
-        <button id="home-open-markets-sell" class="quick-action"><i data-icon="minus-circle"></i><span>Продать</span></button>
+        <button id="home-open-markets" class="quick-action"><i data-icon="search"></i><span>Выбрать актив</span></button>
+        <button id="home-open-markets-sell" class="quick-action" type="button" disabled><i data-icon="minus-circle"></i><span>Продажа скоро</span></button>
         <button id="home-open-grid" class="quick-action"><i data-icon="grid"></i><span>Сетка</span></button>
         <button id="home-reset-demo" class="quick-action"><i data-icon="refresh"></i><span>Сбросить демо</span></button>
       </div>
@@ -46,7 +46,7 @@
       <div class="card position-card"><div id="pos" class="empty-state"><i data-icon="wallet"></i><b>Позиций пока нет</b><button id="empty-open-markets" class="secondary" type="button">Открыть рынки</button></div></div>
       <div class="section-title">Сетка</div>
       <div class="card grid-card">
-        <div class="card-heading"><h3>Параметры сетки</h3><span id="grid-status" class="soft-tag">Не настроена</span></div>
+        <div class="card-heading"><h3>Параметры сетки <button type="button" class="help-dot" data-help="grid">?</button></h3><span id="grid-status" class="soft-tag">Не настроена</span></div>
         <div class="row"><span>Рынок и диапазон</span><b id="g-desc">Не настроена</b></div>
         <div class="row"><span>Объём на сделку</span><b id="g-trade">—</b></div>
         <div class="row hidden" id="g-recenter-row"><span>Последний перенос</span><b id="g-recenter">—</b></div>
@@ -54,7 +54,7 @@
       </div>
       <div class="section-title">График цены</div>
       <div class="chart-card">
-        <div class="chart-tools"><span id="chart-src">Рыночные данные</span><select id="chart-interval" aria-label="Таймфрейм"><option value="1m">1м</option><option value="5m">5м</option><option value="15m" selected>15м</option><option value="1h">1Ч</option><option value="4h">4Ч</option><option value="1d">1Д</option></select></div>
+        <div class="chart-tools"><span id="chart-src">Рыночные данные</span><div class="timeframe-control" id="home-timeframes"><button type="button" data-chart-interval="1m">1м</button><button type="button" data-chart-interval="5m">5м</button><button type="button" data-chart-interval="15m" class="selected">15м</button><button type="button" data-chart-interval="1h">1Ч</button><button type="button" data-chart-interval="4h">4Ч</button><button type="button" data-chart-interval="1d">1Д</button></div></div>
         <svg id="chart" viewBox="0 0 360 220" preserveAspectRatio="none"></svg>
         <div class="legend"><i class="l-lvl"></i>Уровни сетки <i class="l-tp"></i>Тейк-профит <i class="l-sl"></i>Стоп-лосс <i class="l-in"></i>Вход</div>
       </div>
@@ -68,14 +68,14 @@
     </section>
     <section id="tab-pares" class="tab">
       <div class="trade-search"><i data-icon="search"></i><input id="q" type="search" placeholder="Поиск: BTC, ETH…" /></div>
-      <div class="category-row"><button class="category-tile selected" type="button"><span class="category-icon">₿</span><b>Крипто</b></button><button class="category-tile" type="button" disabled><span class="category-icon">☆</span><b>Избранное</b></button></div>
+      <div class="category-row"><button id="category-crypto" class="category-tile selected" type="button"><span class="category-icon">₿</span><b>Крипто</b></button><button id="category-favorites" class="category-tile" type="button"><span class="category-icon">☆</span><b>Избранное</b></button></div>
       <div class="section-title">Тепловая карта рынка</div>
       <div id="heatmap" class="heatmap"><div class="skeleton"></div></div>
       <p class="heatmap-note">Размер ячейки — объём торгов, цвет — изменение цены. Чем темнее, тем сильнее изменение.</p>
       <div class="section-heading"><span class="section-title">Топ дня</span><div class="top-toggle"><button class="selected" data-top-sort="up" type="button">Топ роста</button><button data-top-sort="down" type="button">Топ падения</button></div></div>
       <div id="top-day" class="top-day"></div>
       <div class="section-heading"><span class="section-title">Все активы</span><button id="home-see-all" class="text-action" type="button">Посмотреть все</button></div>
-      <div id="pair-detail" class="card hidden"></div>
+      <div id="pair-detail" class="asset-screen card hidden" aria-live="polite"></div>
       <div id="pairs" class="list"><div class="market-loading">Загружаем котировки…</div></div>
     </section>
     <section id="tab-hist" class="tab">
@@ -86,10 +86,10 @@
     <section id="tab-ctrl" class="tab">
       <div class="page-heading"><h2>Настройки</h2><p>Управление демо-сеткой и обучением.</p></div>
       <div class="card">
-        <form id="grid-form">
+        <div class="preset-row"><span>Быстрая настройка</span><div><button type="button" class="preset-chip" data-preset="careful">Осторожно</button><button type="button" class="preset-chip" data-preset="standard">Стандарт</button><button type="button" class="preset-chip" data-preset="active">Агрессивно</button></div></div><form id="grid-form">
           <label>Торговая пара<input name="market" required placeholder="BTC" /></label>
           <div class="two"><label>Нижняя граница<input name="low" type="number" step="any" required /></label><label>Верхняя граница<input name="high" type="number" step="any" required /></label></div>
-          <div class="three"><label>Уровни<input name="levels" type="number" min="2" max="50" value="8" required /></label><label>Маржа, $<input name="marginUsd" type="number" step="0.01" value="10" required /></label><label>Плечо<input name="leverage" type="number" min="1" max="3" value="1" required /></label></div>
+          <div class="three"><label>Уровни <button type="button" class="help-dot" data-help="levels">?</button><input name="levels" type="number" min="2" max="50" value="8" required /></label><label>Маржа, $ <button type="button" class="help-dot" data-help="margin">?</button><input name="marginUsd" type="number" step="0.01" value="10" required /></label><label>Плечо <button type="button" class="help-dot" data-help="leverage">?</button><input name="leverage" type="number" min="1" max="3" value="1" required /></label></div>
           <button type="submit"><i data-icon="save"></i>Сохранить настройки</button>
         </form>
       </div>
@@ -100,7 +100,8 @@
       <p class="disclaimer">Демо-режим использует виртуальные средства. Торговля связана с риском.</p>
     </section>
   </main>
-  <nav class="bottom-nav">
+  <div id="onboarding" class="onboarding-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-title"><div class="onboarding-sheet"><div class="onboarding-progress"><span id="onboarding-progress"></span></div><div class="onboarding-step" id="onboarding-step">ШАГ 1 ИЗ 3</div><h2 id="onboarding-title">Начните с демо</h2><p id="onboarding-copy">Вы торгуете виртуальными средствами. Реальные деньги не используются.</p><div class="onboarding-actions"><button id="onboarding-skip" class="secondary" type="button">Пропустить</button><button id="onboarding-next" type="button">Далее</button></div></div></div>
+  <nav class="bottom-nav"><span id="nav-indicator" class="nav-indicator" aria-hidden="true"></span>
     <button data-tab="painel" class="active"><i data-icon="wallet"></i><span>Кошелёк</span></button>
     <button data-tab="pares"><i data-icon="chart"></i><span>Торговля</span></button>
     <button data-tab="hist"><i data-icon="receipt"></i><span>История</span></button>

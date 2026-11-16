@@ -31,7 +31,7 @@ export async function notifyOwner(env: Env, msgs: string[]): Promise<void> {
     };
     if (res.ok) return;
     if (env.OWNER_CHAT_ID)
-      await send(env, env.OWNER_CHAT_ID, `⚠️ Não consegui postar no canal ${env.ALERT_CHAT_ID} (${res.description ?? "erro"}). Alerta:\n${text}`);
+      await send(env, env.OWNER_CHAT_ID, `⚠️ Не удалось отправить сообщение в канал ${env.ALERT_CHAT_ID} (${res.description ?? "ошибка"}). Уведомление:\n${text}`);
     return;
   }
   if (env.OWNER_CHAT_ID) await send(env, env.OWNER_CHAT_ID, text);

@@ -50,7 +50,7 @@ export class Walt {
         const data = (await this.call("perps_latest_rate", { marketId })) as { rate?: unknown };
         const rate = Number(data?.rate);
         if (Number.isFinite(rate) && rate > 0) return rate;
-        lastErr = new WaltError(`perps_latest_rate sem rate: ${JSON.stringify(data)}`);
+        lastErr = new WaltError(`perps_latest_rate не вернул цену: ${JSON.stringify(data)}`);
       } catch (e) {
         lastErr = e;
       }
@@ -67,7 +67,7 @@ export class Walt {
   async balanceUsd(): Promise<number> {
     const data = await this.call("balance_get");
     const n = usdcBalance(data);
-    if (n === undefined) throw new WaltError(`não achei o saldo USDC/USDT em balance_get: ${JSON.stringify(data).slice(0, 300)}`);
+    if (n === undefined) throw new WaltError(`не удалось найти баланс USDC/USDT в balance_get: ${JSON.stringify(data).slice(0, 300)}`);
     return n;
   }
 
@@ -113,7 +113,7 @@ export class Walt {
 
   private async prepareAndExecute(tool: string, args: Record<string, unknown>): Promise<unknown> {
     const preview = await this.preview(tool, args);
-    if (!preview.ok || !preview.confirmationToken) throw new WaltError(`preview recusado: ${previewReason(preview)}`);
+    if (!preview.ok || !preview.confirmationToken) throw new WaltError(`предварительная проверка отклонена: ${previewReason(preview)}`);
     return this.call("perps_execute_operation", { confirmationToken: preview.confirmationToken });
   }
 }
@@ -142,7 +142,7 @@ export function findContract(contracts: ContractInfo[], market: string): Contrac
 
 export function previewReason(p: Preview): string {
   const failing = (p.risk?.checks ?? []).filter((c) => c.ok === false);
-  if (failing.length) return failing.map((c) => `${c.name ?? "check"}: ${c.message ?? "falhou"}`).join("; ");
+  if (failing.length) return failing.map((c) => `${c.name ?? "check"}: ${c.message ?? "ошибка"}`).join("; ");
   return JSON.stringify(p).slice(0, 300);
 }
 
