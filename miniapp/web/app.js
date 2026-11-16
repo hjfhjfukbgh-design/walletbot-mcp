@@ -50,7 +50,7 @@ async function loadState() {
 
 function renderState() {
   const s = state;
-  $('#mode').textContent = s.mode === 'paper' ? 'paper' : 'LIVE';
+  $('#mode').textContent = s.mode === 'paper' ? 'ДЕМО' : 'LIVE';
   $('#mode').className = `pill ${s.mode === 'live' ? 'live' : ''}`;
   $('#run').textContent = s.paused ? 'пауза' : s.running ? 'работает' : 'остановлен';
   $('#run').className = `pill ${s.running && !s.paused ? 'on' : ''}`;
@@ -205,16 +205,16 @@ $('#pairs').addEventListener('click', async (ev) => {
   const market = item.dataset.market;
   const box = $('#pair-detail');
   box.classList.remove('hidden');
-  box.textContent = `Carregando ${market}…`;
+  box.textContent = `Загружаем ${market}…`;
   window.scrollTo({ top: 0, behavior: 'smooth' });
   try {
     const p = await call('price', { market, leverage: 3 });
     const c = contracts.find((x) => x.market === market);
     box.innerHTML = `<h3>${esc(market)}</h3>
       <div class="row"><span>Preço</span><b>${usd(p.price, 6)}</b></div>
-      <div class="row"><span>Margem mínima a ${p.leverage}x</span><b>${usd(p.minMargin)}</b></div>
+      <div class="row"><span>Минимальная маржа при ${p.leverage}x</span><b>${usd(p.minMargin)}</b></div>
       <div class="row"><span>Faixa sugerida (−6% / +2%)</span><b>${usd(p.suggestion.low, 6)} – ${usd(p.suggestion.high, 6)}</b></div>
-      <div class="row"><span>Taxa taker</span><b>${fmt((c?.takerFeePct ?? 0) * 100, 3)}%</b></div>
+      <div class="row"><span>Комиссия тейкера</span><b>${fmt((c?.takerFeePct ?? 0) * 100, 3)}%</b></div>
       ${c?.allowed ? `<button id="use-pair">${icon('sliders')}Usar no grid</button>` : '<p class="meta">Par fora dos critérios de liquidez/whitelist do bot.</p>'}`;
     const btn = $('#use-pair');
     if (btn)
