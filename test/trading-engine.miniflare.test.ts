@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { Miniflare } from "miniflare";
 import { build } from "esbuild";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -13,6 +13,8 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   let source = "";
   let root = "";
   let mf: Miniflare | undefined;
+  let objectName = "engine-test-0";
+  let testSequence = 0;
 
   beforeAll(async () => {
     root = await mkdtemp(join(tmpdir(), "wallet-grid-engine-"));
@@ -25,6 +27,8 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     if (root) await rm(root, { recursive: true, force: true });
   });
 
+  beforeEach(() => { objectName = "engine-test-" + (++testSequence); });
+
   async function boot() {
     mf = new Miniflare({
       modules: true,
@@ -34,7 +38,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       resourcePersistencePath: root,
     });
     const ns = await mf.getDurableObjectNamespace("ENGINE");
-    return ns.get(ns.idFromName("global-engine"));
+    return ns.get(ns.idFromName(objectName));
   }
 
   async function post(stub: DurableObjectStub, path: string, body: Record<string, unknown>) {
