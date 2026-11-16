@@ -51,12 +51,22 @@ Let K = number of full Engine restorations/day, C = close events/day, A = accoun
 Approximate indexed-row model:
 R ≈ K*M + E + C + A + P.
 
-- One restore reads M open-position rows.
+Here K includes cold starts and successful socket reconnects. With the planned 14-minute socket rotation, normal operation is about 103 successful reconnects/day, plus any genuine cold starts. The watchdog does not reread SQLite on every failed reconnect attempt: it uses bounded exponential backoff and performs the full SQLite position reconciliation when the upstream socket successfully reconnects.
+
+- One successful restore reads M open-position rows.
 - Open reads one account row.
 - Close reads one account row and one position row.
 - Account view reads one account row plus that user's open positions.
-- The watchdog does not query SQLite per market tick. Full SQL restoration occurs on cold start/reconnect, not each tick.
+- The watchdog does not query SQLite per market tick.
 - Ledger audit is deliberately an explicit reconciliation operation, not a per-tick operation. Its cost grows with ledger history and must be included if automated frequently.
+
+| N users | M total positions | K restores/day | E events/day | Approx. rows read/day | Free quota used |
+|---:|---:|---:|---:|---:|---:|
+| 100 | 200 | 103 | 2,000 | 23,900 | 0.48% |
+| 1,000 | 2,000 | 103 | 20,000 | 239,000 | 4.78% |
+| 1,000 | 5,000 | 103 | 50,000 | 596,000 | 11.92% |
+
+Read scenarios assume C = E/2 closes, A = N account views/day, and P = M positions read by those views. They exclude ledger audits; a full audit reads the historical ledger rows for each account.
 
 Actual row-read billing depends on rows scanned by SQL execution plans, not merely the number of SQL statements or result objects. Measure real usage before scaling.
 
