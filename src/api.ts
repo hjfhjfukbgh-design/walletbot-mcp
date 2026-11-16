@@ -1,6 +1,6 @@
 // API JSON para a Mini App (via endpoints do Telegram Serverless) e para o encaminhamento de updates.
 // Autenticação: header X-Api-Key igual ao secret API_SECRET.
-import { closeAll, connectWalt, paperEquity, positionPnl } from "./bot";
+import { closeAll, connectWalt, positionPnl } from "./bot";
 import { publicContracts, publicMid } from "./prices";
 import { handleUpdate } from "./commands";
 import { riskLimits, type Env } from "./env";
