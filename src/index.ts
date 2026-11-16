@@ -67,7 +67,19 @@ export default {
             menu_button: { type: "web_app", text: "Панель", web_app: { url: env.MINIAPP_URL } },
           }))
         : "MINIAPP_URL не задан";
-      return Response.json({ webhook, commands, menu });
+      // Устанавливаем кнопку также явно для личного чата владельца:
+      // Telegram может хранить персональную настройку меню отдельно от настройки по умолчанию.
+      const ownerMenu = env.MINIAPP_URL && env.OWNER_CHAT_ID
+        ? requireTelegramOk("setChatMenuButton(owner)", await tg(env, "setChatMenuButton", {
+            chat_id: Number(env.OWNER_CHAT_ID),
+            menu_button: { type: "web_app", text: "Панель", web_app: { url: env.MINIAPP_URL } },
+          }))
+        : "OWNER_CHAT_ID не задан";
+      const readDefaultMenu = requireTelegramOk("getChatMenuButton(default)", await tg(env, "getChatMenuButton", {}));
+      const readOwnerMenu = env.OWNER_CHAT_ID
+        ? requireTelegramOk("getChatMenuButton(owner)", await tg(env, "getChatMenuButton", { chat_id: Number(env.OWNER_CHAT_ID) }))
+        : "OWNER_CHAT_ID не задан";
+      return Response.json({ webhook, commands, menu, ownerMenu, readDefaultMenu, readOwnerMenu, expectedMiniappUrl: env.MINIAPP_URL });
     }
 
     // tools/list completo salvo pelo último /tools (protegido pelo mesmo segredo do webhook)
