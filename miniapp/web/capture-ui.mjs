@@ -82,7 +82,15 @@ try {
     await page.locator("#wallet-balance-main").waitFor({state:"visible"});
     await assertViewport(page,"wallet");
     await page.screenshot({path:`wallet-${width}x${height}-dsf3.png`,fullPage:false});
-    await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});\n    await page.evaluate(async()=>{await fetch("/__preview/position"); await window.kriptoGuruDemo.refresh();});\n    await page.waitForTimeout(450);\n    await page.screenshot({path:`wallet-position-${width}x${height}-dsf3.png`,fullPage:false});\n    await page.screenshot({path:`wallet-position-full-${width}x${height}-dsf3.png`,fullPage:true});\n    await page.evaluate(async()=>{await fetch("/__preview/empty"); await window.kriptoGuruDemo.refresh();});\n    await page.waitForTimeout(250);
+    await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});
+    await page.evaluate(async()=>{await fetch("/__preview/position"); await window.kriptoGuruDemo.refresh();});
+    await page.waitForTimeout(450);
+    if(await page.locator("#wallet-position-count").textContent()!=="1") throw new Error("wallet preview: открытая демо-позиция не появилась");
+    await assertViewport(page,"wallet-position");
+    await page.screenshot({path:`wallet-position-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.screenshot({path:`wallet-position-full-${width}x${height}-dsf3.png`,fullPage:true});
+    await page.evaluate(async()=>{await fetch("/__preview/empty"); await window.kriptoGuruDemo.refresh();});
+    await page.waitForTimeout(250);
     await page.locator('nav button[data-tab="pares"]').click();
     await page.waitForTimeout(900);
     await page.locator("#pairs .market-row").first().waitFor({state:"visible"});
@@ -108,11 +116,13 @@ try {
     await page.waitForTimeout(150);
     await page.screenshot({path:`tp-sl-${width}x${height}-dsf3.png`,fullPage:false});
     await page.keyboard.press("Escape");
-    await page.locator("nav button[data-tab="hist"]").click();
+    await page.locator('nav button[data-tab="hist"]').click();
     await page.waitForTimeout(350);
     await page.screenshot({path:`history-${width}x${height}-dsf3.png`,fullPage:false});
-    await page.locator("nav button[data-tab="ctrl"]").click();
+    await page.locator('nav button[data-tab="ctrl"]').click();
     await page.waitForTimeout(250);
+    await assertViewport(page,"settings");
+    if(pageErrors.length) throw new Error("JavaScript errors: "+pageErrors.join(" | "));
     await page.screenshot({path:`settings-${width}x${height}-dsf3.png`,fullPage:false});
     await page.close();
   }
