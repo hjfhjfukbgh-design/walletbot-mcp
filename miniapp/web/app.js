@@ -173,7 +173,7 @@ function renderState() {
       if (lp.funding_paid_quote !== undefined) rows.push(['Выплаченный фандинг', usd(lp.funding_paid_quote, 4)]);
       if (lp.margin_quote !== undefined) rows.push(['Маржа', usd(lp.margin_quote)]);
     }
-    $('#pos').innerHTML = '<div class="position-heading"><span class="coin-avatar">' + esc((g?.market || '₿').slice(0,1)) + '</span><div><b>' + esc(g?.market || 'Позиция') + '</b><small>Покупка · ' + (g?.leverage || 1) + 'x</small></div><strong class="' + (pnl >= 0 ? 'up' : 'down') + '">' + usd(pnl, 4) + '</strong></div>' + rows.map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('');
+    $('#pos').innerHTML = '<div class="position-heading"><span class="coin-avatar">' + esc((g?.market || '₿').slice(0,1)) + '</span><div><b>' + esc(g?.market || 'Позиция') + '</b><small>Покупка · ' + (g?.leverage || 1) + 'x</small></div><strong class="' + (pnl >= 0 ? 'up' : 'down') + '">' + usd(pnl, 4) + '</strong></div>' + rows.map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('') + '<button id="position-close" class="danger position-close" type="button">Закрыть позицию</button>';
   } else {
     $('#pos').innerHTML = `<div class="empty-state">${icon('wallet')}<b>Позиций пока нет</b><small>${g ? 'Сетка ожидает достижения ценового уровня.' : 'Откройте рынки или настройте сетку.'}</small><button id="empty-open-markets" class="secondary" type="button">Открыть рынки</button></div>`;
   }
@@ -430,7 +430,14 @@ async function loadMarketPreview() {
 $('#home-see-all,#home-open-markets').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
 $('#portfolio-trigger').addEventListener('click', () => document.querySelector('nav button[data-tab="painel"]').click());
 $('#notifications-trigger').addEventListener('click', () => tg.showAlert?.('Уведомлений пока нет.'));
-$('#pos').addEventListener('click', (event) => { if (event.target.closest('#empty-open-markets')) document.querySelector('nav button[data-tab="pares"]').click(); });
+$('#pos').addEventListener('click', async (event) => {
+  if (event.target.closest('#empty-open-markets')) { setTab('pares'); return; }
+  if (event.target.closest('#position-close')) {
+    if (!(await confirm('Закрыть демо-позицию по текущей рыночной цене и остановить сетку?'))) return;
+    try { const result = await call('control', { action: 'closeall' }); ctrlMessage(result.message); await loadState(); }
+    catch (error) { showError(error); }
+  }
+});
 $('#wallet-grid-settings').addEventListener('click', () => document.querySelector('nav button[data-tab="ctrl"]').click());
 $('#wallet-grid-run').addEventListener('click', async () => { if (!state?.grid) { setTab('ctrl'); return; } try { const action = state.paused ? 'resume' : state.running ? 'stop' : 'run'; const r=await call('control',{action}); ctrlMessage(r.message); await loadState(); } catch(e) { showError(e); } });
 $('#home-reset-demo').addEventListener('click', () => tg.showAlert?.('Для сброса отправьте боту команду /paper reset. Виртуальный баланс вернётся к $1 000, сетка остановится. История операций сохранится.'));
