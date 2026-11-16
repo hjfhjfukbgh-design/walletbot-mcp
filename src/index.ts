@@ -46,19 +46,26 @@ export default {
       const secret = url.searchParams.get("secret") ?? "";
       if (!env.TELEGRAM_WEBHOOK_SECRET || !timingSafeEqual(secret, env.TELEGRAM_WEBHOOK_SECRET))
         return new Response("forbidden", { status: 403 });
-      const webhook = await tg(env, "setWebhook", {
+      const requireTelegramOk = (method: string, result: unknown) => {
+        const value = result as { ok?: boolean; description?: string };
+        if (value?.ok !== true) {
+          throw new Error(`Telegram ${method} отклонил запрос: ${value?.description ?? "ответ ok не подтверждён"}`);
+        }
+        return result;
+      };
+      const webhook = requireTelegramOk("setWebhook", await tg(env, "setWebhook", {
         url: `${url.origin}/telegram`,
         secret_token: env.TELEGRAM_WEBHOOK_SECRET,
         allowed_updates: ["message"],
         drop_pending_updates: true,
-      });
-      const commands = await tg(env, "setMyCommands", {
+      }));
+      const commands = requireTelegramOk("setMyCommands", await tg(env, "setMyCommands", {
         commands: COMMANDS.map(([command, description]) => ({ command, description })),
-      });
+      }));
       const menu = env.MINIAPP_URL
-        ? await tg(env, "setChatMenuButton", {
+        ? requireTelegramOk("setChatMenuButton", await tg(env, "setChatMenuButton", {
             menu_button: { type: "web_app", text: "Панель", web_app: { url: env.MINIAPP_URL } },
-          })
+          }))
         : "MINIAPP_URL не задан";
       return Response.json({ webhook, commands, menu });
     }
