@@ -68,7 +68,7 @@ async function assertBottomAccessible(page, selector, label) {
   await target.scrollIntoViewIfNeeded();
   await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
   const result = await page.evaluate((sel) => {
-    const element = document.querySelector(sel);
+    const element = Array.from(document.querySelectorAll(sel)).at(-1);
     const nav = document.querySelector(".bottom-nav");
     if (!element) return { error: "target not found: " + sel };
     const rect = element.getBoundingClientRect();
@@ -103,7 +103,9 @@ try {
     await assertViewport(page,"wallet");
     await page.screenshot({path:`wallet-${width}x${height}-dsf3.png`,fullPage:false});
     await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});
-    await assertBottomAccessible(page,"#wallet-asset-list","wallet scroll end");
+    await assertBottomAccessible(page,"#wallet-asset-list","wallet asset list scroll end");
+    await assertBottomAccessible(page,".empty-wallet .primary-button","wallet empty-state CTA scroll end");
+    await page.screenshot({path:`wallet-maxscroll-${width}x${height}-dsf3.png`,fullPage:false});
     await page.evaluate(async()=>{await fetch("/__preview/position"); await window.kriptoGuruDemo.refresh();});
     await page.waitForTimeout(450);
     if(await page.locator("#wallet-position-count").textContent()!=="1") throw new Error("wallet preview: открытая демо-позиция не появилась");
@@ -120,7 +122,8 @@ try {
     await page.locator("#pairs").scrollIntoViewIfNeeded();
     await page.waitForTimeout(250);
     await page.screenshot({path:`trade-list-${width}x${height}-dsf3.png`,fullPage:false});
-    await assertBottomAccessible(page,"#pairs","trade scroll end");
+    await assertBottomAccessible(page,"#pairs .market-row","trade last market row scroll end");
+    await page.screenshot({path:`trade-maxscroll-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#pairs .market-row").first().click();
     await page.waitForTimeout(1100);
     await page.evaluate(()=>{window.scrollTo({top:0,behavior:"instant"});document.documentElement.scrollTop=0;document.body.scrollTop=0;});
@@ -161,18 +164,34 @@ try {
     await page.waitForTimeout(150);
     await page.screenshot({path:`tp-sl-${width}x${height}-dsf3.png`,fullPage:false});
     await page.keyboard.press("Escape");
+    await page.locator("#asset-trade-bar [data-asset-side=short]").click();
+    await page.locator("#ticket-margin").waitFor({state:"visible"});
+    await page.locator("#ticket-margin").fill("50");
+    await page.keyboard.press("Escape");
+    const assetState=await page.evaluate(()=>({
+      open:document.body.classList.contains("asset-open"),
+      navDisplay:getComputedStyle(document.querySelector(".bottom-nav")).display
+    }));
+    if(!assetState.open || assetState.navDisplay!=="none") throw new Error("Asset detail state/nav invalid before back: "+JSON.stringify(assetState));
     await page.locator("#asset-back").click();
     await page.waitForTimeout(200);
+    const returnedState=await page.evaluate(()=>({
+      open:document.body.classList.contains("asset-open"),
+      navDisplay:getComputedStyle(document.querySelector(".bottom-nav")).display
+    }));
+    if(returnedState.open || returnedState.navDisplay==="none") throw new Error("Bottom navigation did not return after asset back: "+JSON.stringify(returnedState));
     await page.locator('nav button[data-tab="hist"]').click();
     await page.waitForTimeout(350);
     await page.screenshot({path:`history-${width}x${height}-dsf3.png`,fullPage:false});
     await assertBottomAccessible(page,"#trades","history scroll end");
+    await page.screenshot({path:`history-maxscroll-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator('nav button[data-tab="ctrl"]').click();
     await page.waitForTimeout(250);
     await assertViewport(page,"settings");
     if(pageErrors.length) throw new Error("JavaScript errors: "+pageErrors.join(" | "));
     await page.screenshot({path:`settings-${width}x${height}-dsf3.png`,fullPage:false});
     await assertBottomAccessible(page,".disclaimer","settings scroll end");
+    await page.screenshot({path:`settings-maxscroll-${width}x${height}-dsf3.png`,fullPage:false});
     await page.close();
   }
 } finally {
