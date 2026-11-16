@@ -51,6 +51,16 @@ describe("API da Mini App", () => {
     expect(b.mode).toBe("paper");
   });
 
+  it("enforces the DEMO leverage cap before contacting the Engine", async () => {
+    const res = await call(env(), "demo/open", "chave-teste", {
+      method: "POST",
+      body: JSON.stringify({ symbol: "BTC", side: "long", marginMicro: "1000000", leverage: 999 }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toContain("Максимальное плечо демо-счёта");
+  });
+
   it("valida campos do grid", async () => {
     const res = await call(env(), "grid", "chave-teste", { method: "POST", body: JSON.stringify({ market: "BTC" }) });
     expect(res.status).toBe(400);
