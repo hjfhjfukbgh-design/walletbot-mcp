@@ -34,7 +34,15 @@ const server = http.createServer((req,res)=>{
     const item=markets.find(x=>x.market===url.searchParams.get("market")) || markets[0];
     return send(res,{ok:true,market:item.market,price:item.price,leverage:1,minMargin:10,suggestion:{low:item.price*.94,high:item.price*1.02}});
   }
-  return send(res,{ok:false,error:"Mock endpoint not found"},404);
+  if (url.pathname.startsWith("/api/")) return send(res,{ok:false,error:"Mock endpoint not found"},404);
+  const requested = url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname.slice(1));
+  const file = path.resolve(root, requested);
+  if (!file.startsWith(root + path.sep)) { res.writeHead(403); res.end("forbidden"); return; }
+  fs.readFile(file,(error,bytes)=>{
+    if(error){res.writeHead(404);res.end("not found");return;}
+    res.writeHead(200,{"Content-Type":mime[path.extname(file)] || "application/octet-stream"});
+    res.end(bytes);
+  });
 });
 function send(res,data,status=200){res.writeHead(status,{"Content-Type":"application/json; charset=utf-8","Access-Control-Allow-Origin":"*"});res.end(JSON.stringify(data));}
 server.listen(4173,"127.0.0.1");
