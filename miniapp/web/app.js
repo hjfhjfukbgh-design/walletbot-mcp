@@ -399,6 +399,7 @@ $('#pairs').addEventListener('click', async (ev) => {
   box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   try {
     const p = await call('price', { market, leverage: 1 });
+    window.kriptoGuruAssetMeta = p;
     const c = contracts.find((x) => x.market === market);
     const price = Number(c?.price ?? p.price);
     const change = Number(c?.change24hPct ?? 0);
