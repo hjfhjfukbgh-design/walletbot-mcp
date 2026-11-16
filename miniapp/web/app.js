@@ -95,7 +95,7 @@ function gStatus(s) { return !s.grid ? 'Не настроена' : s.paused ? '�
 
 function renderState() {
   const s = state;
-  $('#mode').textContent = s.mode === 'paper' ? 'ДЕМО' : 'LIVE';
+  $('#mode').textContent = s.mode === 'paper' ? 'ДЕМО' : 'РЕАЛЬНЫЙ';
   $('#mode').className = `pill ${s.mode === 'live' ? 'live' : 'demo-pill'}`;
   $('#profile-demo').classList.toggle('selected', s.mode === 'paper');
   const demo = s.paper || {};
@@ -114,7 +114,6 @@ function renderState() {
   $('#grid-status').textContent = gStatus(s);
   $('#demo-capital').textContent = usd(equity);
   $('#market-updated').textContent = s.lastTick ? `Live · ${new Date(s.lastTick).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}` : 'Live · ждём котировку';
-  $('#price').textContent = s.grid ? `${s.grid.market} ${usd(s.lastPrice, 2)}` : '—';
 
   const notes = [
     s.paused && ['pause', s.paused],
@@ -137,17 +136,17 @@ function renderState() {
   if (p) {
     const pnl = p.unrealizedPnl;
     const rows = [
-      ['Entrada', usd(p.entryPrice)],
-      ['Take-profit', usd(p.takeProfit)],
-      ['Stop-loss', usd(p.stopLoss)],
-      ['Margem', usd(p.marginUsd)],
-      ['PnL aberto', `<span class="pos-pnl ${pnl >= 0 ? 'up' : 'down'}">${usd(pnl, 4)}</span>`],
+      ['Цена входа', usd(p.entryPrice)],
+      ['Тейк-профит', usd(p.takeProfit)],
+      ['Стоп-лосс', usd(p.stopLoss)],
+      ['Маржа', usd(p.marginUsd)],
+      ['Текущий результат', `<span class="pos-pnl ${pnl >= 0 ? 'up' : 'down'}">${usd(pnl, 4)}</span>`],
     ];
     if (lp) {
       const liq = +lp.liquidation_price;
-      rows.push(['Liquidação', `${usd(liq)}${liq && s.lastPrice ? ` (${fmt(((s.lastPrice - liq) / s.lastPrice) * 100, 1)}% de distância)` : ''}`]);
-      if (lp.funding_paid_quote !== undefined) rows.push(['Funding pago', usd(lp.funding_paid_quote, 4)]);
-      if (lp.margin_quote !== undefined) rows.push(['Margem no Walt', usd(lp.margin_quote)]);
+      rows.push(['Ликвидация', `${usd(liq)}${liq && s.lastPrice ? ` (${fmt(((s.lastPrice - liq) / s.lastPrice) * 100, 1)}% de distância)` : ''}`]);
+      if (lp.funding_paid_quote !== undefined) rows.push(['Выплаченный фандинг', usd(lp.funding_paid_quote, 4)]);
+      if (lp.margin_quote !== undefined) rows.push(['Маржа', usd(lp.margin_quote)]);
     }
     $('#pos').innerHTML = rows.map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('');
   } else {
@@ -312,22 +311,16 @@ $('#pairs').addEventListener('click', async (ev) => {
 
 // ---------- home market preview ----------
 async function loadMarketPreview() {
-  const box = $('#home-markets');
   try {
     contracts = (await call('contracts')).contracts;
-    const rows = contracts.slice(0, 5);
-    box.innerHTML = rows.map((c) => {
-      const change = Number(c.change24hPct || 0);
-      return '<button class="home-market-row" type="button" data-home-market="' + esc(c.market) + '"><span class="market-token"><b>' + esc(c.market.slice(0, 1)) + '</b></span><span class="market-token-name"><b>' + esc(c.market) + '</b><small>Perpetual · ' + fmt(c.maxLeverage, 0) + 'x</small></span><span class="market-token-quote"><b>' + usd(c.price, 6) + '</b><small class="' + (change >= 0 ? 'up' : 'down') + '">' + (change >= 0 ? '+' : '') + fmt(change, 2) + '%</small></span></button>';
-    }).join('') || '<div class="market-loading">Нет доступных активов.</div>';
-  } catch (error) { box.innerHTML = '<div class="market-loading">' + esc(error.message) + '</div>'; }
+    renderPairs();
+    $('#market-updated').textContent = `Live · ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
+  } catch (error) {
+    $('#heatmap').textContent = error.message;
+    $('#pairs').textContent = error.message;
+  }
 }
-$('#home-markets').addEventListener('click', (event) => {
-  const row = event.target.closest('[data-home-market]'); if (!row) return;
-  const market = row.dataset.homeMarket; document.querySelector('nav button[data-tab="pares"]').click();
-  $('#q').value = market; if (contracts.length) renderPairs();
-  const item = [...document.querySelectorAll('#pairs .item')].find((el) => el.dataset.market === market); item?.click();
-});
+$('#pos').addEventListener('click', (event) => { if (event.target.closest('#empty-open-markets')) document.querySelector('nav button[data-tab="pares"]').click(); });
 $('#home-see-all,#home-open-markets').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
 $('#home-open-grid').addEventListener('click', () => document.querySelector('nav button[data-tab="ctrl"]').click());
 $('#home-open-history').addEventListener('click', () => document.querySelector('nav button[data-tab="hist"]').click());
@@ -347,19 +340,19 @@ async function loadHistory() {
     const h = await call('trades');
     drawEquity(h.equity);
     $('#trades').innerHTML = h.trades.length
-      ? `<table><tr><th>Quando</th><th>Evento</th><th>Preço</th><th>PnL</th></tr>${h.trades
+      ? `<table><tr><th>Время</th><th>Событие</th><th>Цена</th><th>Результат</th></tr>${h.trades
           .map((t) => {
             const when = new Date(t.at).toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
             const ev =
               t.event === 'open'
-                ? `<span class="ev ev-open">${icon('open')}long ${esc(t.market)}</span>`
+                ? `<span class="ev ev-open">${icon('open')}Покупка ${esc(t.market)}</span>`
                 : t.reason === 'tp'
                   ? `<span class="ev up">${icon('tp')}TP</span>`
                   : t.reason === 'sl'
                     ? `<span class="ev down">${icon('sl')}SL</span>`
                     : `<span class="ev">${icon('hand')}Вручную</span>`;
             const pnl = t.pnl === undefined ? '' : `<span class="${t.pnl >= 0 ? 'up' : 'down'}">${usd(t.pnl, 4)}</span>`;
-            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(paper)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
+            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(демо)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
           })
           .join('')}</table>`
       : 'Сделок пока нет.';
