@@ -139,6 +139,8 @@ try {
     await page.waitForTimeout(150);
     await page.screenshot({path:`tp-sl-${width}x${height}-dsf3.png`,fullPage:false});
     await page.keyboard.press("Escape");
+    await page.locator("#asset-back").click();
+    await page.waitForTimeout(200);
     await page.locator('nav button[data-tab="hist"]').click();
     await page.waitForTimeout(350);
     await page.screenshot({path:`history-${width}x${height}-dsf3.png`,fullPage:false});
