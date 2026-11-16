@@ -527,3 +527,11 @@ button{ -webkit-tap-highlight-color:transparent }
 .market-list,.asset-list,.history-list{overflow:hidden;border-radius:17px;background:#fff}.market-row,.history-row{display:flex;align-items:center;gap:11px;padding:12px;border-bottom:1px solid rgba(60,60,67,.075)}.market-row:last-child,.history-row:last-child{border-bottom:0}.market-row .row-main,.history-row .row-main{flex:1;min-width:0}.market-row .row-main b,.history-row .row-main b{display:block;font-size:13px;font-weight:650}.market-row .row-main small,.history-row .row-main small{display:block;margin-top:3px;font-size:10px;color:#8E8E93}.market-row .row-value,.history-row .row-value{text-align:right;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}.market-row .row-value small,.history-row .row-value small{display:block;margin-top:3px;font-size:10px}.asset-chart-controls{overflow-x:auto;scrollbar-width:none}.asset-chart-controls::-webkit-scrollbar{display:none}
 @media(max-width:390px){.page-heading h1{font-size:23px}.wallet-balance{font-size:43px}.wallet-actions{gap:6px}.wallet-action{font-size:9px}.bottom-sheet{max-height:90dvh}.asset-trade-bar button{font-size:13px}}
 @media(min-width:431px){main{max-width:560px;margin-inline:auto}.topbar{padding-inline:max(14px,calc((100vw - 560px)/2))}}
+
+/* Pass 04 — safe-area and touch ergonomics */
+html{min-height:100%;overscroll-behavior-y:none}body{min-height:100dvh;margin:0;padding-bottom:env(safe-area-inset-bottom)}
+.topbar{padding-top:env(safe-area-inset-top)}.bottom-nav{bottom:calc(10px + env(safe-area-inset-bottom))}
+.asset-trade-bar{bottom:calc(8px + env(safe-area-inset-bottom))}
+.bottom-nav button,.wallet-action,.favorite-card,.market-row,.asset-line{touch-action:manipulation}
+button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.52}
+@media(orientation:landscape) and (max-height:500px){.bottom-sheet{max-height:94dvh}.sheet-footer{padding-bottom:calc(8px + env(safe-area-inset-bottom))}.asset-trade-bar button{height:42px;min-height:42px}}
