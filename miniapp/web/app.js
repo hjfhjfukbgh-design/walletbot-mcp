@@ -47,9 +47,9 @@ async function loadState() {
 
 function renderState() {
   const s = state;
-  $('#mode').textContent = s.mode === 'paper' ? 'ДЕМО' : 'LIVE';
+  $('#mode').textContent = s.mode === 'ДЕМО' ? 'ДЕМО' : 'LIVE';
   $('#mode').className = `pill ${s.mode === 'live' ? 'live' : ''}`;
-  $('#run').textContent = s.paused ? 'pausado' : s.running ? 'rodando' : 'parado';
+  $('#run').textContent = s.paused ? 'пауза' : s.running ? 'работает' : 'остановлен';
   $('#run').className = `pill ${s.running && !s.paused ? 'on' : ''}`;
   $('#price').textContent = s.grid ? `${s.grid.market} ${usd(s.lastPrice, 2)}` : '—';
 
@@ -66,7 +66,7 @@ function renderState() {
   $('#g-desc').textContent = g ? `${g.market} ${usd(g.low)}–${usd(g.high)} · ${g.levels} уровней по ${usd(g.step)}` : 'не настроена';
   const rc = s.lastRecenter;
   $('#g-recenter-row').classList.toggle('hidden', !rc);
-  if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · preço ${usd(rc.price)}`;
+  if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · preço ${usd(rc.price)}`;
   $('#g-trade').textContent = g ? `маржа ${usd(g.marginUsd)} ${g.leverage}x ≈ ${usd(g.notional)} · SL ${usd(g.stopLoss)}` : '—';
 
   const p = s.position;
@@ -92,13 +92,13 @@ function renderState() {
   }
 
   const st = s.stats;
-  const eq = s.mode === 'paper' ? s.paper?.equity : null;
+  const eq = s.mode === 'ДЕМО' ? s.paper?.equity : null;
   $('#metric-trades').textContent = String(st.trades);\n  $('#metric-wins').textContent = `${st.wins}/${st.losses}`;\n  $('#metric-pnl').textContent = usd(st.realizedPnl, 4);\n  $('#stats').innerHTML = [
     [`${st.trades}`, 'trades'],
     [`${st.wins}/${st.losses}`, 'TP / SL'],
-    [usd(st.realizedPnl, 4), 'PnL realizado'],
+    [usd(st.realizedPnl, 4), 'Результат закрытых сделок'],
     ...(eq !== null && eq !== undefined ? [[usd(eq), 'капитал ДЕМО']] : []),
-    [s.lastTick ? new Date(s.lastTick).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—', 'último tick'],
+    [s.lastTick ? new Date(s.lastTick).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '—', 'последнее обновление'],
   ]
     .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`)
     .join('');
@@ -225,7 +225,7 @@ async function loadHistory() {
     $('#trades').innerHTML = h.trades.length
       ? `<table><tr><th>Quando</th><th>Evento</th><th>Preço</th><th>PnL</th></tr>${h.trades
           .map((t) => {
-            const when = new Date(t.at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            const when = new Date(t.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
             const ev =
               t.event === 'open'
                 ? `<span class="ev ev-open">${icon('open')}long ${esc(t.market)}</span>`
@@ -235,7 +235,7 @@ async function loadHistory() {
                     ? `<span class="ev down">${icon('sl')}SL</span>`
                     : `<span class="ev">${icon('hand')}manual</span>`;
             const pnl = t.pnl === undefined ? '' : `<span class="${t.pnl >= 0 ? 'up' : 'down'}">${usd(t.pnl, 4)}</span>`;
-            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(paper)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
+            return `<tr><td>${when}${t.mode === 'ДЕМО' ? ' <small>(paper)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
           })
           .join('')}</table>`
       : 'Сделок пока нет.';
