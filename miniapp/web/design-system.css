@@ -117,7 +117,7 @@ main{max-width:560px;padding:10px 16px 24px}
 .recent-chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:5px 10px;border-radius:999px;background:#fff;color:var(--kg-text);white-space:nowrap;font-size:11px;font-weight:650}
 .recent-chip .coin-avatar{width:22px;height:22px;font-size:9px}
 .recent-empty{color:var(--kg-muted);font-size:11px}
-.heatmap{background:#fff;border-radius:17px;padding:5px;box-shadow:var(--kg-shadow);grid-auto-rows:40px}
+.heatmap{background:#fff;border-radius:17px;padding:5px;box-shadow:var(--kg-shadow);grid-auto-rows:40px;grid-auto-flow:dense}
 .heat-cell{border-radius:7px}
 .heatmap-note{margin:7px 2px 13px;color:var(--kg-muted);font-size:10px}
 .top-section-heading{align-items:center}
