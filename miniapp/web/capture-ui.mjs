@@ -1,3 +1,4 @@
+// Playwright smoke screenshots for wallet, trade catalog, and asset detail.
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
