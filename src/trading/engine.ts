@@ -4,7 +4,7 @@ import { MONEY_SCALE, PRICE_SCALE, divRound, parseFixed } from "./money";
 interface EngineEnv { HYPERLIQUID_WS_URL?: string; ENGINE_MAX_QUOTE_AGE_MS?: string; ENGINE_DISABLE_SOCKET?: string; }
 interface Quote { price: bigint; observedAt: number; }
 const MAX_AGE_DEFAULT = 10_000;
-const WATCHDOG_MS = 45_000;
+const WATCHDOG_MS = 30_000;
 const SNAPSHOT_MS = 60_000;
 const SOCKET_SILENCE_MS = 30_000;
 const SOCKET_MAX_AGE_MS = 14 * 60_000;
