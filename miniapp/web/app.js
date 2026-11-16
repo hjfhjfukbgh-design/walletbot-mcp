@@ -4,7 +4,7 @@ tg.ready();
 tg.expand();
 
 const $ = (sel) => document.querySelector(sel);
-const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '—' : (+n).toLocaleString('pt-BR', { maximumFractionDigits: d, minimumFractionDigits: Math.min(d, 2) }));
+const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: Math.min(d, 2) }));
 const usd = (n, d = 2) => (n === null || n === undefined ? '—' : `$${fmt(n, d)}`);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
@@ -47,9 +47,9 @@ async function loadState() {
 
 function renderState() {
   const s = state;
-  $('#mode').textContent = s.mode.toUpperCase();
+  $('#mode').textContent = (s.mode === 'paper' ? 'ДЕМО' : 'LIVE');
   $('#mode').className = `pill ${s.mode === 'live' ? 'live' : ''}`;
-  $('#run').textContent = s.paused ? 'pausado' : s.running ? 'rodando' : 'parado';
+  $('#run').textContent = s.paused ? 'Пауза' : s.running ? 'Работает' : 'Остановлен';
   $('#run').className = `pill ${s.running && !s.paused ? 'on' : ''}`;
   $('#price').textContent = s.grid ? `${s.grid.market} ${usd(s.lastPrice, 2)}` : '—';
 
@@ -57,16 +57,16 @@ function renderState() {
     s.paused && ['pause', s.paused],
     s.lastBlock && ['ban', s.lastBlock],
     s.lastError && ['alert', s.lastError],
-    !s.connected && ['plug', 'Walt não conectado (/connect no bot)'],
+    !s.connected && s.mode === 'live' && ['plug', 'Walt не подключён. Подключите его в боте.'],
   ].filter(Boolean);
   $('#alert').innerHTML = notes.map(([ic, t]) => `<div class="note">${icon(ic)}<span>${esc(t)}</span></div>`).join('');
   $('#alert').classList.toggle('hidden', !notes.length);
 
   const g = s.grid;
-  $('#g-desc').textContent = g ? `${g.market} ${usd(g.low)}–${usd(g.high)} · ${g.levels} degraus de ${usd(g.step)}` : 'não configurado';
+  $('#g-desc').textContent = g ? `${g.market} ${usd(g.low)}–${usd(g.high)} · ${g.levels} degraus de ${usd(g.step)}` : 'Не настроена';
   const rc = s.lastRecenter;
   $('#g-recenter-row').classList.toggle('hidden', !rc);
-  if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · preço ${usd(rc.price)}`;
+  if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · preço ${usd(rc.price)}`;
   $('#g-trade').textContent = g ? `margem ${usd(g.marginUsd)} ${g.leverage}x ≈ ${usd(g.notional)} · SL ${usd(g.stopLoss)}` : '—';
 
   const p = s.position;
@@ -74,17 +74,17 @@ function renderState() {
   if (p) {
     const pnl = p.unrealizedPnl;
     const rows = [
-      ['Entrada', usd(p.entryPrice)],
-      ['Take-profit', usd(p.takeProfit)],
-      ['Stop-loss', usd(p.stopLoss)],
-      ['Margem', usd(p.marginUsd)],
-      ['PnL aberto', `<span class="pos-pnl ${pnl >= 0 ? 'up' : 'down'}">${usd(pnl, 4)}</span>`],
+      ['Вход', usd(p.entryPrice)],
+      ['Тейк-профит', usd(p.takeProfit)],
+      ['Стоп-лосс', usd(p.stopLoss)],
+      ['Маржа', usd(p.marginUsd)],
+      ['Текущий PnL', `<span class="pos-pnl ${pnl >= 0 ? 'up' : 'down'}">${usd(pnl, 4)}</span>`],
     ];
     if (lp) {
       const liq = +lp.liquidation_price;
-      rows.push(['Liquidação', `${usd(liq)}${liq && s.lastPrice ? ` (${fmt(((s.lastPrice - liq) / s.lastPrice) * 100, 1)}% de distância)` : ''}`]);
-      if (lp.funding_paid_quote !== undefined) rows.push(['Funding pago', usd(lp.funding_paid_quote, 4)]);
-      if (lp.margin_quote !== undefined) rows.push(['Margem no Walt', usd(lp.margin_quote)]);
+      rows.push(['Цена ликвидации', `${usd(liq)}${liq && s.lastPrice ? ` (${fmt(((s.lastPrice - liq) / s.lastPrice) * 100, 1)}% de distância)` : ''}`]);
+      if (lp.funding_paid_quote !== undefined) rows.push(['Фандинг', usd(lp.funding_paid_quote, 4)]);
+      if (lp.margin_quote !== undefined) rows.push(['Маржа в Walt', usd(lp.margin_quote)]);
     }
     $('#pos').innerHTML = rows.map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('');
   } else {
@@ -93,12 +93,12 @@ function renderState() {
 
   const st = s.stats;
   const eq = s.mode === 'paper' ? s.paper?.equity : null;
-  $('#stats').innerHTML = [
-    [`${st.trades}`, 'trades'],
+  $('#metric-trades').textContent = st.trades;\n  $('#metric-wins').textContent = `${st.wins}/${st.losses}`;\n  $('#metric-pnl').textContent = usd(st.realizedPnl, 4);\n  $('#stats').innerHTML = [
+    [`${st.trades}`, 'сделок'],
     [`${st.wins}/${st.losses}`, 'TP / SL'],
-    [usd(st.realizedPnl, 4), 'PnL realizado'],
-    ...(eq !== null && eq !== undefined ? [[usd(eq), 'patrimônio paper']] : []),
-    [s.lastTick ? new Date(s.lastTick).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—', 'último tick'],
+    [usd(st.realizedPnl, 4), 'Реализованный PnL'],
+    ...(eq !== null && eq !== undefined ? [[usd(eq), 'Баланс ДЕМО']] : []),
+    [s.lastTick ? new Date(s.lastTick).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '—', 'Последнее обновление'],
   ]
     .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`)
     .join('');
@@ -107,7 +107,7 @@ function renderState() {
 async function loadChart(market) {
   try {
     const c = await call('chart', { market });
-    $('#chart-src').textContent = c.source === 'hyperliquid' ? '· 15 min, 48 h' : '· preços do bot';
+    $('#chart-src').textContent = c.source === 'hyperliquid' ? '· 15 мин, 48 ч' : '· данные бота';
     drawChart(c.candles);
   } catch (e) {
     $('#chart').innerHTML = `<text x="10" y="20" fill="currentColor" font-size="12">${esc(e.message)}</text>`;
@@ -152,7 +152,7 @@ function drawChart(candles) {
 
 // ---------- pares ----------
 async function loadPairs() {
-  $('#pairs').textContent = 'Carregando…';
+  $('#pairs').textContent = 'Загрузка…';
   try {
     contracts = (await call('contracts')).contracts;
     renderPairs();
@@ -171,7 +171,7 @@ function renderPairs() {
         (c) => `<div class="item ${c.allowed ? '' : 'blocked'}" data-market="${esc(c.market)}">
       <div><div class="name">${esc(c.market)}</div>
       <div class="meta">vol 24h ${usd(c.volume24hUsd, 0)} · funding ${fmt((c.fundingRateHourly ?? 0) * 100, 4)}%/h · até ${c.maxLeverage}x</div></div>
-      <div class="tag">${c.allowed ? icon('chevron') : c.liquid ? 'bloqueado' : 'pouca liquidez'}</div></div>`,
+      <div class="tag">${c.allowed ? icon('chevron') : c.liquid ? 'недоступна' : 'низкая ликвидность'}</div></div>`,
       )
       .join('') || '<div class="card">Nenhum par encontrado.</div>';
 }
@@ -213,12 +213,12 @@ $('#pairs').addEventListener('click', async (ev) => {
 // ---------- histórico ----------
 async function loadHistory() {
   try {
-    const h = await call('trades');
+    const h = await call('сделок');
     drawEquity(h.equity);
     $('#trades').innerHTML = h.trades.length
       ? `<table><tr><th>Quando</th><th>Evento</th><th>Preço</th><th>PnL</th></tr>${h.trades
           .map((t) => {
-            const when = new Date(t.at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            const when = new Date(t.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
             const ev =
               t.event === 'open'
                 ? `<span class="ev ev-open">${icon('open')}long ${esc(t.market)}</span>`
@@ -231,7 +231,7 @@ async function loadHistory() {
             return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(paper)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
           })
           .join('')}</table>`
-      : 'Nenhum trade ainda.';
+      : 'Сделок пока нет.';
   } catch (e) {
     $('#trades').textContent = e.message;
   }
@@ -294,11 +294,11 @@ document.querySelectorAll('[data-action]').forEach((b) =>
     if (action === 'mode') {
       input.mode = b.dataset.mode;
       if (input.mode === 'live') {
-        if (!(await confirm('Modo LIVE usa dinheiro real em perpétuos alavancados. Confirmar?'))) return;
+        if (!(await confirm('LIVE использует реальные средства и кредитное плечо. Вы уверены, что хотите переключиться?'))) return;
         input.confirm = true;
       }
     }
-    if (action === 'closeall' && !(await confirm('Fechar a posição do grid agora e parar o bot?'))) return;
+    if (action === 'closeall' && !(await confirm('Закрыть позицию и остановить бота?'))) return;
     try {
       tg.HapticFeedback?.impactOccurred('light');
       const r = await call('control', input);
