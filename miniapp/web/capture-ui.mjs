@@ -101,6 +101,8 @@ try {
     await page.screenshot({path:`trade-list-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#pairs .market-row").first().click();
     await page.waitForTimeout(1100);
+    await page.evaluate(()=>{window.scrollTo({top:0,behavior:"instant"});document.documentElement.scrollTop=0;document.body.scrollTop=0;});
+    await page.locator("#asset-back").waitFor({state:"visible"});
     await page.screenshot({path:`asset-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#asset-trade-bar [data-asset-side=long]").click();
     await page.locator("#ticket-margin").waitFor({state:"visible"});
