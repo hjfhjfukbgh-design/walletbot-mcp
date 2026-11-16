@@ -70,15 +70,24 @@ profileTrigger.addEventListener('click', (event) => {
 profileMenu.addEventListener('click', (event) => event.stopPropagation());
 document.addEventListener('click', closeProfileMenu);
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeProfileMenu(); });
+let modeSwitchPending = false;
 $('#profile-demo').addEventListener('click', async () => {
   closeProfileMenu();
-  if (state?.mode === 'paper') return;
+  if (state?.mode === 'paper' || modeSwitchPending) return;
+  modeSwitchPending = true;
+  const button = $('#profile-demo');
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
   try {
     const result = await call('control', { action: 'mode', mode: 'paper' });
     ctrlMessage(result.message);
     await loadState();
   } catch (error) {
     showError(error);
+  } finally {
+    modeSwitchPending = false;
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
   }
 });
 // Реальный режим намеренно заблокирован и не отправляет запросы к API.
@@ -96,7 +105,12 @@ document.querySelectorAll('.bottom-nav button').forEach((b, index) =>
 );
 
 // ---------- painel ----------
+let stateLoading = false;
+let stateRefreshQueued = false;
 async function loadState() {
+  if (document.hidden) { stateRefreshQueued = true; return; }
+  if (stateLoading) { stateRefreshQueued = true; return; }
+  stateLoading = true;
   try {
     state = await call('state');
     $('#alert').classList.add('hidden');
@@ -105,6 +119,9 @@ async function loadState() {
     if (state.grid) loadChart(state.grid.market);
   } catch (e) {
     showError(e);
+  } finally {
+    stateLoading = false;
+    if (stateRefreshQueued && !document.hidden) { stateRefreshQueued = false; queueMicrotask(loadState); }
   }
 }
 
@@ -497,7 +514,10 @@ $('#pairs').addEventListener('click', async (ev) => {
 });
 
 // ---------- home market preview ----------
+let marketPreviewLoading = false;
 async function loadMarketPreview() {
+  if (document.hidden || marketPreviewLoading) return;
+  marketPreviewLoading = true;
   try {
     contracts = (await call('contracts')).contracts;
     lastQuoteUpdate = new Date();
@@ -520,7 +540,7 @@ async function loadMarketPreview() {
   } catch (error) {
     $('#heatmap').textContent = error.message;
     $('#pairs').textContent = error.message;
-  }
+  } finally { marketPreviewLoading = false; }
 }
 const helpCopy = {
   levels: 'Уровни делят выбранный ценовой диапазон на шаги. Больше уровней — чаще сигналы, но меньше расстояние между ними.',
@@ -645,6 +665,9 @@ function confirm(text) {
 $('#grid-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const f = ev.target;
+  const submitButton = f.querySelector('[type="submit"]');
+  if (submitButton?.disabled) return;
+  if (submitButton) submitButton.disabled = true;
   const input = {
     market: f.market.value.trim().toUpperCase(),
     low: +f.low.value,
@@ -659,6 +682,8 @@ $('#grid-form').addEventListener('submit', async (ev) => {
     loadState();
   } catch (e) {
     ctrlMessage(e.message, 'error');
+  } finally {
+    if (submitButton) submitButton.disabled = false;
   }
 });
 
@@ -742,5 +767,11 @@ try { if (!localStorage.getItem('kripto-guru:onboarding:v1')) showOnboarding(); 
 
 
 loadState().then(fillForm);
-setInterval(loadState, 30_000);
-setInterval(loadMarketPreview, 60_000);
+const statePoll = setInterval(loadState, 30_000);
+const marketPoll = setInterval(loadMarketPreview, 60_000);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    if (stateRefreshQueued) { stateRefreshQueued = false; loadState(); }
+    loadMarketPreview();
+  }
+});
