@@ -1,8 +1,21 @@
 // Mini App: API protegida por initData assinado do Telegram e servida pelo mesmo Worker.
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand();
-try { tg.setHeaderColor?.('#F2F2F7'); tg.setBackgroundColor?.('#F2F2F7'); tg.setBottomBarColor?.('#F2F2F7'); } catch {}
+const tg = window.Telegram?.WebApp ?? null;
+let telegramInitError = null;
+try {
+  if (tg) {
+    tg.ready?.();
+    tg.expand?.();
+    tg.setHeaderColor?.('#F2F2F7');
+    tg.setBackgroundColor?.('#F2F2F7');
+    tg.setBottomBarColor?.('#F2F2F7');
+  } else {
+    telegramInitError = 'Telegram WebApp SDK недоступен';
+    console.error('[Kripto Guru] ' + telegramInitError);
+  }
+} catch (error) {
+  telegramInitError = 'Ошибка Telegram WebApp initialization: ' + (error?.message || error);
+  console.error('[Kripto Guru]', error);
+}
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: Math.min(d, 2) }));
@@ -15,23 +28,58 @@ const assetName = (market) => ASSET_NAMES[market] || market;
 const compactPrice = (n) => Math.abs(Number(n)) >= 1_000_000 ? (Number(n) / 1_000_000).toFixed(2) + 'M' : Math.abs(Number(n)) >= 1_000 ? (Number(n) / 1_000).toFixed(1) + 'K' : fmt(n, moneyDecimals(n));
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
-async function call(name, input = {}) {
+async function call(name, input = {}, { timeoutMs = 12_000, signal: externalSignal } = {}) {
   const route = name === 'configure' ? 'grid' : name;
   const method = name === 'configure' || name === 'control' || name === 'manual' || name === 'demo/open' || name === 'demo/close' ? 'POST' : 'GET';
   const query = method === "GET"
     ? Object.entries(input).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&")
     : "";
-  const response = await fetch(`/api/${route}${query ? `?${query}` : ""}`, {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
+  const abortExternal = () => controller.abort(externalSignal?.reason);
+  if (externalSignal?.aborted) abortExternal();
+  else externalSignal?.addEventListener('abort', abortExternal, { once: true });
+  let response;
+  try {
+    response = await fetch(`/api/${route}${query ? `?${query}` : ""}`, {
+    signal: controller.signal,
     method,
     headers: {
       Authorization: `tma ${tg.initData}`,
       ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
     },
     ...(method === "POST" ? { body: JSON.stringify(input) } : {}),
+    });
+    let data;
+    try { data = await response.json(); }
+    catch { throw new Error(`Некорректный JSON от API (HTTP ${response.status})`); }
+    if (!response.ok || data?.ok === false) throw new Error(data?.error || `Ошибка API: ${response.status}`);
+    return data;
+  } catch (error) {
+    if (timedOut) throw new Error(`Таймаут API /api/${route} (${Math.round(timeoutMs / 1000)} с)`);
+    if (controller.signal.aborted && externalSignal?.aborted) throw new Error('Запрос отменён');
+    throw error instanceof TypeError ? new Error('Сетевая ошибка API: ' + error.message) : error;
+  } finally {
+    clearTimeout(timer);
+    externalSignal?.removeEventListener('abort', abortExternal);
+  }
+}
+
+let contractsPromise = null;
+let contractsGeneration = 0;
+async function getContracts({ force = false } = {}) {
+  if (contractsPromise) return contractsPromise;
+  if (!force && contracts.length) return { contracts };
+  const generation = ++contractsGeneration;
+  const request = call('contracts').then(result => {
+    const list = Array.isArray(result.contracts) ? result.contracts : [];
+    if (generation === contractsGeneration) contracts = list;
+    return { ...result, contracts: list };
   });
-  const data = await response.json().catch(() => ({ ok: false, error: `HTTP ${response.status}` }));
-  if (!response.ok || data.ok === false) throw new Error(data.error || `Ошибка API: ${response.status}`);
-  return data;
+  contractsPromise = request;
+  try { return await request; }
+  finally { if (contractsPromise === request) contractsPromise = null; }
 }
 
 function showError(err) {
@@ -50,9 +98,11 @@ let topSort = 'up';
 let favoritesOnly = false;
 const FAVORITES_KEY = 'kripto-guru:favorites:v1';
 let favorites = new Set();
-try { favorites = new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]')); } catch {}
-function saveFavorites() { try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites])); } catch {} }
-if (localStorage.getItem(FAVORITES_KEY) === null) { favorites = new Set(["BTC", "ETH", "SOL"]); saveFavorites(); }
+try { favorites = new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]')); }
+catch (error) { console.warn('[Kripto Guru] Не удалось прочитать избранное из localStorage:', error); favorites = new Set(); }
+function saveFavorites() { try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites])); } catch (error) { console.warn('[Kripto Guru] Не удалось сохранить избранное:', error); } }
+try { if (localStorage.getItem(FAVORITES_KEY) === null) { favorites = new Set(["BTC", "ETH", "SOL"]); saveFavorites(); } }
+catch (error) { console.warn('[Kripto Guru] localStorage недоступен:', error); }
 
 // ---------- menu do perfil e modo ---------- 
 const profileTrigger = $('#profile-trigger');
@@ -368,8 +418,7 @@ function drawChart(candles, target = 'chart', market = '') {
 async function loadPairs() {
   $('#pairs').innerHTML = '<div class="market-loading skeleton-row"></div><div class="market-loading skeleton-row"></div><div class="market-loading skeleton-row"></div>';
   try {
-    const result = await call('contracts');
-    contracts = Array.isArray(result.contracts) ? result.contracts : [];
+    await getContracts({ force: true });
     renderPairs();
     window.kriptoGuruDemo?.marketsUpdated?.();
     if (!contracts.length) window.kriptoGuruDemo?.showFavoritesError?.('Список рынков пуст.');
