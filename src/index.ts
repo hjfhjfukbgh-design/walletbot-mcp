@@ -69,7 +69,7 @@ export default {
       });
     }
 
-    return new Response("walletbot-mcp ok");
+    return env.ASSETS.fetch(req);
   },
 
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
