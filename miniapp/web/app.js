@@ -9,7 +9,7 @@ const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '
 const usd = (n, d = 2) => (n === null || n === undefined || !Number.isFinite(+n) ? '—' : '$' + fmt(n, d));
 const signedPct = (n) => `${n >= 0 ? '↑+' : '↓'}${fmt(Math.abs(n), 2)}%`;
 const pctText = (n) => (Number(n) >= 0 ? '↑' : '↓') + fmt(Math.abs(Number(n)) || 0, 2) + '%';
-const moneyDecimals = (n) => Math.abs(Number(n)) >= 1000 ? 2 : Math.abs(Number(n)) >= 1 ? 3 : 6;
+const moneyDecimals = (n) => { const value = Math.abs(Number(n)); return value >= 1000 ? 2 : value >= 1 ? 3 : value > 0 ? Math.min(10, Math.max(4, 5 - Math.floor(Math.log10(value)))) : 2; };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
 async function call(name, input = {}) {
@@ -103,7 +103,7 @@ async function loadState() {
 
 function balanceMarkup(value) {
   const parts = fmt(value, 2).split(',');
-  return '<span class="balance-major">' + esc(parts[0]) + '</span><span class="balance-minor">,' + esc(parts[1] || '00') + '</span>';
+  return '<span class="balance-currency">$</span><span class="balance-major">' + esc(parts[0]) + '</span><span class="balance-minor">,' + esc(parts[1] || '00') + '</span>';
 }
 function gStatus(s) { return !s.grid ? 'Не настроена' : s.paused ? 'Пауза' : s.running ? 'Работает' : 'Готова'; }
 
@@ -582,3 +582,4 @@ try { if (!localStorage.getItem('kripto-guru:onboarding:v1')) showOnboarding(); 
 
 loadState().then(fillForm);
 setInterval(loadState, 30_000);
+setInterval(loadMarketPreview, 60_000);
