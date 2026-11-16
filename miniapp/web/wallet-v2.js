@@ -102,8 +102,8 @@
       const stroke = positive ? "#34C759" : "#FF3B30";
       return `<button class="favorite-card" type="button" data-wallet-market="${escapeHtml(item.market)}">
         <div class="favorite-top"><span class="coin-avatar">${escapeHtml(token(item.market))}</span><b>${escapeHtml(item.market)}</b><small>${Number(item.maxLeverage || 1)}×</small></div>
-        <div class="favorite-price">$${priceText(item.price)}</div>
-        <div class="favorite-bottom"><span class="change-chip ${positive ? "up" : "down"}">${positive ? "↑" : "↓"} ${Math.abs(pct).toFixed(2)}%</span><svg class="favorite-spark" viewBox="0 0 58 22" aria-hidden="true"><path d="${line} L56 22 L1 22 Z" fill="${stroke}" opacity=".10"/><path d="${line}" fill="none" stroke="${stroke}" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+        <div class="favorite-price" data-fav-price>${priceText(item.price)}</div>
+        <div class="favorite-bottom"><span class="change-chip ${positive ? "up" : "down"}" data-fav-change>${positive ? "↑" : "↓"} ${Math.abs(pct).toFixed(2)}%</span><svg class="favorite-spark" viewBox="0 0 58 22" aria-hidden="true"><path d="${line} L56 22 L1 22 Z" fill="${stroke}" opacity=".10"/><path d="${line}" fill="none" stroke="${stroke}" stroke-width="1.7" stroke-linecap="round"/></svg></div>
       </button>`;
     }).join("");
   }
@@ -117,13 +117,12 @@
   async function loadWallet() {
     try {
       const next = await demoRequest("/api/demo");
-      const key = JSON.stringify({ balanceMicro:next.balanceMicro, positions:(next.positions || []).map((p) => [p.id,p.status,p.entryPrice,p.qtyUnits]) });
+      const key = JSON.stringify({ balanceMicro:next.balanceMicro, positions:(next.positions || []).map((p) => [p.id,p.status,p.symbol,p.side,p.leverage,p.entryPrice,p.qtyUnits,p.marginMicro,p.liquidationPrice,p.takeProfitPrice,p.stopLossPrice]) });
       account = next;
       if (key !== lastRenderKey) {
         renderWallet();
         lastRenderKey = key;
-      } else {
-        renderPositions();
+      } else if (!$ui("#wallet-favorites .favorite-card") && (typeof contracts !== "undefined" && contracts.length)) {
         renderFavorites();
       }
     } catch (error) {
@@ -222,6 +221,18 @@
         if (quoteNode) {
           const entry = Number(BigInt(position.entryPrice || "0")) / 100_000_000;
           quoteNode.textContent = `Вход: $${priceText(entry)} · Сейчас: $${priceText(market.price)}`;
+        }
+      }
+      for (const card of document.querySelectorAll("#wallet-favorites .favorite-card")) {
+        const market = getMarket(card.dataset.walletMarket);
+        if (!market) continue;
+        const priceNode = card.querySelector("[data-fav-price]");
+        const changeNode = card.querySelector("[data-fav-change]");
+        if (priceNode) priceNode.textContent = "$" + priceText(market.price);
+        if (changeNode) {
+          const pct = Number(market.change24hPct || 0);
+          changeNode.textContent = (pct >= 0 ? "↑ " : "↓ ") + Math.abs(pct).toFixed(2) + "%";
+          changeNode.className = "change-chip " + (pct >= 0 ? "up" : "down");
         }
       }
     });
