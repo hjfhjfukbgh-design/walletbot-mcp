@@ -49,8 +49,9 @@ describe("pure position calculations (integer fixed point)", () => {
   });
 
   it("liquidates before SL/TP when a gap crosses multiple levels", () => {
-    const p = opened({ stopLossPrice: 26_000n * P, takeProfitPrice: 52_000n * P, liquidationPrice: 27_000n * P });
+    const p = opened({ stopLossPrice: 28_000n * P, takeProfitPrice: 52_000n * P, liquidationPrice: 27_000n * P });
     expect(checkTrigger(p, 25_000n * P)?.reason).toBe("liquidation");
+    expect(checkTrigger(p, 25_000n * P)?.quotePrice).toBe(25_000n * P);
   });
 
   it("uses adverse slippage for a gap and never returns a better fill than quote", () => {
@@ -77,6 +78,7 @@ describe("pure position calculations (integer fixed point)", () => {
 
   it("rejects insufficient balance and invalid directional levels", () => {
     expect(() => openPosition(base, 1n)).toThrow("Недостаточно");
+    expect(() => openPosition({ ...base, stopLossPrice: base.liquidationPrice }, 1_000n * U)).toThrow("строго между");
     expect(() => openPosition({ ...base, takeProfitPrice: 49_000n * P }, 1_000n * U)).toThrow("LONG TP");
   });
 });
