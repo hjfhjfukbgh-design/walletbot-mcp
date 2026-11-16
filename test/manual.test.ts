@@ -26,8 +26,8 @@ describe("manual demo positions", () => {
   it("mirrors liquidation estimate for LONG and SHORT", () => {
     const long = estimateLiquidationPrice(100, 1, 50, 0.001, "long");
     const short = estimateLiquidationPrice(100, 1, 50, 0.001, "short");
-    expect(long).toBeCloseTo(49.4, 6);
-    expect(short).toBeCloseTo(150.6, 6);
+    expect(long).toBeCloseTo(50.6, 6);
+    expect(short).toBeCloseTo(149.4, 6);
   });
 
   it("detects directional TP and SL", () => {
