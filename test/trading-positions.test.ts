@@ -61,7 +61,7 @@ describe("pure position calculations (integer fixed point)", () => {
   });
 
   it("uses liquidation > SL > TP when conditions coincide", () => {
-    const p = opened({ stopLossPrice: 26_000n * P, takeProfitPrice: 26_000n * P, liquidationPrice: 27_000n * P });
+    const p = opened({ stopLossPrice: 26_000n * P, takeProfitPrice: 52_000n * P, liquidationPrice: 27_000n * P });
     expect(checkTrigger(p, 25_000n * P)?.reason).toBe("liquidation");
   });
 
