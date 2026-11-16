@@ -12,6 +12,8 @@ export interface TradeRecord {
   leverage: number;
   pnl?: number;
   reason?: "tp" | "sl" | "manual";
+  side?: "long" | "short";
+  qty?: number;
   mode: "paper" | "live";
 }
 
