@@ -162,9 +162,12 @@ export class TradingEngine {
       this.ctx.storage.sql.exec("INSERT INTO ledger(operation_id,user_id,position_id,kind,amount_micro,balance_before_micro,balance_after_micro,created_at) VALUES(?,?,?,?,?,?,?,?)",
         "open:" + input.id, userId, input.id, "open", opened.balanceDeltaMicro.toString(), before.toString(), opened.balanceAfterMicro.toString(), Date.now());
     });
+    const wasIdle = this.positions.size === 0;
     this.indexPosition(opened.position);
-    this.connectMarketSocket();
-    void this.ctx.storage.setAlarm(Date.now() + WATCHDOG_MS);
+    if (wasIdle) {
+      this.connectMarketSocket();
+      void this.ctx.storage.setAlarm(Date.now() + WATCHDOG_MS);
+    }
     return { ok: true, position: opened.position, balanceMicro: opened.balanceAfterMicro.toString() };
   }
 
