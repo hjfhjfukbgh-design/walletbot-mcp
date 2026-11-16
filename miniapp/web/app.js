@@ -44,6 +44,7 @@ let state = null;
 let contracts = [];
 let selectedMarket = '';
 let showAssetGrid = false;
+let assetChartMode = 'candles';
 let lastQuoteUpdate = null;
 let topSort = 'up';
 let favoritesOnly = false;
@@ -235,7 +236,15 @@ function drawChart(candles, target = 'chart', market = '') {
     { v: state.position.takeProfit, color: 'var(--green)' },
     { v: state.position.entryPrice, color: 'var(--link)' },
   );
-  const manualPosition = (state?.manualPositions || []).find((position) => position.market === market);
+  const enginePosition = target === 'pair-chart' ? window.kriptoGuruDemo?.getAccount?.()?.positions?.find((position) => position.symbol === market) : null;
+  if (enginePosition) {
+    const toPrice = (value) => Number(BigInt(value || "0")) / 100_000_000;
+    levels.push({ v: toPrice(enginePosition.entryPrice), color: 'var(--link)', dash: '4 3' });
+    if (enginePosition.takeProfitPrice) levels.push({ v: toPrice(enginePosition.takeProfitPrice), color: 'var(--green)', dash: '4 3' });
+    if (enginePosition.stopLossPrice) levels.push({ v: toPrice(enginePosition.stopLossPrice), color: 'var(--red)', dash: '4 3' });
+    if (enginePosition.liquidationPrice) levels.push({ v: toPrice(enginePosition.liquidationPrice), color: '#A855F7', dash: '2 3' });
+  }
+  const manualPosition = target === 'pair-chart' ? null : (state?.manualPositions || []).find((position) => position.market === market);
   if (manualPosition) {
     levels.push({ v: manualPosition.entryPrice, color: 'var(--link)' });
     if (manualPosition.takeProfit) levels.push({ v: manualPosition.takeProfit, color: 'var(--green)' });
@@ -263,17 +272,29 @@ function drawChart(candles, target = 'chart', market = '') {
   out += levels.map((l) =>
     `<line x1="0" x2="${plotW}" y1="${y(l.v)}" y2="${y(l.v)}" stroke="${l.color}" stroke-width="1" ${l.dash ? `stroke-dasharray="${l.dash}"` : ''} vector-effect="non-scaling-stroke"/>`
   ).join('');
-  for (let i = 0; i < valid.length; i++) {
-    const [, o, h, l, c] = valid[i].map(Number);
-    const x = P + stepX * (i + .5);
-    const rising = c >= o;
+  if (target === 'pair-chart' && assetChartMode === 'line') {
+    const points = valid.map((candle, index) => [P + stepX * (index + .5), y(Number(candle[4]))]);
+    const path = points.map(([x, py], index) => (index ? 'L' : 'M') + x.toFixed(2) + ' ' + py.toFixed(2)).join(' ');
+    const rising = Number(valid[valid.length - 1][4]) >= Number(valid[0][1]);
     const color = rising ? 'var(--green)' : 'var(--red)';
-    const top = Math.min(y(o), y(c));
-    const height = Math.max(1.2, Math.abs(y(c) - y(o)));
-    out += `<line x1="${x}" x2="${x}" y1="${y(h)}" y2="${y(l)}" stroke="${color}" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
-    out += `<rect x="${x - bodyW/2}" y="${top}" width="${bodyW}" height="${height}" rx=".7" fill="${color}"/>`;
+    out += '<defs><linearGradient id="assetLineFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + color + '" stop-opacity=".22"/><stop offset="100%" stop-color="' + color + '" stop-opacity="0"/></linearGradient></defs>';
+    out += '<path d="' + path + ' L ' + points[points.length - 1][0] + ' ' + plotBottom + ' L ' + points[0][0] + ' ' + plotBottom + ' Z" fill="url(#assetLineFill)"/>';
+    out += '<path d="' + path + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  } else {
+    for (let i = 0; i < valid.length; i++) {
+      const [, o, h, l, c] = valid[i].map(Number);
+      const x = P + stepX * (i + .5);
+      const rising = c >= o;
+      const color = rising ? 'var(--green)' : 'var(--red)';
+      const top = Math.min(y(o), y(c));
+      const height = Math.max(1.2, Math.abs(y(c) - y(o)));
+      out += `<line x1="${x}" x2="${x}" y1="${y(h)}" y2="${y(l)}" stroke="${color}" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+      out += `<rect x="${x - bodyW/2}" y="${top}" width="${bodyW}" height="${height}" rx=".7" fill="${color}"/>`;
+    }
   }
   const last = valid[valid.length - 1];
+  const caption = document.getElementById('asset-candle-caption');
+  if (caption) caption.textContent = 'Закр. ' + new Date(+last[0]).toLocaleString('ru-RU',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   const lastPrice = Number(quote?.price ?? last[4]), lastColor = Number(quote?.change24hPct ?? (lastPrice - +last[1])) >= 0 ? 'var(--green)' : 'var(--red)';
   out += '<line x1="0" x2="' + plotW + '" y1="' + y(lastPrice) + '" y2="' + y(lastPrice) + '" stroke="' + lastColor + '" stroke-width="1.2" stroke-dasharray="4 3"/>';
   out += '<text x="312" y="' + Math.max(11, Math.min(190, y(lastPrice) - 4)) + '" fill="' + lastColor + '" font-size="10" font-weight="700">' + compactPrice(lastPrice) + '</text>';
