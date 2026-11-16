@@ -177,4 +177,4 @@ main{max-width:560px;padding:10px 16px 24px}
 .category-row{overflow-x:auto;scrollbar-width:none}.category-row::-webkit-scrollbar{display:none}
 .heat-cell{border-radius:7px}
 
-.top-coin.positive span{background:linear-gradient(145deg,#E7F9ED,#CFF2DA);color:#1B9A46}.top-coin.negative span{background:linear-gradient(145deg,#FFF0EF,#FFD8D5);color:#D92D25}
+.top-coin.positive span{background:linear-gradient(145deg,#34C759,#1B9A46);color:#fff}.top-coin.negative span{background:linear-gradient(145deg,#FF6B63,#D92D25);color:#fff}
