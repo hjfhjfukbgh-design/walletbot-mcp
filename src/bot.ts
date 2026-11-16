@@ -79,6 +79,12 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
   const { cfg } = grid;
   const limits = riskLimits(env);
   const live = state.mode === "live";
+  if (live) {
+    state.running = false;
+    state.paused = "LIVE временно заблокирован до включения подтверждения каждой сделки и проверки лимитов риска";
+    msgs.push(`⏸️ ${state.paused}`);
+    return;
+  }
   const walt = live ? await connectWalt(env) : null;
   if (live && !walt) {
     state.paused = "modo live sem conexão com o Walt (/connect)";
