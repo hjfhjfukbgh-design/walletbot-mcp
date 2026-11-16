@@ -1,4 +1,4 @@
-// Mini App do walletbot-mcp: chama os endpoints do Telegram Serverless (que repassam ao Worker).
+// Mini App: API protegida por initData assinado do Telegram e servida pelo mesmo Worker.
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
@@ -8,10 +8,23 @@ const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '
 const usd = (n, d = 2) => (n === null || n === undefined ? '—' : `$${fmt(n, d)}`);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
-function call(name, input = {}) {
-  return new Promise((resolve, reject) => {
-    tg.Serverless.call(name, input, (err, result) => (err ? reject(err) : resolve(result)));
+async function call(name, input = {}) {
+  const route = name === 'configure' ? 'grid' : name;
+  const method = name === 'configure' || name === 'control' ? 'POST' : 'GET';
+  const query = method === "GET"
+    ? Object.entries(input).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&")
+    : "";
+  const response = await fetch(`/api/${route}${query ? `?${query}` : ""}`, {
+    method,
+    headers: {
+      Authorization: `tma ${tg.initData}`,
+      ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(method === "POST" ? { body: JSON.stringify(input) } : {}),
   });
+  const data = await response.json().catch(() => ({ ok: false, error: `HTTP ${response.status}` }));
+  if (!response.ok || data.ok === false) throw new Error(data.error || `Ошибка API: ${response.status}`);
+  return data;
 }
 
 function showError(err) {
