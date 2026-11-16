@@ -72,7 +72,7 @@ describe("tick paper", () => {
     await saveState(e, s);
     priceIs(120000);
     const msgs = await tick(e);
-    expect(msgs[0]).toMatch(/recentrado: \$112800–\$122400/);
+    expect(msgs[0]).toMatch(/Диапазон сетки BTC перенесён: 112800–122400/);
     expect(msgs[1]).toMatch(/Покупка BTC/);
     const st = await loadState(e);
     expect(st.grid?.cfg.low).toBe(112800);
