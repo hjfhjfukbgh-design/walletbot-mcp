@@ -188,3 +188,10 @@ main{padding-bottom:calc(220px + env(safe-area-inset-bottom))!important}
 .page-heading h1,.page-heading p{display:block!important;max-width:100%!important;width:100%!important}
 .page-heading h1{line-height:1.12!important;margin:0!important}
 .page-heading p{line-height:1.4!important;margin:0!important;white-space:normal!important}
+
+/* PR22 P0: compact empty positions state so its action clears the fixed tab dock on short iPhones. */
+.empty-wallet{display:flex!important;flex-direction:column!important;align-items:center!important;gap:7px!important;padding:10px 12px!important}
+.empty-wallet-icon{display:flex!important;align-items:center!important;justify-content:center!important;line-height:1!important}
+.empty-wallet-icon .ic{width:20px!important;height:20px!important}
+.empty-wallet b{line-height:1.2!important}
+.empty-wallet .primary-button{min-height:34px!important;padding:8px 14px!important;line-height:1.15!important}
