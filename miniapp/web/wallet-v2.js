@@ -148,7 +148,7 @@
     $ui("#category-favorites")?.click();
   });
   $ui("#wallet-show-assets")?.addEventListener("click", () => $ui("#wallet-asset-list")?.scrollIntoView({ behavior:"smooth", block:"center" }));
-  $ui("#empty-open-markets")?.addEventListener("click", () => goToTrade());
+  $ui("#engine-positions")?.addEventListener("click", (event) => { if (event.target.closest("#empty-open-markets")) goToTrade(); });
   $ui("#wallet-add-demo")?.addEventListener("click", () => window.Telegram?.WebApp?.showAlert?.("Пополнение виртуального счёта будет добавлено отдельной функцией. Реальные средства не используются."));
   $ui("#settings-reset-demo")?.addEventListener("click", () => window.Telegram?.WebApp?.showAlert?.("Сброс демо-счёта пока не подключён к Engine. Баланс и история не изменены."));
   $ui("#recent-clear")?.addEventListener("click", () => { recent = []; localStorage.removeItem("kg:recent:v1"); renderRecent(); });
