@@ -11,6 +11,11 @@ const SOCKET_MAX_AGE_MS = 14 * 60_000;
 const DEMO_SEED = 1_000n * MONEY_SCALE;
 const bigintKeys = new Set(["marginMicro","leverage","entryPrice","takeProfitPrice","stopLossPrice","liquidationPrice","feePpm","slippagePpm","qtyUnits","entryNotionalMicro","entryFeeMicro"]);
 
+function jsonResponse(value: unknown): Response {
+  return new Response(JSON.stringify(value, (_key, item) => typeof item === "bigint" ? item.toString() : item), {
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+  });
+}
 function serializePosition(p: Position): string {
   return JSON.stringify(p, (_key, value) => typeof value === "bigint" ? value.toString() : value);
 }
@@ -78,15 +83,15 @@ export class TradingEngine {
         if (!/^\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
         const balance = this.ensureAccount(userId);
         const rows = this.ctx.storage.sql.exec("SELECT position_json FROM positions WHERE user_id = ? AND status = 'open'", userId).toArray() as Array<{ position_json: string }>;
-        return Response.json({ ok: true, balanceMicro: balance.toString(), positions: rows.map((row) => parsePosition(row.position_json)) });
+        return jsonResponse({ ok: true, balanceMicro: balance.toString(), positions: rows.map((row) => parsePosition(row.position_json)) });
       }
       if (request.method === "GET" && url.pathname === "/health") {
         return Response.json({ ok: true, openPositions: this.positions.size, socketOpen: this.socket?.readyState === WebSocket.OPEN, quoteCount: this.quotes.size, staleSymbols: [...this.staleSymbols] });
       }
       if (request.method !== "POST") return Response.json({ ok: false, error: "Метод не поддерживается." }, { status: 405 });
       const body = await request.json() as Record<string, unknown>;
-      if (url.pathname === "/open") return Response.json(this.open(body));
-      if (url.pathname === "/close") return Response.json(this.close(body));
+      if (url.pathname === "/open") return jsonResponse(this.open(body));
+      if (url.pathname === "/close") return jsonResponse(this.close(body));
       if (url.pathname === "/quote") return Response.json(await this.acceptQuote(body));
       if (url.pathname === "/reconcile") return Response.json(this.reconcile());
       return Response.json({ ok: false, error: "Неизвестный маршрут Engine." }, { status: 404 });
