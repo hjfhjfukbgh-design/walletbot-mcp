@@ -47,7 +47,7 @@ async function loadState() {
 
 function renderState() {
   const s = state;
-  $('#mode').textContent = (s.mode === 'ДЕМО' ? 'ДЕМО' : 'LIVE');
+  $('#mode').textContent = (s.mode === 'paper' ? 'ДЕМО' : 'LIVE');
   $('#mode').className = `pill ${s.mode === 'live' ? 'live' : ''}`;
   $('#run').textContent = s.paused ? 'Пауза' : s.running ? 'Работает' : 'Остановлен';
   $('#run').className = `pill ${s.running && !s.paused ? 'on' : ''}`;
@@ -92,7 +92,7 @@ function renderState() {
   }
 
   const st = s.stats;
-  const eq = s.mode === 'ДЕМО' ? s.paper?.equity : null;
+  const eq = s.mode === 'paper' ? s.paper?.equity : null;
   $('#metric-trades').textContent = st.trades;
   $('#metric-wins').textContent = `${st.wins}/${st.losses}`;
   $('#metric-pnl').textContent = usd(st.realizedPnl, 4);
@@ -176,7 +176,7 @@ function renderPairs() {
       <div class="meta">Объём за 24 ч ${usd(c.volume24hUsd, 0)} · фандинг ${fmt((c.fundingRateHourly ?? 0) * 100, 4)}%/ч · плечо до ${c.maxLeverage}x</div></div>
       <div class="tag">${c.allowed ? icon('chevron') : c.liquid ? 'недоступна' : 'низкая ликвидность'}</div></div>`,
       )
-      .join('') || '<div class="card">Nenhum par encontrado.</div>';
+      .join('') || '<div class="card">Пары не найдены.</div>';
 }
 $('#q').addEventListener('input', renderPairs);
 $('#only-liquid').addEventListener('change', renderPairs);
@@ -231,7 +231,7 @@ async function loadHistory() {
                     ? `<span class="ev down">${icon('sl')}SL</span>`
                     : `<span class="ev">${icon('hand')}manual</span>`;
             const pnl = t.pnl === undefined ? '' : `<span class="${t.pnl >= 0 ? 'up' : 'down'}">${usd(t.pnl, 4)}</span>`;
-            return `<tr><td>${when}${t.mode === 'ДЕМО' ? ' <small>(paper)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
+            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(ДЕМО)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
           })
           .join('')}</table>`
       : 'Сделок пока нет.';
