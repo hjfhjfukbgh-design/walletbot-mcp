@@ -68,14 +68,14 @@
     </section>
     <section id="tab-pares" class="tab">
       <div class="trade-search"><i data-icon="search"></i><input id="q" type="search" placeholder="Поиск: BTC, ETH…" /></div>
-      <div class="category-row"><button class="category-tile selected" type="button"><span class="category-icon">₿</span><b>Крипто</b></button><button class="category-tile" type="button" disabled><span class="category-icon">☆</span><b>Избранное</b></button></div>
+      <div class="category-row"><button id="category-crypto" class="category-tile selected" type="button"><span class="category-icon">₿</span><b>Крипто</b></button><button id="category-favorites" class="category-tile" type="button"><span class="category-icon">☆</span><b>Избранное</b></button></div>
       <div class="section-title">Тепловая карта рынка</div>
       <div id="heatmap" class="heatmap"><div class="skeleton"></div></div>
       <p class="heatmap-note">Размер ячейки — объём торгов, цвет — изменение цены. Чем темнее, тем сильнее изменение.</p>
       <div class="section-heading"><span class="section-title">Топ дня</span><div class="top-toggle"><button class="selected" data-top-sort="up" type="button">Топ роста</button><button data-top-sort="down" type="button">Топ падения</button></div></div>
       <div id="top-day" class="top-day"></div>
       <div class="section-heading"><span class="section-title">Все активы</span><button id="home-see-all" class="text-action" type="button">Посмотреть все</button></div>
-      <div id="pair-detail" class="card hidden"></div>
+      <div id="pair-detail" class="asset-screen card hidden" aria-live="polite"></div>
       <div id="pairs" class="list"><div class="market-loading">Загружаем котировки…</div></div>
     </section>
     <section id="tab-hist" class="tab">
