@@ -572,8 +572,7 @@ async function loadMarketPreview() {
   if (document.hidden || marketPreviewLoading) return;
   marketPreviewLoading = true;
   try {
-    const result = await call('contracts');
-    contracts = Array.isArray(result.contracts) ? result.contracts : [];
+    await getContracts({ force: true });
     window.kriptoGuruDemo?.marketsUpdated?.();
     if (!contracts.length) window.kriptoGuruDemo?.showFavoritesError?.('Список рынков пуст.');
     lastQuoteUpdate = new Date();
