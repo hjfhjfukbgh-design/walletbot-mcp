@@ -5,7 +5,7 @@ compatibility_date = "2025-06-01"
 # Estado do bot (tokens OAuth, grid, modo paper) — namespace "walletbot-mcp-STATE".
 [[kv_namespaces]]
 binding = "STATE"
-id = "9841b2e9ce794b0f98b262ced2327b56"
+id = "f7f3b2036a854b5f861e2a40f6c8cb1e"
 
 # Tick do grid a cada 5 minutos.
 [triggers]
@@ -29,10 +29,10 @@ ALLOWED_MARKETS = "*"
 MIN_VOLUME_24H_USD = "1000000"
 # URL da Mini App no Telegram Serverless (https://app<id>.tgcloud.ai/), impressa pelo `npx tgcloud push`.
 # Com ela preenchida, /setup cria o botão de menu e NÃO mexe no webhook (que é do tgcloud).
-MINIAPP_URL = "https://app8936339348.tgcloud.ai/"
+MINIAPP_URL = ""
 # Canal/grupo que recebe os alertas automáticos (o bot precisa ser admin com permissão de postar).
 # Vazio = alertas vão para OWNER_CHAT_ID.
-ALERT_CHAT_ID = "-1002200192005"
+ALERT_CHAT_ID = ""
 
 # Segredos (wrangler secret put ... ou GitHub Actions):
 #   TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, OWNER_CHAT_ID, API_SECRET
