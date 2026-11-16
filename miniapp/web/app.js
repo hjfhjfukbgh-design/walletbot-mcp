@@ -47,7 +47,7 @@ async function loadState() {
 
 function renderState() {
   const s = state;
-  $('#mode').textContent = (s.mode === 'paper' ? 'ДЕМО' : 'LIVE');
+  $('#mode').textContent = (s.mode === 'ДЕМО' ? 'ДЕМО' : 'LIVE');
   $('#mode').className = `pill ${s.mode === 'live' ? 'live' : ''}`;
   $('#run').textContent = s.paused ? 'Пауза' : s.running ? 'Работает' : 'Остановлен';
   $('#run').className = `pill ${s.running && !s.paused ? 'on' : ''}`;
@@ -66,8 +66,8 @@ function renderState() {
   $('#g-desc').textContent = g ? `${g.market} ${usd(g.low)}–${usd(g.high)} · ${g.levels} уровней de ${usd(g.step)}` : 'Не настроена';
   const rc = s.lastRecenter;
   $('#g-recenter-row').classList.toggle('hidden', !rc);
-  if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · preço ${usd(rc.price)}`;
-  $('#g-trade').textContent = g ? `маржа ${usd(g.marginUsd)} ${g.leverage}x ≈ ${usd(g.notional)} · SL ${usd(g.stopLoss)}` : '—';
+  if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · цена ${usd(rc.price)}`;
+  $('#g-trade').textContent = g ? `маржа ${usd(g.маржаUsd)} ${g.leverage}x ≈ ${usd(g.notional)} · SL ${usd(g.stopLoss)}` : '—';
 
   const p = s.position;
   const lp = s.livePosition;
@@ -77,14 +77,14 @@ function renderState() {
       ['Вход', usd(p.entryPrice)],
       ['Тейк-профит', usd(p.takeProfit)],
       ['Стоп-лосс', usd(p.stopLoss)],
-      ['Маржа', usd(p.marginUsd)],
+      ['Маржа', usd(p.маржаUsd)],
       ['Текущий PnL', `<span class="pos-pnl ${pnl >= 0 ? 'up' : 'down'}">${usd(pnl, 4)}</span>`],
     ];
     if (lp) {
       const liq = +lp.liquidation_price;
       rows.push(['Цена ликвидации', `${usd(liq)}${liq && s.lastPrice ? ` (${fmt(((s.lastPrice - liq) / s.lastPrice) * 100, 1)}% de расстояние)` : ''}`]);
       if (lp.funding_paid_quote !== undefined) rows.push(['Фандинг', usd(lp.funding_paid_quote, 4)]);
-      if (lp.margin_quote !== undefined) rows.push(['Маржа в Walt', usd(lp.margin_quote)]);
+      if (lp.маржа_quote !== undefined) rows.push(['Маржа в Walt', usd(lp.маржа_quote)]);
     }
     $('#pos').innerHTML = rows.map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('');
   } else {
@@ -92,8 +92,11 @@ function renderState() {
   }
 
   const st = s.stats;
-  const eq = s.mode === 'paper' ? s.paper?.equity : null;
-  $('#metric-trades').textContent = st.trades;\n  $('#metric-wins').textContent = `${st.wins}/${st.losses}`;\n  $('#metric-pnl').textContent = usd(st.realizedPnl, 4);\n  $('#stats').innerHTML = [
+  const eq = s.mode === 'ДЕМО' ? s.paper?.equity : null;
+  $('#metric-trades').textContent = st.trades;
+  $('#metric-wins').textContent = `${st.wins}/${st.losses}`;
+  $('#metric-pnl').textContent = usd(st.realizedPnl, 4);
+  $('#stats').innerHTML = [
     [`${st.trades}`, 'сделок'],
     [`${st.wins}/${st.losses}`, 'TP / SL'],
     [usd(st.realizedPnl, 4), 'Реализованный PnL'],
@@ -124,10 +127,10 @@ function drawChart(candles) {
   if (state.position) lines.push({ v: state.position.takeProfit, cls: 'var(--green)' }, { v: state.position.entryPrice, cls: 'var(--link)' });
   const all = closes.concat(lines.map((l) => l.v)).filter((v) => Number.isFinite(v));
   if (!all.length) {
-    svg.innerHTML = '<text x="10" y="20" fill="currentColor" font-size="12">Sem dados ainda.</text>';
+    svg.innerHTML = '<text x="10" y="20" fill="currentColor" font-size="12">Пока нет данных.</text>';
     return;
   }
-  // a escala segue preço + grid; o SL (normalmente bem abaixo) é desenhado preso na borda com o valor
+  // a escala segue цена + grid; o SL (normalmente bem abaixo) é desenhado preso na borda com o valor
   let lo = Math.min(...all), hi = Math.max(...all);
   const pad = (hi - lo) * 0.04 || hi * 0.01;
   lo -= pad; hi += pad;
@@ -170,7 +173,7 @@ function renderPairs() {
       .map(
         (c) => `<div class="item ${c.allowed ? '' : 'blocked'}" data-market="${esc(c.market)}">
       <div><div class="name">${esc(c.market)}</div>
-      <div class="meta">vol 24h ${usd(c.volume24hUsd, 0)} · funding ${fmt((c.fundingRateHourly ?? 0) * 100, 4)}%/h · até ${c.maxLeverage}x</div></div>
+      <div class="meta">Объём за 24 ч ${usd(c.volume24hUsd, 0)} · фандинг ${fmt((c.fundingRateHourly ?? 0) * 100, 4)}%/ч · плечо до ${c.maxLeverage}x</div></div>
       <div class="tag">${c.allowed ? icon('chevron') : c.liquid ? 'недоступна' : 'низкая ликвидность'}</div></div>`,
       )
       .join('') || '<div class="card">Nenhum par encontrado.</div>';
@@ -189,10 +192,10 @@ $('#pairs').addEventListener('click', async (ev) => {
     const p = await call('price', { market, leverage: 3 });
     const c = contracts.find((x) => x.market === market);
     box.innerHTML = `<h3>${esc(market)}</h3>
-      <div class="row"><span>Preço</span><b>${usd(p.price, 6)}</b></div>
+      <div class="row"><span>Цена</span><b>${usd(p.price, 6)}</b></div>
       <div class="row"><span>Margem mínima a ${p.leverage}x</span><b>${usd(p.minMargin)}</b></div>
-      <div class="row"><span>Faixa sugerida (−6% / +2%)</span><b>${usd(p.suggestion.low, 6)} – ${usd(p.suggestion.high, 6)}</b></div>
-      <div class="row"><span>Taxa taker</span><b>${fmt((c?.takerFeePct ?? 0) * 100, 3)}%</b></div>
+      <div class="row"><span>Рекомендуемый диапазон (−6% / +2%)</span><b>${usd(p.suggestion.low, 6)} – ${usd(p.suggestion.high, 6)}</b></div>
+      <div class="row"><span>Комиссия тейкера</span><b>${fmt((c?.takerFeePct ?? 0) * 100, 3)}%</b></div>
       ${c?.allowed ? `<button id="use-pair">${icon('sliders')}Usar no grid</button>` : '<p class="meta">Par fora dos critérios de liquidez/whitelist do bot.</p>'}`;
     const btn = $('#use-pair');
     if (btn)
@@ -201,7 +204,7 @@ $('#pairs').addEventListener('click', async (ev) => {
         f.market.value = market;
         f.low.value = p.suggestion.low;
         f.high.value = p.suggestion.high;
-        f.marginUsd.value = Math.max(+f.marginUsd.value || 0, Math.ceil(p.minMargin * 1.1 * 100) / 100);
+        f.маржаUsd.value = Math.max(+f.маржаUsd.value || 0, Math.ceil(p.minMargin * 1.1 * 100) / 100);
         f.leverage.value = p.leverage;
         document.querySelector('nav button[data-tab="ctrl"]').click();
       };
@@ -216,7 +219,7 @@ async function loadHistory() {
     const h = await call('сделок');
     drawEquity(h.equity);
     $('#trades').innerHTML = h.trades.length
-      ? `<table><tr><th>Quando</th><th>Evento</th><th>Preço</th><th>PnL</th></tr>${h.trades
+      ? `<table><tr><th>Время</th><th>Событие</th><th>Цена</th><th>PnL</th></tr>${h.trades
           .map((t) => {
             const when = new Date(t.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
             const ev =
@@ -228,7 +231,7 @@ async function loadHistory() {
                     ? `<span class="ev down">${icon('sl')}SL</span>`
                     : `<span class="ev">${icon('hand')}manual</span>`;
             const pnl = t.pnl === undefined ? '' : `<span class="${t.pnl >= 0 ? 'up' : 'down'}">${usd(t.pnl, 4)}</span>`;
-            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(paper)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
+            return `<tr><td>${when}${t.mode === 'ДЕМО' ? ' <small>(paper)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
           })
           .join('')}</table>`
       : 'Сделок пока нет.';
@@ -275,7 +278,7 @@ $('#grid-form').addEventListener('submit', async (ev) => {
     low: +f.low.value,
     high: +f.high.value,
     levels: +f.levels.value,
-    marginUsd: +f.marginUsd.value,
+    маржаUsd: +f.маржаUsd.value,
     leverage: +f.leverage.value,
   };
   try {
@@ -319,7 +322,7 @@ function fillForm() {
   f.low.value = g.low;
   f.high.value = g.high;
   f.levels.value = g.levels;
-  f.marginUsd.value = g.marginUsd;
+  f.маржаUsd.value = g.маржаUsd;
   f.leverage.value = g.leverage;
 }
 
