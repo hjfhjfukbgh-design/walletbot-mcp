@@ -156,9 +156,9 @@ function renderState() {
   if (p) {
     const pnl = p.unrealizedPnl;
     const rows = [
-      ['Цена входа', usd(p.entryPrice)],
-      ['Тейк-профит', usd(p.takeProfit)],
-      ['Стоп-лосс', usd(p.stopLoss)],
+      ['Цена входа', usd(p.entryPrice, moneyDecimals(p.entryPrice))],
+      ['Тейк-профит', usd(p.takeProfit, moneyDecimals(p.takeProfit))],
+      ['Стоп-лосс', usd(p.stopLoss, moneyDecimals(p.stopLoss))],
       ['Маржа', usd(p.marginUsd)],
       ['Текущий результат', `<span class="pos-pnl ${pnl >= 0 ? 'up' : 'down'}">${usd(pnl, 4)}</span>`],
     ];
@@ -444,7 +444,7 @@ async function loadHistory() {
                     ? `<span class="ev down">${icon('sl')}SL</span>`
                     : `<span class="ev">${icon('hand')}Вручную</span>`;
             const pnl = t.pnl === undefined ? '' : `<span class="${t.pnl >= 0 ? 'up' : 'down'}">${usd(t.pnl, 4)}</span>`;
-            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(демо)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
+            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(демо)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price, moneyDecimals(t.price))}</td><td>${pnl}</td></tr>`;
           })
           .join('')}</table>`
       : 'Сделок пока нет.';
