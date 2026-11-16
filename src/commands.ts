@@ -54,6 +54,12 @@ export async function handleCommand(env: Env, text: string): Promise<string> {
       return closeAll(env);
     case "mode":
       return setMode(env, args);
+    case "live":
+      return livePolicy(env, args);
+    case "approve":
+      return approveLive(env);
+    case "reject":
+      return rejectLive(env);
     case "risk":
       return risk(env);
     case "testalert":
@@ -76,6 +82,10 @@ function help(): string {
     "/call <tool> [json] — chamar uma tool do Walt diretamente",
     "/paper reset [saldo] — reiniciar a carteira simulada",
     "/disconnect — remover tokens do Walt",
+    "/live confirm — подтверждать каждую LIVE-сделку",
+    "/live auto CONFIRMO — разрешить автоматическое исполнение в рамках лимитов",
+    "/approve — подтвердить ожидающую LIVE-сделку (действует 10 минут)",
+    "/reject — отклонить ожидающую LIVE-сделку",
     "/testalert — testar o envio de alertas para o canal",
     "",
     "Fluxo: /connect → /conta → /grid … → /run (paper) → depositar USDC → /mode live CONFIRMO",
@@ -90,6 +100,8 @@ async function status(env: Env): Promise<string> {
     `Modo: ${s.mode.toUpperCase()} | ${s.running ? "▶️ rodando" : "⏹️ parado"}${s.paused ? ` | ⏸️ ${s.paused}` : ""}`,
     `Walt: ${connected ? "conectado ✅" : "não conectado (/connect)"}`,
   ];
+  lines.push(`Управление LIVE: ${(s.liveExecutionMode ?? "confirm") === "auto" ? "автоматическое" : "подтверждение каждой сделки"}`);
+  if (s.pendingLiveApproval) lines.push(`Ожидает подтверждения до ${new Date(s.pendingLiveApproval.expiresAt).toLocaleTimeString("ru-RU")}: /approve или /reject`);
   if (s.grid) {
     const { cfg, position: p } = s.grid;
     lines.push(
@@ -111,6 +123,53 @@ async function status(env: Env): Promise<string> {
   if (s.lastTick) lines.push(`Último tick: ${s.lastTick}`);
   if (s.lastError) lines.push(`Último erro: ${s.lastError}`);
   return lines.join("\n");
+}
+
+async function livePolicy(env: Env, args: string[]): Promise<string> {
+  const s = await loadState(env);
+  const choice = (args[0] ?? "confirm").toLowerCase();
+  if (choice === "confirm") {
+    s.liveExecutionMode = "confirm";
+    s.pendingLiveApproval = undefined;
+    await saveState(env, s);
+    return "Режим LIVE: подтверждение каждой сделки. Бот предложит параметры, но не откроет ордер без /approve.";
+  }
+  if (choice === "auto") {
+    if (args[1] !== "CONFIRMO") return "⚠️ Автоматический LIVE самостоятельно открывает реальные сделки. Для включения отправьте /live auto CONFIRMO.";
+    if (s.mode !== "live") return "Сначала включите LIVE через /mode live CONFIRMO после проверки готовности счёта.";
+    const w = await walt(env);
+    const readiness = await w.readiness();
+    if (!readiness.ok) return `Автоматический LIVE заблокирован: ${readiness.issues.map((i) => i.code).join(", ")}.`;
+    const balance = await w.balanceUsd();
+    if (!(balance > 0)) return "Автоматический LIVE заблокирован: доступный баланс USDC равен нулю.";
+    s.liveExecutionMode = "auto";
+    s.pendingLiveApproval = undefined;
+    await saveState(env, s);
+    return "⚠️ Автоматическое управление LIVE включено. Бот действует только в пределах настроенных лимитов риска. Вывод средств и переводы недоступны.";
+  }
+  return `Текущий режим LIVE: ${(s.liveExecutionMode ?? "confirm") === "auto" ? "автоматический" : "подтверждение"}. Использование: /live confirm или /live auto CONFIRMO`;
+}
+
+async function approveLive(env: Env): Promise<string> {
+  const s = await loadState(env);
+  const pending = s.pendingLiveApproval;
+  if (!pending || pending.expiresAt <= Date.now()) {
+    s.pendingLiveApproval = undefined;
+    await saveState(env, s);
+    return "Нет действующего сигнала LIVE. Он мог истечь — дождитесь нового.";
+  }
+  if (s.mode !== "live" || !s.running || s.paused || s.grid?.position) return "Подтверждение отклонено: LIVE не запущен, приостановлен или позиция уже открыта.";
+  pending.approved = true;
+  await saveState(env, s);
+  return "Подтверждение принято. На следующем цикле бот заново проверит цену и лимиты. Если условия изменились, потребуется новый сигнал.";
+}
+
+async function rejectLive(env: Env): Promise<string> {
+  const s = await loadState(env);
+  if (!s.pendingLiveApproval) return "Нет ожидающей сделки для отклонения.";
+  s.pendingLiveApproval = undefined;
+  await saveState(env, s);
+  return "Сигнал LIVE отклонён. Ордер не отправлен.";
 }
 
 async function conta(env: Env, confirm: boolean): Promise<string> {

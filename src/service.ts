@@ -15,6 +15,7 @@ export async function walt(env: Env): Promise<Walt> {
 export async function stopGrid(env: Env): Promise<string> {
   const s = await loadState(env);
   s.running = false;
+  s.pendingLiveApproval = undefined;
   await saveState(env, s);
   return "Grid parado. A posição aberta (se houver) continua com TP/SL no Walt. /closeall para fechar.";
 }
@@ -87,6 +88,7 @@ export async function runGrid(env: Env): Promise<string> {
     price > high || price < low ? `\n⚠️ Preço fora da faixa $${low}–$${high}: só entra quando o preço chegar nela.` : "";
   s.running = true;
   s.paused = undefined;
+  s.pendingLiveApproval = undefined;
   s.lastPrice = price;
   await saveState(env, s);
   return `▶️ Grid ${s.grid.cfg.market} iniciado em modo ${s.mode.toUpperCase()} (preço $${price}). Ticks a cada 5 min.${warn}`;
@@ -107,6 +109,7 @@ export async function setMode(env: Env, args: string[]): Promise<string> {
   }
   s.mode = target;
   s.running = false;
+  s.pendingLiveApproval = undefined;
   s.day = undefined;
   await saveState(env, s);
   return `Modo ${target.toUpperCase()} ativado. Grid parado — use /run.`;

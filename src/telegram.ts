@@ -49,7 +49,10 @@ export const COMMANDS: Array<[string, string]> = [
   ["run", "Iniciar o grid"],
   ["stop", "Parar o grid (posição fica com TP/SL)"],
   ["closeall", "Fechar a posição do grid e parar"],
-  ["mode", "paper | live CONFIRMO"],
+  ["mode", "ДЕМО | LIVE CONFIRMO"],
+  ["live", "confirm | auto CONFIRMO — способ управления LIVE"],
+  ["approve", "Подтвердить предложенную LIVE-сделку"],
+  ["reject", "Отклонить предложенную LIVE-сделку"],
   ["risk", "Ver travas de risco"],
   ["resume", "Retomar após pausa automática"],
 ];

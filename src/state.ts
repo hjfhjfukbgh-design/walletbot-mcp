@@ -3,6 +3,9 @@ import type { ContractInfo, GridConfig, GridPosition } from "./strategy/grid";
 
 export interface BotState {
   mode: "paper" | "live";
+  /** LIVE execution policy: confirm each entry by default; auto requires explicit opt-in. */
+  liveExecutionMode?: "confirm" | "auto";
+  pendingLiveApproval?: { level: number; price: number; takeProfit: number; stopLoss: number; expiresAt: number; approved: boolean };
   running: boolean;
   paused?: string; // motivo da pausa automática (perda diária, erro de execução)
   grid?: { cfg: GridConfig; position?: GridPosition };
@@ -26,6 +29,7 @@ const K_CONTRACTS = "walt:contracts:v2"; // v2: inclui volume e funding
 export function defaultState(): BotState {
   return {
     mode: "paper",
+    liveExecutionMode: "confirm",
     running: false,
     paper: { cash: 1000, startCash: 1000 },
     stats: { trades: 0, wins: 0, losses: 0, realizedPnl: 0 },

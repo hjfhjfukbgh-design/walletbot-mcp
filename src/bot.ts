@@ -168,7 +168,30 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
     const block = `entrada bloqueada pelo risco: ${decision.reason}`;
     if (block !== state.lastBlock) msgs.push(`🚫 ${block}`);
     state.lastBlock = block;
+    state.pendingLiveApproval = undefined;
     return;
+  }
+
+  // LIVE seguro por padrão: proposta expira em 5 minutos e a aprovação é revalidada
+  // no tick seguinte com preço, nível e limites de risco atualizados.
+  if (live && (state.liveExecutionMode ?? "confirm") === "confirm") {
+    const pending = state.pendingLiveApproval;
+    if (!pending || pending.expiresAt <= Date.now() || pending.level !== plan.level || Math.abs(price - pending.price) / pending.price > 0.0025) {
+      state.pendingLiveApproval = {
+        level: plan.level,
+        price,
+        takeProfit: plan.takeProfit,
+        stopLoss: plan.stopLoss,
+        expiresAt: Date.now() + 10 * 60_000,
+        approved: false,
+      };
+      msgs.push(`🟡 СИГНАЛ LIVE — требуется подтверждение\\n${cfg.market} · LONG\\nЦена: ${price}\\nМаржа: ${cfg.marginUsd} · плечо ${cfg.leverage}x\\nTP: ${plan.takeProfit} · SL: ${plan.stopLoss}\\nСрок: 10 минут\\nПроверьте параметры и отправьте /approve для исполнения или /reject для отмены.`);
+      return;
+    }
+    if (!pending.approved) return;
+    state.pendingLiveApproval = undefined;
+  } else if (live) {
+    state.pendingLiveApproval = undefined;
   }
 
   if (live) {
