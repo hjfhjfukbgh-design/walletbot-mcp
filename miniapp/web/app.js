@@ -344,7 +344,7 @@ function renderPairs() {
     const change = c.change24hPct === undefined ? '—' : pctText(c.change24hPct);
     return '<div class="item market-row ' + (c.allowed ? '' : 'blocked') + '" data-market="' + esc(c.market) + '" role="button" tabindex="0" aria-label="Открыть ' + esc(c.market) + '">' +
       '<span class="coin-avatar">' + esc(c.market.slice(0,1)) + '</span>' +
-      '<div class="market-copy"><div class="name">' + esc(assetName(c.market)) + ' <small>' + esc(c.market) + '</small></div><div class="meta">' + (c.allowed ? 'Фьючерс · Цена котировки' : icon('lock') + ' Недоступен в демо') + '</div></div>' +
+      '<div class="market-copy"><div class="name">' + esc(assetName(c.market)) + ' <small>' + esc(c.market) + '</small><span class="market-leverage">' + Number(c.maxLeverage || 1) + '×</span></div><div class="meta">' + (c.allowed ? 'Фьючерс · Цена котировки' : icon('lock') + ' Недоступен в демо') + '</div></div>' +
       '<div class="market-quote"><b>' + usd(c.price, moneyDecimals(c.price)) + '</b><small class="' + ((c.change24hPct || 0) >= 0 ? 'up' : 'down') + '">' + change + '</small></div>' +
       '<button type="button" class="favorite-toggle ' + (favorite ? 'is-favorite' : '') + '" data-favorite="' + esc(c.market) + '" aria-label="' + (favorite ? 'Убрать из избранного' : 'Добавить в избранное') + '">' + (favorite ? '★' : '☆') + '</button></div>';
   }).join('') || '<div class="empty-state card-empty">Ничего не найдено</div>';
@@ -359,7 +359,7 @@ document.querySelectorAll('[data-top-sort]').forEach((b) => b.addEventListener('
 function renderMarketVisuals(source) {
   const items=[...source].filter(c=>Number.isFinite(+c.price)).sort((a,b)=>(b.volume24hUsd||0)-(a.volume24hUsd||0)).slice(0,12);
   const max=Math.max(1,...items.map(c=>+c.volume24hUsd||1));
-  $('#heatmap').innerHTML=items.map(c=>{const pct=Number(c.change24hPct||0),strength=Math.min(1,Math.abs(pct)/8),hue=pct>=0?145:0,light=58-strength*26,ratio=Math.max(0.01,(+c.volume24hUsd||1)/max),span=Math.max(1,Math.min(12,Math.round(Math.sqrt(ratio)*12))),rowSpan=Math.max(1,Math.min(4,Math.round(Math.sqrt(ratio)*4)));return `<button type="button" class="heat-cell" style="grid-column:span ${span};grid-row:span ${rowSpan};background:hsl(${hue} 62% ${light}%)" data-heat-market="${esc(c.market)}"><b>${esc(c.market)}</b><small>${signedPct(pct)}</small></button>`;}).join('')||'<div class="market-loading">Нет данных для тепловой карты.</div>';
+  $('#heatmap').innerHTML=items.map(c=>{const pct=Number(c.change24hPct||0),strength=Math.min(1,Math.abs(pct)/8),hue=pct>=0?145:0,light=46-strength*16,ratio=Math.max(0.01,(+c.volume24hUsd||1)/max),span=Math.max(1,Math.min(12,Math.round(Math.sqrt(ratio)*12))),rowSpan=Math.max(1,Math.min(4,Math.round(Math.sqrt(ratio)*4)));return `<button type="button" class="heat-cell" style="grid-column:span ${span};grid-row:span ${rowSpan};background:hsl(${hue} 62% ${light}%)" data-heat-market="${esc(c.market)}"><b>${esc(c.market)}</b><small>${signedPct(pct)}</small></button>`;}).join('')||'<div class="market-loading">Нет данных для тепловой карты.</div>';
   const ranked=[...source].sort((a,b)=>topSort==='up'?(b.change24hPct||0)-(a.change24hPct||0):(a.change24hPct||0)-(b.change24hPct||0)).slice(0,8);
   $('#top-day').innerHTML=ranked.map(c=>`<button type="button" class="top-coin" data-heat-market="${esc(c.market)}"><span>${esc(c.market.slice(0,1))}</span><b>${esc(c.market)}</b><small class="${(c.change24hPct||0)>=0?'up':'down'}">${signedPct(c.change24hPct||0)}</small></button>`).join('');
 }
