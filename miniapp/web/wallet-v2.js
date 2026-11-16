@@ -143,6 +143,7 @@
   }
 
   $ui("#wallet-open-history")?.addEventListener("click", () => document.querySelector('nav button[data-tab="hist"]')?.click());
+  $ui("#home-open-markets")?.addEventListener("click", () => goToTrade());
   $ui("#wallet-edit-favorites")?.addEventListener("click", () => {
     document.querySelector('nav button[data-tab="pares"]')?.click();
     $ui("#category-favorites")?.click();
@@ -152,6 +153,11 @@
   $ui("#wallet-add-demo")?.addEventListener("click", () => window.Telegram?.WebApp?.showAlert?.("Пополнение виртуального счёта будет добавлено отдельной функцией. Реальные средства не используются."));
   $ui("#settings-reset-demo")?.addEventListener("click", () => window.Telegram?.WebApp?.showAlert?.("Сброс демо-счёта пока не подключён к Engine. Баланс и история не изменены."));
   $ui("#recent-clear")?.addEventListener("click", () => { recent = []; localStorage.removeItem("kg:recent:v1"); renderRecent(); });
+  $ui("#category-futures")?.addEventListener("click", () => {
+    document.querySelectorAll(".category-tile").forEach((item) => item.classList.toggle("selected", item.id === "category-futures"));
+    if (typeof favoritesOnly !== "undefined") favoritesOnly = false;
+    if (typeof renderPairs === "function") renderPairs();
+  });
   $ui("#recent-markets")?.addEventListener("click", (event) => {
     const chip = event.target.closest("[data-recent-market]");
     if (chip) goToTrade(chip.dataset.recentMarket);
