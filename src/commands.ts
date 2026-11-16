@@ -70,6 +70,93 @@ export async function handleCommand(env: Env, text: string): Promise<string> {
 
 function help(): string {
   return [
+    "Walt Grid — управление торговой сеткой",
+    "",
+    "Основные команды:",
+    "/demo — включить демо-режим без кошелька",
+    "/live CONFIRMO — запросить включение LIVE",
+    "/status — состояние, баланс и результат",
+    "/grid — настроить рынок и параметры сетки",
+    "/run — запустить сетку",
+    "/stop — остановить сетку",
+    "/closeall — закрыть позицию и остановить",
+    "/resume — снять автоматическую паузу",
+    "",
+    "Для подключения Walt в LIVE: /connect. Код авторизации отправляется через /code.",
+    "В ДЕМО используются виртуальные средства и публичные рыночные данные. Реальные ордера не отправляются."
+  ].join("\\n");
+}mport { riskLimits, type Env } from "./env";
+import { closeAll, paperEquity } from "./bot";
+import { configureGrid, resumeGrid, runGrid, setMode, stopGrid, walt } from "./service";
+import { callbackParams, disconnect, getAccessToken, handleCallback, startAuthorization } from "./oauth";
+import { defaultState, loadState, saveState, saveTools } from "./state";
+import { notional, step } from "./strategy/grid";
+import { COMMANDS, notifyOwner, type TgUpdate } from "./telegram";
+import { handleTenantUpdate } from "./tenants";
+import { previewReason } from "./walt";
+
+/** Processa um comando do dono e devolve a resposta em texto. */
+export async function handleCommand(env: Env, text: string): Promise<string> {
+  // endereço do redirect colado sem /code
+  if (!text.trim().startsWith("/") && /[?&]code=/.test(text) && /[?&]state=/.test(text)) text = `/code ${text}`;
+  const [rawCmd, ...args] = text.trim().split(/\s+/);
+  const cmd = rawCmd.replace(/^\//, "").replace(/@.*$/, "").toLowerCase();
+  switch (cmd) {
+    case "start":
+    case "help":
+      return help();
+    case "status":
+      return status(env);
+    case "connect":
+      return [
+        "1) Abra o link, autorize no Walt e confirme no Telegram:",
+        await startAuthorization(env),
+        "",
+        "2) O navegador vai abrir uma página http://localhost:8787/… que não carrega — é esperado.",
+        "3) Copie o endereço completo dessa página e envie aqui (com ou sem /code).",
+        "Faça em poucos minutos: o código expira rápido.",
+      ].join("\n");
+    case "code":
+      if (!args.length) return "Uso: /code <endereço completo da página localhost após autorizar>";
+      await handleCallback(env, callbackParams(args.join(" ")));
+      return "✅ Walt conectado! Próximo passo: /conta para checar/criar a conta Perps do agente.";
+    case "disconnect":
+      await disconnect(env);
+      return "Conta Walt desconectada.";
+    case "conta":
+      return conta(env, args[0] === "CONFIRMO");
+    case "saldo":
+      return `💰 ${JSON.stringify(await (await walt(env)).call("balance_get"), null, 1)}`;
+    case "tools":
+      return tools(env);
+    case "call":
+      return call(env, args);
+    case "grid":
+      return configureGrid(env, args);
+    case "run":
+      return runGrid(env);
+    case "stop":
+      return stopGrid(env);
+    case "closeall":
+      return closeAll(env);
+    case "mode":
+      return setMode(env, args);
+    case "risk":
+      return risk(env);
+    case "testalert":
+      await notifyOwner(env, ["🔔 Teste de alerta do walletbot-mcp."]);
+      return env.ALERT_CHAT_ID ? `Alerta de teste enviado para ${env.ALERT_CHAT_ID}.` : "Alerta de teste enviado (sem ALERT_CHAT_ID: vai para você).";
+    case "resume":
+      return resumeGrid(env);
+    case "paper":
+      return paperCmd(env, args);
+    default:
+      return `Comando desconhecido. ${help()}`;
+  }
+}
+
+function help(): string {
+  return [
     "🤖 walletbot-mcp — grid automático no Walt Perps",
     "",
     ...COMMANDS.map(([c, d]) => `/${c} — ${d}`),
@@ -87,7 +174,7 @@ async function status(env: Env): Promise<string> {
   const s = await loadState(env);
   const connected = !!(await getAccessToken(env).catch(() => null));
   const lines = [
-    `Modo: ${s.mode.toUpperCase()} | ${s.running ? "▶️ rodando" : "⏹️ parado"}${s.paused ? ` | ⏸️ ${s.paused}` : ""}`,
+    `Режим: ${s.mode === "paper" ? "ДЕМО" : "LIVE"} | ${s.running ? "▶️ rodando" : "⏹️ parado"}${s.paused ? ` | ⏸️ ${s.paused}` : ""}`,
     `Walt: ${connected ? "conectado ✅" : "não conectado (/connect)"}`,
   ];
   if (s.grid) {
@@ -105,7 +192,7 @@ async function status(env: Env): Promise<string> {
     `Trades ${s.stats.trades} (✅${s.stats.wins} ❌${s.stats.losses}) | PnL realizado ~$${s.stats.realizedPnl.toFixed(2)}`,
   );
   if (s.mode === "paper")
-    lines.push(`Paper: patrimônio $${(s.lastPrice ? paperEquity(s, s.lastPrice) : s.paper.cash).toFixed(2)} (início $${s.paper.startCash})`);
+    lines.push(`ДЕМО: виртуальный капитал $${(s.lastPrice ? paperEquity(s, s.lastPrice) : s.paper.cash).toFixed(2)} (início $${s.paper.startCash})`);
   if (s.lastRecenter)
     lines.push(`Último recentro: ${s.lastRecenter.at} → $${s.lastRecenter.low}–$${s.lastRecenter.high} (preço $${s.lastRecenter.price})`);
   if (s.lastTick) lines.push(`Último tick: ${s.lastTick}`);
