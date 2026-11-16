@@ -15,7 +15,7 @@ export function memoryKV(): KVNamespace {
 export const env = (): Env => ({
   ENGINE: {} as DurableObjectNamespace,
   STATE: memoryKV(),
-  TELEGRAM_BOT_TOKEN: "",
+  TELEGRAM_BOT_TOKEN: "123456:TEST_TOKEN",
   TELEGRAM_WEBHOOK_SECRET: "",
   OWNER_CHAT_ID: "",
   WALT_MCP_URL: "",
