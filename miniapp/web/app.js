@@ -133,8 +133,9 @@ function renderState() {
   $('#run').className = `pill ${s.running && !s.paused ? 'on' : ''}`;
   $('#grid-status').textContent = gStatus(s);
   $('#wallet-grid-run').textContent = s.paused ? 'Продолжить' : s.running ? 'Остановить' : g ? 'Запустить' : 'Настроить';
-  $('#wallet-grid-run').classList.toggle('secondary', !!s.running && !s.paused);
-  $('#wallet-grid-run').classList.toggle('primary', !s.running || !!s.paused);
+  const gridActionSecondary = !!s.running || !!s.paused;
+  $('#wallet-grid-run').classList.toggle('secondary', gridActionSecondary);
+  $('#wallet-grid-run').classList.toggle('primary', !gridActionSecondary);
   $('#demo-capital').textContent = usd(equity);
   const quoteTime = lastQuoteUpdate || (s.lastTick ? new Date(s.lastTick) : null);
   $('#market-updated').textContent = quoteTime ? `Live · ${quoteTime.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}` : 'Live · ждём котировку';
