@@ -143,7 +143,7 @@ try {
     await page.waitForTimeout(200);
     await page.locator('nav button[data-tab="hist"]').click();
     await page.waitForTimeout(350);
-    await page.screenshot({path:`history-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.screenshot({path:`history-${width}x${height}-dsf3.png`,fullPage:false});\n    await assertBottomAccessible(page,"#trades","history scroll end");
     await page.locator('nav button[data-tab="ctrl"]').click();
     await page.waitForTimeout(250);
     await assertViewport(page,"settings");
