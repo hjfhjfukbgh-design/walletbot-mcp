@@ -5,8 +5,8 @@ tg.expand();
 try { tg.setHeaderColor?.('#EDECF3'); tg.setBackgroundColor?.('#EDECF3'); } catch {}
 
 const $ = (sel) => document.querySelector(sel);
+const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: Math.min(d, 2) }));
 const usd = (n, d = 2) => (n === null || n === undefined || !Number.isFinite(+n) ? '—' : '$' + fmt(n, d));
-const usd = (n, d = 2) => (n === null || n === undefined || !Number.isFinite(+n) ? '—' : '
 const signedPct = (n) => `${n >= 0 ? '↑+' : '↓'}${fmt(Math.abs(n), 2)}%`;
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
