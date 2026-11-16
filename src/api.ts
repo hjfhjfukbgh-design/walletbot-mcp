@@ -5,6 +5,7 @@ import { publicContracts, publicMid } from "./prices";
 import { handleUpdate } from "./commands";
 import { riskLimits, type Env } from "./env";
 import { loadTrades } from "./history";
+import { publicContracts, publicMid } from "./prices";
 import { getAccessToken } from "./oauth";
 import { marketAllowed } from "./risk";
 import { configureGrid, resumeGrid, runGrid, setMode, stopGrid, walt } from "./service";
@@ -130,15 +131,18 @@ async function stateView(env: Env) {
 
 async function contractsView(env: Env) {
   const limits = riskLimits(env);
-  const w = await walt(env);
-  const list = await cachedContracts(env, () => w.contracts());
+  const state = await loadState(env);
+  const list = state.mode === "live"
+    ? await cachedContracts(env, async () => (await walt(env)).contracts())
+    : await publicContracts();
   return list
     .map((c) => {
       const market = c.name.replace(/-USDC?$/i, "");
       return {
         market,
         ...c,
-        liquid: (c.volume24hUsd ?? 0) >= limits.minVolume24hUsd,\n        source: state.mode === "live" ? "walt" : "hyperliquid",
+        source: state.mode === "live" ? "walt" : "hyperliquid",
+        liquid: (c.volume24hUsd ?? 0) >= limits.minVolume24hUsd,
         allowed: marketAllowed(limits, market) && (c.volume24hUsd ?? 0) >= limits.minVolume24hUsd,
       };
     })
@@ -146,16 +150,18 @@ async function contractsView(env: Env) {
 }
 
 async function priceView(env: Env, market: string, leverage: number) {
-  const w = await walt(env);
-  const contract = findContract(await cachedContracts(env, () => w.contracts()), market);
-  if (!contract) throw new Error(`contrato ${market} não encontrado`);
-  const price = await w.rate(contract);
+  const state = await loadState(env);
+  const contract = state.mode === "live"
+    ? findContract(await cachedContracts(env, async () => (await walt(env)).contracts()), market)
+    : findContract(await publicContracts(), market);
+  if (!contract) throw new Error(`рынок ${market} не найден`);
+  const price = state.mode === "live" ? await (await walt(env)).rate(contract) : await publicMid(market);
   const lev = Math.max(1, Math.min(Math.trunc(leverage) || 1, contract.maxLeverage, riskLimits(env).maxLeverage));
   return {
     market: market.toUpperCase(),
     price,
     leverage: lev,
-    minMargin: Number(minMargin(contract, price * 1.02, lev).toFixed(2)), // no topo da faixa sugerida (+2%)
+    minMargin: Number(minMargin(contract, price * 1.02, lev).toFixed(2)),
     suggestion: { low: Number((price * 0.94).toFixed(contract.priceDecimals)), high: Number((price * 1.02).toFixed(contract.priceDecimals)) },
   };
 }
