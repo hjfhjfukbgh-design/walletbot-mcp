@@ -232,8 +232,8 @@
     const liq=liquidationPrice(s.price,s.leverage,s.side);
     mountSheet(`<div class="sheet-grabber"></div><div class="sheet-header"><h2>Автозакрытие</h2><button class="sheet-close" type="button">×</button></div>
       <div class="segmented-control" id="close-mode"><button data-close-mode="price" class="${s.closeMode==="price"?"selected":""}">Цена</button><button data-close-mode="percent" class="${s.closeMode==="percent"?"selected":""}">%</button><button data-close-mode="usd" class="${s.closeMode==="usd"?"selected":""}">$</button></div>
-      <label class="sheet-field">Take Profit<input id="ticket-tp" type="number" inputmode="decimal" step="any" placeholder="${s.closeMode==="price"?"Цена TP":"Цель прибыли"}" value="${s.tpValue}"></label>
-      <label class="sheet-field">Stop Loss<input id="ticket-sl" type="number" inputmode="decimal" step="any" placeholder="${s.closeMode==="price"?"Цена SL":"Допустимый убыток"}" value="${s.slValue}"></label>
+      <label class="sheet-field">Тейк-профит<input id="ticket-tp" type="number" inputmode="decimal" step="any" placeholder="${s.closeMode==="price"?"Цена TP":"Цель прибыли"}" value="${s.tpValue}"></label>
+      <label class="sheet-field">Стоп-лосс<input id="ticket-sl" type="number" inputmode="decimal" step="any" placeholder="${s.closeMode==="price"?"Цена SL":"Допустимый убыток"}" value="${s.slValue}"></label>
       <div class="sheet-info-row"><span>Ожидаемый результат TP</span><b id="ticket-tp-result">—</b></div>
       <div class="sheet-info-row"><span>Ожидаемый результат SL</span><b id="ticket-sl-result">—</b></div>
       <div class="sheet-info-row"><span>Оценочная ликвидация</span><b>${priceText(liq)}</b></div>
@@ -283,8 +283,8 @@
       <div class="sheet-info-row"><span>Плечо</span><b>${s.leverage}×</b></div>
       <div class="sheet-info-row"><span>Комиссия открытия · оценка</span><b>$${money(fee)}</b></div>
       <div class="sheet-info-row"><span>Цена ликвидации · оценка</span><b>$${priceText(liq)}</b></div>
-      <div class="sheet-info-row"><span>Take Profit</span><b>${tp===null?"—":"$"+priceText(tp)}</b></div>
-      <div class="sheet-info-row"><span>Stop Loss</span><b>${sl===null?"—":"$"+priceText(sl)}</b></div>
+      <div class="sheet-info-row"><span>Тейк-профит</span><b>${tp===null?"—":"$"+priceText(tp)}</b></div>
+      <div class="sheet-info-row"><span>Стоп-лосс</span><b>${sl===null?"—":"$"+priceText(sl)}</b></div>
       <div class="sheet-footer confirm-actions"><button id="ticket-cancel" class="secondary-button" type="button">Отмена</button><button id="ticket-confirm" class="primary-button" type="button">Подтвердить</button></div>`);
     $v("#ticket-cancel",ticketOverlay).addEventListener("click",renderTicketMain);
     $v("#ticket-confirm",ticketOverlay).addEventListener("click",async(event)=>{
