@@ -34,8 +34,6 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
     const authorization = req.headers.get("Authorization") ?? "";
     if (authorization.startsWith("tma ")) {
       telegramUserId = (await validateTelegramInitData(authorization.slice(4), env.TELEGRAM_BOT_TOKEN)) ?? "";
-    } else if (env.API_SECRET && timingSafeEqual(key, env.API_SECRET)) {
-      telegramUserId = req.headers.get("X-Telegram-User-Id") ?? "";
     }
     if (!/^\d{1,20}$/.test(telegramUserId)) return fail("Требуется открыть приложение через Telegram.", 401);
   }
@@ -45,6 +43,12 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
   }
   try {
     switch (route) {
+      case "GET demo":
+        return engineRequest(env, "/account?userId=" + encodeURIComponent(telegramUserId));
+      case "POST demo/open":
+        return engineRequest(env, "/open", { ...body, userId: telegramUserId, mode: "demo" });
+      case "POST demo/close":
+        return engineRequest(env, "/close", { ...body, userId: telegramUserId });
       case "GET state":
         await monitorManualTrades(scopedEnv);
         return json({ ok: true, ...(await stateView(scopedEnv)) });
@@ -246,4 +250,14 @@ async function validateTelegramInitData(initData: string, botToken: string): Pro
     const user = JSON.parse(params.get("user") ?? "{}") as { id?: number | string };
     return user.id && /^\d{1,20}$/.test(String(user.id)) ? String(user.id) : null;
   } catch { return null; }
+}
+
+/** All user-scoped Engine calls use the Telegram ID verified from signed initData above. */
+async function engineRequest(env: Env, path: string, body?: Json): Promise<Response> {
+  const id = env.ENGINE.idFromName("global-engine");
+  const stub = env.ENGINE.get(id);
+  const request = body === undefined
+    ? new Request("https://engine.internal" + path)
+    : new Request("https://engine.internal" + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return stub.fetch(request);
 }
