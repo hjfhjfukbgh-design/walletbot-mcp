@@ -449,3 +449,5 @@ button:disabled{opacity:.48;cursor:not-allowed;transform:none!important}
 .asset-change span{color:inherit;opacity:.72}
 .market-copy .name{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .market-copy .name small{margin-left:5px}
+
+.help-dot{display:inline-grid;place-items:center;width:20px;min-width:20px;height:20px;min-height:20px;padding:0;margin-left:4px;border-radius:50%;background:#EAF2FF;color:#007DFF;font-size:11px;font-weight:750;vertical-align:middle}.position-close{width:100%;margin-top:10px}.card-heading .help-dot{flex:none}
