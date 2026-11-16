@@ -11,7 +11,20 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">W</span><span>WALLET <b>GRID</b></span></div>
-    <div class="top-status"><span id="mode" class="pill">…</span><span id="run" class="pill">…</span></div>
+    <div class="top-actions">
+      <span id="mode" class="pill demo-pill">ДЕМО</span>
+      <span id="run" class="pill">…</span>
+      <button id="profile-trigger" class="profile-trigger" aria-label="Профиль и режим торговли" aria-expanded="false">
+        <i data-icon="user"></i>
+      </button>
+    </div>
+    <div id="profile-menu" class="profile-menu hidden">
+      <div class="profile-menu-head"><span class="profile-avatar"><i data-icon="user"></i></span><div><b>Аккаунт</b><small>Настройки терминала</small></div></div>
+      <div class="profile-menu-label">РЕЖИМ ТОРГОВЛИ</div>
+      <button id="profile-demo" class="mode-option" type="button"><span><b>Демо</b><small>Виртуальные средства</small></span><i data-icon="check"></i></button>
+      <button id="profile-live" class="mode-option locked" type="button" disabled><span><b>Реальный</b><small>Пока недоступен</small></span><i data-icon="lock"></i></button>
+      <p class="profile-menu-note">Реальная торговля будет открыта только после отдельной проверки безопасности.</p>
+    </div>
   </header>
   <main>
     <section id="tab-painel" class="tab active">
@@ -75,10 +88,8 @@
         </form>
       </div>
       <div class="card action-card">
-        <div class="card-heading"><h3>Режим работы</h3></div>
-        <button data-action="mode" data-mode="paper" class="secondary"><i data-icon="flask"></i>ДЕМО — виртуальные средства</button>
-        <button data-action="mode" data-mode="live" class="live-button"><i data-icon="zap"></i>LIVE — реальные средства</button>
-        <p class="helper">В ДЕМО сделки симулируются. LIVE использует реальные средства и требует отдельного подтверждения.</p>
+        <div class="card-heading"><h3>Безопасность торговли</h3><span class="soft-tag">ДЕМО</span></div>
+        <p class="helper">Сейчас доступны только виртуальные сделки на реальных рыночных котировках. Реальный режим закрыт до завершения проверки безопасности.</p>
       </div>
       <div class="card buttons">
         <button data-action="run"><i data-icon="play"></i>Запустить</button>
