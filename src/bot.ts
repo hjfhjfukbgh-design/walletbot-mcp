@@ -214,25 +214,12 @@ export async function closeAll(env: Env): Promise<string> {
     await saveState(env, state);
     return "LIVE заблокирован в Kripto Guru. Автоматические операции с реальным кошельком отключены; проверьте возможную открытую позицию непосредственно в биржевом приложении.";
   }
-  const { cfg } = state.grid;
-  const walt = null;
+  const cfg = state.grid.cfg;
   state.running = false;
-  if (state.mode === "live") {
-    if (!walt) return "LIVE заблокирован.";
-    if (await walt.openPosition(cfg.contract.contractId)) await walt.closePosition(cfg.contract.contractId);
-    const pos = state.grid.position;
-    if (pos) {
-      const price = await currentPrice(cfg, state.mode === "live" ? walt : null);
-      await recordClose(env, state, pos, price, positionPnl(pos, price, cfg.contract.takerFeePct), "manual");
-    }
-    state.grid.position = undefined;
-    await saveState(env, state);
-    return `Запрос на закрытие позиции ${cfg.market} отправлен. Сетка остановлена. Проверьте статус через /status.`;
-  }
   const pos = state.grid.position;
   let msg = "Открытой позиции нет. Сетка остановлена.";
   if (pos) {
-    const price = await currentPrice(cfg, walt);
+    const price = await currentPrice(cfg, null);
     const pnl = positionPnl(pos, price, cfg.contract.takerFeePct);
     state.paper.cash += pnl;
     await recordClose(env, state, pos, price, pnl, "manual");
