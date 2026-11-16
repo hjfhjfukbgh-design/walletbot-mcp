@@ -47,6 +47,7 @@
     actions.dataset.enhanced="1";
     const market=activeMarket();
     document.body.classList.add("asset-open");
+    setTimeout(()=>window.scrollTo(0,0),0);
 
     const top=box.querySelector(".asset-topline");
     if(top && !$v("#asset-connection",top)){
@@ -61,6 +62,7 @@
     const about=box.querySelector(".asset-about");
     if(about){about.previousElementSibling?.remove();about.remove();}
     box.querySelector(".asset-chart-legend")?.remove();
+    box.querySelector(".asset-note")?.remove();
     box.querySelector("#asset-grid-toggle")?.remove();
     box.querySelectorAll(".asset-tech .row").forEach((row)=>{
       if(/Минимальная маржа|Рекомендуемый диапазон/.test(row.textContent||"")) row.remove();
