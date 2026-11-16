@@ -38,7 +38,7 @@
         <div id="pos">Пока нет открытых позиций.</div>
       </div>
       <div class="card chart-card">
-        <div class="card-heading"><h3>График цены</h3><small id="chart-src"></small></div>
+        <div class="card-heading"><h3>График цены</h3><div class="chart-tools"><select id="chart-interval" aria-label="Таймфрейм"><option value="1m">1м</option><option value="5m">5м</option><option value="15m" selected>15м</option><option value="1h">1ч</option><option value="4h">4ч</option><option value="1d">1д</option></select><small id="chart-src"></small></div></div>
         <svg id="chart" viewBox="0 0 360 220" preserveAspectRatio="none"></svg>
         <div class="legend"><i class="l-lvl"></i>Уровни сетки <i class="l-tp"></i>Тейк-профит <i class="l-sl"></i>Стоп-лосс <i class="l-in"></i>Вход</div>
       </div>
