@@ -5,6 +5,7 @@ import { build } from "esbuild";
 const P = 100_000_000n;
 const U = 1_000_000n;
 const userId = "123456789";
+type EngineStub = { fetch(input: string, init?: RequestInit): Promise<Response> };
 
 describe("TradingEngine SQLite integration (Miniflare)", () => {
   let source = "";
@@ -37,18 +38,18 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     return ns.get(ns.idFromName(objectName));
   }
 
-  async function post(stub: DurableObjectStub, path: string, body: Record<string, unknown>) {
+  async function post(stub: EngineStub, path: string, body: Record<string, unknown>) {
     const response = await stub.fetch("https://engine.test" + path, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     return { status: response.status, body: await response.json() as Record<string, any> };
   }
 
-  async function quote(stub: DurableObjectStub, price: bigint) {
+  async function quote(stub: EngineStub, price: bigint) {
     return post(stub, "/quote", { symbol: "BTC", price: price.toString(), observedAt: Date.now() });
   }
 
-  async function open(stub: DurableObjectStub, marginMicro: bigint) {
+  async function open(stub: EngineStub, marginMicro: bigint) {
     return post(stub, "/open", {
       userId, mode: "demo", symbol: "BTC", side: "long",
       marginMicro: marginMicro.toString(), leverage: "2",
