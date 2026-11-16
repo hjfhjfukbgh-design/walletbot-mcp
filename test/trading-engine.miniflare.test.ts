@@ -30,11 +30,13 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     mf = new Miniflare({
       workers: [{
         name: "engine-test",
-        modules: true,
-        compatibilityDate: "2025-06-01",
-        script: source,
-        durableObjects: { ENGINE: { className: "TradingEngine", useSQLite: true } },
-        bindings: { ENGINE_MAX_QUOTE_AGE_MS: "10000", ENGINE_DISABLE_SOCKET: "true" },
+        config: {
+          modules: true,
+          compatibilityDate: "2025-06-01",
+          script: source,
+          durableObjects: { ENGINE: { className: "TradingEngine", useSQLite: true } },
+          bindings: { ENGINE_MAX_QUOTE_AGE_MS: "10000", ENGINE_DISABLE_SOCKET: "true" },
+        },
       }],
       resourcePersistencePath: root,
     });
