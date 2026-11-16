@@ -234,6 +234,12 @@ function drawChart(candles, target = 'chart', market = '') {
     { v: state.position.takeProfit, color: 'var(--green)' },
     { v: state.position.entryPrice, color: 'var(--link)' },
   );
+  const manualPosition = (state?.manualPositions || []).find((position) => position.market === market);
+  if (manualPosition) {
+    levels.push({ v: manualPosition.entryPrice, color: 'var(--link)' });
+    if (manualPosition.takeProfit) levels.push({ v: manualPosition.takeProfit, color: 'var(--green)' });
+    if (manualPosition.stopLoss) levels.push({ v: manualPosition.stopLoss, color: 'var(--red)' });
+  }
   const quote = contracts.find((item) => item.market === market);
   const livePrice = Number(quote?.price);
   const all = valid.flatMap((c) => [+c[2], +c[3]]).concat(levels.map((l) => l.v), Number.isFinite(livePrice) && livePrice > 0 ? [livePrice] : []);
