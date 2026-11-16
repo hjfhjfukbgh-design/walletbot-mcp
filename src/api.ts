@@ -23,7 +23,7 @@ const fail = (error: string, status = 400) => json({ ok: false, error }, status)
 export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const key = req.headers.get("X-Api-Key") ?? "";
   const url = new URL(req.url);
-  const route = `${req.method} ${url.pathname.replace(/^\\/api\\//, "")}`;
+  const route = `${req.method} ${url.pathname.replace(/^\/api\//, "")}`;
   const body = req.method === "POST" ? ((await req.json().catch(() => ({}))) as Json) : {};
   let telegramUserId = "";
 
@@ -36,7 +36,7 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
     } else if (env.API_SECRET && timingSafeEqual(key, env.API_SECRET)) {
       telegramUserId = req.headers.get("X-Telegram-User-Id") ?? "";
     }
-    if (!/^\\d{1,20}$/.test(telegramUserId)) return fail("Требуется открыть приложение через Telegram.", 401);
+    if (!/^\d{1,20}$/.test(telegramUserId)) return fail("Требуется открыть приложение через Telegram.", 401);
   }
   if (route !== "POST telegram" && !/^\\d{1,20}$/.test(telegramUserId)) return fail("Telegram user authentication required", 401);
   const scopedEnv = telegramUserId ? tenantEnv(env, telegramUserId) : env;
@@ -209,7 +209,7 @@ async function validateTelegramInitData(initData: string, botToken: string): Pro
     const now = Math.floor(Date.now() / 1000);
     if (!/^[a-f0-9]{64}$/i.test(hash) || !Number.isFinite(authDate) || authDate < now - 86_400 || authDate > now + 60) return null;
     params.delete("hash");
-    const checkString = [...params.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, v]) => `${k}=${v}`).join("\\n");
+    const checkString = [...params.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, v]) => `${k}=${v}`).join("\n");
     const encoder = new TextEncoder();
     const hmac = async (keyBytes: Uint8Array, data: string) => {
       const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -222,6 +222,6 @@ async function validateTelegramInitData(initData: string, botToken: string): Pro
     for (let i = 0; i < actual.length; i++) mismatch |= actual.charCodeAt(i) ^ hash.toLowerCase().charCodeAt(i);
     if (mismatch !== 0) return null;
     const user = JSON.parse(params.get("user") ?? "{}") as { id?: number | string };
-    return user.id && /^\\d{1,20}$/.test(String(user.id)) ? String(user.id) : null;
+    return user.id && /^\d{1,20}$/.test(String(user.id)) ? String(user.id) : null;
   } catch { return null; }
 }
