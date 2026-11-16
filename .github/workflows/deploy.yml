@@ -1,5 +1,4 @@
 
-  
 name: deploy
 
 on:
@@ -56,6 +55,14 @@ jobs:
           OWNER_CHAT_ID: ${{ secrets.OWNER_CHAT_ID }}
           API_SECRET: ${{ secrets.API_SECRET }}
 
+      - name: Setup Telegram webhook
+        run: |
+          curl --fail --silent --show-error --get \
+            --data-urlencode "secret=$TELEGRAM_WEBHOOK_SECRET" \
+            "https://walletbot-mcp.hjfhjfukbgh.workers.dev/setup"
+        env:
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+
   deploy-miniapp:
     needs: test
     if: github.event_name != 'pull_request'
@@ -69,8 +76,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: 22
       - name: Push to Telegram Serverless
         if: env.TGCLOUD_TOKEN != ''
         run: |
