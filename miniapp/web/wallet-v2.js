@@ -229,6 +229,7 @@
   }
 
   renderRecent();
+  setTimeout(renderFavorites, 1_500);
   document.querySelectorAll(".bottom-nav button").forEach((button) => {
     button.addEventListener("click", () => {
       if (button.dataset.tab === "hist" && typeof loadHistory === "function") loadHistory();
