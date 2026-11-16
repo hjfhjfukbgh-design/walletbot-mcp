@@ -102,7 +102,7 @@
       return `<button class="favorite-card" type="button" data-wallet-market="${escapeHtml(item.market)}">
         <div class="favorite-top"><span class="coin-avatar">${escapeHtml(token(item.market))}</span><b>${escapeHtml(item.market)}</b><small>${Number(item.maxLeverage || 1)}×</small></div>
         <div class="favorite-price" data-fav-price>${priceText(item.price)}</div>
-        <div class="favorite-bottom"><span class="change-chip ${positive ? "up" : "down"}" data-fav-change>${positive ? "↑" : "↓"} ${Math.abs(pct).toFixed(2)}%</span><small class="favorite-change-usd">${changeUsd >= 0 ? "+" : "−"}${priceText(Math.abs(changeUsd))}</small><svg class="favorite-spark" data-fav-spark viewBox="0 0 58 22" aria-hidden="true"></svg></div>
+        <div class="favorite-bottom"><span class="change-chip ${positive ? "up" : "down"}" data-fav-change>${positive ? "↑" : "↓"} ${Math.abs(pct).toFixed(2)}%</span><small class="favorite-change-usd">${changeUsd >= 0 ? "+" : "−"}${money(Math.abs(changeUsd))}</small><svg class="favorite-spark" data-fav-spark viewBox="0 0 58 22" aria-hidden="true"></svg></div>
       </button>`;
     }).join("");
     void loadFavoriteSparklines();
