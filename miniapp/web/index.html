@@ -28,11 +28,13 @@
   </header>
   <main>
     <section id="tab-painel" class="tab active">
-      <div class="market-strip"><span class="eyebrow">РЫНОК</span><strong id="price">—</strong></div>
+      <div class="home-heading"><div><span class="eyebrow">WALLET GRID · PERPETUALS</span><h1>Торговля</h1></div><span class="live-dot"><i></i> Рынок открыт</span></div>
+      <div class="portfolio-card"><div class="portfolio-top"><span>Демо-баланс</span><span class="portfolio-currency">USD <i data-icon="chevron"></i></span></div><div class="portfolio-balance" id="home-equity">$1,000.00</div><div class="portfolio-change"><span id="home-pnl">+$0.00</span><small>Общий результат</small></div><div class="portfolio-divider"></div><div class="portfolio-stats"><div><span>Свободные средства</span><b id="home-cash">$1,000.00</b></div><div><span>Открытые позиции</span><b id="home-positions">0</b></div></div></div>
+      <div class="home-quick-actions"><button id="home-open-markets" class="quick-action"><i data-icon="chart"></i><span>Рынки</span></button><button id="home-open-grid" class="quick-action"><i data-icon="sliders"></i><span>Настроить сетку</span></button><button id="home-open-history" class="quick-action"><i data-icon="receipt"></i><span>История</span></button></div>
+      <div class="market-strip"><span class="eyebrow">АКТИВНЫЙ ИНСТРУМЕНТ</span><strong id="price">—</strong></div>
       <div id="alert" class="alert hidden"></div>
       <div class="card overview">
-        <div class="section-kicker">ВАШ ТЕРМИНАЛ</div>
-        <div class="overview-title">Обзор стратегии</div>
+        <div class="card-heading"><h3>Статистика торговли</h3><span class="soft-tag">ДЕМО</span></div>
         <div class="metric-grid">
           <div class="metric"><span>Сделок</span><b id="metric-trades">—</b></div>
           <div class="metric"><span>TP / SL</span><b id="metric-wins">—</b></div>
@@ -40,6 +42,7 @@
         </div>
         <div id="stats" class="stats"></div>
       </div>
+      <div class="card home-markets-card"><div class="card-heading"><h3>Популярные рынки</h3><button id="home-see-all" class="text-action" type="button">Все рынки <i data-icon="chevron"></i></button></div><div id="home-markets" class="home-markets"><div class="market-loading">Загружаем котировки…</div></div></div>
       <div class="card">
         <div class="card-heading"><h3>Параметры сетки</h3><span class="soft-tag">АКТИВНАЯ</span></div>
         <div class="row"><span>Рынок и диапазон</span><b id="g-desc">—</b></div>

@@ -82,3 +82,55 @@ nav button { flex-direction:column; gap:4px; padding:6px 0 3px; background:trans
 .profile-menu-note { margin:10px 3px 2px; color:var(--hint); font-size:10px; line-height:1.45; }
 .demo-pill { color:#8ee5c3; border-color:#24624d; background:#15372e; }
 .soft-tag { padding:4px 7px; border-radius:7px; color:#8ee5c3; background:#15372e; font-size:9px; font-weight:800; letter-spacing:.5px; }
+
+/* Premium mobile trading terminal visual language, inspired by Walt's compact layout. */
+:root{--bg:#080b0e;--bg2:#080b0e;--surface:#11171d;--surface2:#1a222a;--text:#f5f7f8;--hint:#84919c;--link:#b5c8d2;--green:#00c98a;--red:#ff5c68;--line:rgba(202,218,226,.09)}
+body{background:#080b0e;letter-spacing:-.12px}
+header{background:rgba(8,11,14,.94);border-bottom-color:rgba(255,255,255,.055);padding-left:16px;padding-right:16px}
+.brand{gap:8px;font-size:13px;letter-spacing:.55px}
+.brand-mark{width:27px;height:27px;border-radius:9px;background:#d9f6ec;color:#07130f;box-shadow:none}
+main{max-width:600px;padding:17px 14px 18px}
+.card{background:#11171d;border:1px solid rgba(255,255,255,.055);border-radius:17px;box-shadow:none;padding:15px;margin-bottom:10px}
+.card h3{color:#e5eaed;font-size:13px}
+.home-heading{display:flex;align-items:center;justify-content:space-between;margin:2px 2px 15px}
+.home-heading h1{margin:3px 0 0;font-size:25px;line-height:1.15;letter-spacing:-.9px;font-weight:760}
+.eyebrow{color:#87949d;font-size:9px;font-weight:800;letter-spacing:1.05px}
+.live-dot{display:flex;align-items:center;gap:6px;color:#a6b1b8;font-size:10px}
+.live-dot i{width:6px;height:6px;border-radius:50%;background:#00c98a;box-shadow:0 0 9px #00c98a88}
+.portfolio-card{padding:17px;margin-bottom:10px;border:1px solid rgba(196,225,215,.09);border-radius:19px;background:linear-gradient(135deg,#18241f 0%,#121a19 55%,#11171d 100%)}
+.portfolio-top{display:flex;align-items:center;justify-content:space-between;color:#a5b1ae;font-size:11px}
+.portfolio-currency{display:flex;align-items:center;gap:3px;padding:5px 8px;border:1px solid #ffffff12;border-radius:8px;color:#d9e2df;font-size:10px}
+.portfolio-currency .ic{width:12px;height:12px;transform:rotate(90deg)}
+.portfolio-balance{margin-top:12px;font-size:31px;line-height:1.1;font-weight:770;letter-spacing:-1.25px;font-variant-numeric:tabular-nums}
+.portfolio-change{display:flex;align-items:center;gap:8px;margin-top:7px;font-size:12px;font-weight:700}
+.portfolio-change small{color:#84918b;font-size:10px;font-weight:500}
+.portfolio-divider{height:1px;background:#ffffff12;margin:16px 0 12px}
+.portfolio-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.portfolio-stats div+div{border-left:1px solid #ffffff12;padding-left:14px}
+.portfolio-stats span,.portfolio-stats b{display:block}
+.portfolio-stats span{color:#899690;font-size:10px}
+.portfolio-stats b{margin-top:4px;color:#e9efec;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.home-quick-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:17px}
+.quick-action{min-height:61px;padding:9px 5px;display:flex;flex-direction:column;gap:5px;border:1px solid #ffffff0b;border-radius:13px;background:#11171d;color:#c9d2d6;font-size:10px;font-weight:650}
+.quick-action .ic{width:19px;height:19px;color:#b9d7cb}
+.market-strip{display:flex;align-items:center;justify-content:space-between;padding:0 2px 9px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+.market-strip strong{font-size:12px;font-variant-numeric:tabular-nums}
+.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:5px}
+.metric{padding:9px 8px;border-radius:11px;background:#0c1216}
+.metric span,.metric b{display:block}.metric span{color:#87949c;font-size:9px}.metric b{margin-top:4px;font-size:15px;font-variant-numeric:tabular-nums}
+.home-markets-card{padding-bottom:7px}.home-markets{margin:0 -3px}
+.home-market-row{display:flex;width:100%;align-items:center;gap:10px;padding:11px 4px;border-radius:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:left}
+.home-market-row:last-child{border-bottom:0}
+.market-token{display:grid;place-items:center;width:33px;height:33px;flex:none;border-radius:50%;background:#202b31;color:#d9e8e2;font-size:13px}
+.market-token-name{min-width:0;flex:1}.market-token-name b,.market-token-name small,.market-token-quote b,.market-token-quote small{display:block}
+.market-token-name b{font-size:12px}.market-token-name small,.market-token-quote small{margin-top:2px;color:#839099;font-size:9px}
+.market-token-quote{text-align:right}.market-token-quote b{font-size:11px;font-variant-numeric:tabular-nums}
+.market-loading{padding:12px 5px;color:var(--hint);font-size:11px}
+.text-action{width:auto;padding:4px 0 4px 7px;background:transparent;color:#9aa9a7;font-size:10px;font-weight:600}.text-action .ic{width:13px;height:13px}
+.soft-tag{color:#a8e6cf;background:#14342a;border:1px solid #1d4c3b}
+nav{background:rgba(9,13,16,.96);border-top-color:rgba(255,255,255,.07)}nav button{color:#718087}nav button.active{color:#c8f2e3;background:#172923}
+.pill{border-radius:20px;padding:5px 8px;background:#171f24}.demo-pill{color:#a6e6cd;border-color:#24503e;background:#132b23}
+.profile-trigger{background:#18221f;border-color:#ffffff12;color:#cce8dc}.profile-menu{background:#121a1d;border-color:#ffffff16}
+.mode-option{background:#1a2426}.mode-option.selected{background:#142e25;border-color:#28684e}
+input,select{background:#0c1216}button{box-shadow:none}
+@media(max-width:380px){.portfolio-balance{font-size:27px}.home-heading h1{font-size:23px}.metric b{font-size:13px}}

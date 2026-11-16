@@ -81,6 +81,7 @@ async function loadState() {
     state = await call('state');
     $('#alert').classList.add('hidden');
     renderState();
+    if (!contracts.length) loadMarketPreview();
     if (state.grid) {
       loadChart(state.grid.market);
       refreshQuote(state.grid.market);
@@ -95,6 +96,15 @@ function renderState() {
   $('#mode').textContent = s.mode === 'paper' ? 'ДЕМО' : 'LIVE';
   $('#mode').className = `pill ${s.mode === 'live' ? 'live' : 'demo-pill'}`;
   $('#profile-demo').classList.toggle('selected', s.mode === 'paper');
+  const demo = s.paper || {};
+  const equity = Number(demo.equity ?? demo.cash ?? 1000);
+  const cash = Number(demo.cash ?? 1000);
+  const pnl = equity - cash;
+  $('#home-equity').textContent = usd(equity);
+  $('#home-cash').textContent = usd(cash);
+  $('#home-pnl').textContent = (pnl >= 0 ? '+' : '') + usd(pnl);
+  $('#home-pnl').className = pnl >= 0 ? 'up' : 'down';
+  $('#home-positions').textContent = s.position ? '1' : '0';
   $('#run').textContent = s.paused ? 'пауза' : s.running ? 'работает' : 'остановлен';
   $('#run').className = `pill ${s.running && !s.paused ? 'on' : ''}`;
   $('#price').textContent = s.grid ? `${s.grid.market} ${usd(s.lastPrice, 2)}` : '—';
@@ -281,6 +291,28 @@ $('#pairs').addEventListener('click', async (ev) => {
     box.textContent = e.message;
   }
 });
+
+// ---------- home market preview ----------
+async function loadMarketPreview() {
+  const box = $('#home-markets');
+  try {
+    contracts = (await call('contracts')).contracts;
+    const rows = contracts.slice(0, 5);
+    box.innerHTML = rows.map((c) => {
+      const change = Number(c.change24hPct || 0);
+      return '<button class="home-market-row" type="button" data-home-market="' + esc(c.market) + '"><span class="market-token"><b>' + esc(c.market.slice(0, 1)) + '</b></span><span class="market-token-name"><b>' + esc(c.market) + '</b><small>Perpetual · ' + fmt(c.maxLeverage, 0) + 'x</small></span><span class="market-token-quote"><b>' + usd(c.price, 6) + '</b><small class="' + (change >= 0 ? 'up' : 'down') + '">' + (change >= 0 ? '+' : '') + fmt(change, 2) + '%</small></span></button>';
+    }).join('') || '<div class="market-loading">Нет доступных рынков.</div>';
+  } catch (error) { box.innerHTML = '<div class="market-loading">' + esc(error.message) + '</div>'; }
+}
+$('#home-markets').addEventListener('click', (event) => {
+  const row = event.target.closest('[data-home-market]'); if (!row) return;
+  const market = row.dataset.homeMarket; document.querySelector('nav button[data-tab="pares"]').click();
+  $('#q').value = market; if (contracts.length) renderPairs();
+  const item = [...document.querySelectorAll('#pairs .item')].find((el) => el.dataset.market === market); item?.click();
+});
+$('#home-see-all,#home-open-markets').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
+$('#home-open-grid').addEventListener('click', () => document.querySelector('nav button[data-tab="ctrl"]').click());
+$('#home-open-history').addEventListener('click', () => document.querySelector('nav button[data-tab="hist"]').click());
 
 // ---------- histórico ----------
 async function loadHistory() {
