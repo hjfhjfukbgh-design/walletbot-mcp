@@ -7,6 +7,9 @@ import { loadTools } from "./state";
 import { handleTenantTick, listTenantIds, oauthTenantId, tenantEnv } from "./tenants";
 import { send } from "./telegram";
 import { monitorManualTrades } from "./manual";
+import { TradingEngine } from "./trading/engine";
+
+export { TradingEngine };
 import { COMMANDS, tg, timingSafeEqual, type TgUpdate } from "./telegram";
 
 export default {
