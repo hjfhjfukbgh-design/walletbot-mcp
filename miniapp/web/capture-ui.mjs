@@ -1,4 +1,4 @@
-// Playwright smoke screenshots for wallet, trade catalog, and asset detail.
+// Playwright previews for all primary screens and the DEMO order flow.
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -77,6 +77,25 @@ try {
     await page.locator("#pairs .market-row").first().click();
     await page.waitForTimeout(1100);
     await page.screenshot({path:`asset-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.locator("#asset-trade-bar [data-asset-side=long]").click();
+    await page.waitForTimeout(250);
+    await page.locator("#ticket-margin").fill("50");
+    await page.waitForTimeout(150);
+    await page.screenshot({path:`ticket-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.locator("#ticket-leverage").click();
+    await page.waitForTimeout(150);
+    await page.screenshot({path:`leverage-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.locator("#lev-apply").click();
+    await page.locator("#ticket-autoclose").click();
+    await page.waitForTimeout(150);
+    await page.screenshot({path:`tp-sl-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.keyboard.press("Escape");
+    await page.locator("nav button[data-tab=hist]").click();
+    await page.waitForTimeout(350);
+    await page.screenshot({path:`history-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.locator("nav button[data-tab=ctrl]").click();
+    await page.waitForTimeout(250);
+    await page.screenshot({path:`settings-${width}x${height}-dsf3.png`,fullPage:false});
     await page.close();
   }
 } finally {
