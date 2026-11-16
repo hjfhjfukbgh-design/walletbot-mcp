@@ -269,11 +269,13 @@ function drawChart(candles, target = 'chart', market = '') {
     vline.setAttribute('x1',x); vline.setAttribute('x2',x); vline.setAttribute('y1',8); vline.setAttribute('y2',194);
     hline.setAttribute('x1',0); hline.setAttribute('x2',306); hline.setAttribute('y1',closeY); hline.setAttribute('y2',closeY);
     dot.setAttribute('cx',x); dot.setAttribute('cy',closeY);
-    const tx = x > 170 ? 5 : 220, ty = 12;
+    const tx = x > 175 ? 5 : 205, ty = 8;
     tip.setAttribute('x',tx); tip.setAttribute('y',ty);
     label.setAttribute('x',tx+8); label.setAttribute('y',ty+13);
     const date = new Date(candle[0]).toLocaleString('ru-RU',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-    label.textContent = 'Откр. '+fmt(candle[1],moneyDecimals(candle[1]))+'  Закр. '+fmt(candle[4],moneyDecimals(candle[4]))+'  Макс. '+fmt(candle[2],moneyDecimals(candle[2]))+'  Мин. '+fmt(candle[3],moneyDecimals(candle[3]))+'  '+date;
+    label.textContent = '';
+    const rows = ['Откр. ' + fmt(candle[1],moneyDecimals(candle[1])), 'Закр. ' + fmt(candle[4],moneyDecimals(candle[4])), 'Макс. ' + fmt(candle[2],moneyDecimals(candle[2])), 'Мин. ' + fmt(candle[3],moneyDecimals(candle[3])), date];
+    rows.forEach((value, row) => { const span = document.createElementNS(ns,'tspan'); span.setAttribute('x',tx+8); span.setAttribute('dy',row===0?0:13); span.textContent=value; label.appendChild(span); });
     layer.style.display = '';
   });
   svg.addEventListener('pointerleave', () => { layer.style.display = 'none'; });
@@ -387,15 +389,12 @@ async function loadMarketPreview() {
   }
 }
 $('#home-see-all,#home-open-markets').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
-$('#home-open-markets-sell').addEventListener('click', () => tg.showAlert?.('Ручные сделки пока не поддерживаются. Сейчас доступна демо-сетка.'));
 $('#portfolio-trigger').addEventListener('click', () => document.querySelector('nav button[data-tab="painel"]').click());
 $('#notifications-trigger').addEventListener('click', () => tg.showAlert?.('Уведомлений пока нет.'));
-$('#education-banner').addEventListener('click', () => tg.showAlert?.('Обучение: 1) демо использует виртуальные средства; 2) выберите актив и настройте сетку; 3) график показывает реальные рыночные котировки.'));
-$('#repeat-onboarding').addEventListener('click', () => $('#education-banner').click());
 $('#pos').addEventListener('click', (event) => { if (event.target.closest('#empty-open-markets')) document.querySelector('nav button[data-tab="pares"]').click(); });
 $('#wallet-grid-settings').addEventListener('click', () => document.querySelector('nav button[data-tab="ctrl"]').click());
 $('#wallet-grid-run').addEventListener('click', async () => { if (!state?.grid) { document.querySelector('nav button[data-tab="ctrl"]').click(); return; } try { const r=await call('control',{action:state.running?'stop':'run'}); ctrlMessage(r.message); await loadState(); } catch(e) { showError(e); } });
-$('#home-reset-demo').addEventListener('click', () => tg.showAlert?.('Сброс демо-счёта пока не поддерживается текущим API. Существующий баланс и история сохранены.'));
+$('#home-reset-demo').addEventListener('click', () => tg.showAlert?.('Сброс демо-счёта пока недоступен. Баланс, история и настройки не изменены.'));
 $('#home-open-grid').addEventListener('click', () => document.querySelector('nav button[data-tab="ctrl"]').click());
 
 
@@ -512,9 +511,48 @@ function fillForm() {
   f.leverage.value = g.leverage;
 }
 
-$('#chart-interval').addEventListener('change', () => {
-  if (state?.grid?.market || contracts[0]?.market) loadChart(state?.grid?.market || contracts[0].market, 'chart', $('#chart-interval').value);
+$('#home-timeframes').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-chart-interval]');
+  if (!button) return;
+  $('#home-timeframes').querySelectorAll('button').forEach((x) => x.classList.toggle('selected', x === button));
+  const market = state?.grid?.market || contracts[0]?.market;
+  if (market) loadChart(market, 'chart', button.dataset.chartInterval);
+  tg.HapticFeedback?.selectionChanged?.();
 });
+
+const onboardingSteps = [
+  ['Демо-счёт', 'У вас виртуальные $1 000. Реальные деньги и кошелёк не используются.'],
+  ['Настройте сетку', 'Выберите актив, задайте диапазон цены, число уровней и маржу. Система будет искать входы по заданным уровням.'],
+  ['Читайте график', 'Свечи показывают открытие, максимум, минимум и закрытие за выбранный период. Котировки рыночные, баланс виртуальный.'],
+];
+let onboardingIndex = 0;
+function showOnboarding() {
+  onboardingIndex = 0;
+  renderOnboarding();
+  $('#onboarding').classList.remove('hidden');
+}
+function renderOnboarding() {
+  const step = onboardingSteps[onboardingIndex];
+  $('#onboarding-step').textContent = 'ШАГ ' + (onboardingIndex + 1) + ' ИЗ 3';
+  $('#onboarding-title').textContent = step[0];
+  $('#onboarding-copy').textContent = step[1];
+  $('#onboarding-progress').style.width = ((onboardingIndex + 1) / 3 * 100) + '%';
+  $('#onboarding-next').textContent = onboardingIndex === 2 ? 'Готово' : 'Далее';
+}
+function closeOnboarding() {
+  $('#onboarding').classList.add('hidden');
+  try { localStorage.setItem('kripto-guru:onboarding:v1', 'done'); } catch {}
+}
+$('#onboarding-next').addEventListener('click', () => {
+  if (onboardingIndex < 2) { onboardingIndex++; renderOnboarding(); }
+  else closeOnboarding();
+});
+$('#onboarding-skip').addEventListener('click', closeOnboarding);
+$('#education-banner').addEventListener('click', showOnboarding);
+$('#repeat-onboarding').addEventListener('click', showOnboarding);
+$('#onboarding').addEventListener('click', (event) => { if (event.target === $('#onboarding')) closeOnboarding(); });
+try { if (!localStorage.getItem('kripto-guru:onboarding:v1')) showOnboarding(); } catch {}
+
 
 loadState().then(fillForm);
 setInterval(loadState, 30_000);
