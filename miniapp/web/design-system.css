@@ -445,3 +445,33 @@ main{padding-left:13px;padding-right:13px;padding-top:7px}
  .favorite-card{width:135px;flex-basis:135px}
  .favorite-skeleton{flex-basis:135px}
 }
+
+
+/* Walt reference pass 02: remove visual heaviness, preserve Kripto Guru controls. */
+:root{--kg-bg:#F4F4F8;--kg-divider:rgba(60,60,67,.10);--kg-card:#fff}
+body{background:var(--kg-bg);-webkit-font-smoothing:antialiased}
+.topbar{height:54px;min-height:54px;background:rgba(244,244,248,.88);border-bottom:1px solid rgba(60,60,67,.07)}
+main>.card,main .wallet-card,main .history-equity-card{border:1px solid rgba(60,60,67,.055);box-shadow:0 1px 2px rgba(20,25,35,.025)}
+.wallet-head .eyebrow,.wallet-head small{letter-spacing:.01em}
+.wallet-balance{font-variant-numeric:tabular-nums;font-weight:760;line-height:1.06}
+.wallet-performance{font-size:12px}
+.wallet-actions{grid-template-columns:repeat(4,minmax(0,1fr))}
+.wallet-action{background:#fff;border:1px solid rgba(60,60,67,.045);box-shadow:0 1px 2px rgba(20,25,35,.025);font-weight:550}
+.action-icon{box-shadow:none}
+.section-heading{display:flex;align-items:center;justify-content:space-between}
+.favorite-card{border:1px solid rgba(60,60,67,.055);box-shadow:0 1px 2px rgba(20,25,35,.025)}
+.currency-card,.engine-position,.asset-line{border:1px solid rgba(60,60,67,.055);box-shadow:0 1px 2px rgba(20,25,35,.025)}
+.asset-screen{border:1px solid rgba(60,60,67,.06);box-shadow:none}
+.asset-chart-wrap svg{overflow:visible}
+.asset-trade-bar{box-shadow:0 4px 18px rgba(0,65,150,.13);border:1px solid rgba(255,255,255,.7)}
+.bottom-nav{border:1px solid rgba(60,60,67,.10);box-shadow:0 5px 24px rgba(20,25,35,.10)}
+.bottom-nav button{transition:background .18s ease,color .18s ease,transform .18s ease}
+.bottom-nav button:active,.wallet-action:active,.favorite-card:active{transform:scale(.98)}
+button{ -webkit-tap-highlight-color:transparent }
+@media(max-width:430px){
+ main{padding-left:12px;padding-right:12px}
+ .section-heading{margin-top:18px;margin-bottom:8px}
+ .favorite-card{min-height:112px}
+ .asset-chart-wrap svg{height:190px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
