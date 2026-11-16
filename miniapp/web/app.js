@@ -2,10 +2,12 @@
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
+try { tg.setHeaderColor?.('#EDECF3'); tg.setBackgroundColor?.('#EDECF3'); } catch {}
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: Math.min(d, 2) }));
-const usd = (n, d = 2) => (n === null || n === undefined ? '—' : `$${fmt(n, d)}`);
+const usd = (n, d = 2) => (n === null || n === undefined ? '—' : `${fmt(n, d)}`);
+const signedPct = (n) => `${n >= 0 ? '↑+' : '↓'}${fmt(Math.abs(n), 2)}%`;
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
 async function call(name, input = {}) {
@@ -70,6 +72,7 @@ document.querySelectorAll('nav button').forEach((b) =>
   b.addEventListener('click', () => {
     document.querySelectorAll('nav button').forEach((x) => x.classList.toggle('active', x === b));
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.id === `tab-${b.dataset.tab}`));
+    tg.HapticFeedback?.selectionChanged?.();
     if (b.dataset.tab === 'pares' && !contracts.length) loadPairs();
     if (b.dataset.tab === 'hist') loadHistory();
   }),
@@ -82,14 +85,13 @@ async function loadState() {
     $('#alert').classList.add('hidden');
     renderState();
     if (!contracts.length) loadMarketPreview();
-    if (state.grid) {
-      loadChart(state.grid.market);
-      refreshQuote(state.grid.market);
-    }
+    if (state.grid) loadChart(state.grid.market);
   } catch (e) {
     showError(e);
   }
 }
+
+function gStatus(s) { return !s.grid ? 'Не настроена' : s.paused ? 'Пауза' : s.running ? 'Работает' : 'Готова'; }
 
 function renderState() {
   const s = state;
@@ -102,11 +104,16 @@ function renderState() {
   const pnl = equity - cash;
   $('#home-equity').textContent = usd(equity);
   $('#home-cash').textContent = usd(cash);
-  $('#home-pnl').textContent = (pnl >= 0 ? '+' : '') + usd(pnl);
+  $('#home-pnl').textContent = (pnl >= 0 ? '+' : '−') + usd(Math.abs(pnl));
+  $('#home-change').textContent = signedPct(equity ? pnl / 1000 * 100 : 0);
+  $('#home-change').className = `change-chip ${pnl >= 0 ? 'up' : 'down'}`;
   $('#home-pnl').className = pnl >= 0 ? 'up' : 'down';
   $('#home-positions').textContent = s.position ? '1' : '0';
-  $('#run').textContent = s.paused ? 'пауза' : s.running ? 'работает' : 'остановлен';
+  $('#run').textContent = s.paused ? 'Пауза' : s.running ? 'Сетка работает' : gStatus(s);
   $('#run').className = `pill ${s.running && !s.paused ? 'on' : ''}`;
+  $('#grid-status').textContent = gStatus(s);
+  $('#demo-capital').textContent = usd(equity);
+  $('#market-updated').textContent = s.lastTick ? `Live · ${new Date(s.lastTick).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}` : 'Live · ждём котировку';
   $('#price').textContent = s.grid ? `${s.grid.market} ${usd(s.lastPrice, 2)}` : '—';
 
   const notes = [
@@ -119,10 +126,10 @@ function renderState() {
   $('#alert').classList.toggle('hidden', !notes.length);
 
   const g = s.grid;
-  $('#g-desc').textContent = g ? `${g.market} ${usd(g.low)}–${usd(g.high)} · ${g.levels} уровней по ${usd(g.step)}` : 'не настроена';
+  $('#g-desc').textContent = g ? `${g.market} ${usd(g.low)}–${usd(g.high)} · ${g.levels} уровней` : 'Не настроена';
   const rc = s.lastRecenter;
   $('#g-recenter-row').classList.toggle('hidden', !rc);
-  if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · preço ${usd(rc.price)}`;
+  if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · цена ${usd(rc.price)}`;
   $('#g-trade').textContent = g ? `маржа ${usd(g.marginUsd)} ${g.leverage}x ≈ ${usd(g.notional)} · SL ${usd(g.stopLoss)}` : '—';
 
   const p = s.position;
@@ -144,7 +151,7 @@ function renderState() {
     }
     $('#pos').innerHTML = rows.map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('');
   } else {
-    $('#pos').textContent = g ? 'Позиции нет — ждём входа цены на уровень сетки.' : 'Сначала настройте сетку в разделе «Настройки».';
+    $('#pos').innerHTML = `<div class="empty-state">${icon('wallet')}<b>Позиций пока нет</b><small>${g ? 'Сетка ожидает достижения ценового уровня.' : 'Откройте рынки или настройте сетку.'}</small><button id="empty-open-markets" class="secondary" type="button">Открыть рынки</button></div>`;
   }
 
   const st = s.stats;
@@ -153,7 +160,7 @@ function renderState() {
   $('#metric-wins').textContent = `${st.wins}/${st.losses}`;
   $('#metric-pnl').textContent = usd(st.realizedPnl, 4);
   $('#stats').innerHTML = [
-    [`${st.trades}`, 'trades'],
+    [`${st.trades}`, 'сделок'],
     [`${st.wins}/${st.losses}`, 'TP / SL'],
     [usd(st.realizedPnl, 4), 'Результат закрытых сделок'],
     ...(eq !== null && eq !== undefined ? [[usd(eq), 'капитал ДЕМО']] : []),
@@ -230,7 +237,7 @@ function drawChart(candles, target = 'chart', market = '') {
 
 // ---------- pares ----------
 async function loadPairs() {
-  $('#pairs').textContent = 'Загрузка…';
+  $('#pairs').innerHTML = '<div class="market-loading skeleton-row"></div><div class="market-loading skeleton-row"></div><div class="market-loading skeleton-row"></div>'; 
   try {
     contracts = (await call('contracts')).contracts;
     renderPairs();
@@ -241,20 +248,30 @@ async function loadPairs() {
 
 function renderPairs() {
   const q = $('#q').value.trim().toUpperCase();
-  const onlyOk = $('#only-liquid').checked;
-  const list = contracts.filter((c) => (!q || c.market.includes(q)) && (!onlyOk || c.allowed));
+  const list = contracts.filter((c) => (!q || c.market.includes(q)));
   $('#pairs').innerHTML =
     list
       .map(
         (c) => `<div class="item ${c.allowed ? '' : 'blocked'}" data-market="${esc(c.market)}">
       <div><div class="name">${esc(c.market)} <span class="quote-price">${usd(c.price, 6)}</span></div>
-      <div class="meta">${c.change24hPct === undefined ? 'изменение н/д' : `<span class="${c.change24hPct >= 0 ? 'up' : 'down'}">${c.change24hPct >= 0 ? '+' : ''}${fmt(c.change24hPct, 2)}%</span>`} · объём 24ч ${usd(c.volume24hUsd, 0)} · funding ${fmt((c.fundingRateHourly ?? 0) * 100, 4)}%/ч · плечо до ${c.maxLeverage}x</div></div>
-      <div class="tag">${c.allowed ? icon('chevron') : c.liquid ? 'недоступен' : 'низкая ликвидность'}</div></div>`,
+      <div class="meta">${c.change24hPct === undefined ? 'изменение н/д' : `<span class="${c.change24hPct >= 0 ? 'up' : 'down'}">${signedPct(c.change24hPct)}</span>`}</div></div>
+      <div class="tag">${c.allowed ? icon('chevron') : `${icon('lock')} недоступен`}</div></div>`,
       )
-      .join('') || '<div class="card">Nenhum par encontrado.</div>';
+      .join('') || '<div class="empty-state card-empty">Ничего не найдено</div>';
+  renderMarketVisuals(list);
 }
 $('#q').addEventListener('input', renderPairs);
-$('#only-liquid').addEventListener('change', renderPairs);
+let topSort = 'up';
+document.querySelectorAll('[data-top-sort]').forEach((b) => b.addEventListener('click', () => { topSort=b.dataset.topSort; document.querySelectorAll('[data-top-sort]').forEach(x=>x.classList.toggle('selected',x===b)); renderMarketVisuals(contracts.filter(c=>!$('#q').value || c.market.includes($('#q').value.trim().toUpperCase()))); }));
+function renderMarketVisuals(source) {
+  const items=[...source].filter(c=>Number.isFinite(+c.price)).sort((a,b)=>Math.abs(b.volume24hUsd||0)-Math.abs(a.volume24hUsd||0)).slice(0,12);
+  const max=Math.max(1,...items.map(c=>+c.volume24hUsd||1));
+  $('#heatmap').innerHTML=items.map((c,i)=>{const pct=Number(c.change24hPct||0),strength=Math.min(1,Math.abs(pct)/8),hue=pct>=0?145:0,light=86-strength*48,span=Math.max(2,Math.round(((+c.volume24hUsd||1)/max)*6));return `<button type="button" class="heat-cell" style="grid-column:span ${span};background:hsl(${hue} 62% ${light}%)" data-heat-market="${esc(c.market)}"><b>${esc(c.market)}</b><small>${signedPct(pct)}</small></button>`;}).join('')||'<div class="market-loading">Нет данных для тепловой карты.</div>';
+  const ranked=[...source].sort((a,b)=>topSort==='up'?(b.change24hPct||0)-(a.change24hPct||0):(a.change24hPct||0)-(b.change24hPct||0)).slice(0,8);
+  $('#top-day').innerHTML=ranked.map(c=>`<button type="button" class="top-coin" data-heat-market="${esc(c.market)}"><span>${esc(c.market.slice(0,1))}</span><b>${esc(c.market)}</b><small class="${(c.change24hPct||0)>=0?'up':'down'}">${signedPct(c.change24hPct||0)}</small></button>`).join('');
+}
+$('#heatmap,#top-day').addEventListener('click',ev=>{const el=ev.target.closest('[data-heat-market]');if(!el)return;const m=el.dataset.heatMarket;$('#q').value=m;renderPairs();const item=[...document.querySelectorAll('#pairs .item')].find(x=>x.dataset.market===m);item?.click();});
+
 $('#pairs').addEventListener('click', async (ev) => {
   const item = ev.target.closest('.item');
   if (!item) return;
@@ -266,10 +283,11 @@ $('#pairs').addEventListener('click', async (ev) => {
   try {
     const p = await call('price', { market, leverage: 3 });
     const c = contracts.find((x) => x.market === market);
+    const displayPrice = c?.price ?? p.price;
     box.innerHTML = `<h3>${esc(market)}</h3>
-      <div class="row"><span>Текущая цена</span><b>${usd(p.price, 6)}</b></div>
+      <div class="asset-detail-price">${usd(displayPrice, displayPrice >= 1000 ? 2 : displayPrice >= 1 ? 3 : 6)}</div><div class="asset-change ${c?.change24hPct >= 0 ? 'up' : 'down'}">${c?.change24hPct === undefined ? 'Изменение недоступно' : signedPct(c.change24hPct)}</div><div class="row"><span>Текущая цена</span><b>${usd(displayPrice, displayPrice >= 1000 ? 2 : displayPrice >= 1 ? 3 : 6)}</b></div>
       <div class="row"><span>Минимальная маржа при ${p.leverage}x</span><b>${usd(p.minMargin)}</b></div>
-      <div class="row"><span>Faixa sugerida (−6% / +2%)</span><b>${usd(p.suggestion.low, 6)} – ${usd(p.suggestion.high, 6)}</b></div>
+      <div class="row"><span>Рекомендуемый диапазон (−6% / +2%)</span><b>${usd(p.suggestion.low, 6)} – ${usd(p.suggestion.high, 6)}</b></div>
       <div class="row"><span>Комиссия тейкера</span><b>${fmt((c?.takerFeePct ?? 0) * 100, 3)}%</b></div>
       <div class="chart-detail-head"><b>График</b><select id="pair-interval"><option value="1m">1м</option><option value="5m">5м</option><option value="15m" selected>15м</option><option value="1h">1ч</option><option value="4h">4ч</option><option value="1d">1д</option></select></div>
       <small data-chart-source="pair-chart"></small><svg id="pair-chart" viewBox="0 0 360 220" preserveAspectRatio="none"></svg>
@@ -301,7 +319,7 @@ async function loadMarketPreview() {
     box.innerHTML = rows.map((c) => {
       const change = Number(c.change24hPct || 0);
       return '<button class="home-market-row" type="button" data-home-market="' + esc(c.market) + '"><span class="market-token"><b>' + esc(c.market.slice(0, 1)) + '</b></span><span class="market-token-name"><b>' + esc(c.market) + '</b><small>Perpetual · ' + fmt(c.maxLeverage, 0) + 'x</small></span><span class="market-token-quote"><b>' + usd(c.price, 6) + '</b><small class="' + (change >= 0 ? 'up' : 'down') + '">' + (change >= 0 ? '+' : '') + fmt(change, 2) + '%</small></span></button>';
-    }).join('') || '<div class="market-loading">Нет доступных рынков.</div>';
+    }).join('') || '<div class="market-loading">Нет доступных активов.</div>';
   } catch (error) { box.innerHTML = '<div class="market-loading">' + esc(error.message) + '</div>'; }
 }
 $('#home-markets').addEventListener('click', (event) => {
@@ -313,6 +331,15 @@ $('#home-markets').addEventListener('click', (event) => {
 $('#home-see-all,#home-open-markets').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
 $('#home-open-grid').addEventListener('click', () => document.querySelector('nav button[data-tab="ctrl"]').click());
 $('#home-open-history').addEventListener('click', () => document.querySelector('nav button[data-tab="hist"]').click());
+$('#portfolio-trigger').addEventListener('click', () => document.querySelector('nav button[data-tab="painel"]').click());
+$('#notifications-trigger').addEventListener('click', () => tg.showAlert?.('Уведомлений пока нет.'));
+$('#education-banner').addEventListener('click', () => tg.showAlert?.('Обучение: 1) демо использует виртуальные средства; 2) выберите актив и настройте сетку; 3) график показывает реальные рыночные котировки.'));
+$('#repeat-onboarding').addEventListener('click', () => $('#education-banner').click());
+$('#empty-open-markets')?.addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
+$('#wallet-grid-settings').addEventListener('click', () => document.querySelector('nav button[data-tab="ctrl"]').click());
+$('#wallet-grid-run').addEventListener('click', async () => { if (!state?.grid) { document.querySelector('nav button[data-tab="ctrl"]').click(); return; } try { const r=await call('control',{action:state.running?'stop':'run'}); ctrlMessage(r.message); await loadState(); } catch(e) { showError(e); } });
+$('#home-reset-demo').addEventListener('click', () => tg.showAlert?.('Сброс демо-счёта пока не поддерживается текущим API. Существующий баланс и история сохранены.'));
+$('#home-open-markets-sell').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
 
 // ---------- histórico ----------
 async function loadHistory() {
@@ -322,7 +349,7 @@ async function loadHistory() {
     $('#trades').innerHTML = h.trades.length
       ? `<table><tr><th>Quando</th><th>Evento</th><th>Preço</th><th>PnL</th></tr>${h.trades
           .map((t) => {
-            const when = new Date(t.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            const when = new Date(t.at).toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
             const ev =
               t.event === 'open'
                 ? `<span class="ev ev-open">${icon('open')}long ${esc(t.market)}</span>`
@@ -330,7 +357,7 @@ async function loadHistory() {
                   ? `<span class="ev up">${icon('tp')}TP</span>`
                   : t.reason === 'sl'
                     ? `<span class="ev down">${icon('sl')}SL</span>`
-                    : `<span class="ev">${icon('hand')}manual</span>`;
+                    : `<span class="ev">${icon('hand')}Вручную</span>`;
             const pnl = t.pnl === undefined ? '' : `<span class="${t.pnl >= 0 ? 'up' : 'down'}">${usd(t.pnl, 4)}</span>`;
             return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(paper)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
           })
@@ -344,7 +371,7 @@ async function loadHistory() {
 function drawEquity(points) {
   const svg = $('#equity');
   if (!points || points.length < 2) {
-    svg.innerHTML = '<text x="10" y="20" fill="currentColor" font-size="12">Curva aparece após algumas horas de bot rodando.</text>';
+    svg.innerHTML = '<text x="10" y="20" fill="currentColor" font-size="12">Кривая капитала появится после первых сделок.</text>';
     return;
   }
   const W = 360, H = 140, P = 6;
@@ -432,4 +459,5 @@ $('#chart-interval').addEventListener('change', () => {
 });
 
 loadState().then(fillForm);
+$('#pairs').addEventListener('click',ev=>{if(ev.target.closest('[data-market]'))return;});
 setInterval(loadState, 30_000);
