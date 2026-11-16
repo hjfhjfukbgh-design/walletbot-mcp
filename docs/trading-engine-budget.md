@@ -8,7 +8,8 @@ Status: Draft. Do not enable LIVE or deploy this branch before the open issues b
 - Every open/close persists the account balance, position transition, and ledger entry in one `transactionSync` callback.
 - Quotes and TP/SL/liquidation indexes are memory-only. No quote tick is written to SQLite.
 - After eviction/restart, memory is treated as empty. The constructor restores open positions from SQLite, rebuilds the symbol index, then reconnects the market socket. The subscription snapshot repopulates prices.
-- The watchdog uses a 45-second DO Alarm while at least one position is open. Outgoing WebSockets cannot hibernate; Cloudflare says each outbound connection prevents eviction for up to 15 minutes, then normal eviction can resume. The Engine proactively reconnects at about 14 minutes. It checks socket state/silence, forces a reconnect after 14 minutes, restores positions after a disconnect, and checks quote freshness before any execution. With no open positions, the socket and alarm are stopped.
+- The watchdog uses a 45-second DO Alarm while at least one position is open. Outgoing WebSockets cannot hibernate; Cloudflare says each outbound connection prevents eviction for up to 15 minutes, then normal eviction can resume. The Engine proactively reconnects at about 14 minutes.
+- A continuously active 128 MB DO uses 0.128 GB × 86,400 s = 11,059.2 GB-s/day. Against the 13,000 GB-s/day Free duration allowance, the theoretical headroom is only 1,940.8 GB-s/day (about 14.9%), before any extra active periods. This is the principal scaling constraint, not SQLite reads. It checks socket state/silence, forces a reconnect after 14 minutes, restores positions after a disconnect, and checks quote freshness before any execution. With no open positions, the socket and alarm are stopped.
 - Quote age defaults to 10 seconds. Older or future-dated quotes are rejected for open/close execution.
 - A gap is executed using the current fresh quote with adverse slippage, not the crossed TP/SL/liquidation level.
 
@@ -17,7 +18,7 @@ Status: Draft. Do not enable LIVE or deploy this branch before the open issues b
 Current Cloudflare documentation lists 5,000,000 SQL rows read/day, 100,000 SQL rows written/day, and 5 GB stored data/account for SQLite-backed Durable Objects. Every `setAlarm()` counts as one row written. Free operations fail when a quota is exceeded; daily counters reset at 00:00 UTC.
 
 Sources:
-- https://developers.cloudflare.com/durable-objects/platform/pricing/
+- https://developers.cloudflare.com/durable-objects/platform/pricing/\n- https://developers.cloudflare.com/durable-objects/platform/limits/
 - https://developers.cloudflare.com/durable-objects/platform/limits/\n- https://developers.cloudflare.com/durable-objects/best-practices/websockets/\n- https://developers.cloudflare.com/durable-objects/concepts/durable-object-lifecycle/
 
 ## Daily write estimate
