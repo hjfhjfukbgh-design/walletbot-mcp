@@ -1,7 +1,7 @@
 import type { Env } from "./env";
 
 export interface TgUpdate {
-  message?: { chat: { id: number }; from?: { id: number }; text?: string };
+  message?: { chat: { id: number; type?: string }; from?: { id: number }; text?: string };
 }
 
 export async function tg(env: Env, method: string, body: unknown): Promise<unknown> {
