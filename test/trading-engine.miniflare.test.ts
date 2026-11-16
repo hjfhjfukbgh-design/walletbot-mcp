@@ -57,6 +57,14 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     });
   }
 
+  it("rejects stale quotes for both market updates and trade entry", async () => {
+    const stub = await boot();
+    const stale = await post(stub, "/quote", { symbol: "BTC", price: (50_000n * P).toString(), observedAt: Date.now() - 20_000 });
+    expect(stale.body.ok).toBe(false);
+    const opened = await open(stub, 100n * U);
+    expect(opened.body.ok).toBe(false);
+  });
+
   it("serializes Promise.all opens against one balance and prevents overspending", async () => {
     const stub = await boot();
     await quote(stub, 50_000n * P);
