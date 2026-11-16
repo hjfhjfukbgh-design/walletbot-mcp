@@ -78,8 +78,8 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
   const grid = state.grid!;
   const { cfg } = grid;
   const limits = riskLimits(env);
-  const walt = await connectWalt(env);
   const live = state.mode === "live";
+  const walt = live ? await connectWalt(env) : null;
   if (live && !walt) {
     state.paused = "modo live sem conexão com o Walt (/connect)";
     msgs.push(`⏸️ Pausado: ${state.paused}`);
@@ -204,7 +204,7 @@ export async function closeAll(env: Env): Promise<string> {
   const state = await loadState(env);
   if (!state.grid) return "Nenhum grid configurado.";
   const { cfg } = state.grid;
-  const walt = await connectWalt(env);
+  const walt = state.mode === "live" ? await connectWalt(env) : null;
   state.running = false;
   if (state.mode === "live") {
     if (!walt) return "Walt não conectado — feche a posição pelo app Walt.";
