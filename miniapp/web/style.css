@@ -433,3 +433,9 @@ button:disabled{opacity:.48;cursor:not-allowed;transform:none!important}
 .balance-currency{margin-right:5px;color:#8E8E93;font-size:.42em;font-weight:600;letter-spacing:0;vertical-align:baseline}
 .asset-screen .section-title{margin-top:17px}
 .asset-screen .disclaimer{margin:10px 3px 0}
+
+
+.asset-chart-legend{display:flex;flex-wrap:wrap;gap:8px 12px;margin:7px 3px 0;color:#8E8E93;font-size:10px}
+.asset-chart-legend span{display:flex;align-items:center;gap:5px}
+.asset-chart-legend i{width:12px;height:2px;border-radius:2px}
+.legend-level{background:#A6A8B0}.legend-entry{background:#20242A}.legend-tp{background:#34C759}.legend-sl{background:#FF3B30}
