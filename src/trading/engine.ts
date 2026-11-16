@@ -236,7 +236,6 @@ export class TradingEngine {
     if (price <= 0n || !Number.isSafeInteger(observedAt) || Math.abs(Date.now() - observedAt) > 5_000) throw new Error("Получена некорректная или устаревшая котировка.");
     this.quotes.set(symbol, { price, observedAt });
     this.staleSymbols.delete(symbol);
-    this.lastMessageAt = Date.now();
     let checked = 0;
     for (const id of [...(this.bySymbol.get(symbol) ?? [])]) {
       const position = this.positions.get(id);
@@ -288,12 +287,48 @@ export class TradingEngine {
     if ((!this.socket || this.socket.readyState === WebSocket.CLOSED) && now >= this.nextReconnectAt) {
       this.connectMarketSocket();
     }
+
+    // WebSocket is the primary feed. Poll HTTP allMids as a watchdog fallback
+    // whenever the socket is unavailable or any open market has a stale quote.
+    // This keeps TP/SL/liquidation monitoring alive through feed disconnects.
+    if (this.socket?.readyState !== WebSocket.OPEN || this.staleSymbols.size > 0) {
+      await this.refreshPublicQuotes();
+      for (const symbol of this.bySymbol.keys()) {
+        const quote = this.quotes.get(symbol);
+        if (!quote || quote.observedAt > Date.now() + 1_000 || Date.now() - quote.observedAt > this.maxQuoteAgeMs)
+          this.staleSymbols.add(symbol);
+        else this.staleSymbols.delete(symbol);
+      }
+    }
+
     if (now - this.lastSnapshotAt >= SNAPSHOT_MS) {
       const quotes = Object.fromEntries([...this.quotes].map(([symbol, quote]) => [symbol, { price: quote.price.toString(), observedAt: quote.observedAt }]));
       this.ctx.storage.sql.exec("INSERT INTO engine_meta(key,value) VALUES('snapshot', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", JSON.stringify({ at: now, openPositions: this.positions.size, quotes }));
       this.lastSnapshotAt = now;
     }
     await this.ctx.storage.setAlarm(now + WATCHDOG_MS);
+  }
+
+  private async refreshPublicQuotes(): Promise<void> {
+    try {
+      const response = await fetch("https://api.hyperliquid.xyz/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "allMids" }),
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (!response.ok) return;
+      const mids = await response.json() as Record<string, string>;
+      const observedAt = Date.now();
+      for (const symbol of this.bySymbol.keys()) {
+        const raw = mids[symbol];
+        if (!raw) continue;
+        const price = parseFixed(raw, PRICE_SCALE, 8);
+        if (price > 0n) await this.acceptQuote({ symbol, price: price.toString(), observedAt });
+      }
+    } catch {
+      // Keep the last quote marked stale; opens/closes remain blocked until a fresh feed arrives.
+    }
   }
 
   private connectMarketSocket(): void {
