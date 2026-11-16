@@ -162,8 +162,8 @@ function renderState() {
     const pnl = p.unrealizedPnl;
     const rows = [
       ['Цена входа', usd(p.entryPrice, moneyDecimals(p.entryPrice))],
-      ['Тейк-профит', usd(p.takeProfit, moneyDecimals(p.takeProfit))],
-      ['Стоп-лосс', usd(p.stopLoss, moneyDecimals(p.stopLoss))],
+      ['Тейк-профит <button type="button" class="help-dot" data-help="tp">?</button>', usd(p.takeProfit, moneyDecimals(p.takeProfit))],
+      ['Стоп-лосс <button type="button" class="help-dot" data-help="sl">?</button>', usd(p.stopLoss, moneyDecimals(p.stopLoss))],
       ['Маржа', usd(p.marginUsd)],
       ['Текущий результат', `<span class="pos-pnl ${pnl >= 0 ? 'up' : 'down'}">${usd(pnl, 4)}</span>`],
     ];
@@ -365,7 +365,7 @@ $('#pairs').addEventListener('click', async (ev) => {
       '<div class="section-title">О криптовалюте</div><div class="card asset-about"><p>Цена формируется на открытом рынке и может быстро меняться.</p><p>Демо-режим показывает реальные котировки, но использует только виртуальные средства.</p><p>Изменение за 24 часа не гарантирует дальнейшего движения цены.</p></div>' +
       '<div class="section-title">Подробнее</div><div class="card asset-tech">' +
       '<div class="row"><span>Объём за 24 часа</span><b>' + usd(c?.volume24hUsd, 0) + '</b></div>' +
-      '<div class="row"><span>Фандинг за час</span><b>' + (Number.isFinite(funding) ? (funding >= 0 ? '+' : '') + fmt(funding, 4) + '%' : '—') + '</b></div>' +
+      '<div class="row"><span>Фандинг за час <button type="button" class="help-dot" data-help="funding">?</button></span><b>' + (Number.isFinite(funding) ? (funding >= 0 ? '+' : '') + fmt(funding, 4) + '%' : '—') + '</b></div>' +
       '<div class="row"><span>Максимальное плечо рынка</span><b>' + (c?.maxLeverage ?? '—') + 'x</b></div>' +
       '<div class="row"><span>Комиссия тейкера</span><b>' + fmt((c?.takerFeePct ?? 0) * 100, 3) + '%</b></div>' +
       '<div class="row"><span>Минимальная маржа</span><b>' + usd(p.minMargin) + '</b></div>' +
