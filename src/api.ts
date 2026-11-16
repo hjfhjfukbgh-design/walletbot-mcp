@@ -49,7 +49,7 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
       case "POST demo/open":
         return openDemoTrade(env, telegramUserId, body);
       case "POST demo/close":
-        return engineRequest(env, "/close", { ...body, userId: telegramUserId });
+        return engineRequest(env, "/close", { ...body, userId: telegramUserId, manual: true });
       case "GET state":
         // Read-only polling must not run the legacy KV position monitor:
         // scheduled processing is the single monitor for that compatibility path.
