@@ -1,11 +1,13 @@
 import { closePosition, checkTrigger, manualCloseTrigger, openPosition, type Position, type PositionInput } from "./positions";
-import { MONEY_SCALE, PRICE_SCALE } from "./money";
+import { MONEY_SCALE, PRICE_SCALE, parseFixed } from "./money";
 
 interface EngineEnv { HYPERLIQUID_WS_URL?: string; ENGINE_MAX_QUOTE_AGE_MS?: string; }
 interface Quote { price: bigint; observedAt: number; }
 const MAX_AGE_DEFAULT = 10_000;
 const WATCHDOG_MS = 45_000;
 const SNAPSHOT_MS = 60_000;
+const SOCKET_SILENCE_MS = 30_000;
+const SOCKET_MAX_AGE_MS = 14 * 60_000;
 const DEMO_SEED = 1_000n * MONEY_SCALE;
 const bigintKeys = new Set(["marginMicro","leverage","entryPrice","takeProfitPrice","stopLossPrice","liquidationPrice","feePpm","slippagePpm","qtyUnits","entryNotionalMicro","entryFeeMicro"]);
 
@@ -39,6 +41,8 @@ export class TradingEngine {
   private bySymbol = new Map<string, Set<string>>();
   private socket: WebSocket | null = null;
   private lastMessageAt = 0;
+  private socketOpenedAt = 0;
+  private reconnecting = false;
   private lastSnapshotAt = 0;
   private readonly maxQuoteAgeMs: number;
 
@@ -113,7 +117,7 @@ export class TradingEngine {
 
   private freshQuote(symbol: string): Quote {
     const quote = this.quotes.get(symbol);
-    if (!quote || Date.now() - quote.observedAt > this.maxQuoteAgeMs) throw new Error("Котировка устарела или отсутствует. Открытие/закрытие заблокировано до получения свежей цены.");
+    if (!quote || quote.observedAt > Date.now() + 1_000 || Date.now() - quote.observedAt > this.maxQuoteAgeMs) throw new Error("Котировка устарела или отсутствует. Открытие/закрытие заблокировано до получения свежей цены.");
     return quote;
   }
 
@@ -151,7 +155,11 @@ export class TradingEngine {
     const userId = String(body.userId ?? ""), id = String(body.positionId ?? "");
     if (!/^\d{1,20}$/.test(userId) || !id) throw new Error("Не указаны пользователь или позиция.");
     const position = this.positions.get(id);
-    if (!position || position.userId !== userId) throw new Error("Открытая позиция не найдена.");
+    if (!position || position.userId !== userId) {
+      const row = this.ctx.storage.sql.exec("SELECT status FROM positions WHERE id = ? AND user_id = ?", id, userId).toArray()[0] as { status: string } | undefined;
+      if (row?.status === "closed") return { ok: true, closed: true };
+      throw new Error("Открытая позиция не найдена.");
+    }
     const quote = this.freshQuote(position.symbol);
     const trigger = body.manual === true ? manualCloseTrigger(position, quote.price) : checkTrigger(position, quote.price);
     if (!trigger) return { ok: true, closed: false };
@@ -198,9 +206,14 @@ export class TradingEngine {
 
   async alarm(): Promise<void> {
     const now = Date.now();
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN || now - this.lastMessageAt > this.maxQuoteAgeMs) {
+    const staleSocket = this.socket?.readyState === WebSocket.OPEN && (now - this.lastMessageAt > SOCKET_SILENCE_MS || now - this.socketOpenedAt > SOCKET_MAX_AGE_MS);
+    if (staleSocket) {
+      this.socket?.close();
+      this.socket = null;
+    }
+    if (!this.socket || this.socket.readyState === WebSocket.CLOSED) {
+      this.restorePositions(); // full persisted-position reconciliation after a disconnect/eviction
       this.connectMarketSocket();
-      this.restorePositions(); // full persisted-position reconciliation after a reconnect
     }
     if (now - this.lastSnapshotAt >= SNAPSHOT_MS) {
       this.ctx.storage.sql.exec("INSERT OR REPLACE INTO engine_meta(key,value) VALUES('snapshot', ?)", JSON.stringify({ at: now, openPositions: this.positions.size }));
@@ -210,12 +223,13 @@ export class TradingEngine {
   }
 
   private connectMarketSocket(): void {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) return;
+    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) return;
     try {
       const socket = new WebSocket(this.env.HYPERLIQUID_WS_URL || "wss://api.hyperliquid.xyz/ws");
       this.socket = socket;
       socket.addEventListener("open", () => {
         this.lastMessageAt = Date.now();
+        this.socketOpenedAt = Date.now();
         socket.send(JSON.stringify({ method: "subscribe", subscription: { type: "allMids" } }));
       });
       socket.addEventListener("message", (event) => {
@@ -226,13 +240,13 @@ export class TradingEngine {
           const now = Date.now();
           for (const [symbol, raw] of Object.entries(message.data.mids)) {
             if (!this.bySymbol.has(symbol)) continue;
-            const price = BigInt(Math.round(Number(raw) * Number(PRICE_SCALE)));
+            const price = parseFixed(raw, PRICE_SCALE, 8);
             if (price > 0n) void this.acceptQuote({ symbol, price: price.toString(), observedAt: now });
           }
         } catch { /* malformed upstream frames are ignored; watchdog will reconnect if feed goes stale */ }
       });
-      socket.addEventListener("close", () => { this.lastMessageAt = 0; });
-      socket.addEventListener("error", () => { this.lastMessageAt = 0; });
+      socket.addEventListener("close", () => { this.lastMessageAt = 0; if (this.socket === socket) this.socket = null; });
+      socket.addEventListener("error", () => { this.lastMessageAt = 0; if (this.socket === socket) this.socket = null; });
     } catch {
       this.socket = null;
       this.lastMessageAt = 0;
