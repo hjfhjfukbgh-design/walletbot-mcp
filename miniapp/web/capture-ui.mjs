@@ -66,6 +66,9 @@ try {
     await page.locator('nav button[data-tab="pares"]').click();
     await page.waitForTimeout(900);
     await page.screenshot({path:`trade-${width}x844.png`,fullPage:false});
+    await page.locator("#pairs").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(250);
+    await page.screenshot({path:`trade-list-${width}x844.png`,fullPage:false});
     await page.close();
   }
 } finally {
