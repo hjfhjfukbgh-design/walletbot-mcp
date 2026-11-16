@@ -1,6 +1,7 @@
 // Operações do bot usadas pelos comandos do Telegram e pela API da Mini App.
 import { riskLimits, type Env } from "./env";
 import { connectWalt, currentPrice } from "./bot";
+import { publicContracts, publicMid } from "./prices";
 import { cachedContracts, loadState, saveState } from "./state";
 import { marketAllowed } from "./risk";
 import { notional, sizeError, step, stopLossPrice, validateConfig, type GridConfig } from "./strategy/grid";
@@ -31,14 +32,16 @@ export async function configureGrid(env: Env, args: string[]): Promise<string> {
   const limits = riskLimits(env);
   const market = (args[0] ?? "BTC").toUpperCase();
   if (!marketAllowed(limits, market)) return `Mercado fora da whitelist: ${limits.allowedMarkets.join(", ")}`;
-  const w = await walt(env);
-  const contract = findContract(await cachedContracts(env, () => w.contracts()), market);
-  if (!contract) return `Contrato ${market}-USDC não encontrado no Walt.`;
+  const state = await loadState(env);
+  const contract = state.mode === "live"
+    ? findContract(await cachedContracts(env, async () => (await walt(env)).contracts()), market)
+    : findContract(await publicContracts(), market);
+  if (!contract) return `Mercado ${market} não encontrado na lista pública ou no Walt.`;
   if ((contract.volume24hUsd ?? 0) < limits.minVolume24hUsd)
     return `${market} tem volume 24h de $${Math.round(contract.volume24hUsd ?? 0).toLocaleString("en-US")}, abaixo do mínimo de $${limits.minVolume24hUsd.toLocaleString("en-US")} (pouca liquidez).`;
   if (args.length < 5) {
     // sugestão pronta para copiar: faixa de −6% a +2% do preço atual
-    const price = await w.rate(contract);
+    const price = state.mode === "live" ? await (await walt(env)).rate(contract) : await publicMid(market);
     const d = contract.priceDecimals;
     const lo = (price * 0.94).toFixed(d);
     const hi = (price * 1.02).toFixed(d);
@@ -81,7 +84,7 @@ export async function configureGrid(env: Env, args: string[]): Promise<string> {
 export async function runGrid(env: Env): Promise<string> {
   const s = await loadState(env);
   if (!s.grid) return "Configure antes com /grid.";
-  const price = await currentPrice(s.grid.cfg, await connectWalt(env));
+  const price = await currentPrice(s.grid.cfg, s.mode === "live" ? await connectWalt(env) : null);
   const { low, high } = s.grid.cfg;
   const warn =
     price > high || price < low ? `\n⚠️ Preço fora da faixa $${low}–$${high}: só entra quando o preço chegar nela.` : "";
@@ -95,7 +98,7 @@ export async function runGrid(env: Env): Promise<string> {
 export async function setMode(env: Env, args: string[]): Promise<string> {
   const s = await loadState(env);
   const target = args[0]?.toLowerCase();
-  if (target !== "paper" && target !== "live") return `Modo atual: ${s.mode}. Uso: /mode paper | /mode live CONFIRMO`;
+  if (target !== "paper" && target !== "live") return `Modo atual: ${s.mode === "paper" ? "ДЕМО" : "LIVE"}. Используйте /demo или /live CONFIRMO.`;
   if (s.grid?.position) return "Feche a posição (/closeall) antes de trocar de modo.";
   if (target === "live") {
     if (args[1] !== "CONFIRMO") return "⚠️ Live usa dinheiro real em perpétuos alavancados. Envie: /mode live CONFIRMO";
@@ -109,5 +112,5 @@ export async function setMode(env: Env, args: string[]): Promise<string> {
   s.running = false;
   s.day = undefined;
   await saveState(env, s);
-  return `Modo ${target.toUpperCase()} ativado. Grid parado — use /run.`;
+  return `Режим ${target === "paper" ? "ДЕМО" : "LIVE"} включён. Сетка остановлена — запустите её командой /run.`;
 }
