@@ -11,6 +11,7 @@ import { cachedContracts, loadState } from "./state";
 import { buyPrice, minMargin, notional, step, stopLossPrice } from "./strategy/grid";
 import { timingSafeEqual, type TgUpdate } from "./telegram";
 import { findContract } from "./walt";
+import { tenantEnv } from "./tenants";
 
 type Json = Record<string, unknown>;
 
@@ -23,27 +24,34 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
   const url = new URL(req.url);
   const route = `${req.method} ${url.pathname.replace(/^\/api\//, "")}`;
   const body = req.method === "POST" ? ((await req.json().catch(() => ({}))) as Json) : {};
+  const telegramUserId = req.headers.get("X-Telegram-User-Id") ?? "";
+  if (route !== "POST telegram" && !/^\\d{1,20}$/.test(telegramUserId))
+    return fail("Telegram user authentication required", 401);
+  const scopedEnv = telegramUserId ? tenantEnv(env, telegramUserId) : env;
+  if (telegramUserId) {
+    await env.STATE.put("tenant:user:" + telegramUserId, JSON.stringify({ chatId: telegramUserId, createdAt: new Date().toISOString() }));
+  }
   try {
     switch (route) {
       case "GET state":
-        return json({ ok: true, ...(await stateView(env)) });
+        return json({ ok: true, ...(await stateView(scopedEnv)) });
       case "GET contracts":
-        return json({ ok: true, contracts: await contractsView(env) });
+        return json({ ok: true, contracts: await contractsView(scopedEnv) });
       case "GET price":
-        return json({ ok: true, ...(await priceView(env, url.searchParams.get("market") ?? "", Number(url.searchParams.get("leverage") ?? 3))) });
+        return json({ ok: true, ...(await priceView(scopedEnv, url.searchParams.get("market") ?? "", Number(url.searchParams.get("leverage") ?? 3))) });
       case "GET chart":
-        return json({ ok: true, ...(await chartView(env, url.searchParams.get("market") ?? "")) });
+        return json({ ok: true, ...(await chartView(scopedEnv, url.searchParams.get("market") ?? "")) });
       case "GET trades": {
-        const s = await loadState(env);
-        return json({ ok: true, trades: (await loadTrades(env)).slice().reverse(), equity: s.equity ?? [] });
+        const s = await loadState(scopedEnv);
+        return json({ ok: true, trades: (await loadTrades(scopedEnv)).slice().reverse(), equity: s.equity ?? [] });
       }
       case "POST grid": {
         const args = [body.market, body.low, body.high, body.levels, body.marginUsd, body.leverage].map((v) => String(v ?? ""));
         if (args.slice(0, 5).some((a) => a === "")) return fail("campos obrigatórios: market, low, high, levels, marginUsd");
-        return json({ ok: true, message: await configureGrid(env, args) });
+        return json({ ok: true, message: await configureGrid(scopedEnv, args) });
       }
       case "POST control":
-        return json({ ok: true, message: await control(env, body) });
+        return json({ ok: true, message: await control(scopedEnv, body) });
       case "POST telegram":
         // update encaminhado pelo handler do tgcloud; responde já e processa em segundo plano
         ctx.waitUntil(handleUpdate(env, body as unknown as TgUpdate));
