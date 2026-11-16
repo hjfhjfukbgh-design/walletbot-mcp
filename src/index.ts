@@ -53,7 +53,7 @@ export default {
       });
       const menu = env.MINIAPP_URL
         ? await tg(env, "setChatMenuButton", {
-            menu_button: { type: "web_app", text: "Painel", web_app: { url: env.MINIAPP_URL } },
+            menu_button: { type: "web_app", text: "Панель", web_app: { url: env.MINIAPP_URL } },
           })
         : "sem MINIAPP_URL";
       return Response.json({ webhook, commands, menu });
