@@ -62,6 +62,21 @@ async function assertViewport(page,label){
   if(result.navLeft < -1 || result.navRight > result.width+1) throw new Error(`${label}: нижняя навигация выходит за экран`);
 }
 
+async function assertHitAboveNav(page, selector, label) {
+  const result = await page.evaluate((sel) => {
+    const target = Array.from(document.querySelectorAll(sel)).at(-1);
+    const nav = document.querySelector(".bottom-nav");
+    if (!target) return {error:"missing target "+sel};
+    const r=target.getBoundingClientRect(), n=nav?.getBoundingClientRect();
+    const x=Math.max(0,Math.min(innerWidth-1,r.left+r.width/2));
+    const y=Math.max(0,Math.min(innerHeight-1,r.top+r.height/2));
+    const hit=document.elementFromPoint(x,y);
+    return {top:r.top,bottom:r.bottom,navTop:n?.top??innerHeight,hit:!!hit&&(hit===target||target.contains(hit)),hitTag:hit?.tagName,hitId:hit?.id};
+  },selector);
+  if(result.error || result.bottom > result.navTop-1 || !result.hit)
+    throw new Error(label+": target not clear/clickable above nav "+JSON.stringify(result));
+}
+
 async function assertBottomAccessible(page, selector, label) {
   const target = page.locator(selector).last();
   await target.waitFor({ state: "visible" });
