@@ -1,0 +1,70 @@
+/* Kripto Guru — focused visual refresh for the active Telegram entrypoint. */
+:root{
+  --kg-ink:#111827;--kg-muted:#7b8492;--kg-line:#e9edf3;--kg-blue:#2563eb;
+  --kg-green:#159b67;--kg-red:#dc4c55;--kg-card:#fff;--kg-bg:#f5f7fb;
+}
+html,body{background:var(--kg-bg)!important;color:var(--kg-ink)!important}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,system-ui,sans-serif!important;letter-spacing:-.12px}
+.topbar{height:58px;padding-left:17px!important;padding-right:17px!important;background:rgba(255,255,255,.92)!important;border-bottom:1px solid #e9edf3!important;box-shadow:0 2px 12px rgba(20,35,60,.035)}
+.brand-title{gap:9px!important;color:#121a29!important;font-size:16px!important;letter-spacing:-.45px}
+.brand-symbol{width:29px!important;height:29px!important;border-radius:10px!important;background:linear-gradient(145deg,#3478f6,#1749bd)!important;color:#fff!important;box-shadow:0 4px 12px #2563eb35!important}
+.round-action,.profile-trigger{background:#f1f4f9!important;border:1px solid #e7ebf2!important;color:#354052!important}
+main{max-width:540px!important;padding:17px 15px 190px!important}
+.tab{animation:kg-enter .18s ease-out}
+@keyframes kg-enter{from{opacity:.75;transform:translateY(3px)}to{opacity:1;transform:none}}
+.wallet-head{position:relative;overflow:hidden;display:flex;align-items:flex-start;justify-content:space-between;min-height:148px;margin:0 0 0;padding:21px 19px 18px;border-radius:23px 23px 0 0;background:linear-gradient(125deg,#142b50 0%,#173f78 56%,#2363bd 100%);color:#fff}
+.wallet-head:after{content:"";position:absolute;width:190px;height:190px;right:-68px;top:-96px;border:1px solid #ffffff20;border-radius:50%;box-shadow:0 0 0 22px #ffffff08,0 0 0 46px #ffffff06}
+.wallet-head>div{position:relative;z-index:1}
+.wallet-head .eyebrow{color:#c3d7f5!important;font-size:10px!important;letter-spacing:1.1px}
+.wallet-balance{margin-top:10px;color:#fff!important;font-size:39px!important;line-height:1.05;font-weight:780!important;letter-spacing:-1.8px!important;font-variant-numeric:tabular-nums}
+.wallet-balance span{font-size:.62em;color:#d7e6ff}
+.demo-badge{position:relative;z-index:1;padding:6px 10px!important;border:1px solid #ffffff36!important;border-radius:999px!important;background:#ffffff16!important;color:#fff!important;font-size:9px!important;font-weight:800!important;letter-spacing:.8px}
+.wallet-performance{display:flex;align-items:center;justify-content:space-between;margin:0;padding:0 19px 17px;background:linear-gradient(125deg,#142b50,#2363bd);color:#d8e7ff!important;font-size:11px!important}
+.wallet-performance .change-chip{padding:5px 8px;border-radius:999px;background:#ffffff18;color:#c9f5df!important;font-size:10px}
+.wallet-actions{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px!important;margin:0 0 22px!important;padding:13px 10px 12px;border:1px solid #e8edf4;border-top:0;border-radius:0 0 20px 20px;background:#fff;box-shadow:0 8px 22px rgba(24,43,75,.055)}
+.wallet-action{min-width:0!important;min-height:65px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:6px!important;padding:7px 3px!important;border:0!important;border-radius:13px!important;background:#f7f9fc!important;color:#3d4858!important;font-size:9px!important;font-weight:650!important;line-height:1.25}
+.action-icon{width:29px!important;height:29px!important;display:grid!important;place-items:center;border-radius:10px!important;background:#e9f0ff!important;color:#2862cb!important;box-shadow:none!important}
+.action-icon .ic{width:16px!important;height:16px!important}
+.section-heading{margin:21px 2px 9px!important}
+.section-heading h2{color:#1a2434!important;font-size:15px!important;font-weight:750!important;letter-spacing:-.35px}
+.section-muted{color:#8993a1!important;font-size:10px!important}
+.currency-card,.favorite-card,.engine-position,.wallet-asset-list,.history-list-card,.history-equity-card,.settings-group,.card{border:1px solid #e8edf3!important;border-radius:17px!important;background:#fff!important;box-shadow:0 3px 13px rgba(20,35,60,.035)!important}
+.currency-card{min-height:65px!important;padding:11px 13px!important}
+.currency-icon{width:34px!important;height:34px!important;display:grid;place-items:center;border-radius:11px!important;background:#eaf1ff!important;color:#2863cc!important;font-weight:800}
+.currency-copy b{color:#1e293b!important;font-size:12px!important}
+.currency-copy small{color:#8993a1!important;font-size:10px!important}
+.currency-card>strong{color:#1d2939!important;font-size:12px!important}
+.favorites-strip{gap:9px!important}
+.favorite-card{min-width:136px!important;padding:12px!important;border-radius:15px!important;background:#fff!important}
+.wallet-position-list{padding:0}
+.empty-wallet{padding:20px 12px!important;border:1px dashed #dce3ed!important;border-radius:16px!important;background:#fff!important;color:#7b8492!important}
+.empty-wallet b{color:#4a5565!important}
+.empty-wallet-icon{color:#9aabc3!important}
+.primary-button{border-radius:11px!important;background:#2563eb!important}
+.wallet-asset-list{padding:0 12px!important}
+.asset-line{min-height:60px!important;background:#fff!important;border-color:#edf0f4!important}
+.coin-avatar{border-radius:50%!important;background:#edf2fa!important;color:#42536b!important}
+.asset-line b{color:#263244!important;font-size:12px!important}
+.asset-line small{color:#8993a1!important}
+.asset-line strong{color:#1d2939!important;font-size:12px!important}
+.trade-search{background:#fff!important;border:1px solid #e6ebf2!important;box-shadow:0 2px 8px #15243b08!important}
+.category-tile{background:#fff!important;border:1px solid #e7ebf2!important;box-shadow:0 2px 8px #15243b08!important}
+.category-tile.selected{border-color:#a9c4f8!important;background:#f0f5ff!important}
+.market-row{background:#fff!important;border-bottom:1px solid #edf0f4!important}
+.bottom-nav{left:12px!important;right:12px!important;bottom:calc(9px + env(safe-area-inset-bottom))!important;padding:7px 7px calc(7px + env(safe-area-inset-bottom))!important;border:1px solid #e7ebf2!important;border-radius:19px!important;background:rgba(255,255,255,.94)!important;box-shadow:0 8px 28px rgba(25,42,70,.13)!important;backdrop-filter:blur(22px)!important}
+.bottom-nav button{color:#8a94a3!important}
+.bottom-nav button.active{color:#2563eb!important}
+.nav-indicator{background:#eaf1ff!important;border-radius:13px!important}
+.profile-menu{background:#fff!important;color:#1f2937!important;border:1px solid #e8edf3!important;box-shadow:0 14px 36px #15243b20!important}
+.profile-menu-head b,.mode-option b{color:#202b3b!important}
+.profile-menu-note{background:#f5f7fb!important;color:#647084!important}
+@media(max-width:380px){.wallet-head{min-height:137px;padding:18px 15px 15px}.wallet-balance{font-size:34px!important}.wallet-actions{gap:5px!important;padding-inline:7px}.wallet-action{font-size:8px!important}.section-heading h2{font-size:14px!important}}
+@media(prefers-reduced-motion:reduce){.tab{animation:none}}
+
+/* Wallet hero redesign: a high-contrast balance panel with a unified action dock. */
+.wallet-head{background:linear-gradient(128deg,#101f3d 0%,#17427d 58%,#2d6fe0 100%);box-shadow:0 12px 28px rgba(31,78,150,.16)}
+.wallet-head:before{content:"";position:absolute;inset:auto -35px -115px auto;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,#ffffff20 0%,#ffffff00 68%);pointer-events:none}
+.wallet-performance{position:relative;z-index:1}
+.wallet-actions{position:relative;margin-top:-1px!important}
+.wallet-action:active{background:#edf3ff!important}
+.section-heading{scroll-margin-top:75px}
