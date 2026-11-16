@@ -31,8 +31,8 @@ export async function resumeGrid(env: Env): Promise<string> {
 export async function configureGrid(env: Env, args: string[]): Promise<string> {
   const limits = riskLimits(env);
   const market = (args[0] ?? "BTC").toUpperCase();
-  if (!marketAllowed(limits, market)) return `Mercado fora da whitelist: ${limits.allowedMarkets.join(", ")}`;
   const state = await loadState(env);
+  if (state.mode === "live" && !marketAllowed(limits, market)) return `Mercado fora da whitelist: ${limits.allowedMarkets.join(", ")}`;
   const contract = state.mode === "live"
     ? findContract(await cachedContracts(env, async () => (await walt(env)).contracts()), market)
     : findContract(await publicContracts(), market);
