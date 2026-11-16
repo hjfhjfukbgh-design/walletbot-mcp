@@ -260,6 +260,7 @@
     });
   }
 
+  window.kriptoGuruDemo = { getAccount: () => account, refresh: loadWallet };
   renderRecent();
   setTimeout(renderFavorites, 1_500);
   document.querySelectorAll(".bottom-nav button").forEach((button) => {
