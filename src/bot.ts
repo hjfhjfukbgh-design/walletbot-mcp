@@ -166,7 +166,7 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
   const ctx = { equityUsd: equity, openMarginUsd: 0, dayStartEquityUsd: state.day.startEquity };
   if (dailyLossExceeded(ctx, limits)) {
     state.paused = `дневной убыток достиг ${limits.maxDailyLossPct}% (${equity.toFixed(2)} против ${state.day.startEquity.toFixed(2)}). Используйте /resume`;
-    msgs.push(`🛑 Pausado: ${state.paused}`);
+    msgs.push(`🛑 Пауза: ${state.paused}`);
     return;
   }
   const decision = checkOpen(cfg.market, cfg.marginUsd, cfg.leverage, ctx, live ? limits : { ...limits, allowedMarkets: ["*"] });
@@ -183,7 +183,7 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
     } catch (e) {
       // não repetir: o guia do Walt avisa que retry cego pode abrir duas vezes
       state.paused = `не удалось открыть ордер (${(e as Error).message}). Проверьте /status и приложение Walt, затем используйте /resume`;
-      msgs.push(`⏸️ Pausado: ${state.paused}`);
+      msgs.push(`⏸️ Пауза: ${state.paused}`);
       return;
     }
   } else {
