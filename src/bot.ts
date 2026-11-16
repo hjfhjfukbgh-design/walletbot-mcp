@@ -182,10 +182,10 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
         price,
         takeProfit: plan.takeProfit,
         stopLoss: plan.stopLoss,
-        expiresAt: Date.now() + 5 * 60_000,
+        expiresAt: Date.now() + 10 * 60_000,
         approved: false,
       };
-      msgs.push(`🟡 СИГНАЛ LIVE — требуется подтверждение\\n${cfg.market} · LONG\\nЦена: ${price}\\nМаржа: ${cfg.marginUsd} · плечо ${cfg.leverage}x\\nTP: ${plan.takeProfit} · SL: ${plan.stopLoss}\\nСрок: 5 минут\\nПроверьте параметры и отправьте /approve для исполнения или /reject для отмены.`);
+      msgs.push(`🟡 СИГНАЛ LIVE — требуется подтверждение\\n${cfg.market} · LONG\\nЦена: ${price}\\nМаржа: ${cfg.marginUsd} · плечо ${cfg.leverage}x\\nTP: ${plan.takeProfit} · SL: ${plan.stopLoss}\\nСрок: 10 минут\\nПроверьте параметры и отправьте /approve для исполнения или /reject для отмены.`);
       return;
     }
     if (!pending.approved) return;
