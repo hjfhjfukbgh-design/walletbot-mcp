@@ -40,6 +40,7 @@ function showError(err) {
 let state = null;
 let contracts = [];
 let selectedMarket = '';
+let showAssetGrid = false;
 let topSort = 'up';
 let favoritesOnly = false;
 const FAVORITES_KEY = 'kripto-guru:favorites:v1';
@@ -196,7 +197,7 @@ function drawChart(candles, target = 'chart', market = '') {
   const svg = document.getElementById(target);
   if (!svg) return;
   const W = 360, H = 220, P = 8, plotW = 306, plotBottom = 194;
-  const g = state?.grid?.market === market ? state.grid : null;
+  const g = (target !== 'pair-chart' || showAssetGrid) && state?.grid?.market === market ? state.grid : null;
   const valid = (candles || []).filter((c) => c.length >= 5 && c.slice(1, 5).every((v) => Number.isFinite(+v)));
   const levels = g ? g.levelPrices.map((v) => ({ v, color: 'var(--hint)', dash: '3 4' })) : [];
   if (g && state.position) levels.push(
@@ -335,7 +336,7 @@ $('#pairs').addEventListener('click', async (ev) => {
       '<div class="asset-detail-price">' + usd(price, moneyDecimals(price)) + '</div>' +
       '<div class="asset-change ' + (change >= 0 ? 'up' : 'down') + '">' + pctText(change) + ' <span>за 24 часа</span></div>' +
       '<div class="asset-chart-wrap"><div class="chart-detail-head"><b>График цены</b><span id="asset-chart-source">Рыночные данные</span></div>' +
-      '<div class="timeframe-control" id="pair-timeframes">' + ['1m','5m','15m','1h','4h','1d'].map((v)=>'<button type="button" data-interval="' + v + '" class="' + (v==='15m'?'selected':'') + '">' + ({'1m':'1м','5m':'5м','15m':'15м','1h':'1Ч','4h':'4Ч','1d':'1Д'}[v]) + '</button>').join('') + '</div>' +
+      '<div class="asset-chart-controls"><div class="timeframe-control" id="pair-timeframes">' + ['1m','5m','15m','1h','4h','1d'].map((v)=>'<button type="button" data-interval="' + v + '" class="' + (v==='15m'?'selected':'') + '">' + ({'1m':'1м','5m':'5м','15m':'15м','1h':'1Ч','4h':'4Ч','1d':'1Д'}[v]) + '</button>').join('') + '</div><button id="asset-grid-toggle" class="grid-layer-toggle" type="button" ' + (state?.grid?.market === market ? '' : 'disabled') + '>Показать сетку</button></div>' +
       '<svg id="pair-chart" viewBox="0 0 360 220" preserveAspectRatio="none" role="img" aria-label="Свечной график ' + esc(market) + '"></svg>' +
       '<div class="chart-caption">Нажмите и ведите пальцем по графику, чтобы посмотреть значения свечи.</div></div>' +
       '<div class="asset-actions"><button id="use-pair" type="button">' + icon('grid') + 'Настроить сетку</button><button id="manual-trade-unavailable" class="secondary" type="button" disabled>Сделка скоро</button></div>' +
@@ -356,6 +357,8 @@ $('#pairs').addEventListener('click', async (ev) => {
       loadChart(market, 'pair-chart', button.dataset.interval);
       tg.HapticFeedback?.selectionChanged?.();
     });
+    showAssetGrid = false;
+    $('#asset-grid-toggle').addEventListener('click', () => { showAssetGrid = !showAssetGrid; $('#asset-grid-toggle').textContent = showAssetGrid ? 'Скрыть сетку' : 'Показать сетку'; loadChart(market, 'pair-chart', $('#pair-timeframes button.selected')?.dataset.interval || '15m'); });
     $('#asset-back').addEventListener('click', () => { box.classList.add('hidden'); $('#q').focus(); });
     $('#asset-favorite').addEventListener('click', () => {
       favorites.has(market) ? favorites.delete(market) : favorites.add(market);
