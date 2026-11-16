@@ -169,7 +169,7 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
     msgs.push(`🛑 Pausado: ${state.paused}`);
     return;
   }
-  const decision = checkOpen(cfg.market, cfg.marginUsd, cfg.leverage, ctx, limits);
+  const decision = checkOpen(cfg.market, cfg.marginUsd, cfg.leverage, ctx, live ? limits : { ...limits, allowedMarkets: ["*"] });
   if (!decision.ok) {
     const block = `entrada bloqueada pelo risco: ${decision.reason}`;
     if (block !== state.lastBlock) msgs.push(`🚫 ${block}`);
