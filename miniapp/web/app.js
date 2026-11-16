@@ -185,7 +185,7 @@ async function loadChart(market, target = 'chart', interval = '15m') {
 function drawChart(candles, target = 'chart', market = '') {
   const svg = document.getElementById(target);
   if (!svg) return;
-  const W = 360, H = 220, P = 8;
+  const W = 360, H = 220, P = 8, plotW = 306, plotBottom = 194;
   const g = state?.grid?.market === market ? state.grid : null;
   const valid = (candles || []).filter((c) => c.length >= 5 && c.slice(1, 5).every((v) => Number.isFinite(+v)));
   const levels = g ? g.levelPrices.map((v) => ({ v, color: 'var(--hint)', dash: '3 4' })) : [];
@@ -201,11 +201,17 @@ function drawChart(candles, target = 'chart', market = '') {
   let lo = Math.min(...all), hi = Math.max(...all);
   const pad = (hi - lo) * .06 || hi * .01;
   lo -= pad; hi += pad;
-  const y = (v) => H - P - ((v - lo) / (hi - lo)) * (H - 2 * P);
-  const stepX = (W - 2 * P) / Math.max(1, valid.length);
+  const y = (v) => plotBottom - ((v - lo) / (hi - lo)) * (plotBottom - P);
+  const stepX = (plotW - 2 * P) / Math.max(1, valid.length);
   const bodyW = Math.max(2, Math.min(7, stepX * .62));
-  let out = levels.map((l) =>
-    `<line x1="0" x2="${W}" y1="${y(l.v)}" y2="${y(l.v)}" stroke="${l.color}" stroke-width="1" ${l.dash ? `stroke-dasharray="${l.dash}"` : ''} vector-effect="non-scaling-stroke"/>`
+  let out = '';
+  for (let i = 0; i <= 4; i++) {
+    const value = hi - ((hi - lo) * i / 4), yy = y(value);
+    out += '<line x1="0" x2="' + plotW + '" y1="' + yy + '" y2="' + yy + '" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4"/>';
+    out += '<text x="312" y="' + (yy + 3) + '" fill="var(--hint)" font-size="10">' + fmt(value, value >= 1000 ? 1 : 2) + '</text>';
+  }
+  out += levels.map((l) =>
+    `<line x1="0" x2="${plotW}" y1="${y(l.v)}" y2="${y(l.v)}" stroke="${l.color}" stroke-width="1" ${l.dash ? `stroke-dasharray="${l.dash}"` : ''} vector-effect="non-scaling-stroke"/>`
   ).join('');
   for (let i = 0; i < valid.length; i++) {
     const [, o, h, l, c] = valid[i].map(Number);
@@ -217,11 +223,18 @@ function drawChart(candles, target = 'chart', market = '') {
     out += `<line x1="${x}" x2="${x}" y1="${y(h)}" y2="${y(l)}" stroke="${color}" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
     out += `<rect x="${x - bodyW/2}" y="${top}" width="${bodyW}" height="${height}" rx=".7" fill="${color}"/>`;
   }
+  const last = valid[valid.length - 1];
+  const lastPrice = +last[4], lastColor = +last[4] >= +last[1] ? 'var(--green)' : 'var(--red)';
+  out += '<line x1="0" x2="' + plotW + '" y1="' + y(lastPrice) + '" y2="' + y(lastPrice) + '" stroke="' + lastColor + '" stroke-width="1.2" stroke-dasharray="4 3"/>';
+  out += '<text x="312" y="' + Math.max(11, Math.min(190, y(lastPrice) - 4)) + '" fill="' + lastColor + '" font-size="10" font-weight="700">' + fmt(lastPrice, lastPrice >= 1000 ? 1 : 3) + '</text>';
+  const firstTime = new Date(+valid[0][0]).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  const lastTime = new Date(+last[0]).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  out += '<text x="0" y="214" fill="var(--hint)" font-size="10">' + firstTime + '</text><text x="' + plotW + '" y="214" text-anchor="end" fill="var(--hint)" font-size="10">' + lastTime + '</text>';
   const sl = g ? (state.position?.stopLoss ?? g.stopLoss) : null;
   if (Number.isFinite(sl)) {
     const ys = Math.min(H - 2, Math.max(2, y(sl)));
-    out += `<line x1="0" x2="${W}" y1="${ys}" y2="${ys}" stroke="var(--red)" stroke-width="1.4" stroke-dasharray="4 3"/>`;
-    out += `<text x="${W - P}" y="${ys - 4}" text-anchor="end" fill="var(--red)" font-size="10">SL ${usd(sl)}</text>`;
+    out += `<line x1="0" x2="${plotW}" y1="${ys}" y2="${ys}" stroke="var(--red)" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+    out += `<text x="312" y="${ys - 4}" text-anchor="end" fill="var(--red)" font-size="10">SL ${usd(sl)}</text>`;
   }
   svg.innerHTML = out;
 }
