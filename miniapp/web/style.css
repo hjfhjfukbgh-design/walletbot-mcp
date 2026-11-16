@@ -439,3 +439,5 @@ button:disabled{opacity:.48;cursor:not-allowed;transform:none!important}
 .asset-chart-legend span{display:flex;align-items:center;gap:5px}
 .asset-chart-legend i{width:12px;height:2px;border-radius:2px}
 .legend-level{background:#A6A8B0}.legend-entry{background:#20242A}.legend-tp{background:#34C759}.legend-sl{background:#FF3B30}
+
+.heatmap{grid-auto-rows:34px;grid-auto-flow:row dense}
