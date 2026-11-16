@@ -55,6 +55,7 @@ export async function openManualTrade(
 ): Promise<{ message: string; position: ManualPosition }> {
   const state = await loadState(env);
   if (state.mode !== "paper") throw new Error("Ручные сделки доступны только в режиме ДЕМО. LIVE заблокирован.");
+  if (state.running || state.grid?.position) throw new Error("Сначала остановите сетку и закройте её позицию. Ручные сделки и сетка используют общий демо-баланс.");
   const market = input.market.trim().toUpperCase();
   if (!/^[A-Z0-9]{2,20}$/.test(market)) throw new Error("Некорректный торговый актив.");
   if (input.side !== "long" && input.side !== "short") throw new Error("Направление должно быть LONG или SHORT.");
