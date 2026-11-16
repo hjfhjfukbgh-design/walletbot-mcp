@@ -47,7 +47,7 @@ async function loadState() {
 
 function renderState() {
   const s = state;
-  $('#mode').textContent = s.mode === 'ДЕМО' ? 'ДЕМО' : 'LIVE';
+  $('#mode').textContent = s.mode === 'paper' ? 'paper' : 'LIVE';
   $('#mode').className = `pill ${s.mode === 'live' ? 'live' : ''}`;
   $('#run').textContent = s.paused ? 'пауза' : s.running ? 'работает' : 'остановлен';
   $('#run').className = `pill ${s.running && !s.paused ? 'on' : ''}`;
@@ -92,7 +92,7 @@ function renderState() {
   }
 
   const st = s.stats;
-  const eq = s.mode === 'ДЕМО' ? s.paper?.equity : null;
+  const eq = s.mode === 'paper' ? s.paper?.equity : null;
   $('#metric-trades').textContent = String(st.trades);\n  $('#metric-wins').textContent = `${st.wins}/${st.losses}`;\n  $('#metric-pnl').textContent = usd(st.realizedPnl, 4);\n  $('#stats').innerHTML = [
     [`${st.trades}`, 'trades'],
     [`${st.wins}/${st.losses}`, 'TP / SL'],
@@ -235,7 +235,7 @@ async function loadHistory() {
                     ? `<span class="ev down">${icon('sl')}SL</span>`
                     : `<span class="ev">${icon('hand')}manual</span>`;
             const pnl = t.pnl === undefined ? '' : `<span class="${t.pnl >= 0 ? 'up' : 'down'}">${usd(t.pnl, 4)}</span>`;
-            return `<tr><td>${when}${t.mode === 'ДЕМО' ? ' <small>(paper)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
+            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(paper)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price)}</td><td>${pnl}</td></tr>`;
           })
           .join('')}</table>`
       : 'Сделок пока нет.';
