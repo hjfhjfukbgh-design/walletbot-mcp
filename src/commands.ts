@@ -84,7 +84,7 @@ function help(): string {
     "/disconnect — remover tokens do Walt",
     "/live confirm — подтверждать каждую LIVE-сделку",
     "/live auto CONFIRMO — разрешить автоматическое исполнение в рамках лимитов",
-    "/approve — подтвердить ожидающую LIVE-сделку (действует 5 минут)",
+    "/approve — подтвердить ожидающую LIVE-сделку (действует 10 минут)",
     "/reject — отклонить ожидающую LIVE-сделку",
     "/testalert — testar o envio de alertas para o canal",
     "",
