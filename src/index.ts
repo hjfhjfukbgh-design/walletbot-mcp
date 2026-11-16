@@ -42,16 +42,12 @@ export default {
       const secret = url.searchParams.get("secret") ?? "";
       if (!env.TELEGRAM_WEBHOOK_SECRET || !timingSafeEqual(secret, env.TELEGRAM_WEBHOOK_SECRET))
         return new Response("forbidden", { status: 403 });
-      // Com o Telegram Serverless ligado o webhook é do tgcloud (que encaminha para /api/telegram);
-      // só registra o webhook direto no Worker quando não há Mini App configurada.
-      const webhook = env.MINIAPP_URL
-        ? "gerenciado pelo Telegram Serverless"
-        : await tg(env, "setWebhook", {
-            url: `${url.origin}/telegram`,
-            secret_token: env.TELEGRAM_WEBHOOK_SECRET,
-            allowed_updates: ["message"],
-            drop_pending_updates: true,
-          });
+      const webhook = await tg(env, "setWebhook", {
+        url: `${url.origin}/telegram`,
+        secret_token: env.TELEGRAM_WEBHOOK_SECRET,
+        allowed_updates: ["message"],
+        drop_pending_updates: true,
+      });
       const commands = await tg(env, "setMyCommands", {
         commands: COMMANDS.map(([command, description]) => ({ command, description })),
       });
