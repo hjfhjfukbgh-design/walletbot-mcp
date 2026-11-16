@@ -16,6 +16,9 @@ describe("fixed-point trading money", () => {
     expect(divRound(-5n, 2n, "half-up")).toBe(-3n);
     expect(divRound(5n, 2n, "floor")).toBe(2n);
     expect(divRound(5n, 2n, "ceil")).toBe(3n);
+    expect(divRound(-5n, 2n, "floor")).toBe(-3n);
+    expect(divRound(-5n, 2n, "ceil")).toBe(-2n);
+    expect(feeMicro(1n, 1n)).toBe(1n);
   });
 
   it("calculates notional, quantity, fees and LONG/SHORT P&L in integer units", () => {
