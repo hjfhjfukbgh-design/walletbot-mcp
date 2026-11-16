@@ -53,10 +53,20 @@ function send(res,data,status=200){res.writeHead(status,{"Content-Type":"applica
 server.listen(4173,"127.0.0.1");
 
 const browser = await chromium.launch({headless:true});
+async function assertViewport(page,label){
+  const result=await page.evaluate(()=>{
+    const nav=document.querySelector(".bottom-nav")?.getBoundingClientRect();
+    return {width:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,navLeft:nav?.left??0,navRight:nav?.right??0};
+  });
+  if(result.scrollWidth>result.width+1) throw new Error(`${label}: горизонтальное переполнение ${result.scrollWidth}px при ширине ${result.width}px`);
+  if(result.navLeft < -1 || result.navRight > result.width+1) throw new Error(`${label}: нижняя навигация выходит за экран`);
+}
 try {
   for (const device of [{width:390,height:844},{width:430,height:932}]) {
     const {width,height}=device;
     const page = await browser.newPage({viewport:{width,height},deviceScaleFactor:3,isMobile:true,hasTouch:true});
+    const pageErrors=[];
+    page.on("pageerror",error=>pageErrors.push(error.message));
     await page.addInitScript(()=>{
       localStorage.setItem("kripto-guru:onboarding:v1","done");
       localStorage.setItem("kg:recent:v1", JSON.stringify(["BTC","ETH"]));
@@ -69,10 +79,14 @@ try {
     await page.route("https://telegram.org/js/telegram-web-app.js",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     await page.waitForTimeout(1800);
+    await page.locator("#wallet-balance-main").waitFor({state:"visible"});
+    await assertViewport(page,"wallet");
     await page.screenshot({path:`wallet-${width}x${height}-dsf3.png`,fullPage:false});
     await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});\n    await page.evaluate(async()=>{await fetch("/__preview/position"); await window.kriptoGuruDemo.refresh();});\n    await page.waitForTimeout(450);\n    await page.screenshot({path:`wallet-position-${width}x${height}-dsf3.png`,fullPage:false});\n    await page.screenshot({path:`wallet-position-full-${width}x${height}-dsf3.png`,fullPage:true});\n    await page.evaluate(async()=>{await fetch("/__preview/empty"); await window.kriptoGuruDemo.refresh();});\n    await page.waitForTimeout(250);
     await page.locator('nav button[data-tab="pares"]').click();
     await page.waitForTimeout(900);
+    await page.locator("#pairs .market-row").first().waitFor({state:"visible"});
+    await assertViewport(page,"trade");
     await page.screenshot({path:`trade-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#pairs").scrollIntoViewIfNeeded();
     await page.waitForTimeout(250);
@@ -81,6 +95,7 @@ try {
     await page.waitForTimeout(1100);
     await page.screenshot({path:`asset-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#asset-trade-bar [data-asset-side=long]").click();
+    await page.locator("#ticket-margin").waitFor({state:"visible"});
     await page.waitForTimeout(250);
     await page.locator("#ticket-margin").fill("50");
     await page.waitForTimeout(150);
