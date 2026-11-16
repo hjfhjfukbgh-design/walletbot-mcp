@@ -261,7 +261,7 @@ export class TradingEngine {
     }
     if (now - this.lastSnapshotAt >= SNAPSHOT_MS) {
       const quotes = Object.fromEntries([...this.quotes].map(([symbol, quote]) => [symbol, { price: quote.price.toString(), observedAt: quote.observedAt }]));
-      this.ctx.storage.sql.exec("INSERT OR REPLACE INTO engine_meta(key,value) VALUES('snapshot', ?)", JSON.stringify({ at: now, openPositions: this.positions.size, quotes }));
+      this.ctx.storage.sql.exec("INSERT INTO engine_meta(key,value) VALUES('snapshot', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", JSON.stringify({ at: now, openPositions: this.positions.size, quotes }));
       this.lastSnapshotAt = now;
     }
     await this.ctx.storage.setAlarm(now + WATCHDOG_MS);
