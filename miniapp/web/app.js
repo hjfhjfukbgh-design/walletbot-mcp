@@ -63,11 +63,11 @@ function renderState() {
   $('#alert').classList.toggle('hidden', !notes.length);
 
   const g = s.grid;
-  $('#g-desc').textContent = g ? `${g.market} ${usd(g.low)}–${usd(g.high)} · ${g.levels} degraus de ${usd(g.step)}` : 'Не настроена';
+  $('#g-desc').textContent = g ? `${g.market} ${usd(g.low)}–${usd(g.high)} · ${g.levels} уровней de ${usd(g.step)}` : 'Не настроена';
   const rc = s.lastRecenter;
   $('#g-recenter-row').classList.toggle('hidden', !rc);
   if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · preço ${usd(rc.price)}`;
-  $('#g-trade').textContent = g ? `margem ${usd(g.marginUsd)} ${g.leverage}x ≈ ${usd(g.notional)} · SL ${usd(g.stopLoss)}` : '—';
+  $('#g-trade').textContent = g ? `маржа ${usd(g.marginUsd)} ${g.leverage}x ≈ ${usd(g.notional)} · SL ${usd(g.stopLoss)}` : '—';
 
   const p = s.position;
   const lp = s.livePosition;
@@ -82,13 +82,13 @@ function renderState() {
     ];
     if (lp) {
       const liq = +lp.liquidation_price;
-      rows.push(['Цена ликвидации', `${usd(liq)}${liq && s.lastPrice ? ` (${fmt(((s.lastPrice - liq) / s.lastPrice) * 100, 1)}% de distância)` : ''}`]);
+      rows.push(['Цена ликвидации', `${usd(liq)}${liq && s.lastPrice ? ` (${fmt(((s.lastPrice - liq) / s.lastPrice) * 100, 1)}% de расстояние)` : ''}`]);
       if (lp.funding_paid_quote !== undefined) rows.push(['Фандинг', usd(lp.funding_paid_quote, 4)]);
       if (lp.margin_quote !== undefined) rows.push(['Маржа в Walt', usd(lp.margin_quote)]);
     }
     $('#pos').innerHTML = rows.map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('');
   } else {
-    $('#pos').textContent = g ? 'Nenhuma posição aberta — aguardando o preço entrar num degrau.' : 'Configure um grid em Controles.';
+    $('#pos').textContent = g ? 'Позиции нет — ждём входа цены на уровень сетки.' : 'Сначала настройте сетку в разделе «Управление».';
   }
 
   const st = s.stats;
@@ -183,7 +183,7 @@ $('#pairs').addEventListener('click', async (ev) => {
   const market = item.dataset.market;
   const box = $('#pair-detail');
   box.classList.remove('hidden');
-  box.textContent = `Carregando ${market}…`;
+  box.textContent = `Загрузка ${market}…`;
   window.scrollTo({ top: 0, behavior: 'smooth' });
   try {
     const p = await call('price', { market, leverage: 3 });
@@ -221,7 +221,7 @@ async function loadHistory() {
             const when = new Date(t.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
             const ev =
               t.event === 'open'
-                ? `<span class="ev ev-open">${icon('open')}long ${esc(t.market)}</span>`
+                ? `<span class="ev ev-open">${icon('open')}ЛОНГ ${esc(t.market)}</span>`
                 : t.reason === 'tp'
                   ? `<span class="ev up">${icon('tp')}TP</span>`
                   : t.reason === 'sl'
