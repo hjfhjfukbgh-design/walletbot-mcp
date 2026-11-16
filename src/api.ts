@@ -51,7 +51,7 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
       case "GET price":
         return json({ ok: true, ...(await priceView(scopedEnv, url.searchParams.get("market") ?? "", Number(url.searchParams.get("leverage") ?? 3))) });
       case "GET chart":
-        return json({ ok: true, ...(await chartView(scopedEnv, url.searchParams.get("market") ?? "")) });
+        return json({ ok: true, ...(await chartView(scopedEnv, url.searchParams.get("market") ?? "", url.searchParams.get("interval") ?? "15m")) });
       case "GET trades": {
         const s = await loadState(scopedEnv);
         return json({ ok: true, trades: (await loadTrades(scopedEnv)).slice().reverse(), equity: s.equity ?? [] });
@@ -152,7 +152,7 @@ async function contractsView(env: Env) {
         ...c,
         source: state.mode === "live" ? "walt" : "hyperliquid",
         liquid: (c.volume24hUsd ?? 0) >= limits.minVolume24hUsd,
-        allowed: marketAllowed(limits, market) && (c.volume24hUsd ?? 0) >= limits.minVolume24hUsd,
+        allowed: (state.mode === "paper" || marketAllowed(limits, market)) && (c.volume24hUsd ?? 0) >= limits.minVolume24hUsd,
       };
     })
     .sort((a, b) => (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0));
@@ -175,27 +175,30 @@ async function priceView(env: Env, market: string, leverage: number) {
   };
 }
 
-/** Velas de 15 min da Hyperliquid (dados públicos) quando o par existe lá; senão, os preços gravados pelo tick. */
-async function chartView(env: Env, market: string) {
+/** Public candles from Hyperliquid, with selectable interval. */
+async function chartView(env: Env, market: string, requestedInterval: string) {
   const m = market.toUpperCase();
+  const allowedIntervals = ["1m", "5m", "15m", "1h", "4h", "1d"];
+  const interval = allowedIntervals.includes(requestedInterval) ? requestedInterval : "15m";
+  const durations: Record<string, number> = { "1m": 6 * 60 * 60_000, "5m": 24 * 60 * 60_000, "15m": 2 * 86_400_000, "1h": 14 * 86_400_000, "4h": 60 * 86_400_000, "1d": 365 * 86_400_000 };
   const end = Date.now();
   try {
     const res = await fetch("https://api.hyperliquid.xyz/info", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "candleSnapshot", req: { coin: m, interval: "15m", startTime: end - 2 * 86_400_000, endTime: end } }),
+      body: JSON.stringify({ type: "candleSnapshot", req: { coin: m, interval, startTime: end - durations[interval], endTime: end } }),
     });
     if (res.ok) {
       const rows = (await res.json()) as Array<{ t: number; o: string; h: string; l: string; c: string }>;
       if (Array.isArray(rows) && rows.length)
-        return { source: "hyperliquid", candles: rows.map((r) => [r.t, +r.o, +r.h, +r.l, +r.c]) };
+        return { source: "hyperliquid", interval, candles: rows.map((r) => [r.t, +r.o, +r.h, +r.l, +r.c]) };
     }
   } catch {
     // cai para os ticks gravados
   }
   const s = await loadState(env);
   const points = s.prices?.market === m ? s.prices.points : [];
-  return { source: "ticks", candles: points.map(([t, p]) => [t, p, p, p, p]) };
+  return { source: "ticks", interval, candles: points.map(([t, p]) => [t, p, p, p, p]) };
 }
 
 /** Validate Telegram Mini App initData and return the signed Telegram user ID. */
