@@ -36,8 +36,8 @@
       </div>
       <button id="education-banner" class="education-banner" type="button"><span class="education-icon"><i data-icon="book"></i></span><span><b>Пройдите обучение: 3 шага до первой сделки</b><small>Демо-счёт · $1 000</small></span><i data-icon="chevron"></i></button>
       <div class="home-quick-actions">
-        <button id="home-open-markets" class="quick-action"><i data-icon="plus-circle"></i><span>Купить</span></button>
-        <button id="home-open-markets-sell" class="quick-action"><i data-icon="minus-circle"></i><span>Продать</span></button>
+        <button id="home-open-markets" class="quick-action"><i data-icon="search"></i><span>Выбрать актив</span></button>
+        <button id="home-open-markets-sell" class="quick-action" type="button" disabled><i data-icon="minus-circle"></i><span>Продажа скоро</span></button>
         <button id="home-open-grid" class="quick-action"><i data-icon="grid"></i><span>Сетка</span></button>
         <button id="home-reset-demo" class="quick-action"><i data-icon="refresh"></i><span>Сбросить демо</span></button>
       </div>
@@ -54,7 +54,7 @@
       </div>
       <div class="section-title">График цены</div>
       <div class="chart-card">
-        <div class="chart-tools"><span id="chart-src">Рыночные данные</span><select id="chart-interval" aria-label="Таймфрейм"><option value="1m">1м</option><option value="5m">5м</option><option value="15m" selected>15м</option><option value="1h">1Ч</option><option value="4h">4Ч</option><option value="1d">1Д</option></select></div>
+        <div class="chart-tools"><span id="chart-src">Рыночные данные</span><div class="timeframe-control" id="home-timeframes"><button type="button" data-chart-interval="1m">1м</button><button type="button" data-chart-interval="5m">5м</button><button type="button" data-chart-interval="15m" class="selected">15м</button><button type="button" data-chart-interval="1h">1Ч</button><button type="button" data-chart-interval="4h">4Ч</button><button type="button" data-chart-interval="1d">1Д</button></div></div>
         <svg id="chart" viewBox="0 0 360 220" preserveAspectRatio="none"></svg>
         <div class="legend"><i class="l-lvl"></i>Уровни сетки <i class="l-tp"></i>Тейк-профит <i class="l-sl"></i>Стоп-лосс <i class="l-in"></i>Вход</div>
       </div>
@@ -100,6 +100,7 @@
       <p class="disclaimer">Демо-режим использует виртуальные средства. Торговля связана с риском.</p>
     </section>
   </main>
+  <div id="onboarding" class="onboarding-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-title"><div class="onboarding-sheet"><div class="onboarding-progress"><span id="onboarding-progress"></span></div><div class="onboarding-step" id="onboarding-step">ШАГ 1 ИЗ 3</div><h2 id="onboarding-title">Начните с демо</h2><p id="onboarding-copy">Вы торгуете виртуальными средствами. Реальные деньги не используются.</p><div class="onboarding-actions"><button id="onboarding-skip" class="secondary" type="button">Пропустить</button><button id="onboarding-next" type="button">Далее</button></div></div></div>
   <nav class="bottom-nav">
     <button data-tab="painel" class="active"><i data-icon="wallet"></i><span>Кошелёк</span></button>
     <button data-tab="pares"><i data-icon="chart"></i><span>Торговля</span></button>
