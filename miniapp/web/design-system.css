@@ -199,3 +199,5 @@ main{max-width:560px;padding:10px 16px 24px}
 .segmented-control button.selected{background:#fff;color:var(--kg-blue);box-shadow:0 1px 5px rgba(0,0,0,.09)}
 body.asset-open .bottom-nav{display:none}
 body.asset-open{padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+
+@media(max-width:410px){.market-copy .name{flex-wrap:wrap;row-gap:2px}.market-copy .name small{white-space:nowrap}.market-leverage{font-size:8px;padding:2px 5px}}
