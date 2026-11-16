@@ -1,9 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { Miniflare } from "miniflare";
 import { build } from "esbuild";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 
 const P = 100_000_000n;
 const U = 1_000_000n;
@@ -17,14 +14,14 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   let testSequence = 0;
 
   beforeAll(async () => {
-    root = await mkdtemp(join(tmpdir(), "wallet-grid-engine-"));
+    root = ".mf-engine-test-" + Date.now() + "-" + Math.random().toString(36).slice(2);
     const bundle = await build({ entryPoints: ["src/trading/engine.ts"], bundle: true, platform: "browser", format: "esm", write: false });
     source = bundle.outputFiles[0].text + "\nexport default { fetch() { return new Response('ok'); } };";
   });
 
   afterAll(async () => {
     await mf?.dispose();
-    if (root) await rm(root, { recursive: true, force: true });
+
   });
 
   beforeEach(() => { objectName = "engine-test-" + (++testSequence); });
