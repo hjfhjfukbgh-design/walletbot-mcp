@@ -58,7 +58,7 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
       }
       case "POST grid": {
         const args = [body.market, body.low, body.high, body.levels, body.marginUsd, body.leverage].map((v) => String(v ?? ""));
-        if (args.slice(0, 5).some((a) => a === "")) return fail("campos obrigatórios: market, low, high, levels, marginUsd");
+        if (args.slice(0, 5).some((a) => a === "")) return fail("Обязательные поля: market, low, high, levels, marginUsd");
         return json({ ok: true, message: await configureGrid(scopedEnv, args) });
       }
       case "POST control":
@@ -68,7 +68,7 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         ctx.waitUntil(handleUpdate(env, body as unknown as TgUpdate));
         return json({ ok: true });
       default:
-        return fail(`rota desconhecida: ${route}`, 404);
+        return fail(`Неизвестный маршрут: ${route}`, 404);
     }
   } catch (e) {
     return fail((e as Error).message, 500);
@@ -88,7 +88,7 @@ async function control(env: Env, body: Json): Promise<string> {
     case "mode":
       return setMode(env, [String(body.mode ?? ""), body.confirm === true ? "CONFIRMO" : ""]);
     default:
-      throw new Error("action deve ser run, stop, resume, closeall ou mode");
+      throw new Error("Действие должно быть run, stop, resume, closeall или mode");
   }
 }
 

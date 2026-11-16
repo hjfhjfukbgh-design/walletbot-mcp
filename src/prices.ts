@@ -6,10 +6,10 @@ export async function publicMid(market: string): Promise<number> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ type: "allMids" }),
   });
-  if (!res.ok) throw new Error(`preço público indisponível (HTTP ${res.status})`);
+  if (!res.ok) throw new Error(`Публичная котировка недоступна (HTTP ${res.status})`);
   const mids = (await res.json()) as Record<string, string>;
   const price = Number(mids[market.toUpperCase()]);
-  if (!Number.isFinite(price) || price <= 0) throw new Error(`mercado ${market} sem preço público`);
+  if (!Number.isFinite(price) || price <= 0) throw new Error(`Для рынка ${market} нет публичной котировки`);
   return price;
 }
 
@@ -23,7 +23,7 @@ export async function publicContracts(): Promise<ContractInfo[]> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ type: "metaAndAssetCtxs" }),
   });
-  if (!res.ok) throw new Error(`lista pública de mercados indisponível (HTTP ${res.status})`);
+  if (!res.ok) throw new Error(`Список публичных рынков недоступен (HTTP ${res.status})`);
   const payload = (await res.json()) as [
     { universe?: Array<{ name: string; szDecimals?: number; maxLeverage?: number }> },
     Array<{ dayNtlVlm?: string; funding?: string; markPx?: string; midPx?: string; prevDayPx?: string }>
