@@ -29,18 +29,18 @@ Let:
 - E = total trade events/day, where one event is one open or one close.
 
 Worst-case always-on watchdog with at least one open position:
-- 45-second alarms: 86,400 / 45 = 1,920 alarm writes/day;
+- 30-second alarms: 86,400 / 30 = 2,880 alarm writes/day;
 - one snapshot row/minute: 1,440 writes/day;
 - each trade event: 1 account row + 1 position row + 1 ledger row = 3 writes;
 - first-time account seed: 1 account row + 1 ledger row = 2N writes.
 
-Estimated writes: W = 3,360 + 3E + 2N.
+Estimated writes: W = 4,320 + 3E + 2N.
 
 | N users | Avg positions/user | M total | E events/day | Estimated writes/day | Free quota used |
 |---:|---:|---:|---:|---:|---:|
-| 100 | 2 | 200 | 2,000 | 9,560 | 9.56% |
-| 1,000 | 2 | 2,000 | 20,000 | 65,360 | 65.36% |
-| 1,000 | 5 | 5,000 | 50,000 | 155,360 | 155.36% |
+| 100 | 2 | 200 | 2,000 | 10,520 | 10.52% |
+| 1,000 | 2 | 2,000 | 20,000 | 66,320 | 66.32% |
+| 1,000 | 5 | 5,000 | 50,000 | 156,320 | 156.32% |
 
 This is a conservative alarm/snapshot model, not a measured production profile. It excludes schema migrations and exceptional retries. The 1,000-user / 5-position scenario does not fit the Free write quota at 50,000 events/day.
 
