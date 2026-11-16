@@ -2,7 +2,7 @@
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
-try { tg.setHeaderColor?.('#EDECF3'); tg.setBackgroundColor?.('#EDECF3'); } catch {}
+try { tg.setHeaderColor?.('#F2F2F7'); tg.setBackgroundColor?.('#F2F2F7'); tg.setBottomBarColor?.('#F2F2F7'); } catch {}
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: Math.min(d, 2) }));
@@ -17,7 +17,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0
 
 async function call(name, input = {}) {
   const route = name === 'configure' ? 'grid' : name;
-  const method = name === 'configure' || name === 'control' || name === 'manual' ? 'POST' : 'GET';
+  const method = name === 'configure' || name === 'control' || name === 'manual' || name === 'demo/open' || name === 'demo/close' ? 'POST' : 'GET';
   const query = method === "GET"
     ? Object.entries(input).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&")
     : "";
@@ -44,6 +44,7 @@ let state = null;
 let contracts = [];
 let selectedMarket = '';
 let showAssetGrid = false;
+let assetChartMode = 'candles';
 let lastQuoteUpdate = null;
 let topSort = 'up';
 let favoritesOnly = false;
@@ -51,6 +52,7 @@ const FAVORITES_KEY = 'kripto-guru:favorites:v1';
 let favorites = new Set();
 try { favorites = new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]')); } catch {}
 function saveFavorites() { try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites])); } catch {} }
+if (localStorage.getItem(FAVORITES_KEY) === null) { favorites = new Set(["BTC", "ETH", "SOL"]); saveFavorites(); }
 
 // ---------- menu do perfil e modo ---------- 
 const profileTrigger = $('#profile-trigger');
@@ -153,7 +155,7 @@ function renderState() {
     s.paused && ['pause', s.paused],
     s.lastBlock && ['ban', s.lastBlock],
     s.lastError && ['alert', s.lastError],
-    s.mode === 'live' && !s.connected && ['plug', 'Walt не подключён (/connect в боте)'],
+    s.mode === 'live' && !s.connected && ['plug', 'Подключение к торговому сервису недоступно'],
   ].filter(Boolean);
   $('#alert').innerHTML = notes.map(([ic, t]) => `<div class="note">${icon(ic)}<span>${esc(t)}</span></div>`).join('');
   $('#alert').classList.toggle('hidden', !notes.length);
@@ -195,7 +197,7 @@ function renderState() {
         <div class="row"><span>Take Profit</span><b>${mp.takeProfit ? usd(mp.takeProfit, moneyDecimals(mp.takeProfit)) : 'Не задан'}</b></div>
         <div class="row"><span>Stop Loss</span><b>${mp.stopLoss ? usd(mp.stopLoss, moneyDecimals(mp.stopLoss)) : 'Не задан'}</b></div>
         <div class="row"><span>Ликвидация · оценка</span><b>${usd(mp.liquidationPrice, moneyDecimals(mp.liquidationPrice))}</b></div>
-        <button class="danger position-close" type="button" data-manual-close="${esc(mp.id)}">Закрыть ${isLong?'LONG':'SHORT'}</button>
+        <button class="danger position-close" type="button" data-manual-close="${esc(mp.id)}">Закрыть ${isLong?'Лонг':'Шорт'}</button>
       </div>`;
     }).join('');
     if (p) $('#pos').insertAdjacentHTML('beforeend', cards);
@@ -234,7 +236,15 @@ function drawChart(candles, target = 'chart', market = '') {
     { v: state.position.takeProfit, color: 'var(--green)' },
     { v: state.position.entryPrice, color: 'var(--link)' },
   );
-  const manualPosition = (state?.manualPositions || []).find((position) => position.market === market);
+  const enginePosition = target === 'pair-chart' ? window.kriptoGuruDemo?.getAccount?.()?.positions?.find((position) => position.symbol === market) : null;
+  if (enginePosition) {
+    const toPrice = (value) => Number(BigInt(value || "0")) / 100_000_000;
+    levels.push({ v: toPrice(enginePosition.entryPrice), color: 'var(--link)', dash: '4 3' });
+    if (enginePosition.takeProfitPrice) levels.push({ v: toPrice(enginePosition.takeProfitPrice), color: 'var(--green)', dash: '4 3' });
+    if (enginePosition.stopLossPrice) levels.push({ v: toPrice(enginePosition.stopLossPrice), color: 'var(--red)', dash: '4 3' });
+    if (enginePosition.liquidationPrice) levels.push({ v: toPrice(enginePosition.liquidationPrice), color: '#A855F7', dash: '2 3' });
+  }
+  const manualPosition = target === 'pair-chart' ? null : (state?.manualPositions || []).find((position) => position.market === market);
   if (manualPosition) {
     levels.push({ v: manualPosition.entryPrice, color: 'var(--link)' });
     if (manualPosition.takeProfit) levels.push({ v: manualPosition.takeProfit, color: 'var(--green)' });
@@ -262,17 +272,29 @@ function drawChart(candles, target = 'chart', market = '') {
   out += levels.map((l) =>
     `<line x1="0" x2="${plotW}" y1="${y(l.v)}" y2="${y(l.v)}" stroke="${l.color}" stroke-width="1" ${l.dash ? `stroke-dasharray="${l.dash}"` : ''} vector-effect="non-scaling-stroke"/>`
   ).join('');
-  for (let i = 0; i < valid.length; i++) {
-    const [, o, h, l, c] = valid[i].map(Number);
-    const x = P + stepX * (i + .5);
-    const rising = c >= o;
+  if (target === 'pair-chart' && assetChartMode === 'line') {
+    const points = valid.map((candle, index) => [P + stepX * (index + .5), y(Number(candle[4]))]);
+    const path = points.map(([x, py], index) => (index ? 'L' : 'M') + x.toFixed(2) + ' ' + py.toFixed(2)).join(' ');
+    const rising = Number(valid[valid.length - 1][4]) >= Number(valid[0][1]);
     const color = rising ? 'var(--green)' : 'var(--red)';
-    const top = Math.min(y(o), y(c));
-    const height = Math.max(1.2, Math.abs(y(c) - y(o)));
-    out += `<line x1="${x}" x2="${x}" y1="${y(h)}" y2="${y(l)}" stroke="${color}" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
-    out += `<rect x="${x - bodyW/2}" y="${top}" width="${bodyW}" height="${height}" rx=".7" fill="${color}"/>`;
+    out += '<defs><linearGradient id="assetLineFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + color + '" stop-opacity=".22"/><stop offset="100%" stop-color="' + color + '" stop-opacity="0"/></linearGradient></defs>';
+    out += '<path d="' + path + ' L ' + points[points.length - 1][0] + ' ' + plotBottom + ' L ' + points[0][0] + ' ' + plotBottom + ' Z" fill="url(#assetLineFill)"/>';
+    out += '<path d="' + path + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  } else {
+    for (let i = 0; i < valid.length; i++) {
+      const [, o, h, l, c] = valid[i].map(Number);
+      const x = P + stepX * (i + .5);
+      const rising = c >= o;
+      const color = rising ? 'var(--green)' : 'var(--red)';
+      const top = Math.min(y(o), y(c));
+      const height = Math.max(1.2, Math.abs(y(c) - y(o)));
+      out += `<line x1="${x}" x2="${x}" y1="${y(h)}" y2="${y(l)}" stroke="${color}" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+      out += `<rect x="${x - bodyW/2}" y="${top}" width="${bodyW}" height="${height}" rx=".7" fill="${color}"/>`;
+    }
   }
   const last = valid[valid.length - 1];
+  const caption = document.getElementById('asset-candle-caption');
+  if (caption) caption.textContent = 'Закр. ' + new Date(+last[0]).toLocaleString('ru-RU',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   const lastPrice = Number(quote?.price ?? last[4]), lastColor = Number(quote?.change24hPct ?? (lastPrice - +last[1])) >= 0 ? 'var(--green)' : 'var(--red)';
   out += '<line x1="0" x2="' + plotW + '" y1="' + y(lastPrice) + '" y2="' + y(lastPrice) + '" stroke="' + lastColor + '" stroke-width="1.2" stroke-dasharray="4 3"/>';
   out += '<text x="312" y="' + Math.max(11, Math.min(190, y(lastPrice) - 4)) + '" fill="' + lastColor + '" font-size="10" font-weight="700">' + compactPrice(lastPrice) + '</text>';
@@ -344,7 +366,7 @@ function renderPairs() {
     const change = c.change24hPct === undefined ? '—' : pctText(c.change24hPct);
     return '<div class="item market-row ' + (c.allowed ? '' : 'blocked') + '" data-market="' + esc(c.market) + '" role="button" tabindex="0" aria-label="Открыть ' + esc(c.market) + '">' +
       '<span class="coin-avatar">' + esc(c.market.slice(0,1)) + '</span>' +
-      '<div class="market-copy"><div class="name">' + esc(assetName(c.market)) + ' <small>' + esc(c.market) + '</small></div><div class="meta">' + (c.allowed ? 'Доступен в демо-сетке' : icon('lock') + ' Недоступен для сетки') + '</div></div>' +
+      '<div class="market-copy"><div class="name">' + esc(assetName(c.market)) + ' <small>' + esc(c.market) + '</small><span class="market-leverage">' + Number(c.maxLeverage || 1) + '×</span></div><div class="meta">' + (c.allowed ? 'Фьючерс · Цена котировки' : icon('lock') + ' Недоступен в демо') + '</div></div>' +
       '<div class="market-quote"><b>' + usd(c.price, moneyDecimals(c.price)) + '</b><small class="' + ((c.change24hPct || 0) >= 0 ? 'up' : 'down') + '">' + change + '</small></div>' +
       '<button type="button" class="favorite-toggle ' + (favorite ? 'is-favorite' : '') + '" data-favorite="' + esc(c.market) + '" aria-label="' + (favorite ? 'Убрать из избранного' : 'Добавить в избранное') + '">' + (favorite ? '★' : '☆') + '</button></div>';
   }).join('') || '<div class="empty-state card-empty">Ничего не найдено</div>';
@@ -359,9 +381,9 @@ document.querySelectorAll('[data-top-sort]').forEach((b) => b.addEventListener('
 function renderMarketVisuals(source) {
   const items=[...source].filter(c=>Number.isFinite(+c.price)).sort((a,b)=>(b.volume24hUsd||0)-(a.volume24hUsd||0)).slice(0,12);
   const max=Math.max(1,...items.map(c=>+c.volume24hUsd||1));
-  $('#heatmap').innerHTML=items.map(c=>{const pct=Number(c.change24hPct||0),strength=Math.min(1,Math.abs(pct)/8),hue=pct>=0?145:0,light=58-strength*26,ratio=Math.max(0.01,(+c.volume24hUsd||1)/max),span=Math.max(1,Math.min(12,Math.round(Math.sqrt(ratio)*12))),rowSpan=Math.max(1,Math.min(4,Math.round(Math.sqrt(ratio)*4)));return `<button type="button" class="heat-cell" style="grid-column:span ${span};grid-row:span ${rowSpan};background:hsl(${hue} 62% ${light}%)" data-heat-market="${esc(c.market)}"><b>${esc(c.market)}</b><small>${signedPct(pct)}</small></button>`;}).join('')||'<div class="market-loading">Нет данных для тепловой карты.</div>';
+  $('#heatmap').innerHTML=items.map(c=>{const pct=Number(c.change24hPct||0),strength=Math.min(1,Math.abs(pct)/8),hue=pct>=0?145:0,light=36-strength*8,ratio=Math.max(0.01,(+c.volume24hUsd||1)/max),span=Math.max(2,Math.min(7,Math.round(Math.sqrt(ratio)*7))),rowSpan=Math.max(1,Math.min(3,Math.round(Math.sqrt(ratio)*3)));return `<button type="button" class="heat-cell" style="grid-column:span ${span};grid-row:span ${rowSpan};background:hsl(${hue} 62% ${light}%)" data-heat-market="${esc(c.market)}"><b>${esc(c.market)}</b><small>${signedPct(pct)}</small></button>`;}).join('')||'<div class="market-loading">Нет данных для тепловой карты.</div>';
   const ranked=[...source].sort((a,b)=>topSort==='up'?(b.change24hPct||0)-(a.change24hPct||0):(a.change24hPct||0)-(b.change24hPct||0)).slice(0,8);
-  $('#top-day').innerHTML=ranked.map(c=>`<button type="button" class="top-coin" data-heat-market="${esc(c.market)}"><span>${esc(c.market.slice(0,1))}</span><b>${esc(c.market)}</b><small class="${(c.change24hPct||0)>=0?'up':'down'}">${signedPct(c.change24hPct||0)}</small></button>`).join('');
+  $('#top-day').innerHTML=ranked.map(c=>`<button type="button" class="top-coin ${(c.change24hPct||0)>=0?'positive':'negative'}" data-heat-market="${esc(c.market)}"><span>${esc(c.market.slice(0,1))}</span><b>${esc(c.market)}</b><small class="${(c.change24hPct||0)>=0?'up':'down'}">${signedPct(c.change24hPct||0)}</small></button>`).join('');
 }
 $('#heatmap,#top-day').addEventListener('click',ev=>{const el=ev.target.closest('[data-heat-market]');if(!el)return;const m=el.dataset.heatMarket;$('#q').value=m;renderPairs();const item=[...document.querySelectorAll('#pairs .item')].find(x=>x.dataset.market===m);item?.click();});
 
@@ -377,6 +399,7 @@ $('#pairs').addEventListener('click', async (ev) => {
   box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   try {
     const p = await call('price', { market, leverage: 1 });
+    window.kriptoGuruAssetMeta = p;
     const c = contracts.find((x) => x.market === market);
     const price = Number(c?.price ?? p.price);
     const change = Number(c?.change24hPct ?? 0);
@@ -384,14 +407,14 @@ $('#pairs').addEventListener('click', async (ev) => {
     const funding = Number(c?.fundingRateHourly ?? 0) * 100;
     box.innerHTML =
       '<div class="asset-topline"><button id="asset-back" class="asset-back secondary" type="button">' + icon('chevron') + 'Рынки</button><button id="asset-favorite" class="asset-favorite ' + (isFav ? 'is-favorite' : '') + '" type="button">' + (isFav ? '★ В избранном' : '☆ В избранное') + '</button></div>' +
-      '<div class="asset-identity"><span class="asset-coin">' + esc(market.slice(0,1)) + '</span><div><h2>' + esc(assetName(market)) + '</h2><small>' + esc(market) + ' · Демо-рынок</small></div></div>' +
+      '<div class="asset-identity"><span class="asset-coin">' + esc(market.slice(0,1)) + '</span><div><h2>' + esc(assetName(market)) + '</h2><small>' + esc(market) + ' · Демо-рынок · Цена котировки</small></div></div>' +
       '<div id="asset-live-price" class="asset-detail-price">' + usd(price, moneyDecimals(price)) + '</div>' +
       '<div id="asset-live-change" class="asset-change ' + (change >= 0 ? 'up' : 'down') + '">' + pctText(change) + ' <span>за 24 часа</span></div>' +
       '<div class="asset-chart-wrap"><div class="chart-detail-head"><b>График цены</b><span id="asset-chart-source">Рыночные данные</span></div>' +
       '<div class="asset-chart-controls"><div class="timeframe-control" id="pair-timeframes">' + ['1m','5m','15m','1h','4h','1d'].map((v)=>'<button type="button" data-interval="' + v + '" class="' + (v==='15m'?'selected':'') + '">' + ({'1m':'1м','5m':'5м','15m':'15м','1h':'1Ч','4h':'4Ч','1d':'1Д'}[v]) + '</button>').join('') + '</div><button id="asset-grid-toggle" class="grid-layer-toggle" type="button" ' + (state?.grid?.market === market ? '' : 'disabled') + '>Показать сетку</button></div>' +
       '<svg id="pair-chart" viewBox="0 0 360 220" preserveAspectRatio="none" role="img" aria-label="Свечной график ' + esc(market) + '"></svg><div class="asset-chart-legend"><span><i class="legend-level"></i>Уровни сетки</span><span><i class="legend-entry"></i>Вход</span><span><i class="legend-tp"></i>Тейк-профит</span><span><i class="legend-sl"></i>Стоп-лосс</span></div>' +
       '<div class="chart-caption">Нажмите и ведите пальцем по графику, чтобы посмотреть значения свечи.</div></div>' +
-      '<div class="asset-actions"><button id="use-pair" type="button">' + icon('grid') + 'Настроить сетку</button><button id="manual-trade-open" class="secondary" type="button">Открыть LONG / SHORT</button></div>' +
+      '<div class="asset-actions"><button id="use-pair" type="button">' + icon('grid') + 'Настроить сетку</button><button id="manual-trade-open" class="secondary" type="button">Открыть Лонг / Шорт</button></div>' +
       '<div class="section-title">О криптовалюте</div><div class="card asset-about"><p>Цена формируется на открытом рынке и может быстро меняться.</p><p>Демо-режим показывает реальные котировки, но использует только виртуальные средства.</p><p>Изменение за 24 часа не гарантирует дальнейшего движения цены.</p></div>' +
       '<div class="section-title">Подробнее</div><div class="card asset-tech">' +
       '<div class="row"><span>Объём за 24 часа</span><b>' + usd(c?.volume24hUsd, 0) + '</b></div>' +
@@ -436,7 +459,7 @@ $('#pairs').addEventListener('click', async (ev) => {
       const decimals = moneyDecimals(price);
       tradeForm.innerHTML = `
         <div class="card-heading"><h3>Новая демо-сделка</h3><span class="soft-tag">ВИРТУАЛЬНО</span></div>
-        <div class="side-choice"><label><input type="radio" name="side" value="long" checked><b class="long-choice">LONG · Рост</b></label><label><input type="radio" name="side" value="short"><b class="short-choice">SHORT · Падение</b></label></div>
+        <div class="side-choice"><label><input type="radio" name="side" value="long" checked><b class="long-choice">Лонг · Рост</b></label><label><input type="radio" name="side" value="short"><b class="short-choice">Шорт · Падение</b></label></div>
         <label>Маржа, USDC<input name="marginUsd" type="number" min="1" step="0.01" value="10" required></label>
         <label>Плечо<select name="leverage"><option value="1">1x</option><option value="2">2x</option><option value="3">3x</option></select></label>
         <label>Take Profit · цена<input name="takeProfit" type="number" min="0" step="any" value="${(price * 1.02).toFixed(decimals)}"></label>
@@ -478,6 +501,8 @@ async function loadMarketPreview() {
   try {
     contracts = (await call('contracts')).contracts;
     lastQuoteUpdate = new Date();
+    const connection = $('#asset-connection');
+    if (connection) { connection.textContent = 'Обновлено ' + lastQuoteUpdate.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); connection.className = 'asset-connection updated'; }
     renderPairs();
     if (state) renderState();
     if (selectedMarket && !$('#pair-detail').classList.contains('hidden')) {

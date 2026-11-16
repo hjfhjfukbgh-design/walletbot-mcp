@@ -14,6 +14,7 @@ import { buyPrice, minMargin, notional, step, stopLossPrice } from "./strategy/g
 import { timingSafeEqual, type TgUpdate } from "./telegram";
 import { findContract } from "./walt";
 import { tenantEnv } from "./tenants";
+import { parseFixed, PRICE_SCALE } from "./trading/money";
 import { closeManualTrade, manualPositionsView, monitorManualTrades, openManualTrade } from "./manual";
 
 type Json = Record<string, unknown>;
@@ -34,8 +35,6 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
     const authorization = req.headers.get("Authorization") ?? "";
     if (authorization.startsWith("tma ")) {
       telegramUserId = (await validateTelegramInitData(authorization.slice(4), env.TELEGRAM_BOT_TOKEN)) ?? "";
-    } else if (env.API_SECRET && timingSafeEqual(key, env.API_SECRET)) {
-      telegramUserId = req.headers.get("X-Telegram-User-Id") ?? "";
     }
     if (!/^\d{1,20}$/.test(telegramUserId)) return fail("Требуется открыть приложение через Telegram.", 401);
   }
@@ -45,6 +44,24 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
   }
   try {
     switch (route) {
+      case "GET demo":
+        return engineRequest(env, "/account?userId=" + encodeURIComponent(telegramUserId));
+      case "POST demo/open": {
+        const symbol = String(body.symbol ?? "").toUpperCase();
+        const leverage = Number(body.leverage);
+        const maxLeverage = riskLimits(env).maxLeverage;
+        if (!symbol) return fail("Не указан торговый актив.");
+        if (!Number.isSafeInteger(leverage) || leverage < 1 || leverage > maxLeverage)
+          return fail(`Максимальное плечо демо-счёта: ${maxLeverage}×.`);
+        const mid = await publicMid(symbol);
+        if (!Number.isFinite(mid) || mid <= 0) return fail("Не удалось получить свежую цену актива.", 503);
+        const price = parseFixed(mid.toFixed(8), PRICE_SCALE, 8);
+        const quote = await engineRequest(env, "/quote", { symbol, price: price.toString(), observedAt: Date.now() });
+        if (!quote.ok) return quote;
+        return engineRequest(env, "/open", { ...body, symbol, userId: telegramUserId, mode: "demo" });
+      }
+      case "POST demo/close":
+        return engineRequest(env, "/close", { ...body, userId: telegramUserId });
       case "GET state":
         await monitorManualTrades(scopedEnv);
         return json({ ok: true, ...(await stateView(scopedEnv)) });
@@ -188,6 +205,7 @@ async function priceView(env: Env, market: string, leverage: number) {
     market: market.toUpperCase(),
     price,
     leverage: lev,
+    maxDemoLeverage: riskLimits(env).maxLeverage,
     minMargin: Number(minMargin(contract, price * 1.02, lev).toFixed(2)),
     suggestion: { low: Number((price * 0.94).toFixed(contract.priceDecimals)), high: Number((price * 1.02).toFixed(contract.priceDecimals)) },
   };
@@ -246,4 +264,14 @@ async function validateTelegramInitData(initData: string, botToken: string): Pro
     const user = JSON.parse(params.get("user") ?? "{}") as { id?: number | string };
     return user.id && /^\d{1,20}$/.test(String(user.id)) ? String(user.id) : null;
   } catch { return null; }
+}
+
+/** All user-scoped Engine calls use the Telegram ID verified from signed initData above. */
+async function engineRequest(env: Env, path: string, body?: Json): Promise<Response> {
+  const id = env.ENGINE.idFromName("global-engine");
+  const stub = env.ENGINE.get(id);
+  const request = body === undefined
+    ? new Request("https://engine.internal" + path)
+    : new Request("https://engine.internal" + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return stub.fetch(request);
 }

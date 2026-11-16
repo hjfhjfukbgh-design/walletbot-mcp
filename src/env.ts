@@ -1,4 +1,6 @@
 export interface Env {
+  ENGINE: DurableObjectNamespace;
+  ENGINE_MAX_QUOTE_AGE_MS?: string;
   STATE: KVNamespace;
   ASSETS?: Fetcher;
   TELEGRAM_BOT_TOKEN: string;

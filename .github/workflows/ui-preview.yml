@@ -1,0 +1,55 @@
+name: Mini App iPhone UI screenshots
+# Captures wallet, trade, asset and DEMO order-sheet states.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "miniapp/web/**"
+      - ".github/workflows/ui-preview.yml"
+permissions:
+  contents: read
+jobs:
+  screenshots:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Playwright
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Check Mini App JavaScript syntax
+        run: |
+          node --check miniapp/web/capture-ui.mjs
+          node --check miniapp/web/app.js
+          node --check miniapp/web/wallet-v2.js
+          node --check miniapp/web/trading-v2.js
+      - name: Capture iPhone-sized previews
+        run: node miniapp/web/capture-ui.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kripto-guru-iphone-ui-previews
+          path: |
+            wallet-390x844-dsf3.png
+            wallet-430x932-dsf3.png
+            wallet-full-390x844-dsf3.png
+            wallet-full-430x932-dsf3.png
+            wallet-position-390x844-dsf3.png
+            wallet-position-430x932-dsf3.png
+            wallet-position-full-390x844-dsf3.png
+            wallet-position-full-430x932-dsf3.png
+            trade-390x844-dsf3.png
+            trade-430x932-dsf3.png
+            trade-list-390x844-dsf3.png
+            trade-list-430x932-dsf3.png
+            asset-390x844-dsf3.png
+            asset-430x932-dsf3.png
+            ticket-390x844-dsf3.png
+            ticket-430x932-dsf3.png
+            leverage-390x844-dsf3.png
+            leverage-430x932-dsf3.png
+            tp-sl-390x844-dsf3.png
+            tp-sl-430x932-dsf3.png
+            history-390x844-dsf3.png
+            history-430x932-dsf3.png
+            settings-390x844-dsf3.png
+            settings-430x932-dsf3.png

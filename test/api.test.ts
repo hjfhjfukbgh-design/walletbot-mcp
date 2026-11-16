@@ -9,11 +9,31 @@ import { env } from "./helpers";
 import { tenantEnv } from "../src/tenants";
 
 const ctx = { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext;
-const call = (e: ReturnType<typeof env>, path: string, key?: string, init: RequestInit = {}, userId = "12345") =>
-  handleApi(new Request(`https://w.dev/api/${path}`, { ...init, headers: { ...(key ? { "X-Api-Key": key } : {}), ...(userId ? { "X-Telegram-User-Id": userId } : {}) } }), e, ctx);
+async function signedInitData(botToken: string, userId: string): Promise<string> {
+  const params = new URLSearchParams({
+    auth_date: String(Math.floor(Date.now() / 1000)),
+    user: JSON.stringify({ id: Number(userId), first_name: "Test" }),
+  });
+  const encoder = new TextEncoder();
+  const hmac = async (keyBytes: Uint8Array, value: string) => {
+    const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    return new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
+  };
+  const secret = await hmac(encoder.encode("WebAppData"), botToken);
+  const checkString = [...params.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `${key}=${value}`).join("\n");
+  const hash = [...await hmac(secret, checkString)].map((value) => value.toString(16).padStart(2, "0")).join("");
+  params.set("hash", hash);
+  return params.toString();
+}
+const call = async (e: ReturnType<typeof env>, path: string, key?: string, init: RequestInit = {}, userId = "12345") => {
+  const headers: Record<string, string> = { ...(init.headers as Record<string, string> | undefined) };
+  if (key === "chave-teste" && userId) headers.Authorization = `tma ${await signedInitData(e.TELEGRAM_BOT_TOKEN, userId)}`;
+  else if (key && key !== "chave-teste") headers.Authorization = `tma ${key}`;
+  return handleApi(new Request(`https://w.dev/api/${path}`, { ...init, headers }), e, ctx);
+};
 
 describe("API da Mini App", () => {
-  it("exige X-Api-Key correta", async () => {
+  it("exige initData do Telegram assinada corretamente", async () => {
     const e = env();
     expect((await call(e, "state")).status).toBe(401);
     expect((await call(e, "state", "errada")).status).toBe(401);
@@ -21,9 +41,9 @@ describe("API da Mini App", () => {
     expect((await call(e, "state", "chave-teste", {}, "")).status).toBe(401);
   });
 
-  it("recusa tudo se API_SECRET não estiver configurado", async () => {
-    const e = { ...env(), API_SECRET: "" };
-    expect((await call(e, "state", "")).status).toBe(401);
+  it("recusa tudo se o token do bot não estiver configurado", async () => {
+    const e = { ...env(), TELEGRAM_BOT_TOKEN: "" };
+    expect((await call(e, "state", "chave-teste")).status).toBe(401);
   });
 
   it("devolve estado, histórico e 404 para rota desconhecida", async () => {
@@ -49,6 +69,16 @@ describe("API da Mini App", () => {
     const b = (await (await call(e, "state", "chave-teste", {}, "222")).json()) as { mode: string };
     expect(a.mode).toBe("live");
     expect(b.mode).toBe("paper");
+  });
+
+  it("enforces the DEMO leverage cap before contacting the Engine", async () => {
+    const res = await call(env(), "demo/open", "chave-teste", {
+      method: "POST",
+      body: JSON.stringify({ symbol: "BTC", side: "long", marginMicro: "1000000", leverage: 999 }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toContain("Максимальное плечо демо-счёта");
   });
 
   it("valida campos do grid", async () => {
