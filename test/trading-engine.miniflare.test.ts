@@ -65,12 +65,12 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     return post(stub, "/quote", { symbol: "BTC", price: price.toString(), observedAt: Date.now() });
   }
 
-  async function open(stub: EngineStub, marginMicro: bigint) {
+  async function open(stub: EngineStub, marginMicro: bigint, limits = { maxOrderBps: "10000", maxTotalExposureBps: "10000" }, forUser = userId) {
     return post(stub, "/open", {
-      userId, mode: "demo", symbol: "BTC", side: "long",
+      userId: forUser, mode: "demo", symbol: "BTC", side: "long",
       marginMicro: marginMicro.toString(), leverage: "2",
       takeProfitPrice: (52_000n * P).toString(), stopLossPrice: (49_000n * P).toString(),
-      feePpm: "350", slippagePpm: "1000",
+      feePpm: "350", slippagePpm: "1000", ...limits,
     });
   }
 
@@ -88,6 +88,31 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const results = await Promise.all([open(stub, 700n * U), open(stub, 700n * U)]);
     expect(results.filter((r) => r.status === 200 && r.body.ok === true)).toHaveLength(1);
     expect(results.filter((r) => r.body.ok === false)).toHaveLength(1);
+  });
+
+  it("enforces total exposure atomically under concurrent opens and isolates users", async () => {
+    const stub = await boot();
+    await quote(stub, 50_000n * P);
+    const limits = { maxOrderBps: "10000", maxTotalExposureBps: "500" };
+    const sameUser = await Promise.all([open(stub, 40n * U, limits), open(stub, 40n * U, limits)]);
+    expect(sameUser.filter((r) => r.body.ok === true)).toHaveLength(1);
+    expect(sameUser.filter((r) => r.body.ok === false)).toHaveLength(1);
+
+    // A different Telegram user has an independent balance and exposure budget.
+    const otherUser = await open(stub, 40n * U, limits, "987654321");
+    expect(otherUser.body.ok).toBe(true);
+  });
+
+  it("rejects missing or invalid server-side risk limits", async () => {
+    const stub = await boot();
+    await quote(stub, 50_000n * P);
+    const missing = await post(stub, "/open", {
+      userId, mode: "demo", symbol: "BTC", side: "long",
+      marginMicro: (40n * U).toString(), leverage: "2", feePpm: "350", slippagePpm: "1000",
+    });
+    expect(missing.body.ok).toBe(false);
+    const invalid = await open(stub, 40n * U, { maxOrderBps: "10001", maxTotalExposureBps: "500" });
+    expect(invalid.body.ok).toBe(false);
   });
 
   it("closes once under Promise.all and duplicate ticks do not duplicate ledger credits", async () => {
