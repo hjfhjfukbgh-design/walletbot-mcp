@@ -325,10 +325,19 @@ export class TradingEngine {
       const mids = await response.json() as Record<string, string>;
       const observedAt = Date.now();
       for (const symbol of this.bySymbol.keys()) {
-        const raw = mids[symbol];
-        if (!raw) continue;
-        const price = parseFixed(raw, PRICE_SCALE, 8);
-        if (price > 0n) await this.acceptQuote({ symbol, price: price.toString(), observedAt });
+        try {
+          const raw = mids[symbol];
+          if (!raw) {
+            this.staleSymbols.add(symbol);
+            continue;
+          }
+          const price = parseFixed(raw, PRICE_SCALE, 8);
+          if (price <= 0n) throw new Error("Некорректная резервная котировка.");
+          await this.acceptQuote({ symbol, price: price.toString(), observedAt });
+        } catch {
+          // A bad response for one market must not stop refreshes for other open positions.
+          this.staleSymbols.add(symbol);
+        }
       }
     } catch {
       // Keep the last quote marked stale; opens/closes remain blocked until a fresh feed arrives.
@@ -358,7 +367,10 @@ export class TradingEngine {
           for (const [symbol, raw] of Object.entries(message.data.mids)) {
             if (!this.bySymbol.has(symbol)) continue;
             const price = parseFixed(raw, PRICE_SCALE, 8);
-            if (price > 0n) void this.acceptQuote({ symbol, price: price.toString(), observedAt: now });
+            if (price > 0n) {
+              void this.acceptQuote({ symbol, price: price.toString(), observedAt: now })
+                .catch(() => this.staleSymbols.add(symbol));
+            }
           }
         } catch { /* malformed upstream frames are ignored; watchdog will reconnect if feed goes stale */ }
       });
