@@ -278,8 +278,8 @@ function drawChart(candles, target = 'chart', market = '') {
   const label = document.createElementNS(ns, 'text'); label.setAttribute('fill','#fff'); label.setAttribute('font-size','9');
   layer.append(vline,hline,dot,tip,label); svg.appendChild(layer);
   const tipLines = [];
-  svg.addEventListener('pointerdown', (event) => { svg.setPointerCapture?.(event.pointerId); });
-  svg.addEventListener('pointermove', (event) => {
+  svg.onpointerdown = (event) => { svg.setPointerCapture?.(event.pointerId); };
+  svg.onpointermove = (event) => {
     const rect = svg.getBoundingClientRect();
     const px = Math.max(0, Math.min(306, (event.clientX - rect.left) / rect.width * 360));
     const index = Math.max(0, Math.min(valid.length - 1, Math.floor((px - P) / stepX)));
@@ -297,8 +297,8 @@ function drawChart(candles, target = 'chart', market = '') {
     const rows = ['Откр. ' + fmt(candle[1],moneyDecimals(candle[1])), 'Закр. ' + fmt(candle[4],moneyDecimals(candle[4])), 'Макс. ' + fmt(candle[2],moneyDecimals(candle[2])), 'Мин. ' + fmt(candle[3],moneyDecimals(candle[3])), 'Изм. ' + pctText(candleChange), date];
     rows.forEach((value, row) => { const span = document.createElementNS(ns,'tspan'); span.setAttribute('x',tx+8); span.setAttribute('dy',row===0?0:13); span.textContent=value; label.appendChild(span); });
     layer.style.display = '';
-  });
-  svg.addEventListener('pointerleave', () => { layer.style.display = 'none'; });
+  };
+  svg.onpointerleave = () => { layer.style.display = 'none'; };
 }
 
 // ---------- pares ----------
