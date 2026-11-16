@@ -17,7 +17,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0
 
 async function call(name, input = {}) {
   const route = name === 'configure' ? 'grid' : name;
-  const method = name === 'configure' || name === 'control' ? 'POST' : 'GET';
+  const method = name === 'configure' || name === 'control' || name === 'manual' ? 'POST' : 'GET';
   const query = method === "GET"
     ? Object.entries(input).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&")
     : "";
@@ -126,7 +126,7 @@ function renderState() {
   const currentPositionPnl = p && s.mode === 'paper' && Number(activeContract?.price) > 0
     ? p.qty * (Number(activeContract.price) - p.entryPrice) - p.qty * Number(activeContract.price) * Number(activeContract.takerFeePct || 0)
     : p?.unrealizedPnl;
-  const equity = Number(p && currentPositionPnl !== null && currentPositionPnl !== undefined ? cash + currentPositionPnl : demo.equity ?? cash ?? 1000);
+  const equity = Number(demo.equity ?? cash ?? 1000);
   const pnl = equity - startCash;
   $('#home-equity').innerHTML = balanceMarkup(equity);
   $('#home-equity').setAttribute('aria-label', usd(equity));
@@ -135,7 +135,8 @@ function renderState() {
   $('#home-change').textContent = signedPct(startCash ? pnl / startCash * 100 : 0);
   $('#home-change').className = `change-chip ${pnl >= 0 ? 'up' : 'down'}`;
   $('#home-pnl').className = pnl >= 0 ? 'up' : 'down';
-  $('#home-positions').textContent = s.position ? '1' : '0';
+  const manualPositions = s.manualPositions || [];
+  $('#home-positions').textContent = String((s.position ? 1 : 0) + manualPositions.length);
   $('#run').textContent = s.paused ? 'Пауза' : s.running ? 'Сетка работает' : gStatus(s);
   $('#run').className = `pill ${s.running && !s.paused ? 'on' : ''}`;
   $('#grid-status').textContent = gStatus(s);
@@ -182,6 +183,23 @@ function renderState() {
     $('#pos').innerHTML = '<div class="position-heading"><span class="coin-avatar">' + esc((g?.market || '₿').slice(0,1)) + '</span><div><b>' + esc(g?.market || 'Позиция') + '</b><small>Покупка · ' + (g?.leverage || 1) + 'x</small></div><strong class="' + (pnl >= 0 ? 'up' : 'down') + '">' + usd(pnl, 4) + '</strong></div>' + rows.map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('') + '<button id="position-close" class="danger position-close" type="button">Закрыть позицию</button>';
   } else {
     $('#pos').innerHTML = `<div class="empty-state">${icon('wallet')}<b>Позиций пока нет</b><small>${g ? 'Сетка ожидает достижения ценового уровня.' : 'Откройте рынки или настройте сетку.'}</small><button id="empty-open-markets" class="secondary" type="button">Открыть рынки</button></div>`;
+  }
+  if (manualPositions.length) {
+    const cards = manualPositions.map((mp) => {
+      const isLong = mp.side === 'long';
+      const pnl = Number(mp.unrealizedPnl || 0);
+      return `<div class="manual-position">
+        <div class="position-heading"><span class="coin-avatar">${esc(mp.market.slice(0,1))}</span><div><b>${esc(mp.market)} · <span class="${isLong?'up':'down'}">${isLong?'LONG':'SHORT'}</span></b><small>Вход ${usd(mp.entryPrice, moneyDecimals(mp.entryPrice))} · ${mp.leverage}x</small></div><strong class="${pnl>=0?'up':'down'}">${usd(pnl,4)}</strong></div>
+        <div class="row"><span>Текущая цена</span><b>${usd(mp.markPrice, moneyDecimals(mp.markPrice))}</b></div>
+        <div class="row"><span>Объём / маржа</span><b>${usd(mp.notionalUsd)} / ${usd(mp.marginUsd)}</b></div>
+        <div class="row"><span>Take Profit</span><b>${mp.takeProfit ? usd(mp.takeProfit, moneyDecimals(mp.takeProfit)) : 'Не задан'}</b></div>
+        <div class="row"><span>Stop Loss</span><b>${mp.stopLoss ? usd(mp.stopLoss, moneyDecimals(mp.stopLoss)) : 'Не задан'}</b></div>
+        <div class="row"><span>Ликвидация · оценка</span><b>${usd(mp.liquidationPrice, moneyDecimals(mp.liquidationPrice))}</b></div>
+        <button class="danger position-close" type="button" data-manual-close="${esc(mp.id)}">Закрыть ${isLong?'LONG':'SHORT'}</button>
+      </div>`;
+    }).join('');
+    if (p) $('#pos').insertAdjacentHTML('beforeend', cards);
+    else $('#pos').innerHTML = cards;
   }
 
   const st = s.stats;
@@ -367,7 +385,7 @@ $('#pairs').addEventListener('click', async (ev) => {
       '<div class="asset-chart-controls"><div class="timeframe-control" id="pair-timeframes">' + ['1m','5m','15m','1h','4h','1d'].map((v)=>'<button type="button" data-interval="' + v + '" class="' + (v==='15m'?'selected':'') + '">' + ({'1m':'1м','5m':'5м','15m':'15м','1h':'1Ч','4h':'4Ч','1d':'1Д'}[v]) + '</button>').join('') + '</div><button id="asset-grid-toggle" class="grid-layer-toggle" type="button" ' + (state?.grid?.market === market ? '' : 'disabled') + '>Показать сетку</button></div>' +
       '<svg id="pair-chart" viewBox="0 0 360 220" preserveAspectRatio="none" role="img" aria-label="Свечной график ' + esc(market) + '"></svg><div class="asset-chart-legend"><span><i class="legend-level"></i>Уровни сетки</span><span><i class="legend-entry"></i>Вход</span><span><i class="legend-tp"></i>Тейк-профит</span><span><i class="legend-sl"></i>Стоп-лосс</span></div>' +
       '<div class="chart-caption">Нажмите и ведите пальцем по графику, чтобы посмотреть значения свечи.</div></div>' +
-      '<div class="asset-actions"><button id="use-pair" type="button">' + icon('grid') + 'Настроить сетку</button><button id="manual-trade-unavailable" class="secondary" type="button" disabled>Сделка скоро</button></div>' +
+      '<div class="asset-actions"><button id="use-pair" type="button">' + icon('grid') + 'Настроить сетку</button><button id="manual-trade-open" class="secondary" type="button">Открыть LONG / SHORT</button></div>' +
       '<div class="section-title">О криптовалюте</div><div class="card asset-about"><p>Цена формируется на открытом рынке и может быстро меняться.</p><p>Демо-режим показывает реальные котировки, но использует только виртуальные средства.</p><p>Изменение за 24 часа не гарантирует дальнейшего движения цены.</p></div>' +
       '<div class="section-title">Подробнее</div><div class="card asset-tech">' +
       '<div class="row"><span>Объём за 24 часа</span><b>' + usd(c?.volume24hUsd, 0) + '</b></div>' +
@@ -403,6 +421,44 @@ $('#pairs').addEventListener('click', async (ev) => {
       form.marginUsd.value = Math.max(+form.marginUsd.value || 0, Math.ceil(p.minMargin * 1.1 * 100) / 100);
       form.leverage.value = 1;
       setTab('ctrl');
+    });
+    $('#manual-trade-open').addEventListener('click', () => {
+      $('#manual-trade-form')?.remove();
+      const tradeForm = document.createElement('form');
+      tradeForm.id = 'manual-trade-form';
+      tradeForm.className = 'card manual-trade-form';
+      const decimals = moneyDecimals(price);
+      tradeForm.innerHTML = `
+        <div class="card-heading"><h3>Новая демо-сделка</h3><span class="soft-tag">ВИРТУАЛЬНО</span></div>
+        <div class="side-choice"><label><input type="radio" name="side" value="long" checked><b class="long-choice">LONG · Рост</b></label><label><input type="radio" name="side" value="short"><b class="short-choice">SHORT · Падение</b></label></div>
+        <label>Маржа, USDC<input name="marginUsd" type="number" min="1" step="0.01" value="10" required></label>
+        <label>Плечо<select name="leverage"><option value="1">1x</option><option value="2">2x</option><option value="3">3x</option></select></label>
+        <label>Take Profit · цена<input name="takeProfit" type="number" min="0" step="any" value="${(price * 1.02).toFixed(decimals)}"></label>
+        <label>Stop Loss · цена<input name="stopLoss" type="number" min="0" step="any" value="${(price * .99).toFixed(decimals)}"></label>
+        <div class="manual-trade-note">Цена входа берётся по текущей публичной котировке. Ликвидация рассчитывается ориентировочно по упрощённой модели.</div>
+        <button type="submit">Открыть демо-позицию</button>`;
+      box.querySelector('.asset-actions').after(tradeForm);
+      tradeForm.addEventListener('change', () => {
+        const side = tradeForm.elements.side.value;
+        tradeForm.elements.takeProfit.value = (price * (side === 'long' ? 1.02 : .98)).toFixed(decimals);
+        tradeForm.elements.stopLoss.value = (price * (side === 'long' ? .99 : 1.01)).toFixed(decimals);
+      });
+      tradeForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const submit = tradeForm.querySelector('button[type="submit"]');
+        submit.disabled = true;
+        try {
+          const result = await call('manual', { action:'open', market, side:tradeForm.elements.side.value, marginUsd:Number(tradeForm.elements.marginUsd.value), leverage:Number(tradeForm.elements.leverage.value), takeProfit:Number(tradeForm.elements.takeProfit.value), stopLoss:Number(tradeForm.elements.stopLoss.value) });
+          tradeForm.remove();
+          tg.showAlert?.(result.message);
+          await loadState();
+          setTab('painel');
+        } catch (error) {
+          submit.disabled = false;
+          showError(error);
+        }
+      });
+      tradeForm.scrollIntoView({ behavior:'smooth', block:'center' });
     });
   } catch (error) {
     box.innerHTML = '<div class="empty-state"><b>Не удалось загрузить актив</b><small>' + esc(error.message) + '</small><button id="asset-back-error" class="secondary" type="button">Вернуться к рынкам</button></div>';
