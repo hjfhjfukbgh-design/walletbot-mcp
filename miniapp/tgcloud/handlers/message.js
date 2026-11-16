@@ -28,7 +28,7 @@ async function link(message, key) {
     return;
   }
   try {
-    await workerCall('state', { apiKey: key }); // valida a chave no Worker
+    await workerCall('state', { apiKey: key, userId: String(message.from.id) }); // valida a chave no Worker
   } catch (e) {
     await api.sendMessage({ chat_id: message.chat.id, text: `❌ Chave recusada pelo Worker: ${e.message}` });
     return;
