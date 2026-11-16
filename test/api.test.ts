@@ -40,6 +40,17 @@ describe("API da Mini App", () => {
     expect((await call(e, "nada", "chave-teste")).status).toBe(404);
   });
 
+  it("isola estado entre usuários Telegram", async () => {
+    const e = env();
+    const alice = defaultState();
+    alice.mode = "live";
+    await saveState(tenantEnv(e, "111"), alice);
+    const a = (await (await call(e, "state", "chave-teste", {}, "111")).json()) as { mode: string };
+    const b = (await (await call(e, "state", "chave-teste", {}, "222")).json()) as { mode: string };
+    expect(a.mode).toBe("live");
+    expect(b.mode).toBe("paper");
+  });
+
   it("valida campos do grid", async () => {
     const res = await call(env(), "grid", "chave-teste", { method: "POST", body: JSON.stringify({ market: "BTC" }) });
     expect(res.status).toBe(400);
