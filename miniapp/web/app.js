@@ -641,7 +641,7 @@ $('#home-reset-demo').addEventListener('click', () => tg?.showAlert?.('Для с
 $('#home-open-grid').addEventListener('click', () => setTab('ctrl'));
 document.querySelectorAll('[data-preset]').forEach((button) => button.addEventListener('click', async () => {
   try {
-    if (!contracts.length) contracts = (await call('contracts')).contracts;
+    if (!contracts.length) await getContracts();
     const form = $('#grid-form');
     const market = form.market.value.trim().toUpperCase() || state?.grid?.market || 'BTC';
     const contract = contracts.find((x) => x.market === market) || contracts[0];
