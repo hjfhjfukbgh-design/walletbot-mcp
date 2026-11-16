@@ -39,7 +39,7 @@ async function loadState() {
     state = await call('state');
     $('#alert').classList.add('hidden');
     renderState();
-    if (state.grid) loadChart(state.grid.market);
+    if (state.grid) {\n      loadChart(state.grid.market);\n      refreshQuote(state.grid.market);\n    }
   } catch (e) {
     showError(e);
   }
@@ -102,6 +102,15 @@ function renderState() {
   ]
     .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`)
     .join('');
+}
+
+async function refreshQuote(market) {
+  try {
+    const q = await call('price', { market, leverage: 3 });
+    $('#price').textContent = `${market} ${usd(q.price, 2)}`;
+  } catch (e) {
+    $('#price').textContent = `${market} · котировка недоступна`;
+  }
 }
 
 async function loadChart(market) {
