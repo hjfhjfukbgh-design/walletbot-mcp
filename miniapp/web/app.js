@@ -507,7 +507,7 @@ document.addEventListener('click', (event) => {
   event.preventDefault();
   tg.showAlert?.(helpCopy[button.dataset.help] || 'Справка пока недоступна.');
 });
-$('#home-see-all,#home-open-markets').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
+$('#home-see-all,#home-open-markets,#home-open-markets-sell').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
 $('#portfolio-trigger').addEventListener('click', () => document.querySelector('nav button[data-tab="painel"]').click());
 $('#notifications-trigger').addEventListener('click', () => tg.showAlert?.('Уведомлений пока нет.'));
 $('#pos').addEventListener('click', async (event) => {
