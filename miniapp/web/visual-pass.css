@@ -60,3 +60,11 @@ main{max-width:540px!important;padding:17px 15px 190px!important}
 .profile-menu-note{background:#f5f7fb!important;color:#647084!important}
 @media(max-width:380px){.wallet-head{min-height:137px;padding:18px 15px 15px}.wallet-balance{font-size:34px!important}.wallet-actions{gap:5px!important;padding-inline:7px}.wallet-action{font-size:8px!important}.section-heading h2{font-size:14px!important}}
 @media(prefers-reduced-motion:reduce){.tab{animation:none}}
+
+/* Wallet hero redesign: a high-contrast balance panel with a unified action dock. */
+.wallet-head{background:linear-gradient(128deg,#101f3d 0%,#17427d 58%,#2d6fe0 100%);box-shadow:0 12px 28px rgba(31,78,150,.16)}
+.wallet-head:before{content:"";position:absolute;inset:auto -35px -115px auto;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,#ffffff20 0%,#ffffff00 68%);pointer-events:none}
+.wallet-performance{position:relative;z-index:1}
+.wallet-actions{position:relative;margin-top:-1px!important}
+.wallet-action:active{background:#edf3ff!important}
+.section-heading{scroll-margin-top:75px}
