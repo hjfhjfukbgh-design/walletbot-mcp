@@ -30,7 +30,7 @@ describe("tick paper", () => {
     await saveState(e, s);
 
     priceIs(104500);
-    expect((await tick(e))[0]).toMatch(/Long BTC nível 6/);
+    expect((await tick(e))[0]).toMatch(/Покупка BTC, уровень 6/);
     expect((await loadState(e)).grid?.position?.takeProfit).toBe(106000);
 
     priceIs(105000);
@@ -38,8 +38,8 @@ describe("tick paper", () => {
 
     priceIs(106100);
     const tp = await tick(e);
-    expect(tp[0]).toMatch(/Take-profit/);
-    expect(tp[1]).toMatch(/Long BTC nível 8/); // reentra no degrau do preço atual (106000, 107000]
+    expect(tp[0]).toMatch(/Тейк-профит/);
+    expect(tp[1]).toMatch(/Покупка BTC/); // reentra no degrau do preço atual (106000, 107000]
     let st = await loadState(e);
     expect(st.stats.wins).toBe(1);
     expect(st.paper.cash).toBeGreaterThan(1000);
@@ -102,7 +102,7 @@ describe("tick paper", () => {
     s.running = true;
     await saveState(e, s);
     priceIs(120000);
-    expect((await tick(e))[0]).toMatch(/fora da faixa/);
+    expect((await tick(e))[0]).toMatch(/вышла за диапазон/);
     expect(await tick(e)).toEqual([]);
     expect((await loadState(e)).grid?.cfg.low).toBe(100000);
   });
