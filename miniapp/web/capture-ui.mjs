@@ -23,6 +23,8 @@ const candles = Array.from({length:36},(_,i)=>{
 });
 const server = http.createServer((req,res)=>{
   const url = new URL(req.url || "/", "http://127.0.0.1:4173");
+  if (url.pathname === "/__preview/position") { includePosition = true; return send(res,{ok:true}); }
+  if (url.pathname === "/__preview/empty") { includePosition = false; return send(res,{ok:true}); }
   if (url.pathname === "/api/demo") return send(res,{ok:true,balanceMicro:includePosition?"900000000":"1000000000",positions:includePosition?[previewPosition]:[]});
   if (url.pathname === "/api/state") return send(res,{
     ok:true,mode:"paper",running:false,paused:null,connected:false,lastPrice:null,lastTick:null,lastError:null,lastBlock:null,lastRecenter:null,
@@ -68,7 +70,7 @@ try {
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     await page.waitForTimeout(1800);
     await page.screenshot({path:`wallet-${width}x${height}-dsf3.png`,fullPage:false});
-    await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});
+    await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});\n    await page.evaluate(async()=>{await fetch("/__preview/position"); await window.kriptoGuruDemo.refresh();});\n    await page.waitForTimeout(450);\n    await page.screenshot({path:`wallet-position-${width}x${height}-dsf3.png`,fullPage:false});\n    await page.screenshot({path:`wallet-position-full-${width}x${height}-dsf3.png`,fullPage:true});\n    await page.evaluate(async()=>{await fetch("/__preview/empty"); await window.kriptoGuruDemo.refresh();});\n    await page.waitForTimeout(250);
     await page.locator('nav button[data-tab="pares"]').click();
     await page.waitForTimeout(900);
     await page.screenshot({path:`trade-${width}x${height}-dsf3.png`,fullPage:false});
@@ -91,10 +93,10 @@ try {
     await page.waitForTimeout(150);
     await page.screenshot({path:`tp-sl-${width}x${height}-dsf3.png`,fullPage:false});
     await page.keyboard.press("Escape");
-    await page.locator("nav button[data-tab=hist]").click();
+    await page.locator("nav button[data-tab="hist"]").click();
     await page.waitForTimeout(350);
     await page.screenshot({path:`history-${width}x${height}-dsf3.png`,fullPage:false});
-    await page.locator("nav button[data-tab=ctrl]").click();
+    await page.locator("nav button[data-tab="ctrl"]").click();
     await page.waitForTimeout(250);
     await page.screenshot({path:`settings-${width}x${height}-dsf3.png`,fullPage:false});
     await page.close();
