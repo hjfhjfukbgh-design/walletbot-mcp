@@ -174,7 +174,7 @@ async function loadChart(market, target = 'chart', interval = '15m') {
   try {
     const c = await call('chart', { market, interval });
     const source = target === 'chart' ? $('#chart-src') : document.querySelector(`[data-chart-source="${target}"]`);
-    if (source) source.textContent = c.source === 'hyperliquid' ? `Hyperliquid · ${interval}` : 'Локальные котировки';
+    if (source) source.textContent = `Рыночные свечи · ${{'1m':'1м','5m':'5м','15m':'15м','1h':'1Ч','4h':'4Ч','1d':'1Д'}[interval] || '15м'}`;
     drawChart(c.candles, target, market);
   } catch (e) {
     const svg = document.getElementById(target);
