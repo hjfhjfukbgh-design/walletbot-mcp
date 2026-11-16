@@ -17,7 +17,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0
 
 async function call(name, input = {}) {
   const route = name === 'configure' ? 'grid' : name;
-  const method = name === 'configure' || name === 'control' || name === 'manual' ? 'POST' : 'GET';
+  const method = name === 'configure' || name === 'control' || name === 'manual' || name === 'demo/open' || name === 'demo/close' ? 'POST' : 'GET';
   const query = method === "GET"
     ? Object.entries(input).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&")
     : "";
