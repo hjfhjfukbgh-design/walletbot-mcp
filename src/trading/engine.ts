@@ -1,4 +1,4 @@
-import { closePosition, checkTrigger, manualCloseTrigger, openPosition, unrealizedPnl, type Position, type PositionInput } from "./positions";
+import { applyEntrySlippage, closePosition, checkTrigger, manualCloseTrigger, openPosition, unrealizedPnl, type Position, type PositionInput } from "./positions";
 import { MONEY_SCALE, PRICE_SCALE, divRound, parseFixed } from "./money";
 
 interface EngineEnv { HYPERLIQUID_WS_URL?: string; ENGINE_MAX_QUOTE_AGE_MS?: string; ENGINE_DISABLE_SOCKET?: string; }
@@ -143,15 +143,19 @@ export class TradingEngine {
     const symbol = safeSymbol(body.symbol);
     const quote = this.freshQuote(symbol);
     const leverage = BigInt(String(body.leverage));
-    const liquidationPrice = estimateDemoLiquidation(quote.price, leverage, body.side === "long" ? "long" : "short", 5_000n);
+    const side = body.side === "long" ? "long" : body.side === "short" ? "short" : null;
+    if (!side) throw new Error("Направление должно быть LONG или SHORT.");
+    const slippagePpm = BigInt(String(body.slippagePpm ?? "1000"));
+    const entryPrice = applyEntrySlippage(quote.price, side, slippagePpm);
+    const liquidationPrice = estimateDemoLiquidation(entryPrice, leverage, side, 5_000n);
     const input: PositionInput = {
-      id: crypto.randomUUID(), userId, symbol, side: body.side as "long" | "short",
+      id: crypto.randomUUID(), userId, symbol, side,
       marginMicro: BigInt(String(body.marginMicro)), leverage,
-      entryPrice: quote.price,
+      entryPrice,
       takeProfitPrice: body.takeProfitPrice == null ? null : BigInt(String(body.takeProfitPrice)),
       stopLossPrice: body.stopLossPrice == null ? null : BigInt(String(body.stopLossPrice)),
       liquidationPrice,
-      feePpm: BigInt(String(body.feePpm ?? "350")), slippagePpm: BigInt(String(body.slippagePpm ?? "1000")),
+      feePpm: BigInt(String(body.feePpm ?? "350")), slippagePpm,
     };
     const before = this.ensureAccount(userId);
     // Risk checks live inside the Durable Object, immediately before the atomic
