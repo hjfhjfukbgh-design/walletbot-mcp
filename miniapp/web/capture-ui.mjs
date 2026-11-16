@@ -14,6 +14,8 @@ const markets = [
   { market:"XRP", price:2.18, change24hPct:-2.31, volume24hUsd:760_000_000, maxLeverage:20, allowed:true, takerFeePct:0.00035, fundingRateHourly:0.00001, minSizeQuote:10 },
   { market:"DOGE", price:0.1632, change24hPct:1.12, volume24hUsd:360_000_000, maxLeverage:20, allowed:true, takerFeePct:0.00035, fundingRateHourly:0.00001, minSizeQuote:10 },
 ];
+let includePosition = false;
+const previewPosition = {id:"preview-position",userId:"123456",symbol:"BTC",side:"long",marginMicro:"100000000",leverage:"5",entryPrice:"9000000000000",qtyUnits:"555555",entryNotionalMicro:"500000000",entryFeeMicro:"175000",liquidationPrice:"7200000000000",takeProfitPrice:"9400000000000",stopLossPrice:"8850000000000",feePpm:"350",slippagePpm:"1000",status:"open",openedAt:Date.now()-600000};
 const now = Date.now();
 const candles = Array.from({length:36},(_,i)=>{
   const base=91200 + Math.sin(i/3)*180 + i*2.5;
@@ -21,7 +23,7 @@ const candles = Array.from({length:36},(_,i)=>{
 });
 const server = http.createServer((req,res)=>{
   const url = new URL(req.url || "/", "http://127.0.0.1:4173");
-  if (url.pathname === "/api/demo") return send(res,{ok:true,balanceMicro:"1000000000",positions:[]});
+  if (url.pathname === "/api/demo") return send(res,{ok:true,balanceMicro:includePosition?"900000000":"1000000000",positions:includePosition?[previewPosition]:[]});
   if (url.pathname === "/api/state") return send(res,{
     ok:true,mode:"paper",running:false,paused:null,connected:false,lastPrice:null,lastTick:null,lastError:null,lastBlock:null,lastRecenter:null,
     stats:{trades:0,wins:0,losses:0,realizedPnl:0},grid:null,position:null,livePosition:null,
