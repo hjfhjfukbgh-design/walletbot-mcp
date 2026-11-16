@@ -105,6 +105,27 @@ try {
     await page.locator("#asset-back").waitFor({state:"visible"});
     await page.screenshot({path:`asset-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#asset-trade-bar [data-asset-side=long]").click();
+    await page.waitForTimeout(350);
+    const ticketDebug=await page.evaluate(()=>{
+      const overlay=document.querySelector(".sheet-backdrop");
+      const input=document.querySelector("#ticket-margin");
+      const style=input?getComputedStyle(input):null;
+      const rect=input?.getBoundingClientRect();
+      return {
+        overlayCount:document.querySelectorAll(".sheet-backdrop").length,
+        overlayClass:overlay?.className||null,
+        overlayDisplay:overlay?getComputedStyle(overlay).display:null,
+        inputCount:document.querySelectorAll("#ticket-margin").length,
+        inputDisplay:style?.display||null,
+        inputVisibility:style?.visibility||null,
+        inputRect:rect?{width:rect.width,height:rect.height}:null,
+        bodyClass:document.body.className,
+        toast:document.querySelector("#kg-toast")?.textContent||null
+      };
+    });
+    if(!ticketDebug.inputRect || ticketDebug.inputRect.width===0 || ticketDebug.inputRect.height===0) {
+      throw new Error("DEMO ticket did not become visible: "+JSON.stringify({ticketDebug,pageErrors}));
+    }
     await page.locator("#ticket-margin").waitFor({state:"visible"});
     await page.waitForTimeout(250);
     await page.locator("#ticket-margin").fill("50");
