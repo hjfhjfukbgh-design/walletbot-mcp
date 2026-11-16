@@ -109,6 +109,7 @@ export async function setMode(env: Env, args: string[]): Promise<string> {
     if (!(bal > 0)) return "Saldo USDC zero na conta do agente — deposite no Walt antes.";
   }
   s.mode = target;
+  s.grid = undefined; // DEMO and LIVE use different contract identifiers
   s.running = false;
   s.day = undefined;
   await saveState(env, s);
