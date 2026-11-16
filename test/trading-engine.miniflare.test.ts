@@ -75,10 +75,14 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       post(stub, "/close", { userId, positionId: id, manual: true }),
     ]);
     expect(closes.every((r) => r.body.ok === true)).toBe(true);
-    await quote(stub, 48_000n * P);
+
+    await quote(stub, 50_000n * P);
+    await open(stub, 100n * U);
+    await quote(stub, 48_000n * P); // SL crossed; fill uses this current gap quote
+    await quote(stub, 48_000n * P); // duplicate tick must not credit again
     const audit = await post(stub, "/reconcile", {});
     expect(audit.body.openPositions).toBe(0);
-    expect(audit.body.ledgerRows).toBe(3); // seed + one open + one close
+    expect(audit.body.ledgerRows).toBe(5); // seed + 2 opens + 2 closes
   });
 
   it("rebuilds open positions from SQLite after Engine eviction/restart", async () => {
