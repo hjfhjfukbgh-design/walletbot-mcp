@@ -28,13 +28,13 @@ export default {
       try {
         const stateId = url.searchParams.get("state") ?? "";
         const userId = await oauthTenantId(env, stateId);
-        if (!userId) throw new Error("OAuth state desconhecido ou expirado. Volte ao Telegram e use /connect novamente.");
+        if (!userId) throw new Error("Параметр OAuth state неизвестен или истёк. Вернитесь в Telegram и выполните /connect ещё раз.");
         const scoped = tenantEnv(env, userId);
         await handleCallback(scoped, url.searchParams);
-        ctx.waitUntil(send(env, userId, "✅ Walt conectado! Use /tools para ver as tools e revisar o mapeamento."));
-        return html("Walt conectado ✅", "Pode fechar esta página e voltar ao Telegram.");
+        ctx.waitUntil(send(env, userId, "✅ Walt подключён! Используйте /tools, чтобы посмотреть инструменты и проверить их соответствие."));
+        return html("Walt conectado ✅", "Эту страницу можно закрыть и вернуться в Telegram.");
       } catch (e) {
-        return html("Falha na conexão", (e as Error).message, 400);
+        return html("Ошибка подключения", (e as Error).message, 400);
       }
     }
 
@@ -55,7 +55,7 @@ export default {
         ? await tg(env, "setChatMenuButton", {
             menu_button: { type: "web_app", text: "Панель", web_app: { url: env.MINIAPP_URL } },
           })
-        : "sem MINIAPP_URL";
+        : "MINIAPP_URL не задан";
       return Response.json({ webhook, commands, menu });
     }
 
