@@ -89,14 +89,18 @@
     }).join("");
   }
 
+  let favoritesViewState = 'loading';
   function renderFavorites() {
     const strip = $ui("#wallet-favorites");
     if (!strip) return;
     const markets = (typeof contracts !== "undefined" && Array.isArray(contracts) ? contracts : []);
     if (!markets.length) {
-      strip.innerHTML = '<div class="favorites-state">Загрузка котировок…</div>';
+      if (favoritesViewState === 'error') strip.innerHTML = '<div class="favorites-state favorites-error">Не удалось загрузить рынки.<button type="button" class="secondary-button" data-favorites-retry>Повторить</button></div>';
+      else if (favoritesViewState === 'empty') strip.innerHTML = '<div class="favorites-state">Рынки не найдены.</div>';
+      else strip.innerHTML = '<div class="favorites-state">Загрузка котировок…</div>';
       return;
     }
+    favoritesViewState = 'ready';
     let selected = markets.filter((item) => typeof favorites !== "undefined" && favorites.has(item.market));
     if (!selected.length) selected = markets.slice(0, 6);
     strip.innerHTML = selected.slice(0, 10).map((item) => {
@@ -164,6 +168,13 @@
     }
   }
 
+  $ui("#wallet-favorites")?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-favorites-retry]")) {
+      favoritesViewState = 'loading';
+      renderFavorites();
+      if (typeof loadMarketPreview === "function") loadMarketPreview({ force: true });
+    }
+  });
   $ui("#wallet-open-history")?.addEventListener("click", () => document.querySelector('nav button[data-tab="hist"]')?.click());
   $ui("#wallet-edit-favorites")?.addEventListener("click", () => {
     document.querySelector('nav button[data-tab="pares"]')?.click();
@@ -280,7 +291,7 @@
   window.kriptoGuruDemo = {
     getAccount: () => account,
     refresh: loadWallet,
-    marketsUpdated: renderFavorites,
+    marketsUpdated: () => { favoritesViewState = contracts?.length ? 'ready' : 'empty'; renderFavorites(); },
     showFavoritesError
   };
   renderRecent();
