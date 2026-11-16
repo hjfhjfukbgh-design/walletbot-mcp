@@ -1,13 +1,13 @@
 :root{
   color-scheme:light;
-  --kg-bg:#F2F2F7;
+  --kg-bg:#F2F1F4;
   --kg-card:#FFFFFF;
   --kg-text:#16171A;
   --kg-muted:#8E8E93;
-  --kg-blue:#0A84FF;
+  --kg-blue:#007DFF;
   --kg-green:#34C759;
   --kg-red:#FF3B30;
-  --kg-soft-blue:rgba(10,132,255,.10);
+  --kg-soft-blue:rgba(0,125,255,.10);
   --kg-soft-green:rgba(52,199,89,.12);
   --kg-soft-red:rgba(255,59,48,.12);
   --kg-radius:20px;
@@ -26,7 +26,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--kg-blue);outlin
 .brand-symbol{display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:var(--kg-blue);color:#fff;font-size:17px;font-weight:800}
 .top-actions{gap:8px}
 .round-action,.profile-trigger{width:40px;height:40px;min-width:40px;min-height:40px;padding:0;border-radius:50%;background:#fff;color:var(--kg-text);box-shadow:var(--kg-shadow)}
-main{max-width:560px;padding:10px 16px calc(96px + env(safe-area-inset-bottom))}
+main{max-width:560px;padding:10px 16px calc(128px + env(safe-area-inset-bottom))}
 .tab{animation:kgFade .22s ease both}
 @keyframes kgFade{from{opacity:.72;transform:translateY(3px)}to{opacity:1;transform:none}}
 .wallet-head{display:flex;align-items:flex-end;justify-content:space-between;margin:8px 2px 0}
@@ -125,7 +125,7 @@ main{max-width:560px;padding:10px 16px calc(96px + env(safe-area-inset-bottom))}
 .top-day{margin-bottom:17px}
 .list{padding:3px 13px;border-radius:18px;background:#fff;box-shadow:var(--kg-shadow)}
 .list .item{min-height:68px}
- .bottom-nav{left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));height:64px;padding:5px 7px;border:1px solid rgba(255,255,255,.7);border-radius:999px;background:rgba(255,255,255,.78);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:0 6px 24px rgba(20,25,40,.12)}
+ .bottom-nav{left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));height:64px;padding:5px 7px;border:1px solid rgba(255,255,255,.7);border-radius:999px;background:rgba(255,255,255,.97);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:0 6px 24px rgba(20,25,40,.12)}
 .bottom-nav button{min-height:0;gap:3px;color:#8E8E93}
 .bottom-nav button .ic{width:21px;height:21px}
 .bottom-nav button span{font-size:10px}
