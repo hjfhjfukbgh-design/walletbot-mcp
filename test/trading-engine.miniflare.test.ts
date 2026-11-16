@@ -43,7 +43,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
           manifest: {
             mainModule: "engine.mjs",
             modules: {
-              "engine.mjs": { type: "ESModule", contents: source },
+              "engine.mjs": { type: "esm", contents: source },
             },
           },
         },
