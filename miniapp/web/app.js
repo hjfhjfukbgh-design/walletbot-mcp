@@ -96,7 +96,10 @@ document.querySelectorAll('.bottom-nav button').forEach((b, index) =>
 );
 
 // ---------- painel ----------
+let stateLoading = false;
 async function loadState() {
+  if (stateLoading) return;
+  stateLoading = true;
   try {
     state = await call('state');
     $('#alert').classList.add('hidden');
@@ -105,6 +108,8 @@ async function loadState() {
     if (state.grid) loadChart(state.grid.market);
   } catch (e) {
     showError(e);
+  } finally {
+    stateLoading = false;
   }
 }
 
@@ -645,6 +650,9 @@ function confirm(text) {
 $('#grid-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const f = ev.target;
+  const submitButton = f.querySelector('[type="submit"]');
+  if (submitButton?.disabled) return;
+  if (submitButton) submitButton.disabled = true;
   const input = {
     market: f.market.value.trim().toUpperCase(),
     low: +f.low.value,
@@ -659,6 +667,8 @@ $('#grid-form').addEventListener('submit', async (ev) => {
     loadState();
   } catch (e) {
     ctrlMessage(e.message, 'error');
+  } finally {
+    if (submitButton) submitButton.disabled = false;
   }
 });
 
