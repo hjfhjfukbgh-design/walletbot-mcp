@@ -15,6 +15,14 @@ function serializePosition(p: Position): string {
 function parsePosition(raw: string): Position {
   return JSON.parse(raw, (key, value) => bigintKeys.has(key) && value !== null ? BigInt(value) : value) as Position;
 }
+function estimateDemoLiquidation(entry: bigint, leverage: bigint, side: "long" | "short", maintenancePpm: bigint): bigint {
+  if (leverage <= 0n || maintenancePpm < 0n || maintenancePpm >= 1_000_000n) throw new Error("Некорректные параметры расчёта ликвидации.");
+  const scale = 1_000_000n;
+  const factor = side === "long"
+    ? (scale - scale / leverage + maintenancePpm) * scale / (scale - maintenancePpm)
+    : (scale + scale / leverage - maintenancePpm) * scale / (scale + maintenancePpm);
+  return entry * factor / scale;
+}
 function safeSymbol(v: unknown): string {
   const s = String(v ?? "").trim().toUpperCase();
   if (!/^[A-Z0-9:_-]{2,32}$/.test(s)) throw new Error("Некорректный торговый инструмент.");
@@ -44,14 +52,22 @@ export class TradingEngine {
     sql.exec("CREATE TABLE IF NOT EXISTS ledger (id INTEGER PRIMARY KEY AUTOINCREMENT, operation_id TEXT NOT NULL UNIQUE, user_id TEXT NOT NULL, position_id TEXT, kind TEXT NOT NULL, amount_micro TEXT NOT NULL, balance_before_micro TEXT NOT NULL, balance_after_micro TEXT NOT NULL, created_at INTEGER NOT NULL)");
     sql.exec("CREATE TABLE IF NOT EXISTS engine_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
     this.restorePositions();
-    const snapshot = sql.exec("SELECT value FROM engine_meta WHERE key = 'last_snapshot_at'").toArray()[0] as { value?: string } | undefined;
-    this.lastSnapshotAt = Number(snapshot?.value ?? 0);
+    const snapshot = sql.exec("SELECT value FROM engine_meta WHERE key = 'snapshot'").toArray()[0] as { value?: string } | undefined;
+    this.lastSnapshotAt = Number(snapshot?.value ? (JSON.parse(snapshot.value) as { at?: number }).at ?? 0 : 0);
+    if (this.positions.size) this.connectMarketSocket();
     void ctx.storage.setAlarm(Date.now() + WATCHDOG_MS);
   }
 
   async fetch(request: Request): Promise<Response> {
     try {
       const url = new URL(request.url);
+      if (request.method === "GET" && url.pathname === "/account") {
+        const userId = url.searchParams.get("userId") ?? "";
+        if (!/^\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
+        const balance = this.ensureAccount(userId);
+        const rows = this.ctx.storage.sql.exec("SELECT position_json FROM positions WHERE user_id = ? AND status = 'open'", userId).toArray() as Array<{ position_json: string }>;
+        return Response.json({ ok: true, balanceMicro: balance.toString(), positions: rows.map((row) => parsePosition(row.position_json)) });
+      }
       if (request.method === "GET" && url.pathname === "/health") {
         return Response.json({ ok: true, openPositions: this.positions.size, socketOpen: this.socket?.readyState === WebSocket.OPEN, quoteCount: this.quotes.size });
       }
@@ -107,13 +123,15 @@ export class TradingEngine {
     if (!/^\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
     const symbol = safeSymbol(body.symbol);
     const quote = this.freshQuote(symbol);
+    const leverage = BigInt(String(body.leverage));
+    const liquidationPrice = estimateDemoLiquidation(quote.price, leverage, body.side === "long" ? "long" : "short", 5_000n);
     const input: PositionInput = {
       id: crypto.randomUUID(), userId, symbol, side: body.side as "long" | "short",
-      marginMicro: BigInt(String(body.marginMicro)), leverage: BigInt(String(body.leverage)),
+      marginMicro: BigInt(String(body.marginMicro)), leverage,
       entryPrice: quote.price,
       takeProfitPrice: body.takeProfitPrice == null ? null : BigInt(String(body.takeProfitPrice)),
       stopLossPrice: body.stopLossPrice == null ? null : BigInt(String(body.stopLossPrice)),
-      liquidationPrice: BigInt(String(body.liquidationPrice)),
+      liquidationPrice,
       feePpm: BigInt(String(body.feePpm ?? "350")), slippagePpm: BigInt(String(body.slippagePpm ?? "1000")),
     };
     const before = this.ensureAccount(userId);
@@ -185,8 +203,7 @@ export class TradingEngine {
       this.restorePositions(); // full persisted-position reconciliation after a reconnect
     }
     if (now - this.lastSnapshotAt >= SNAPSHOT_MS) {
-      this.ctx.storage.sql.exec("INSERT OR REPLACE INTO engine_meta(key,value) VALUES('last_snapshot_at', ?)", String(now));
-      this.ctx.storage.sql.exec("INSERT OR REPLACE INTO engine_meta(key,value) VALUES('last_open_positions', ?)", String(this.positions.size));
+      this.ctx.storage.sql.exec("INSERT OR REPLACE INTO engine_meta(key,value) VALUES('snapshot', ?)", JSON.stringify({ at: now, openPositions: this.positions.size }));
       this.lastSnapshotAt = now;
     }
     await this.ctx.storage.setAlarm(now + WATCHDOG_MS);
