@@ -252,6 +252,9 @@
           const pct = Number(market.change24hPct || 0);
           changeNode.textContent = (pct >= 0 ? "↑ " : "↓ ") + Math.abs(pct).toFixed(2) + "%";
           changeNode.className = "change-chip " + (pct >= 0 ? "up" : "down");
+          const changeUsd = pct > -100 ? Number(market.price) - Number(market.price) / (1 + pct / 100) : 0;
+          const usdNode = card.querySelector(".favorite-change-usd");
+          if (usdNode) usdNode.textContent = (changeUsd >= 0 ? "+" : "−") + "$" + money(Math.abs(changeUsd));
         }
       }
     });
