@@ -1,74 +1,33 @@
-name: deploy
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-  workflow_dispatch:
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
 
   deploy:
     needs: test
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    # os secrets estão no environment "TELEGRAM_BOT_TOKEN" (Settings → Environments)
     environment: TELEGRAM_BOT_TOKEN
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+
       - run: npm ci
-      - uses: cloudflare/wrangler-action@v3
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          secrets: |
-            TELEGRAM_BOT_TOKEN
-            TELEGRAM_WEBHOOK_SECRET
-            OWNER_CHAT_ID
-            API_SECRET
+
+      - name: Upload Worker secrets
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: secret bulk
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
           OWNER_CHAT_ID: ${{ secrets.OWNER_CHAT_ID }}
           API_SECRET: ${{ secrets.API_SECRET }}
-
-  # Mini App + handlers/endpoints no Telegram Serverless (tgcloud). Só roda se TGCLOUD_TOKEN existir.
-  deploy-miniapp:
-    needs: test
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    environment: TELEGRAM_BOT_TOKEN
-    defaults:
-      run:
-        working-directory: miniapp
-    env:
-      TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Push para o Telegram Serverless
-        if: env.TGCLOUD_TOKEN != ''
-        run: |
-          npm install --no-audit --no-fund
-          # o runner não tem o estado local (.tgcloud/ fora do git): sincroniza o snapshot com a
-          # nuvem antes do push, mantendo a checagem de concorrência (sem --force)
-          npx tgcloud fetch
-          npx tgcloud push
-          npx tgcloud migrate --safe
