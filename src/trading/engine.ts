@@ -104,6 +104,7 @@ export class TradingEngine {
   private restorePositions(): void {
     this.positions.clear();
     this.bySymbol.clear();
+    this.staleSymbols.clear();
     const rows = this.ctx.storage.sql.exec("SELECT position_json FROM positions WHERE status = 'open'").toArray() as Array<{ position_json: string }>;
     for (const row of rows) this.indexPosition(parsePosition(row.position_json));
   }
@@ -192,7 +193,12 @@ export class TradingEngine {
         "close:" + id, userId, id, result.reason, result.balanceDeltaMicro.toString(), before.toString(), after.toString(), Date.now());
     });
     this.positions.delete(id);
-    this.bySymbol.get(position.symbol)?.delete(id);
+    const symbolPositions = this.bySymbol.get(position.symbol);
+    symbolPositions?.delete(id);
+    if (symbolPositions?.size === 0) {
+      this.bySymbol.delete(position.symbol);
+      this.staleSymbols.delete(position.symbol);
+    }
     if (this.positions.size === 0) {
       this.socket?.close();
       this.socket = null;
