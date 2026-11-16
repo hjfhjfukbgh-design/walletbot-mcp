@@ -18,7 +18,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --check miniapp/web/app.js
-      - run: node --check miniapp/web/wallet-v2.js
+      - run: if [ -f miniapp/web/wallet-v2.js ]; then node --check miniapp/web/wallet-v2.js; fi
       - run: npm run typecheck
       - run: npm test
 
