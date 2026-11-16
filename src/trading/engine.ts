@@ -1,4 +1,4 @@
-import { closePosition, checkTrigger, manualCloseTrigger, openPosition, type Position, type PositionInput } from "./positions";
+import { closePosition, checkTrigger, manualCloseTrigger, openPosition, unrealizedPnl, type Position, type PositionInput } from "./positions";
 import { MONEY_SCALE, PRICE_SCALE, divRound, parseFixed } from "./money";
 
 interface EngineEnv { HYPERLIQUID_WS_URL?: string; ENGINE_MAX_QUOTE_AGE_MS?: string; ENGINE_DISABLE_SOCKET?: string; }
@@ -154,6 +154,25 @@ export class TradingEngine {
       feePpm: BigInt(String(body.feePpm ?? "350")), slippagePpm: BigInt(String(body.slippagePpm ?? "1000")),
     };
     const before = this.ensureAccount(userId);
+    // Risk checks live inside the Durable Object, immediately before the atomic
+    // balance/position write. API-only checks are not sufficient under concurrency.
+    const maxOrderBps = BigInt(String(body.maxOrderBps ?? ""));
+    const maxTotalExposureBps = BigInt(String(body.maxTotalExposureBps ?? ""));
+    if (maxOrderBps <= 0n || maxOrderBps > 10_000n || maxTotalExposureBps <= 0n || maxTotalExposureBps > 10_000n)
+      throw new Error("Серверные лимиты риска не заданы или некорректны.");
+    let openMargin = 0n;
+    let unrealized = 0n;
+    for (const existing of this.positions.values()) {
+      if (existing.userId !== userId || existing.status !== "open") continue;
+      openMargin += existing.marginMicro;
+      unrealized += unrealizedPnl(existing, this.freshQuote(existing.symbol).price);
+    }
+    const equity = before + openMargin + unrealized;
+    if (equity <= 0n) throw new Error("Демо-капитал исчерпан. Новые позиции заблокированы.");
+    if (input.marginMicro * 10_000n > equity * maxOrderBps)
+      throw new Error("Маржа превышает серверный лимит одной сделки.");
+    if ((openMargin + input.marginMicro) * 10_000n > equity * maxTotalExposureBps)
+      throw new Error("Общая маржа превысит серверный лимит открытой экспозиции.");
     const opened = openPosition(input, before);
     this.ctx.storage.transactionSync(() => {
       this.ctx.storage.sql.exec("UPDATE accounts SET balance_micro = ? WHERE user_id = ?", opened.balanceAfterMicro.toString(), userId);
