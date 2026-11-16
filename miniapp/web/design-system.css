@@ -475,3 +475,46 @@ button{ -webkit-tap-highlight-color:transparent }
  .asset-chart-wrap svg{height:190px}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* Reference fidelity pass 02 — wallet / markets / trade ticket layouts. */
+.wallet-head{display:flex;align-items:flex-start;justify-content:space-between}
+.wallet-balance{letter-spacing:-1.9px}
+.wallet-actions .wallet-action{justify-content:center}
+.currency-copy{min-width:0}
+.currency-copy b,.currency-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.favorite-top{align-items:center}
+.favorite-bottom{margin-top:auto}
+.wallet-asset-list{overflow:hidden;background:#fff}
+.asset-line{background:#fff;border:0;border-bottom:1px solid var(--kg-divider);border-radius:0;box-shadow:none;min-height:62px}
+.asset-line:last-child{border-bottom:0}
+.coin-avatar{flex:0 0 auto}
+.page-heading{align-items:center}
+.trade-search{height:42px;border-radius:13px;background:#E9E9EE;border:0;box-shadow:none}
+.recent-strip{gap:7px}
+.recent-chip{border:1px solid rgba(60,60,67,.09);background:#fff;border-radius:999px}
+.category-row{gap:8px}
+.category-tile{border:1px solid rgba(60,60,67,.06);box-shadow:none;border-radius:15px}
+.heatmap{border-radius:14px;overflow:hidden;gap:2px}
+.heat-cell{border-radius:3px}
+.bottom-sheet{box-shadow:0 -12px 38px rgba(20,25,35,.14);border:1px solid rgba(60,60,67,.08);background:#F5F5F9}
+.sheet-grabber{width:34px;height:4px;border-radius:99px;background:#C7C7CC;margin:2px auto 12px}
+.number-input{font-weight:750;letter-spacing:-1.5px;font-variant-numeric:tabular-nums}
+.ticket-amount-wrap{background:#fff;border:1px solid rgba(60,60,67,.09);border-radius:16px}
+.ticket-volume,.ticket-available{font-variant-numeric:tabular-nums}
+.sheet-chip{border:1px solid rgba(60,60,67,.09);background:#fff}
+.leverage-scale{touch-action:pan-x}
+.sheet-footer{background:linear-gradient(180deg,rgba(245,245,249,0),#F5F5F9 18%)}
+.asset-chart-controls .timeframe-control button{border-radius:8px}
+.asset-chart-controls .timeframe-control button.active{background:#E8E8ED;color:#15161A;font-weight:700}
+.asset-tech .row,.asset-about{border:1px solid rgba(60,60,67,.045)}
+.asset-trade-bar{background:rgba(255,255,255,.94);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.asset-trade-bar .long-button,.asset-trade-bar .short-button{font-weight:650;letter-spacing:-.1px}
+.profile-menu{border:1px solid rgba(60,60,67,.10);box-shadow:0 12px 35px rgba(20,25,35,.15);backdrop-filter:blur(24px)}
+.kg-toast{border-radius:13px;box-shadow:0 5px 20px rgba(0,0,0,.12)}
+@media(max-width:430px){
+ .bottom-sheet{max-height:calc(92dvh - env(safe-area-inset-top));overflow-y:auto;overscroll-behavior:contain}
+ .sheet-footer{position:sticky;bottom:0}
+ .asset-trade-bar{padding:5px;gap:6px}
+ .asset-trade-bar button{flex:1}
+}
+@supports(height:100dvh){.onboarding-backdrop{height:100dvh}}
