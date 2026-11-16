@@ -32,7 +32,7 @@ export default {
         const scoped = tenantEnv(env, userId);
         await handleCallback(scoped, url.searchParams);
         ctx.waitUntil(send(env, userId, "✅ Walt подключён! Используйте /tools, чтобы посмотреть инструменты и проверить их соответствие."));
-        return html("Walt conectado ✅", "Эту страницу можно закрыть и вернуться в Telegram.");
+        return html("Walt подключён ✅", "Эту страницу можно закрыть и вернуться в Telegram.");
       } catch (e) {
         return html("Ошибка подключения", (e as Error).message, 400);
       }
