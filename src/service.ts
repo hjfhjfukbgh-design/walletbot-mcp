@@ -92,7 +92,7 @@ export async function runGrid(env: Env): Promise<string> {
   s.paused = undefined;
   s.lastPrice = price;
   await saveState(env, s);
-  return `▶️ Сетка ${s.grid.cfg.market} запущена в режиме ${s.mode.toUpperCase()} (цена ${price}). Проверка каждые 5 минут.${warn}`;
+  return `▶️ Сетка ${s.grid.cfg.market} запущена в режиме ${(s.mode === 'paper' ? 'ДЕМО' : 'LIVE')} (цена ${price}). Проверка каждые 5 минут.${warn}`;
 }
 
 export async function setMode(env: Env, args: string[]): Promise<string> {
