@@ -142,6 +142,7 @@
     if(!Number.isFinite(n)||n<=0) throw new Error("Значение TP/SL должно быть положительным.");
     const direction=sideSign(side)*(kind==="tp"?1:-1);
     if(mode==="price") return n;
+    if(mode==="usd" && notional<=0) throw new Error("Сначала укажите маржу и плечо.");
     const pct=mode==="percent"?n:(n/notional*100);
     return entry*(1+direction*pct/100);
   }
@@ -196,7 +197,8 @@
       const value=Number(input.value.replace(",","."));
       s.margin=Number.isFinite(value)?value:0;
       $v("#ticket-volume",ticketOverlay).textContent="Объём: $"+money(s.margin*s.leverage);
-      button.disabled=!(s.margin>=1 && s.margin<=available);
+      const required=s.margin*(1+s.leverage*.00035);
+      button.disabled=!(s.margin>=1 && required<=available);
       button.classList.toggle("disabled",button.disabled);
     };
     input.addEventListener("input",update);
@@ -230,7 +232,9 @@
       <div class="segmented-control" id="close-mode"><button data-close-mode="price" class="${s.closeMode==="price"?"selected":""}">Цена</button><button data-close-mode="percent" class="${s.closeMode==="percent"?"selected":""}">%</button><button data-close-mode="usd" class="${s.closeMode==="usd"?"selected":""}">$</button></div>
       <label class="sheet-field">Take Profit<input id="ticket-tp" type="number" inputmode="decimal" step="any" placeholder="${s.closeMode==="price"?"Цена TP":"Цель прибыли"}" value="${s.tpValue}"></label>
       <label class="sheet-field">Stop Loss<input id="ticket-sl" type="number" inputmode="decimal" step="any" placeholder="${s.closeMode==="price"?"Цена SL":"Допустимый убыток"}" value="${s.slValue}"></label>
-      <div class="sheet-info-row"><span>Оценочная ликвидация</span><b>$${priceText(liq)}</b></div>
+      <div class="sheet-info-row"><span>Ожидаемый результат TP</span><b id="ticket-tp-result">—</b></div>
+      <div class="sheet-info-row"><span>Ожидаемый результат SL</span><b id="ticket-sl-result">—</b></div>
+      <div class="sheet-info-row"><span>Оценочная ликвидация</span><b>${priceText(liq)}</b></div>
       <p id="close-validation" class="sheet-hint">Стоп-лосс должен быть строго внутри цены входа и ликвидации.</p>
       <div class="sheet-footer"><button id="close-apply" class="primary-button full-width" type="button">Применить</button></div>`);
     ticketOverlay.querySelectorAll("[data-close-mode]").forEach((button)=>button.addEventListener("click",()=>{
@@ -238,8 +242,27 @@
       ticketOverlay.querySelectorAll("[data-close-mode]").forEach((item)=>item.classList.toggle("selected",item===button));
       renderAutoCloseSheet();
     }));
-    $v("#ticket-tp",ticketOverlay).addEventListener("input",(e)=>s.tpValue=e.target.value);
-    $v("#ticket-sl",ticketOverlay).addEventListener("input",(e)=>s.slValue=e.target.value);
+    const updatePreview=()=>{
+      s.tpValue=$v("#ticket-tp",ticketOverlay).value;
+      s.slValue=$v("#ticket-sl",ticketOverlay).value;
+      const notional=s.margin*s.leverage;
+      try {
+        const tp=closePrice(s.tpValue,s.closeMode,"tp",s.side,s.price,notional);
+        const sl=closePrice(s.slValue,s.closeMode,"sl",s.side,s.price,notional);
+        const tpPnl=tp===null?null:notional*Math.abs(tp-s.price)/s.price;
+        const slPnl=sl===null?null:-notional*Math.abs(sl-s.price)/s.price;
+        $v("#ticket-tp-result",ticketOverlay).textContent=tpPnl===null?"—":"+$"+money(tpPnl);
+        $v("#ticket-sl-result",ticketOverlay).textContent=slPnl===null?"—":"−$"+money(Math.abs(slPnl));
+        $v("#close-validation",ticketOverlay).textContent="Стоп-лосс должен быть строго между входом и ликвидацией.";
+        $v("#close-validation",ticketOverlay).classList.remove("down");
+      } catch(error) {
+        $v("#close-validation",ticketOverlay).textContent=error.message;
+        $v("#close-validation",ticketOverlay).classList.add("down");
+      }
+    };
+    $v("#ticket-tp",ticketOverlay).addEventListener("input",updatePreview);
+    $v("#ticket-sl",ticketOverlay).addEventListener("input",updatePreview);
+    updatePreview();
     $v("#close-apply",ticketOverlay).addEventListener("click",()=>{
       try{validateStops(s);renderTicketMain();}catch(error){$v("#close-validation",ticketOverlay).textContent=error.message;$v("#close-validation",ticketOverlay).classList.add("down");}
     });
@@ -289,7 +312,8 @@
 
   async function openDemoTicket(options){
     const market=options.market, side=options.side;
-    await window.kriptoGuruDemo?.refresh?.();
+    closeTicket();
+    try { await window.kriptoGuruDemo?.refresh?.(); } catch(error) { showTicketToast(error.message); return; }
     const c=contractFor(market)||options.contract||{};
     const available=fromMoneyUnits(account()?.balanceMicro||"0");
     const maxLeverage=Math.max(1,Math.min(Number(options.maxLeverage||3),Number(c.maxLeverage||options.maxLeverage||3)));
