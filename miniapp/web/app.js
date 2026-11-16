@@ -10,6 +10,7 @@ const usd = (n, d = 2) => (n === null || n === undefined || !Number.isFinite(+n)
 const signedPct = (n) => `${n >= 0 ? '↑+' : '↓'}${fmt(Math.abs(n), 2)}%`;
 const pctText = (n) => (Number(n) >= 0 ? '↑' : '↓') + fmt(Math.abs(Number(n)) || 0, 2) + '%';
 const moneyDecimals = (n) => { const value = Math.abs(Number(n)); return value >= 1000 ? 2 : value >= 1 ? 3 : value > 0 ? Math.min(10, Math.max(4, 5 - Math.floor(Math.log10(value)))) : 2; };
+const compactPrice = (n) => Math.abs(Number(n)) >= 1_000_000 ? (Number(n) / 1_000_000).toFixed(2) + 'M' : Math.abs(Number(n)) >= 1_000 ? (Number(n) / 1_000).toFixed(1) + 'K' : fmt(n, moneyDecimals(n));
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
 async function call(name, input = {}) {
@@ -207,7 +208,9 @@ function drawChart(candles, target = 'chart', market = '') {
     { v: state.position.takeProfit, color: 'var(--green)' },
     { v: state.position.entryPrice, color: 'var(--link)' },
   );
-  const all = valid.flatMap((c) => [+c[2], +c[3]]).concat(levels.map((l) => l.v));
+  const quote = contracts.find((item) => item.market === market);
+  const livePrice = Number(quote?.price);
+  const all = valid.flatMap((c) => [+c[2], +c[3]]).concat(levels.map((l) => l.v), Number.isFinite(livePrice) && livePrice > 0 ? [livePrice] : []);
   if (!valid.length) {
     svg.innerHTML = '<text x="10" y="22" fill="currentColor" font-size="12">Нет данных для графика.</text>';
     return;
@@ -222,7 +225,7 @@ function drawChart(candles, target = 'chart', market = '') {
   for (let i = 0; i <= 4; i++) {
     const value = hi - ((hi - lo) * i / 4), yy = y(value);
     out += '<line x1="0" x2="' + plotW + '" y1="' + yy + '" y2="' + yy + '" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4"/>';
-    out += '<text x="312" y="' + (yy + 3) + '" fill="var(--hint)" font-size="10">' + fmt(value, value >= 1000 ? 1 : 2) + '</text>';
+    out += '<text x="312" y="' + (yy + 3) + '" fill="var(--hint)" font-size="10">' + compactPrice(value) + '</text>';
   }
   out += levels.map((l) =>
     `<line x1="0" x2="${plotW}" y1="${y(l.v)}" y2="${y(l.v)}" stroke="${l.color}" stroke-width="1" ${l.dash ? `stroke-dasharray="${l.dash}"` : ''} vector-effect="non-scaling-stroke"/>`
@@ -238,10 +241,9 @@ function drawChart(candles, target = 'chart', market = '') {
     out += `<rect x="${x - bodyW/2}" y="${top}" width="${bodyW}" height="${height}" rx=".7" fill="${color}"/>`;
   }
   const last = valid[valid.length - 1];
-  const quote = contracts.find((item) => item.market === market);
   const lastPrice = Number(quote?.price ?? last[4]), lastColor = Number(quote?.change24hPct ?? (lastPrice - +last[1])) >= 0 ? 'var(--green)' : 'var(--red)';
   out += '<line x1="0" x2="' + plotW + '" y1="' + y(lastPrice) + '" y2="' + y(lastPrice) + '" stroke="' + lastColor + '" stroke-width="1.2" stroke-dasharray="4 3"/>';
-  out += '<text x="312" y="' + Math.max(11, Math.min(190, y(lastPrice) - 4)) + '" fill="' + lastColor + '" font-size="10" font-weight="700">' + fmt(lastPrice, lastPrice >= 1000 ? 1 : 3) + '</text>';
+  out += '<text x="312" y="' + Math.max(11, Math.min(190, y(lastPrice) - 4)) + '" fill="' + lastColor + '" font-size="10" font-weight="700">' + compactPrice(lastPrice) + '</text>';
   const firstTime = new Date(+valid[0][0]).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
   const lastTime = new Date(+last[0]).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
   out += '<text x="0" y="214" fill="var(--hint)" font-size="10">' + firstTime + '</text><text x="' + plotW + '" y="214" text-anchor="end" fill="var(--hint)" font-size="10">' + lastTime + '</text>';
