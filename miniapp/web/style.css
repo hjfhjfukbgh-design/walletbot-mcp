@@ -134,3 +134,84 @@ nav{background:rgba(9,13,16,.96);border-top-color:rgba(255,255,255,.07)}nav butt
 .mode-option{background:#1a2426}.mode-option.selected{background:#142e25;border-color:#28684e}
 input,select{background:#0c1216}button{box-shadow:none}
 @media(max-width:380px){.portfolio-balance{font-size:27px}.home-heading h1{font-size:23px}.metric b{font-size:13px}}
+
+
+/* Light theme: clean, calm trading interface inspired by Walt's visual language. */
+:root{
+  color-scheme:light;
+  --bg:#f6f7f8;
+  --bg2:#f6f7f8;
+  --surface:#ffffff;
+  --surface2:#f1f3f5;
+  --text:#171b1f;
+  --hint:#858d95;
+  --link:#59636d;
+  --btn:#171b1f;
+  --btn-text:#ffffff;
+  --green:#07966c;
+  --red:#e34f5b;
+  --amber:#b98528;
+  --line:#e9ecef;
+}
+html{background:#f6f7f8}
+body{background:#f6f7f8;color:var(--text);letter-spacing:-.15px}
+header{background:rgba(255,255,255,.94);border-bottom:1px solid #eceff1;box-shadow:0 2px 10px rgba(20,30,40,.025)}
+.brand-mark{background:#171b1f;color:#fff}
+.title,.brand{color:#171b1f}
+.pill{background:#f3f5f6;color:#747d85;border-color:#e7eaed}
+.demo-pill{background:#eaf7f1;color:#087a57;border-color:#d6eee4}
+.pill.on{background:#eaf7f1;color:#087a57;border-color:#d6eee4}
+.pill.live{background:#fff0f1;color:#c83d4a;border-color:#f7dadd}
+main{padding-top:18px}
+.card{background:#fff;border:1px solid #eceff1;box-shadow:0 2px 9px rgba(24,35,45,.025);border-radius:17px}
+.card h3{color:#30373d}
+.row{border-bottom-color:#f0f2f4}
+.row span,.item .meta,.item .tag{color:#899198}
+input,select,.chart-tools select,.chart-detail-head select{background:#fff;color:#252b30;border-color:#e5e9ec}
+input:focus{border-color:#9aa8b2;box-shadow:0 0 0 3px rgba(100,120,135,.1)}
+button{background:#171b1f;color:#fff}
+button.secondary{background:#f1f3f5;color:#30373d}
+button.danger{background:#fff0f1;color:#c83d4a;border-color:#f4d7da}
+.alert{background:#fff8e9;border-color:#f0dfb9;color:#795b20}
+.home-heading h1{color:#171b1f}
+.eyebrow{color:#92999f}
+.live-dot{color:#7d878e}
+.live-dot i{background:#07966c;box-shadow:0 0 0 3px #07966c18}
+.portfolio-card{background:linear-gradient(135deg,#ffffff 0%,#f8faf9 100%);border:1px solid #e8eeeb;box-shadow:0 3px 14px rgba(27,55,43,.035)}
+.portfolio-top{color:#7b8580}
+.portfolio-currency{background:#f3f5f4;border-color:#e8ece9;color:#4d5752}
+.portfolio-balance{color:#151a18}
+.portfolio-change small{color:#8b9490}
+.portfolio-divider{background:#e9eeeb}
+.portfolio-stats span{color:#89928e}
+.portfolio-stats b{color:#252c28}
+.portfolio-stats div+div{border-left-color:#e8eeeb}
+.home-quick-actions .quick-action{background:#fff;border:1px solid #e9edef;color:#3e474d;box-shadow:0 2px 7px rgba(20,30,40,.025)}
+.quick-action .ic{color:#687b72}
+.market-strip{border-bottom-color:#e9edef}
+.market-strip strong{color:#30383d}
+.metric{background:#f6f8f8}
+.metric span{color:#899198}
+.metric b{color:#22292e}
+.home-market-row{background:transparent;border-bottom-color:#edf0f2;color:#20272c}
+.market-token{background:#f0f3f3;color:#4b5b56}
+.market-token-name small,.market-token-quote small{color:#8b949a}
+.soft-tag{color:#087a57;background:#eaf7f1;border:1px solid #d6eee4}
+nav{background:rgba(255,255,255,.97);border-top:1px solid #e9edef;box-shadow:0 -3px 14px rgba(25,35,45,.035)}
+nav button{color:#92999f}
+nav button.active{color:#171b1f;background:#f0f2f3}
+.profile-trigger{background:#f2f4f5;border:1px solid #e7eaed;color:#3e474d}
+.profile-menu{background:#fff;border-color:#e8ecef;box-shadow:0 12px 36px rgba(20,30,40,.14)}
+.profile-menu-head{border-bottom-color:#edf0f2}
+.profile-avatar{background:#f0f3f3;color:#4c6158}
+.profile-menu-label{color:#8a9399}
+.mode-option{background:#f5f7f7;color:#242b30}
+.mode-option.selected{background:#eaf7f1;border-color:#b9e3d2;color:#087a57}
+.mode-option.locked{background:#f5f6f7;color:#9ba2a7}
+.profile-menu-note{color:#8a9399}
+.list .item{background:#fff;border-color:#e9edef}
+.item.blocked{opacity:.5}
+table td,table th{border-bottom-color:#edf0f2}
+.chart-card svg,#equity{color:#8a9399}
+.legend{color:#8a9399}
+@media(max-width:380px){.portfolio-balance{font-size:27px}}
