@@ -209,25 +209,17 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
 export async function closeAll(env: Env): Promise<string> {
   const state = await loadState(env);
   if (!state.grid) return "Сетка не настроена.";
-  const { cfg } = state.grid;
-  const walt = state.mode === "live" ? await connectWalt(env) : null;
-  state.running = false;
   if (state.mode === "live") {
-    if (!walt) return "Walt не подключён — закройте позицию в приложении Walt.";
-    if (await walt.openPosition(cfg.contract.contractId)) await walt.closePosition(cfg.contract.contractId);
-    const pos = state.grid.position;
-    if (pos) {
-      const price = await currentPrice(cfg, state.mode === "live" ? walt : null);
-      await recordClose(env, state, pos, price, positionPnl(pos, price, cfg.contract.takerFeePct), "manual");
-    }
-    state.grid.position = undefined;
+    state.running = false;
     await saveState(env, state);
-    return `Запрос на закрытие позиции ${cfg.market} отправлен. Сетка остановлена. Проверьте статус через /status.`;
+    return "LIVE заблокирован в Kripto Guru. Автоматические операции с реальным кошельком отключены; проверьте возможную открытую позицию непосредственно в биржевом приложении.";
   }
+  const cfg = state.grid.cfg;
+  state.running = false;
   const pos = state.grid.position;
   let msg = "Открытой позиции нет. Сетка остановлена.";
   if (pos) {
-    const price = await currentPrice(cfg, walt);
+    const price = await currentPrice(cfg, null);
     const pnl = positionPnl(pos, price, cfg.contract.takerFeePct);
     state.paper.cash += pnl;
     await recordClose(env, state, pos, price, pnl, "manual");

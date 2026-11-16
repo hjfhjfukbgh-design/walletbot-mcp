@@ -1,4 +1,4 @@
-import { closePosition, checkTrigger, manualCloseTrigger, openPosition, type Position, type PositionInput } from "./positions";
+import { applyEntrySlippage, closePosition, checkTrigger, manualCloseTrigger, openPosition, unrealizedPnl, type Position, type PositionInput } from "./positions";
 import { MONEY_SCALE, PRICE_SCALE, divRound, parseFixed } from "./money";
 
 interface EngineEnv { HYPERLIQUID_WS_URL?: string; ENGINE_MAX_QUOTE_AGE_MS?: string; ENGINE_DISABLE_SOCKET?: string; }
@@ -143,17 +143,40 @@ export class TradingEngine {
     const symbol = safeSymbol(body.symbol);
     const quote = this.freshQuote(symbol);
     const leverage = BigInt(String(body.leverage));
-    const liquidationPrice = estimateDemoLiquidation(quote.price, leverage, body.side === "long" ? "long" : "short", 5_000n);
+    const side = body.side === "long" ? "long" : body.side === "short" ? "short" : null;
+    if (!side) throw new Error("Направление должно быть LONG или SHORT.");
+    const slippagePpm = BigInt(String(body.slippagePpm ?? "1000"));
+    const entryPrice = applyEntrySlippage(quote.price, side, slippagePpm);
+    const liquidationPrice = estimateDemoLiquidation(entryPrice, leverage, side, 5_000n);
     const input: PositionInput = {
-      id: crypto.randomUUID(), userId, symbol, side: body.side as "long" | "short",
+      id: crypto.randomUUID(), userId, symbol, side,
       marginMicro: BigInt(String(body.marginMicro)), leverage,
-      entryPrice: quote.price,
+      entryPrice,
       takeProfitPrice: body.takeProfitPrice == null ? null : BigInt(String(body.takeProfitPrice)),
       stopLossPrice: body.stopLossPrice == null ? null : BigInt(String(body.stopLossPrice)),
       liquidationPrice,
-      feePpm: BigInt(String(body.feePpm ?? "350")), slippagePpm: BigInt(String(body.slippagePpm ?? "1000")),
+      feePpm: BigInt(String(body.feePpm ?? "350")), slippagePpm,
     };
     const before = this.ensureAccount(userId);
+    // Risk checks live inside the Durable Object, immediately before the atomic
+    // balance/position write. API-only checks are not sufficient under concurrency.
+    const maxOrderBps = BigInt(String(body.maxOrderBps ?? ""));
+    const maxTotalExposureBps = BigInt(String(body.maxTotalExposureBps ?? ""));
+    if (maxOrderBps <= 0n || maxOrderBps > 10_000n || maxTotalExposureBps <= 0n || maxTotalExposureBps > 10_000n)
+      throw new Error("Серверные лимиты риска не заданы или некорректны.");
+    let openMargin = 0n;
+    let unrealized = 0n;
+    for (const existing of this.positions.values()) {
+      if (existing.userId !== userId || existing.status !== "open") continue;
+      openMargin += existing.marginMicro;
+      unrealized += unrealizedPnl(existing, this.freshQuote(existing.symbol).price);
+    }
+    const equity = before + openMargin + unrealized;
+    if (equity <= 0n) throw new Error("Демо-капитал исчерпан. Новые позиции заблокированы.");
+    if (input.marginMicro * 10_000n > equity * maxOrderBps)
+      throw new Error("Маржа превышает серверный лимит одной сделки.");
+    if ((openMargin + input.marginMicro) * 10_000n > equity * maxTotalExposureBps)
+      throw new Error("Общая маржа превысит серверный лимит открытой экспозиции.");
     const opened = openPosition(input, before);
     this.ctx.storage.transactionSync(() => {
       this.ctx.storage.sql.exec("UPDATE accounts SET balance_micro = ? WHERE user_id = ?", opened.balanceAfterMicro.toString(), userId);
@@ -217,7 +240,6 @@ export class TradingEngine {
     if (price <= 0n || !Number.isSafeInteger(observedAt) || Math.abs(Date.now() - observedAt) > 5_000) throw new Error("Получена некорректная или устаревшая котировка.");
     this.quotes.set(symbol, { price, observedAt });
     this.staleSymbols.delete(symbol);
-    this.lastMessageAt = Date.now();
     let checked = 0;
     for (const id of [...(this.bySymbol.get(symbol) ?? [])]) {
       const position = this.positions.get(id);
@@ -269,12 +291,57 @@ export class TradingEngine {
     if ((!this.socket || this.socket.readyState === WebSocket.CLOSED) && now >= this.nextReconnectAt) {
       this.connectMarketSocket();
     }
+
+    // WebSocket is the primary feed. Poll HTTP allMids as a watchdog fallback
+    // whenever the socket is unavailable or any open market has a stale quote.
+    // This keeps TP/SL/liquidation monitoring alive through feed disconnects.
+    if (this.socket?.readyState !== WebSocket.OPEN || this.staleSymbols.size > 0) {
+      await this.refreshPublicQuotes();
+      for (const symbol of this.bySymbol.keys()) {
+        const quote = this.quotes.get(symbol);
+        if (!quote || quote.observedAt > Date.now() + 1_000 || Date.now() - quote.observedAt > this.maxQuoteAgeMs)
+          this.staleSymbols.add(symbol);
+        else this.staleSymbols.delete(symbol);
+      }
+    }
+
     if (now - this.lastSnapshotAt >= SNAPSHOT_MS) {
       const quotes = Object.fromEntries([...this.quotes].map(([symbol, quote]) => [symbol, { price: quote.price.toString(), observedAt: quote.observedAt }]));
       this.ctx.storage.sql.exec("INSERT INTO engine_meta(key,value) VALUES('snapshot', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", JSON.stringify({ at: now, openPositions: this.positions.size, quotes }));
       this.lastSnapshotAt = now;
     }
     await this.ctx.storage.setAlarm(now + WATCHDOG_MS);
+  }
+
+  private async refreshPublicQuotes(): Promise<void> {
+    try {
+      const response = await fetch("https://api.hyperliquid.xyz/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "allMids" }),
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (!response.ok) return;
+      const mids = await response.json() as Record<string, string>;
+      const observedAt = Date.now();
+      for (const symbol of this.bySymbol.keys()) {
+        try {
+          const raw = mids[symbol];
+          if (!raw) {
+            this.staleSymbols.add(symbol);
+            continue;
+          }
+          const price = parseFixed(raw, PRICE_SCALE, 8);
+          if (price <= 0n) throw new Error("Некорректная резервная котировка.");
+          await this.acceptQuote({ symbol, price: price.toString(), observedAt });
+        } catch {
+          // A bad response for one market must not stop refreshes for other open positions.
+          this.staleSymbols.add(symbol);
+        }
+      }
+    } catch {
+      // Keep the last quote marked stale; opens/closes remain blocked until a fresh feed arrives.
+    }
   }
 
   private connectMarketSocket(): void {
@@ -300,7 +367,10 @@ export class TradingEngine {
           for (const [symbol, raw] of Object.entries(message.data.mids)) {
             if (!this.bySymbol.has(symbol)) continue;
             const price = parseFixed(raw, PRICE_SCALE, 8);
-            if (price > 0n) void this.acceptQuote({ symbol, price: price.toString(), observedAt: now });
+            if (price > 0n) {
+              void this.acceptQuote({ symbol, price: price.toString(), observedAt: now })
+                .catch(() => this.staleSymbols.add(symbol));
+            }
           }
         } catch { /* malformed upstream frames are ignored; watchdog will reconnect if feed goes stale */ }
       });

@@ -53,6 +53,13 @@ export function applyAdverseSlippage(price: bigint, side: Side, slippagePpm: big
   return divRound(price * factor, PPM_SCALE, side === "long" ? "floor" : "ceil");
 }
 
+/** Entry execution is adverse in the opposite direction to closing an existing position. */
+export function applyEntrySlippage(price: bigint, side: Side, slippagePpm: bigint): bigint {
+  if (price <= 0n || slippagePpm < 0n || slippagePpm >= PPM_SCALE) throw new Error("Некорректная цена или проскальзывание.");
+  const factor = side === "long" ? PPM_SCALE + slippagePpm : PPM_SCALE - slippagePpm;
+  return divRound(price * factor, PPM_SCALE, side === "long" ? "ceil" : "floor");
+}
+
 /** Pure open calculation. Caller atomically persists result and reserves margin + entry fee. */
 export function openPosition(input: PositionInput, availableBalanceMicro: bigint): OpenResult {
   if (!input.id || !input.userId || !input.symbol) throw new Error("Не заполнены идентификаторы позиции.");
