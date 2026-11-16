@@ -32,7 +32,7 @@ const server = http.createServer((req,res)=>{
   if (url.pathname === "/api/trades") return send(res,{ok:true,trades:[],equity:[]});
   if (url.pathname === "/api/price") {
     const item=markets.find(x=>x.market===url.searchParams.get("market")) || markets[0];
-    return send(res,{ok:true,market:item.market,price:item.price,leverage:1,minMargin:10,suggestion:{low:item.price*.94,high:item.price*1.02}});
+    return send(res,{ok:true,market:item.market,price:item.price,leverage:1,maxDemoLeverage:3,minMargin:10,suggestion:{low:item.price*.94,high:item.price*1.02}});
   }
   if (url.pathname.startsWith("/api/")) return send(res,{ok:false,error:"Mock endpoint not found"},404);
   const requested = url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname.slice(1));
@@ -70,6 +70,9 @@ try {
     await page.locator("#pairs").scrollIntoViewIfNeeded();
     await page.waitForTimeout(250);
     await page.screenshot({path:`trade-list-${width}x844.png`,fullPage:false});
+    await page.locator("#pairs .market-row").first().click();
+    await page.waitForTimeout(1100);
+    await page.screenshot({path:`asset-${width}x844.png`,fullPage:false});
     await page.close();
   }
 } finally {
