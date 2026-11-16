@@ -2,6 +2,14 @@ name = "walletbot-mcp"
 main = "src/index.ts"
 compatibility_date = "2025-06-01"
 
+[[durable_objects.bindings]]
+name = "ENGINE"
+class_name = "TradingEngine"
+
+[[migrations]]
+tag = "engine_v1"
+new_sqlite_classes = ["TradingEngine"]
+
 [assets]
 directory = "./miniapp/web"
 binding = "ASSETS"

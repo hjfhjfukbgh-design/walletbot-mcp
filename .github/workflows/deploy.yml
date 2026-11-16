@@ -18,12 +18,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --check miniapp/web/app.js
+      - run: if [ -f miniapp/web/wallet-v2.js ]; then node --check miniapp/web/wallet-v2.js; fi
       - run: npm run typecheck
       - run: npm test
 
   deploy:
     needs: test
-    if: github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: TELEGRAM_BOT_TOKEN
     steps:

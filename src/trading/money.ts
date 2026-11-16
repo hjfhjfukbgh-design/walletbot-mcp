@@ -1,9 +1,8 @@
 /**
- * Единственные правила фиксированной арифметики торгового ядра.
- * Деньги: 1 USDT = 1_000_000 микро-USDT.
- * Цена: 1 USDT = 100_000_000 price-units.
- * Количество: 1 coin = 100_000_000 qty-units.
- * В финансовых функциях запрещён number/float.
+ * Fixed-point arithmetic for the trading core.
+ * Money: 1 USDT = 1_000_000 micro-USDT.
+ * Price and quantity: 1 unit = 100_000_000 integer units.
+ * No floating-point arithmetic is allowed in financial calculations.
  */
 export const MONEY_SCALE = 1_000_000n;
 export const PRICE_SCALE = 100_000_000n;
@@ -13,19 +12,19 @@ export const PPM_SCALE = 1_000_000n;
 
 export type Rounding = "floor" | "ceil" | "half-up";
 
-/** Деление целых чисел с единым, явно заданным правилом округления. */
+/** Mathematical floor/ceil; half-up rounds ties away from zero. */
 export function divRound(numerator: bigint, denominator: bigint, mode: Rounding): bigint {
   if (denominator <= 0n) throw new Error("Знаменатель должен быть положительным.");
-  const negative = numerator < 0n;
-  const n = negative ? -numerator : numerator;
-  let q = n / denominator;
-  const r = n % denominator;
-  if (mode === "ceil" && r !== 0n) q += 1n;
-  if (mode === "half-up" && r * 2n >= denominator) q += 1n;
-  return negative ? -q : q;
+  const q = numerator / denominator; // BigInt truncates toward zero
+  const r = numerator % denominator;
+  if (r === 0n) return q;
+  if (mode === "floor") return numerator < 0n ? q - 1n : q;
+  if (mode === "ceil") return numerator > 0n ? q + 1n : q;
+  const absR = r < 0n ? -r : r;
+  return absR * 2n >= denominator ? q + (numerator < 0n ? -1n : 1n) : q;
 }
 
-/** Строгий парсер десятичной строки; экспоненциальная запись запрещена. */
+/** Strict decimal parser. Scientific notation is rejected; excess precision is half-up rounded. */
 export function parseFixed(value: string, scale: bigint, decimals: number): bigint {
   if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18) throw new Error("Некорректная точность.");
   if (scale !== 10n ** BigInt(decimals)) throw new Error("Масштаб не соответствует точности.");
@@ -41,6 +40,7 @@ export function parseFixed(value: string, scale: bigint, decimals: number): bigi
 }
 
 export function formatFixed(value: bigint, decimals: number): string {
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18) throw new Error("Некорректная точность.");
   const scale = 10n ** BigInt(decimals);
   const negative = value < 0n;
   const absolute = negative ? -value : value;
@@ -49,24 +49,26 @@ export function formatFixed(value: bigint, decimals: number): string {
   return `${negative ? "-" : ""}${whole}${decimals ? "." + fraction : ""}`;
 }
 
-/** USDT micro-value of qty * price. Rounds half-up. */
+/** USDT micro-value of qty * price; half-up to the nearest micro-USDT. */
 export function notionalMicro(qtyUnits: bigint, priceUnits: bigint): bigint {
+  if (qtyUnits < 0n || priceUnits < 0n) throw new Error("Количество и цена не могут быть отрицательными.");
   return divRound(qtyUnits * priceUnits * MONEY_SCALE, PRODUCT_DENOMINATOR, "half-up");
 }
 
-/** Signed gross P&L in micro-USDT. */
+/** Signed gross P&L in micro-USDT; half-up, ties away from zero. */
 export function pnlMicro(side: "long" | "short", qtyUnits: bigint, entryPrice: bigint, exitPrice: bigint): bigint {
+  if (qtyUnits < 0n || entryPrice <= 0n || exitPrice <= 0n) throw new Error("Некорректные параметры P&L.");
   const delta = side === "long" ? exitPrice - entryPrice : entryPrice - exitPrice;
   return divRound(qtyUnits * delta * MONEY_SCALE, PRODUCT_DENOMINATOR, "half-up");
 }
 
-/** Fee in micro-USDT; feePpm is parts per million (350 = 0.035%). */
+/** Fee in micro-USDT. Positive fees always round up so the system never under-collects. */
 export function feeMicro(notional: bigint, feePpm: bigint): bigint {
   if (notional < 0n || feePpm < 0n) throw new Error("Номинал и комиссия не могут быть отрицательными.");
   return divRound(notional * feePpm, PPM_SCALE, "ceil");
 }
 
-/** Quantity in 1e-8 coin units. Rounds down to avoid exceeding requested margin. */
+/** Quantity in 1e-8 coin units, rounded down to avoid exceeding requested margin. */
 export function quantityUnits(marginMicro: bigint, leverage: bigint, entryPrice: bigint): bigint {
   if (marginMicro <= 0n || leverage <= 0n || entryPrice <= 0n) throw new Error("Маржа, плечо и цена должны быть положительными.");
   return marginMicro * leverage * PRODUCT_DENOMINATOR / (MONEY_SCALE * entryPrice);
