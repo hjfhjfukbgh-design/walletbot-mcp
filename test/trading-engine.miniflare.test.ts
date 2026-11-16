@@ -31,7 +31,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       modules: true,
       script: source,
       durableObjects: { ENGINE: { className: "TradingEngine", useSQLite: true } },
-      bindings: { ENGINE_MAX_QUOTE_AGE_MS: "10000", HYPERLIQUID_WS_URL: "ws://127.0.0.1:1" },
+      bindings: { ENGINE_MAX_QUOTE_AGE_MS: "10000", ENGINE_DISABLE_SOCKET: "true" },
       resourcePersistencePath: root,
     });
     const ns = await mf.getDurableObjectNamespace("ENGINE");
