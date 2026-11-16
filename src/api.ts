@@ -105,6 +105,8 @@ async function stateView(env: Env) {
   }
   return {
     mode: s.mode,
+    liveExecutionMode: s.liveExecutionMode ?? "confirm",
+    pendingLiveApproval: s.pendingLiveApproval ? { ...s.pendingLiveApproval, price: s.pendingLiveApproval.price } : null,
     running: s.running,
     paused: s.paused ?? null,
     connected,
