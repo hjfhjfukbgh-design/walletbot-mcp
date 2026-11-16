@@ -14,6 +14,7 @@ import { buyPrice, minMargin, notional, step, stopLossPrice } from "./strategy/g
 import { timingSafeEqual, type TgUpdate } from "./telegram";
 import { findContract } from "./walt";
 import { tenantEnv } from "./tenants";
+import { closeManualTrade, manualPositionsView, monitorManualTrades, openManualTrade } from "./manual";
 
 type Json = Record<string, unknown>;
 
@@ -45,6 +46,7 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
   try {
     switch (route) {
       case "GET state":
+        await monitorManualTrades(scopedEnv);
         return json({ ok: true, ...(await stateView(scopedEnv)) });
       case "GET contracts":
         return json({ ok: true, contracts: await contractsView(scopedEnv) });
@@ -52,6 +54,15 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         return json({ ok: true, ...(await priceView(scopedEnv, url.searchParams.get("market") ?? "", Number(url.searchParams.get("leverage") ?? 3))) });
       case "GET chart":
         return json({ ok: true, ...(await chartView(scopedEnv, url.searchParams.get("market") ?? "", url.searchParams.get("interval") ?? "15m")) });
+      case "POST manual": {
+        if (body.action === "open") {
+          const side = String(body.side ?? "") as "long" | "short";
+          const result = await openManualTrade(scopedEnv, { market: String(body.market ?? ""), side, marginUsd: Number(body.marginUsd), leverage: Number(body.leverage), takeProfit: body.takeProfit == null ? null : Number(body.takeProfit), stopLoss: body.stopLoss == null ? null : Number(body.stopLoss) });
+          return json({ ok: true, ...result });
+        }
+        if (body.action === "close") return json({ ok: true, message: await closeManualTrade(scopedEnv, String(body.id ?? "")) });
+        return fail("Действие должно быть open или close");
+      }
       case "GET trades": {
         const s = await loadState(scopedEnv);
         return json({ ok: true, trades: (await loadTrades(scopedEnv)).slice().reverse(), equity: s.equity ?? [] });
@@ -133,9 +144,16 @@ async function stateView(env: Env) {
         }
       : null,
     livePosition: live,
-    paper: s.mode === "paper" ? { ...s.paper, equity: s.lastPrice ? paperEquity(s, s.lastPrice) : s.paper.cash } : null,
+    paper: s.mode === "paper" ? { ...s.paper, equity: await paperEquityWithManual(env, s) } : null,
+    manualPositions: s.mode === "paper" ? await manualPositionsView(env) : [],
     limits,
   };
+}
+
+async function paperEquityWithManual(env: Env, s: Awaited<ReturnType<typeof loadState>>) {
+  const manual = await manualPositionsView(env);
+  const gridPnl = s.lastPrice ? (s.grid?.position && s.grid ? positionPnl(s.grid.position, s.lastPrice, s.grid.cfg.contract.takerFeePct) : 0) : 0;
+  return Number((s.paper.cash + gridPnl + manual.reduce((sum, p) => sum + p.estimatedEquity, 0)).toFixed(4));
 }
 
 async function contractsView(env: Env) {
