@@ -89,7 +89,7 @@
       const modes=document.createElement("div");
       modes.id="asset-chart-modes";
       modes.className="segmented-control asset-chart-modes";
-      modes.innerHTML='<button type="button" class="selected" data-chart-mode="candles">Свечи</button><button type="button" data-chart-mode="line">Линия</button>';
+      modes.innerHTML='<button type="button" class="'+(assetChartMode==="candles"?"selected":"")+'" data-chart-mode="candles">Свечи</button><button type="button" class="'+(assetChartMode==="line"?"selected":"")+'" data-chart-mode="line">Линия</button>';
       controls.append(modes);
       modes.addEventListener("click",(event)=>{
         const button=event.target.closest("[data-chart-mode]");
