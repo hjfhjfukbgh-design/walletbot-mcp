@@ -501,7 +501,7 @@ $('#pairs').addEventListener('click', async (ev) => {
       if (!button) return;
       $('#pair-timeframes').querySelectorAll('button').forEach((x) => x.classList.toggle('selected', x === button));
       loadChart(market, 'pair-chart', button.dataset.interval);
-      tg.HapticFeedback?.selectionChanged?.();
+      tg?.HapticFeedback?.selectionChanged?.();
     });
     $('#asset-grid-toggle').addEventListener('click', () => { showAssetGrid = !showAssetGrid; $('#asset-grid-toggle').textContent = showAssetGrid ? 'Скрыть сетку' : 'Показать сетку'; loadChart(market, 'pair-chart', $('#pair-timeframes button.selected')?.dataset.interval || '15m'); });
     $('#asset-back').addEventListener('click', () => { box.classList.add('hidden'); $('#q').focus(); });
@@ -612,11 +612,11 @@ document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-help]');
   if (!button) return;
   event.preventDefault();
-  tg.showAlert?.(helpCopy[button.dataset.help] || 'Справка пока недоступна.');
+  tg?.showAlert?.(helpCopy[button.dataset.help] || 'Справка пока недоступна.');
 });
 $('#home-see-all,#home-open-markets,#home-open-markets-sell').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
 $('#portfolio-trigger').addEventListener('click', () => document.querySelector('nav button[data-tab="painel"]').click());
-$('#notifications-trigger').addEventListener('click', () => tg.showAlert?.('Уведомлений пока нет.'));
+$('#notifications-trigger').addEventListener('click', () => tg?.showAlert?.('Уведомлений пока нет.'));
 $('#pos').addEventListener('click', async (event) => {
   if (event.target.closest('#empty-open-markets')) { setTab('pares'); return; }
   const manualClose = event.target.closest('[data-manual-close]');
@@ -637,7 +637,7 @@ $('#pos').addEventListener('click', async (event) => {
 });
 $('#wallet-grid-settings').addEventListener('click', () => document.querySelector('nav button[data-tab="ctrl"]').click());
 $('#wallet-grid-run').addEventListener('click', async () => { if (!state?.grid) { setTab('ctrl'); return; } try { const action = state.paused ? 'resume' : state.running ? 'stop' : 'run'; const r=await call('control',{action}); ctrlMessage(r.message); await loadState(); } catch(e) { showError(e); } });
-$('#home-reset-demo').addEventListener('click', () => tg.showAlert?.('Для сброса отправьте боту команду /paper reset. Виртуальный баланс вернётся к $1 000, сетка остановится. История операций сохранится.'));
+$('#home-reset-demo').addEventListener('click', () => tg?.showAlert?.('Для сброса отправьте боту команду /paper reset. Виртуальный баланс вернётся к $1 000, сетка остановится. История операций сохранится.'));
 $('#home-open-grid').addEventListener('click', () => setTab('ctrl'));
 document.querySelectorAll('[data-preset]').forEach((button) => button.addEventListener('click', async () => {
   try {
@@ -656,7 +656,7 @@ document.querySelectorAll('[data-preset]').forEach((button) => button.addEventLi
     form.marginUsd.value = Math.max(values.margin, Number(contract.minSizeQuote || 0));
     form.leverage.value = values.leverage;
     document.querySelectorAll('[data-preset]').forEach((x) => x.classList.toggle('selected', x === button));
-    tg.HapticFeedback?.selectionChanged?.();
+    tg?.HapticFeedback?.selectionChanged?.();
   } catch (error) { ctrlMessage(error.message, 'error'); }
 }));
 
@@ -756,7 +756,7 @@ document.querySelectorAll('[data-action]').forEach((b) =>
     }
     if (action === 'closeall' && !(await confirm('Закрыть позицию и остановить сетку?'))) return;
     try {
-      tg.HapticFeedback?.impactOccurred('light');
+      tg?.HapticFeedback?.impactOccurred?.('light');
       const r = await call('control', input);
       ctrlMessage(r.message);
       loadState();
@@ -785,7 +785,7 @@ $('#home-timeframes').addEventListener('click', (event) => {
   $('#home-timeframes').querySelectorAll('button').forEach((x) => x.classList.toggle('selected', x === button));
   const market = state?.grid?.market || contracts[0]?.market;
   if (market) loadChart(market, 'chart', button.dataset.chartInterval);
-  tg.HapticFeedback?.selectionChanged?.();
+  tg?.HapticFeedback?.selectionChanged?.();
 });
 
 const onboardingSteps = [
