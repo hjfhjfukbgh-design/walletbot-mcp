@@ -129,7 +129,7 @@ function renderState() {
   $('#g-desc').textContent = g ? `${g.market} ${usd(g.low)}–${usd(g.high)} · ${g.levels} уровней` : 'Не настроена';
   const rc = s.lastRecenter;
   $('#g-recenter-row').classList.toggle('hidden', !rc);
-  if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · preço ${usd(rc.price)}`;
+  if (rc) $('#g-recenter').textContent = `${new Date(rc.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · цена ${usd(rc.price)}`;
   $('#g-trade').textContent = g ? `маржа ${usd(g.marginUsd)} ${g.leverage}x ≈ ${usd(g.notional)} · SL ${usd(g.stopLoss)}` : '—';
 
   const p = s.position;
@@ -145,7 +145,7 @@ function renderState() {
     ];
     if (lp) {
       const liq = +lp.liquidation_price;
-      rows.push(['Ликвидация', `${usd(liq)}${liq && s.lastPrice ? ` (${fmt(((s.lastPrice - liq) / s.lastPrice) * 100, 1)}% de distância)` : ''}`]);
+      rows.push(['Ликвидация', `${usd(liq)}${liq && s.lastPrice ? ` (${fmt(((s.lastPrice - liq) / s.lastPrice) * 100, 1)}% до ликвидации)` : ''}`]);
       if (lp.funding_paid_quote !== undefined) rows.push(['Выплаченный фандинг', usd(lp.funding_paid_quote, 4)]);
       if (lp.margin_quote !== undefined) rows.push(['Маржа', usd(lp.margin_quote)]);
     }
@@ -313,7 +313,8 @@ async function loadMarketPreview() {
     $('#pairs').textContent = error.message;
   }
 }
-$('#home-see-all,#home-open-markets,#home-open-markets-sell').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
+$('#home-see-all,#home-open-markets').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
+$('#home-open-markets-sell').addEventListener('click', () => tg.showAlert?.('Ручные сделки пока не поддерживаются. Сейчас доступна демо-сетка.'));
 $('#portfolio-trigger').addEventListener('click', () => document.querySelector('nav button[data-tab="painel"]').click());
 $('#notifications-trigger').addEventListener('click', () => tg.showAlert?.('Уведомлений пока нет.'));
 $('#education-banner').addEventListener('click', () => tg.showAlert?.('Обучение: 1) демо использует виртуальные средства; 2) выберите актив и настройте сетку; 3) график показывает реальные рыночные котировки.'));
