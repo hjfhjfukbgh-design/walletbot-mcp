@@ -15,6 +15,8 @@ export interface ContractInfo {
   priceSlippage: number;
   volume24hUsd?: number;
   fundingRateHourly?: number;
+  price?: number;
+  change24hPct?: number;
 }
 
 export interface GridConfig {
