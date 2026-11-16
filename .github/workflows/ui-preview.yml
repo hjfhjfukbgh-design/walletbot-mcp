@@ -24,3 +24,5 @@ jobs:
           path: |
             wallet-390x844.png
             wallet-430x844.png
+            trade-390x844.png
+            trade-430x844.png
