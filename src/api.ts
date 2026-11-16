@@ -208,7 +208,9 @@ async function validateTelegramInitData(initData: string, botToken: string): Pro
     const now = Math.floor(Date.now() / 1000);
     if (!/^[a-f0-9]{64}$/i.test(hash) || !Number.isFinite(authDate) || authDate < now - 86_400 || authDate > now + 60) return null;
     params.delete("hash");
-    const checkString = [...params.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, v]) => `${k}=${v}`).join("\n");
+    const pairs: Array<[string, string]> = [];
+    params.forEach((value, key) => pairs.push([key, value]));
+    const checkString = pairs.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, v]) => `${k}=${v}`).join("\n");
     const encoder = new TextEncoder();
     const hmac = async (keyBytes: Uint8Array, data: string) => {
       const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
