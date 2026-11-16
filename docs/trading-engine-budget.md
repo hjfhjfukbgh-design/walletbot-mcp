@@ -6,10 +6,10 @@ Status: Draft. Do not enable LIVE or deploy this branch before the open issues b
 
 - SQLite is the source of truth for accounts, open/closed positions, ledger entries, and one compact engine snapshot per minute.
 - Every open/close persists the account balance, position transition, and ledger entry in one `transactionSync` callback.
-- Quotes and TP/SL/liquidation indexes are memory-only. No quote tick is written to SQLite.
+- Quotes are cached in memory and copied into one compact SQLite snapshot per minute; no individual tick is written. TP/SL/liquidation indexes are rebuilt from persisted open positions after restart/reconnect.
 - After eviction/restart, memory is treated as empty. The constructor restores open positions from SQLite, rebuilds the symbol index, then reconnects the market socket. The subscription snapshot repopulates prices.
-- The watchdog uses a 45-second DO Alarm while at least one position is open. Outgoing WebSockets cannot hibernate; Cloudflare says each outbound connection prevents eviction for up to 15 minutes, then normal eviction can resume. The Engine proactively reconnects at about 14 minutes.
-- A continuously active 128 MB DO uses 0.128 GB × 86,400 s = 11,059.2 GB-s/day. Against the 13,000 GB-s/day Free duration allowance, the theoretical headroom is only 1,940.8 GB-s/day (about 14.9%), before any extra active periods. This is the principal scaling constraint, not SQLite reads. It checks socket state/silence, forces a reconnect after 14 minutes, restores positions after a disconnect, and checks quote freshness before any execution. With no open positions, the socket and alarm are stopped.
+- The watchdog uses a 30-second DO Alarm while at least one position is open. Outgoing WebSockets cannot hibernate; Cloudflare says each outbound connection prevents eviction for up to 15 minutes, then normal eviction can resume. The Engine proactively reconnects at about 14 minutes.
+- A continuously active 128 MB DO uses 0.128 GB × 86,400 s = 11,059.2 GB-s/day. Against the 13,000 GB-s/day Free duration allowance, the theoretical headroom is only 1,940.8 GB-s/day (about 14.9%), before any extra active periods. This is the principal scaling constraint, not SQLite reads. The watchdog checks socket state/silence, forces a reconnect after about 14 minutes, restores positions after a successful reconnect, and checks per-symbol quote freshness before execution. With no open positions, the socket and alarm are stopped.
 - Quote age defaults to 10 seconds. Older or future-dated quotes are rejected for open/close execution.
 - A gap is executed using the current fresh quote with adverse slippage, not the crossed TP/SL/liquidation level.
 
@@ -84,7 +84,7 @@ https://developers.cloudflare.com/durable-objects/platform/pricing/
 
 ## Fallback if the DO Free budget is insufficient
 
-A separate always-on process can own the Hyperliquid WebSocket and send an authenticated event to the Worker only when a watched symbol approaches/crosses an indexed level. The Engine must still:
+This fallback is an architecture plan only; the external process and authenticated feed endpoint are not implemented in this PR. A separate always-on process can own the Hyperliquid WebSocket and send an authenticated event to the Worker only when a watched symbol approaches/crosses an indexed level. The Engine must still:
 1. validate the event's authentication, timestamp, symbol and price;
 2. reject stale quotes;
 3. load/confirm the persisted open position;
