@@ -126,6 +126,9 @@ function renderState() {
   $('#run').textContent = s.paused ? 'Пауза' : s.running ? 'Сетка работает' : gStatus(s);
   $('#run').className = `pill ${s.running && !s.paused ? 'on' : ''}`;
   $('#grid-status').textContent = gStatus(s);
+  $('#wallet-grid-run').textContent = s.paused ? 'Продолжить' : s.running ? 'Остановить' : g ? 'Запустить' : 'Настроить';
+  $('#wallet-grid-run').classList.toggle('secondary', !!s.running && !s.paused);
+  $('#wallet-grid-run').classList.toggle('primary', !s.running || !!s.paused);
   $('#demo-capital').textContent = usd(equity);
   $('#market-updated').textContent = s.lastTick ? `Live · ${new Date(s.lastTick).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}` : 'Live · ждём котировку';
 
@@ -163,7 +166,7 @@ function renderState() {
       if (lp.funding_paid_quote !== undefined) rows.push(['Выплаченный фандинг', usd(lp.funding_paid_quote, 4)]);
       if (lp.margin_quote !== undefined) rows.push(['Маржа', usd(lp.margin_quote)]);
     }
-    $('#pos').innerHTML = rows.map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('');
+    $('#pos').innerHTML = '<div class="position-heading"><span class="coin-avatar">' + esc((g?.market || '₿').slice(0,1)) + '</span><div><b>' + esc(g?.market || 'Позиция') + '</b><small>Покупка · ' + (g?.leverage || 1) + 'x</small></div><strong class="' + (pnl >= 0 ? 'up' : 'down') + '">' + usd(pnl, 4) + '</strong></div>' + rows.map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('');
   } else {
     $('#pos').innerHTML = `<div class="empty-state">${icon('wallet')}<b>Позиций пока нет</b><small>${g ? 'Сетка ожидает достижения ценового уровня.' : 'Откройте рынки или настройте сетку.'}</small><button id="empty-open-markets" class="secondary" type="button">Открыть рынки</button></div>`;
   }
@@ -393,9 +396,29 @@ $('#portfolio-trigger').addEventListener('click', () => document.querySelector('
 $('#notifications-trigger').addEventListener('click', () => tg.showAlert?.('Уведомлений пока нет.'));
 $('#pos').addEventListener('click', (event) => { if (event.target.closest('#empty-open-markets')) document.querySelector('nav button[data-tab="pares"]').click(); });
 $('#wallet-grid-settings').addEventListener('click', () => document.querySelector('nav button[data-tab="ctrl"]').click());
-$('#wallet-grid-run').addEventListener('click', async () => { if (!state?.grid) { document.querySelector('nav button[data-tab="ctrl"]').click(); return; } try { const r=await call('control',{action:state.running?'stop':'run'}); ctrlMessage(r.message); await loadState(); } catch(e) { showError(e); } });
+$('#wallet-grid-run').addEventListener('click', async () => { if (!state?.grid) { setTab('ctrl'); return; } try { const action = state.paused ? 'resume' : state.running ? 'stop' : 'run'; const r=await call('control',{action}); ctrlMessage(r.message); await loadState(); } catch(e) { showError(e); } });
 $('#home-reset-demo').addEventListener('click', () => tg.showAlert?.('Сброс демо-счёта пока недоступен. Баланс, история и настройки не изменены.'));
-$('#home-open-grid').addEventListener('click', () => document.querySelector('nav button[data-tab="ctrl"]').click());
+$('#home-open-grid').addEventListener('click', () => setTab('ctrl'));
+document.querySelectorAll('[data-preset]').forEach((button) => button.addEventListener('click', async () => {
+  try {
+    if (!contracts.length) contracts = (await call('contracts')).contracts;
+    const form = $('#grid-form');
+    const market = form.market.value.trim().toUpperCase() || state?.grid?.market || 'BTC';
+    const contract = contracts.find((x) => x.market === market) || contracts[0];
+    if (!contract) throw new Error('Не удалось загрузить список рынков.');
+    form.market.value = contract.market;
+    const price = Number(contract.price);
+    form.low.value = (price * .94).toFixed(6);
+    form.high.value = (price * 1.02).toFixed(6);
+    const preset = button.dataset.preset;
+    const values = preset === 'careful' ? {levels:6,margin:10,leverage:1} : preset === 'active' ? {levels:14,margin:20,leverage:Math.min(3,contract.maxLeverage)} : {levels:9,margin:15,leverage:Math.min(2,contract.maxLeverage)};
+    form.levels.value = values.levels;
+    form.marginUsd.value = Math.max(values.margin, Number(contract.minSizeQuote || 0));
+    form.leverage.value = values.leverage;
+    document.querySelectorAll('[data-preset]').forEach((x) => x.classList.toggle('selected', x === button));
+    tg.HapticFeedback?.selectionChanged?.();
+  } catch (error) { ctrlMessage(error.message, 'error'); }
+}));
 
 
 // ---------- histórico ----------
