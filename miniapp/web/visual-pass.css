@@ -177,3 +177,8 @@ input,select,textarea{border:1px solid #dfe6f0!important;border-radius:11px!impo
  .bottom-nav{left:10px!important;right:10px!important}
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+/* PR22 follow-up: prevent fixed tab bar from competing with asset execution dock. */
+body.asset-open .bottom-nav{display:none!important;pointer-events:none!important}
+main{padding-bottom:calc(220px + env(safe-area-inset-bottom))!important}
+@media(max-width:380px){main{padding-bottom:calc(210px + env(safe-area-inset-bottom))!important}}
