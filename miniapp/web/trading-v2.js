@@ -110,6 +110,11 @@
     tradeBar.className="asset-trade-bar";
     tradeBar.innerHTML='<button type="button" class="primary-button long-button" data-asset-side="long">↗ Лонг</button><button type="button" class="primary-button short-button" data-asset-side="short">↘ Шорт</button>';
     document.body.append(tradeBar);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      window.scrollTo({top:0,behavior:"instant"});
+      document.documentElement.scrollTop=0;
+      document.body.scrollTop=0;
+    }));
     tradeBar.addEventListener("click",(event)=>{
       const button=event.target.closest("[data-asset-side]");
       if(!button) return;
