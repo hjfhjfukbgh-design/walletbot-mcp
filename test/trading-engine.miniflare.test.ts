@@ -5,7 +5,7 @@ import { build } from "esbuild";
 const P = 100_000_000n;
 const U = 1_000_000n;
 const userId = "123456789";
-type EngineStub = { fetch(input: string, init?: RequestInit): Promise<Response> };
+type EngineStub = any;
 
 describe("TradingEngine SQLite integration (Miniflare)", () => {
   let source = "";
