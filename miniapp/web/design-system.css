@@ -171,3 +171,8 @@ main{max-width:560px;padding:10px 16px 24px}
 @media(min-width:520px){main{padding-left:22px;padding-right:22px}.wallet-balance{font-size:52px}}
 @media(max-width:380px){.wallet-balance{font-size:41px}.wallet-actions{gap:6px}.wallet-action{font-size:9px;min-height:86px}.favorite-card{width:142px;flex-basis:142px}.engine-position-grid{gap:5px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+.market-leverage{display:inline-flex;align-items:center;padding:2px 6px;border-radius:7px;background:#F0F0F5;color:#777D86;font-size:9px;font-weight:700;line-height:1.35;white-space:nowrap}
+.market-copy .name{gap:6px}.market-copy .meta{display:flex;align-items:center;gap:4px}
+.category-row{overflow-x:auto;scrollbar-width:none}.category-row::-webkit-scrollbar{display:none}
+.heat-cell{border-radius:7px}
