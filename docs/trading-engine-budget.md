@@ -8,7 +8,7 @@ Status: Draft. Do not enable LIVE or deploy this branch before the open issues b
 - Every open/close persists the account balance, position transition, and ledger entry in one `transactionSync` callback.
 - Quotes and TP/SL/liquidation indexes are memory-only. No quote tick is written to SQLite.
 - After eviction/restart, memory is treated as empty. The constructor restores open positions from SQLite, rebuilds the symbol index, then reconnects the market socket. The subscription snapshot repopulates prices.
-- The watchdog uses a 45-second DO Alarm while at least one position is open. It checks socket state/silence, forces a reconnect after 14 minutes, restores positions after a disconnect, and checks quote freshness before any execution. With no open positions, the socket and alarm are stopped.
+- The watchdog uses a 45-second DO Alarm while at least one position is open. Outgoing WebSockets cannot hibernate; Cloudflare says each outbound connection prevents eviction for up to 15 minutes, then normal eviction can resume. The Engine proactively reconnects at about 14 minutes. It checks socket state/silence, forces a reconnect after 14 minutes, restores positions after a disconnect, and checks quote freshness before any execution. With no open positions, the socket and alarm are stopped.
 - Quote age defaults to 10 seconds. Older or future-dated quotes are rejected for open/close execution.
 - A gap is executed using the current fresh quote with adverse slippage, not the crossed TP/SL/liquidation level.
 
@@ -18,7 +18,7 @@ Current Cloudflare documentation lists 5,000,000 SQL rows read/day, 100,000 SQL 
 
 Sources:
 - https://developers.cloudflare.com/durable-objects/platform/pricing/
-- https://developers.cloudflare.com/durable-objects/platform/limits/
+- https://developers.cloudflare.com/durable-objects/platform/limits/\n- https://developers.cloudflare.com/durable-objects/best-practices/websockets/\n- https://developers.cloudflare.com/durable-objects/concepts/durable-object-lifecycle/
 
 ## Daily write estimate
 
@@ -37,7 +37,7 @@ Estimated writes: W = 3,360 + 3E + 2N.
 
 | N users | Avg positions/user | M total | E events/day | Estimated writes/day | Free quota used |
 |---:|---:|---:|---:|---:|---:|
-| 100 | 2 | 200 | 2,000 | 9,760 | 9.76% |
+| 100 | 2 | 200 | 2,000 | 9,560 | 9.56% |
 | 1,000 | 2 | 2,000 | 20,000 | 65,360 | 65.36% |
 | 1,000 | 5 | 5,000 | 50,000 | 155,360 | 155.36% |
 
