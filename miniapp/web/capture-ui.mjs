@@ -82,7 +82,7 @@ try {
     await page.locator("#wallet-balance-main").waitFor({state:"visible"});
     await assertViewport(page,"wallet");
     await page.screenshot({path:`wallet-${width}x${height}-dsf3.png`,fullPage:false});
-    await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});
+    await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});\n    await assertBottomAccessible(page,"#wallet-asset-list","wallet scroll end");
     await page.evaluate(async()=>{await fetch("/__preview/position"); await window.kriptoGuruDemo.refresh();});
     await page.waitForTimeout(450);
     if(await page.locator("#wallet-position-count").textContent()!=="1") throw new Error("wallet preview: открытая демо-позиция не появилась");
@@ -98,7 +98,7 @@ try {
     await page.screenshot({path:`trade-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#pairs").scrollIntoViewIfNeeded();
     await page.waitForTimeout(250);
-    await page.screenshot({path:`trade-list-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.screenshot({path:`trade-list-${width}x${height}-dsf3.png`,fullPage:false});\n    await assertBottomAccessible(page,"#pairs","trade scroll end");
     await page.locator("#pairs .market-row").first().click();
     await page.waitForTimeout(1100);
     await page.evaluate(()=>{window.scrollTo({top:0,behavior:"instant"});document.documentElement.scrollTop=0;document.body.scrollTop=0;});
@@ -148,7 +148,7 @@ try {
     await page.waitForTimeout(250);
     await assertViewport(page,"settings");
     if(pageErrors.length) throw new Error("JavaScript errors: "+pageErrors.join(" | "));
-    await page.screenshot({path:`settings-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.screenshot({path:`settings-${width}x${height}-dsf3.png`,fullPage:false});\n    await assertBottomAccessible(page,".disclaimer","settings scroll end");
     await page.close();
   }
 } finally {
