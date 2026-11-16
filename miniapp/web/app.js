@@ -307,21 +307,11 @@ async function loadMarketPreview() {
     renderPairs();
     if (!state?.grid && contracts[0]) loadChart(contracts[0].market);
     $('#market-updated').textContent = `Live · ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
-    const rows = contracts.slice(0, 5);
-    const box = $('#home-markets');
-    if (!box) return;
-    box.innerHTML = rows.map((c) => {
-      const change = Number(c.change24hPct || 0);
-      return '<button class="home-market-row" type="button" data-home-market="' + esc(c.market) + '"><span class="market-token"><b>' + esc(c.market.slice(0, 1)) + '</b></span><span class="market-token-name"><b>' + esc(c.market) + '</b><small>Perpetual · ' + fmt(c.maxLeverage, 0) + 'x</small></span><span class="market-token-quote"><b>' + usd(c.price, 6) + '</b><small class="' + (change >= 0 ? 'up' : 'down') + '">' + (change >= 0 ? '+' : '') + fmt(change, 2) + '%</small></span></button>';
-    }).join('') || '<div class="market-loading">Нет доступных рынков.</div>';
-  } catch (error) { box.innerHTML = '<div class="market-loading">' + esc(error.message) + '</div>'; }
+  } catch (error) {
+    $('#heatmap').textContent = error.message;
+    $('#pairs').textContent = error.message;
+  }
 }
-$('#home-markets')?.addEventListener('click', (event) => {
-  const row = event.target.closest('[data-home-market]'); if (!row) return;
-  const market = row.dataset.homeMarket; document.querySelector('nav button[data-tab="pares"]').click();
-  $('#q').value = market; if (contracts.length) renderPairs();
-  const item = [...document.querySelectorAll('#pairs .item')].find((el) => el.dataset.market === market); item?.click();
-});
 $('#home-see-all,#home-open-markets,#home-open-markets-sell').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
 $('#portfolio-trigger').addEventListener('click', () => document.querySelector('nav button[data-tab="painel"]').click());
 $('#notifications-trigger').addEventListener('click', () => tg.showAlert?.('Уведомлений пока нет.'));
