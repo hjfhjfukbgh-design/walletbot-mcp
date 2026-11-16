@@ -60,7 +60,7 @@ main{max-width:560px;padding:10px 16px 24px}
 .favorite-top b{font-size:12px}
 .favorite-top small{margin-left:auto;color:var(--kg-muted);font-size:9px}
 .favorite-price{margin-top:10px;font-size:17px;font-weight:740;font-variant-numeric:tabular-nums;letter-spacing:-.4px}
-.favorite-bottom{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-top:5px}
+.favorite-bottom{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-top:5px}.favorite-change-usd{color:var(--kg-muted);font-size:9px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .favorite-bottom .change-chip{font-size:9px;min-height:20px;padding:2px 6px}
 .favorite-spark{width:56px;height:20px;overflow:visible}
 .favorite-skeleton{flex:0 0 150px;height:127px;border-radius:17px;background:linear-gradient(90deg,#e9e9ef 25%,#f9f9fb 37%,#e9e9ef 63%);background-size:400% 100%;animation:kgShimmer 1.4s ease infinite}
