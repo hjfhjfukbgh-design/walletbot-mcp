@@ -143,7 +143,6 @@
   }
 
   $ui("#wallet-open-history")?.addEventListener("click", () => document.querySelector('nav button[data-tab="hist"]')?.click());
-  $ui("#home-open-markets")?.addEventListener("click", () => goToTrade());
   $ui("#wallet-edit-favorites")?.addEventListener("click", () => {
     document.querySelector('nav button[data-tab="pares"]')?.click();
     $ui("#category-favorites")?.click();
