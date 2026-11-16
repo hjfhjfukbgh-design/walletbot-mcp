@@ -25,7 +25,7 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
   const route = `${req.method} ${url.pathname.replace(/^\/api\//, "")}`;
   const body = req.method === "POST" ? ((await req.json().catch(() => ({}))) as Json) : {};
   const telegramUserId = req.headers.get("X-Telegram-User-Id") ?? "";
-  if (route !== "POST telegram" && !/^\\d{1,20}$/.test(telegramUserId))
+  if (route !== "POST telegram" && !/^\d{1,20}$/.test(telegramUserId))
     return fail("Telegram user authentication required", 401);
   const scopedEnv = telegramUserId ? tenantEnv(env, telegramUserId) : env;
   if (telegramUserId) {
