@@ -427,6 +427,22 @@ async function loadMarketPreview() {
     $('#pairs').textContent = error.message;
   }
 }
+const helpCopy = {
+  levels: 'Уровни делят выбранный ценовой диапазон на шаги. Больше уровней — чаще сигналы, но меньше расстояние между ними.',
+  margin: 'Маржа — виртуальная сумма, выделенная под одну сделку сетки. Комиссии и убыток уменьшают демо-баланс.',
+  leverage: 'Плечо увеличивает размер позиции относительно маржи. Чем выше плечо, тем быстрее растут и прибыль, и убыток. Начинайте с 1x.',
+  grid: 'Сетка выставляет уровни внутри диапазона и открывает демо-позицию при достижении уровня. Сетка не гарантирует прибыль.',
+  funding: 'Фандинг — периодический платёж между участниками бессрочного рынка. Значение может быть положительным или отрицательным.',
+  tp: 'Тейк-профит — уровень цены, при котором позиция автоматически закрывается с целью зафиксировать результат.',
+  sl: 'Стоп-лосс — уровень цены для ограничения убытка. При срабатывании сетка останавливается.',
+  liquidation: 'Ликвидация — принудительное закрытие позиции, если залога недостаточно. Большое плечо приближает ликвидацию.'
+};
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-help]');
+  if (!button) return;
+  event.preventDefault();
+  tg.showAlert?.(helpCopy[button.dataset.help] || 'Справка пока недоступна.');
+});
 $('#home-see-all,#home-open-markets').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
 $('#portfolio-trigger').addEventListener('click', () => document.querySelector('nav button[data-tab="painel"]').click());
 $('#notifications-trigger').addEventListener('click', () => tg.showAlert?.('Уведомлений пока нет.'));
