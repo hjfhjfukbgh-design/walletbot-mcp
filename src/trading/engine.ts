@@ -38,6 +38,7 @@ export class TradingEngine {
   private quotes = new Map<string, Quote>();
   private positions = new Map<string, Position>();
   private bySymbol = new Map<string, Set<string>>();
+  private staleSymbols = new Set<string>();
   private socket: WebSocket | null = null;
   private lastMessageAt = 0;
   private socketOpenedAt = 0;
@@ -80,7 +81,7 @@ export class TradingEngine {
         return Response.json({ ok: true, balanceMicro: balance.toString(), positions: rows.map((row) => parsePosition(row.position_json)) });
       }
       if (request.method === "GET" && url.pathname === "/health") {
-        return Response.json({ ok: true, openPositions: this.positions.size, socketOpen: this.socket?.readyState === WebSocket.OPEN, quoteCount: this.quotes.size });
+        return Response.json({ ok: true, openPositions: this.positions.size, socketOpen: this.socket?.readyState === WebSocket.OPEN, quoteCount: this.quotes.size, staleSymbols: [...this.staleSymbols] });
       }
       if (request.method !== "POST") return Response.json({ ok: false, error: "Метод не поддерживается." }, { status: 405 });
       const body = await request.json() as Record<string, unknown>;
@@ -200,6 +201,7 @@ export class TradingEngine {
     const observedAt = Number(body.observedAt ?? Date.now());
     if (price <= 0n || !Number.isSafeInteger(observedAt) || Math.abs(Date.now() - observedAt) > 5_000) throw new Error("Получена некорректная или устаревшая котировка.");
     this.quotes.set(symbol, { price, observedAt });
+    this.staleSymbols.delete(symbol);
     this.lastMessageAt = Date.now();
     let checked = 0;
     for (const id of [...(this.bySymbol.get(symbol) ?? [])]) {
@@ -237,6 +239,11 @@ export class TradingEngine {
       this.socket = null;
       await this.ctx.storage.deleteAlarm();
       return;
+    }
+    for (const symbol of this.bySymbol.keys()) {
+      const quote = this.quotes.get(symbol);
+      if (!quote || quote.observedAt > now + 1_000 || now - quote.observedAt > this.maxQuoteAgeMs) this.staleSymbols.add(symbol);
+      else this.staleSymbols.delete(symbol);
     }
     const staleSocket = this.socket?.readyState === WebSocket.OPEN && (now - this.lastMessageAt > SOCKET_SILENCE_MS || now - this.socketOpenedAt > SOCKET_MAX_AGE_MS);
     if (staleSocket) {
