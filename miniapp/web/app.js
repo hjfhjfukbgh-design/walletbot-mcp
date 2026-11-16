@@ -8,6 +8,8 @@ const $ = (sel) => document.querySelector(sel);
 const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: Math.min(d, 2) }));
 const usd = (n, d = 2) => (n === null || n === undefined || !Number.isFinite(+n) ? '—' : '$' + fmt(n, d));
 const signedPct = (n) => `${n >= 0 ? '↑+' : '↓'}${fmt(Math.abs(n), 2)}%`;
+const pctText = (n) => (Number(n) >= 0 ? '↑' : '↓') + fmt(Math.abs(Number(n) || 0), 2) + '%';
+const moneyDecimals = (n) => Math.abs(Number(n)) >= 1000 ? 2 : Math.abs(Number(n)) >= 1 ? 3 : 6;
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
 async function call(name, input = {}) {
@@ -262,7 +264,6 @@ $('#category-favorites').addEventListener('click', () => { favoritesOnly = true;
 $('#category-crypto').addEventListener('click', () => { favoritesOnly = false; $('#category-favorites').classList.remove('selected'); $('#category-crypto').classList.add('selected'); renderPairs(); });
 $('#pairs').addEventListener('click', (ev) => { const fav=ev.target.closest('[data-favorite]'); if(!fav)return; ev.stopPropagation(); const m=fav.dataset.favorite; favorites.has(m)?favorites.delete(m):favorites.add(m); saveFavorites(); renderPairs(); });
 $('#pairs').addEventListener('keydown', (ev) => { if((ev.key==='Enter'||ev.key===' ')&&ev.target.matches('.market-row')){ev.preventDefault();ev.target.click();} });
-let topSort = 'up';
 document.querySelectorAll('[data-top-sort]').forEach((b) => b.addEventListener('click', () => { topSort=b.dataset.topSort; document.querySelectorAll('[data-top-sort]').forEach(x=>x.classList.toggle('selected',x===b)); renderMarketVisuals(contracts.filter(c=>!$('#q').value || c.market.includes($('#q').value.trim().toUpperCase()))); }));
 function renderMarketVisuals(source) {
   const items=[...source].filter(c=>Number.isFinite(+c.price)).sort((a,b)=>(b.volume24hUsd||0)-(a.volume24hUsd||0)).slice(0,12);
@@ -274,6 +275,7 @@ function renderMarketVisuals(source) {
 $('#heatmap,#top-day').addEventListener('click',ev=>{const el=ev.target.closest('[data-heat-market]');if(!el)return;const m=el.dataset.heatMarket;$('#q').value=m;renderPairs();const item=[...document.querySelectorAll('#pairs .item')].find(x=>x.dataset.market===m);item?.click();});
 
 $('#pairs').addEventListener('click', async (ev) => {
+  if (ev.target.closest('[data-favorite]')) return;
   const item = ev.target.closest('.item');
   if (!item) return;
   const market = item.dataset.market;
