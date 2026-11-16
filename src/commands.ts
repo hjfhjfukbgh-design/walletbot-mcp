@@ -52,6 +52,10 @@ export async function handleCommand(env: Env, text: string): Promise<string> {
       return stopGrid(env);
     case "closeall":
       return closeAll(env);
+    case "demo":
+      return setMode(env, ["paper"]);
+    case "live":
+      return setMode(env, ["live", args[0] ?? ""]);
     case "mode":
       return setMode(env, args);
     case "risk":
@@ -70,18 +74,22 @@ export async function handleCommand(env: Env, text: string): Promise<string> {
 
 function help(): string {
   return [
-    "🤖 walletbot-mcp — grid automático no Walt Perps",
+    "Walt Grid — управление торговой сеткой",
     "",
-    ...COMMANDS.map(([c, d]) => `/${c} — ${d}`),
-    "/call <tool> [json] — chamar uma tool do Walt diretamente",
-    "/paper reset [saldo] — reiniciar a carteira simulada",
-    "/disconnect — remover tokens do Walt",
-    "/testalert — testar o envio de alertas para o canal",
+    "Основные команды:",
+    "/demo — включить демо-режим без кошелька",
+    "/live CONFIRMO — запросить включение LIVE",
+    "/status — состояние, баланс и результат",
+    "/grid — настроить рынок и параметры сетки",
+    "/run — запустить сетку",
+    "/stop — остановить сетку",
+    "/closeall — закрыть позицию и остановить",
+    "/resume — снять автоматическую паузу",
     "",
-    "Fluxo: /connect → /conta → /grid … → /run (paper) → depositar USDC → /mode live CONFIRMO",
+    "Для подключения Walt в LIVE: /connect. Код авторизации отправляется через /code.",
+    "В ДЕМО используются виртуальные средства и публичные рыночные данные. Реальные ордера не отправляются."
   ].join("\n");
 }
-
 
 async function status(env: Env): Promise<string> {
   const s = await loadState(env);
