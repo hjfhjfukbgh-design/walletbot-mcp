@@ -14,6 +14,7 @@ const base: ManualPosition = {
   stopLoss: 90,
   liquidationPrice: 49.5,
   takerFeePct: 0.001,
+  entryFeeUsd: 0.1,
   openedAt: new Date(0).toISOString(),
 };
 
