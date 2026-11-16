@@ -14,6 +14,7 @@ import { buyPrice, minMargin, notional, step, stopLossPrice } from "./strategy/g
 import { timingSafeEqual, type TgUpdate } from "./telegram";
 import { findContract } from "./walt";
 import { tenantEnv } from "./tenants";
+import { parseFixed, PRICE_SCALE } from "./trading/money";
 import { closeManualTrade, manualPositionsView, monitorManualTrades, openManualTrade } from "./manual";
 
 type Json = Record<string, unknown>;
@@ -45,8 +46,20 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
     switch (route) {
       case "GET demo":
         return engineRequest(env, "/account?userId=" + encodeURIComponent(telegramUserId));
-      case "POST demo/open":
-        return engineRequest(env, "/open", { ...body, userId: telegramUserId, mode: "demo" });
+      case "POST demo/open": {
+        const symbol = String(body.symbol ?? "").toUpperCase();
+        const leverage = Number(body.leverage);
+        const maxLeverage = riskLimits(env).maxLeverage;
+        if (!symbol) return fail("Не указан торговый актив.");
+        if (!Number.isSafeInteger(leverage) || leverage < 1 || leverage > maxLeverage)
+          return fail(`Максимальное плечо демо-счёта: ${maxLeverage}×.`);
+        const mid = await publicMid(symbol);
+        if (!Number.isFinite(mid) || mid <= 0) return fail("Не удалось получить свежую цену актива.", 503);
+        const price = parseFixed(mid.toFixed(8), PRICE_SCALE, 8);
+        const quote = await engineRequest(env, "/quote", { symbol, price: price.toString(), observedAt: Date.now() });
+        if (!quote.ok) return quote;
+        return engineRequest(env, "/open", { ...body, symbol, userId: telegramUserId, mode: "demo" });
+      }
       case "POST demo/close":
         return engineRequest(env, "/close", { ...body, userId: telegramUserId });
       case "GET state":
