@@ -22,11 +22,11 @@ jobs:
         with:
           name: kripto-guru-iphone-ui-previews
           path: |
-            wallet-390x844.png
-            wallet-430x844.png
-            trade-390x844.png
-            trade-430x844.png
-            trade-list-390x844.png
-            trade-list-430x844.png
-            asset-390x844.png
-            asset-430x844.png
+            wallet-390x844-dsf3.png
+            wallet-430x932-dsf3.png
+            trade-390x844-dsf3.png
+            trade-430x932-dsf3.png
+            trade-list-390x844-dsf3.png
+            trade-list-430x932-dsf3.png
+            asset-390x844-dsf3.png
+            asset-430x932-dsf3.png
