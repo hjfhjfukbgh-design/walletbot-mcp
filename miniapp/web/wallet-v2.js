@@ -91,8 +91,12 @@
 
   function renderFavorites() {
     const strip = $ui("#wallet-favorites");
-    const markets = (typeof contracts !== "undefined" ? contracts : []);
-    if (!markets.length) return;
+    if (!strip) return;
+    const markets = (typeof contracts !== "undefined" && Array.isArray(contracts) ? contracts : []);
+    if (!markets.length) {
+      strip.innerHTML = '<div class="favorites-state">Загрузка котировок…</div>';
+      return;
+    }
     let selected = markets.filter((item) => typeof favorites !== "undefined" && favorites.has(item.market));
     if (!selected.length) selected = markets.slice(0, 6);
     strip.innerHTML = selected.slice(0, 10).map((item) => {
@@ -260,7 +264,25 @@
     });
   }
 
-  window.kriptoGuruDemo = { getAccount: () => account, refresh: loadWallet };
+  function showFavoritesError(message) {
+    const strip = $ui("#wallet-favorites");
+    if (!strip) return;
+    strip.innerHTML = '<div class="favorites-state favorites-error"><span>Не удалось загрузить избранное: ' +
+      escapeHtml(message || "ошибка сети") +
+      '</span><button type="button" data-favorites-retry>Повторить</button></div>';
+  }
+  $ui("#wallet-favorites")?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-favorites-retry]") && typeof loadMarketPreview === "function") {
+      event.target.closest("[data-favorites-retry]").disabled = true;
+      loadMarketPreview();
+    }
+  });
+  window.kriptoGuruDemo = {
+    getAccount: () => account,
+    refresh: loadWallet,
+    marketsUpdated: renderFavorites,
+    showFavoritesError
+  };
   renderRecent();
   setTimeout(renderFavorites, 1_500);
   document.querySelectorAll(".bottom-nav button").forEach((button) => {
