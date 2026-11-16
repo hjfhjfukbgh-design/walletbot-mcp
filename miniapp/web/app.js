@@ -132,23 +132,26 @@ async function refreshQuote(market) {
   }
 }
 
-async function loadChart(market) {
+async function loadChart(market, target = 'chart', interval = '15m') {
   try {
-    const c = await call('chart', { market });
-    $('#chart-src').textContent = c.source === 'hyperliquid' ? 'Hyperliquid · 15 мин · 48 ч' : 'Локальные котировки';
-    drawChart(c.candles);
+    const c = await call('chart', { market, interval });
+    const source = target === 'chart' ? $('#chart-src') : document.querySelector(`[data-chart-source="${target}"]`);
+    if (source) source.textContent = c.source === 'hyperliquid' ? `Hyperliquid · ${interval}` : 'Локальные котировки';
+    drawChart(c.candles, target, market);
   } catch (e) {
-    $('#chart').innerHTML = `<text x="10" y="20" fill="currentColor" font-size="12">${esc(e.message)}</text>`;
+    const svg = document.getElementById(target);
+    if (svg) svg.innerHTML = `<text x="10" y="20" fill="currentColor" font-size="12">${esc(e.message)}</text>`;
   }
 }
 
-function drawChart(candles) {
-  const svg = $('#chart');
+function drawChart(candles, target = 'chart', market = '') {
+  const svg = document.getElementById(target);
+  if (!svg) return;
   const W = 360, H = 220, P = 8;
-  const g = state.grid;
+  const g = state?.grid?.market === market ? state.grid : null;
   const valid = (candles || []).filter((c) => c.length >= 5 && c.slice(1, 5).every((v) => Number.isFinite(+v)));
   const levels = g ? g.levelPrices.map((v) => ({ v, color: 'var(--hint)', dash: '3 4' })) : [];
-  if (state.position) levels.push(
+  if (g && state.position) levels.push(
     { v: state.position.takeProfit, color: 'var(--green)' },
     { v: state.position.entryPrice, color: 'var(--link)' },
   );
@@ -204,8 +207,8 @@ function renderPairs() {
     list
       .map(
         (c) => `<div class="item ${c.allowed ? '' : 'blocked'}" data-market="${esc(c.market)}">
-      <div><div class="name">${esc(c.market)}</div>
-      <div class="meta">vol 24h ${usd(c.volume24hUsd, 0)} · funding ${fmt((c.fundingRateHourly ?? 0) * 100, 4)}%/h · até ${c.maxLeverage}x</div></div>
+      <div><div class="name">${esc(c.market)} <span class="quote-price">${usd(c.price, 6)}</span></div>
+      <div class="meta">${c.change24hPct === undefined ? 'изменение н/д' : `<span class="${c.change24hPct >= 0 ? 'up' : 'down'}">${c.change24hPct >= 0 ? '+' : ''}${fmt(c.change24hPct, 2)}%</span>`} · объём 24ч ${usd(c.volume24hUsd, 0)} · funding ${fmt((c.fundingRateHourly ?? 0) * 100, 4)}%/ч · плечо до ${c.maxLeverage}x</div></div>
       <div class="tag">${c.allowed ? icon('chevron') : c.liquid ? 'недоступен' : 'низкая ликвидность'}</div></div>`,
       )
       .join('') || '<div class="card">Nenhum par encontrado.</div>';
@@ -224,11 +227,15 @@ $('#pairs').addEventListener('click', async (ev) => {
     const p = await call('price', { market, leverage: 3 });
     const c = contracts.find((x) => x.market === market);
     box.innerHTML = `<h3>${esc(market)}</h3>
-      <div class="row"><span>Preço</span><b>${usd(p.price, 6)}</b></div>
+      <div class="row"><span>Текущая цена</span><b>${usd(p.price, 6)}</b></div>
       <div class="row"><span>Минимальная маржа при ${p.leverage}x</span><b>${usd(p.minMargin)}</b></div>
       <div class="row"><span>Faixa sugerida (−6% / +2%)</span><b>${usd(p.suggestion.low, 6)} – ${usd(p.suggestion.high, 6)}</b></div>
       <div class="row"><span>Комиссия тейкера</span><b>${fmt((c?.takerFeePct ?? 0) * 100, 3)}%</b></div>
-      ${c?.allowed ? `<button id="use-pair">${icon('sliders')}Usar no grid</button>` : '<p class="meta">Par fora dos critérios de liquidez/whitelist do bot.</p>'}`;
+      <div class="chart-detail-head"><b>График</b><select id="pair-interval"><option value="1m">1м</option><option value="5m">5м</option><option value="15m" selected>15м</option><option value="1h">1ч</option><option value="4h">4ч</option><option value="1d">1д</option></select></div>
+      <small data-chart-source="pair-chart"></small><svg id="pair-chart" viewBox="0 0 360 220" preserveAspectRatio="none"></svg>
+      ${c?.allowed ? `<button id="use-pair">${icon('sliders')}Использовать в сетке</button>` : '<p class="meta">Контракт недоступен по фильтрам ликвидности или LIVE-ограничениям.</p>'}`;
+    loadChart(market, 'pair-chart', '15m');
+    $('#pair-interval').addEventListener('change', (event) => loadChart(market, 'pair-chart', event.target.value));
     const btn = $('#use-pair');
     if (btn)
       btn.onclick = () => {
@@ -357,6 +364,10 @@ function fillForm() {
   f.marginUsd.value = g.marginUsd;
   f.leverage.value = g.leverage;
 }
+
+$('#chart-interval').addEventListener('change', () => {
+  if (state?.grid?.market) loadChart(state.grid.market, 'chart', $('#chart-interval').value);
+});
 
 loadState().then(fillForm);
 setInterval(loadState, 30_000);
