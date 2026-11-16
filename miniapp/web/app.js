@@ -1,8 +1,21 @@
 // Mini App: API protegida por initData assinado do Telegram e servida pelo mesmo Worker.
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand();
-try { tg.setHeaderColor?.('#F2F2F7'); tg.setBackgroundColor?.('#F2F2F7'); tg.setBottomBarColor?.('#F2F2F7'); } catch {}
+const tg = window.Telegram?.WebApp ?? null;
+let telegramInitError = null;
+try {
+  if (tg) {
+    tg.ready?.();
+    tg.expand?.();
+    tg.setHeaderColor?.('#F2F2F7');
+    tg.setBackgroundColor?.('#F2F2F7');
+    tg.setBottomBarColor?.('#F2F2F7');
+  } else {
+    telegramInitError = 'Telegram WebApp SDK недоступен';
+    console.error('[Kripto Guru] ' + telegramInitError);
+  }
+} catch (error) {
+  telegramInitError = 'Ошибка Telegram WebApp initialization: ' + (error?.message || error);
+  console.error('[Kripto Guru]', error);
+}
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: Math.min(d, 2) }));
@@ -15,23 +28,58 @@ const assetName = (market) => ASSET_NAMES[market] || market;
 const compactPrice = (n) => Math.abs(Number(n)) >= 1_000_000 ? (Number(n) / 1_000_000).toFixed(2) + 'M' : Math.abs(Number(n)) >= 1_000 ? (Number(n) / 1_000).toFixed(1) + 'K' : fmt(n, moneyDecimals(n));
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
-async function call(name, input = {}) {
+async function call(name, input = {}, { timeoutMs = 12_000, signal: externalSignal } = {}) {
   const route = name === 'configure' ? 'grid' : name;
   const method = name === 'configure' || name === 'control' || name === 'manual' || name === 'demo/open' || name === 'demo/close' ? 'POST' : 'GET';
   const query = method === "GET"
     ? Object.entries(input).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&")
     : "";
-  const response = await fetch(`/api/${route}${query ? `?${query}` : ""}`, {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
+  const abortExternal = () => controller.abort(externalSignal?.reason);
+  if (externalSignal?.aborted) abortExternal();
+  else externalSignal?.addEventListener('abort', abortExternal, { once: true });
+  let response;
+  try {
+    response = await fetch(`/api/${route}${query ? `?${query}` : ""}`, {
+    signal: controller.signal,
     method,
     headers: {
-      Authorization: `tma ${tg.initData}`,
+      Authorization: `tma ${tg?.initData || ''}`,
       ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
     },
     ...(method === "POST" ? { body: JSON.stringify(input) } : {}),
+    });
+    let data;
+    try { data = await response.json(); }
+    catch { throw new Error(`Некорректный JSON от API (HTTP ${response.status})`); }
+    if (!response.ok || data?.ok === false) throw new Error(data?.error || `Ошибка API: ${response.status}`);
+    return data;
+  } catch (error) {
+    if (timedOut) throw new Error(`Таймаут API /api/${route} (${Math.round(timeoutMs / 1000)} с)`);
+    if (controller.signal.aborted && externalSignal?.aborted) throw new Error('Запрос отменён');
+    throw error instanceof TypeError ? new Error('Сетевая ошибка API: ' + error.message) : error;
+  } finally {
+    clearTimeout(timer);
+    externalSignal?.removeEventListener('abort', abortExternal);
+  }
+}
+
+let contractsPromise = null;
+let contractsGeneration = 0;
+async function getContracts({ force = false } = {}) {
+  if (contractsPromise) return contractsPromise;
+  if (!force && contracts.length) return { contracts };
+  const generation = ++contractsGeneration;
+  const request = call('contracts').then(result => {
+    const list = Array.isArray(result.contracts) ? result.contracts : [];
+    if (generation === contractsGeneration) contracts = list;
+    return { ...result, contracts: list };
   });
-  const data = await response.json().catch(() => ({ ok: false, error: `HTTP ${response.status}` }));
-  if (!response.ok || data.ok === false) throw new Error(data.error || `Ошибка API: ${response.status}`);
-  return data;
+  contractsPromise = request;
+  try { return await request; }
+  finally { if (contractsPromise === request) contractsPromise = null; }
 }
 
 function showError(err) {
@@ -50,9 +98,11 @@ let topSort = 'up';
 let favoritesOnly = false;
 const FAVORITES_KEY = 'kripto-guru:favorites:v1';
 let favorites = new Set();
-try { favorites = new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]')); } catch {}
-function saveFavorites() { try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites])); } catch {} }
-if (localStorage.getItem(FAVORITES_KEY) === null) { favorites = new Set(["BTC", "ETH", "SOL"]); saveFavorites(); }
+try { favorites = new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]')); }
+catch (error) { console.warn('[Kripto Guru] Не удалось прочитать избранное из localStorage:', error); favorites = new Set(); }
+function saveFavorites() { try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites])); } catch (error) { console.warn('[Kripto Guru] Не удалось сохранить избранное:', error); } }
+try { if (localStorage.getItem(FAVORITES_KEY) === null) { favorites = new Set(["BTC", "ETH", "SOL"]); saveFavorites(); } }
+catch (error) { console.warn('[Kripto Guru] localStorage недоступен:', error); }
 
 // ---------- menu do perfil e modo ---------- 
 const profileTrigger = $('#profile-trigger');
@@ -98,7 +148,7 @@ document.querySelectorAll('.bottom-nav button').forEach((b, index) =>
     document.querySelectorAll('.bottom-nav button').forEach((x) => x.classList.toggle('active', x === b));
     $('#nav-indicator').style.transform = 'translateX(' + (index * 100) + '%)';
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.id === `tab-${b.dataset.tab}`));
-    tg.HapticFeedback?.selectionChanged?.();
+    tg?.HapticFeedback?.selectionChanged?.();
     if (b.dataset.tab === 'pares' && !contracts.length) loadPairs();
     if (b.dataset.tab === 'hist') loadHistory();
   }),
@@ -368,8 +418,7 @@ function drawChart(candles, target = 'chart', market = '') {
 async function loadPairs() {
   $('#pairs').innerHTML = '<div class="market-loading skeleton-row"></div><div class="market-loading skeleton-row"></div><div class="market-loading skeleton-row"></div>';
   try {
-    const result = await call('contracts');
-    contracts = Array.isArray(result.contracts) ? result.contracts : [];
+    await getContracts({ force: true });
     renderPairs();
     window.kriptoGuruDemo?.marketsUpdated?.();
     if (!contracts.length) window.kriptoGuruDemo?.showFavoritesError?.('Список рынков пуст.');
@@ -452,7 +501,7 @@ $('#pairs').addEventListener('click', async (ev) => {
       if (!button) return;
       $('#pair-timeframes').querySelectorAll('button').forEach((x) => x.classList.toggle('selected', x === button));
       loadChart(market, 'pair-chart', button.dataset.interval);
-      tg.HapticFeedback?.selectionChanged?.();
+      tg?.HapticFeedback?.selectionChanged?.();
     });
     $('#asset-grid-toggle').addEventListener('click', () => { showAssetGrid = !showAssetGrid; $('#asset-grid-toggle').textContent = showAssetGrid ? 'Скрыть сетку' : 'Показать сетку'; loadChart(market, 'pair-chart', $('#pair-timeframes button.selected')?.dataset.interval || '15m'); });
     $('#asset-back').addEventListener('click', () => { box.classList.add('hidden'); $('#q').focus(); });
@@ -501,7 +550,7 @@ $('#pairs').addEventListener('click', async (ev) => {
         try {
           const result = await call('manual', { action:'open', market, side:tradeForm.elements.side.value, marginUsd:Number(tradeForm.elements.marginUsd.value), leverage:Number(tradeForm.elements.leverage.value), takeProfit:Number(tradeForm.elements.takeProfit.value), stopLoss:Number(tradeForm.elements.stopLoss.value) });
           tradeForm.remove();
-          tg.showAlert?.(result.message);
+          tg?.showAlert?.(result.message);
           await loadState();
           setTab('painel');
         } catch (error) {
@@ -519,12 +568,11 @@ $('#pairs').addEventListener('click', async (ev) => {
 
 // ---------- home market preview ----------
 let marketPreviewLoading = false;
-async function loadMarketPreview() {
-  if (document.hidden || marketPreviewLoading) return;
+async function loadMarketPreview({ force = false } = {}) {
+  if ((!force && document.hidden) || marketPreviewLoading) return;
   marketPreviewLoading = true;
   try {
-    const result = await call('contracts');
-    contracts = Array.isArray(result.contracts) ? result.contracts : [];
+    await getContracts({ force: true });
     window.kriptoGuruDemo?.marketsUpdated?.();
     if (!contracts.length) window.kriptoGuruDemo?.showFavoritesError?.('Список рынков пуст.');
     lastQuoteUpdate = new Date();
@@ -564,11 +612,11 @@ document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-help]');
   if (!button) return;
   event.preventDefault();
-  tg.showAlert?.(helpCopy[button.dataset.help] || 'Справка пока недоступна.');
+  tg?.showAlert?.(helpCopy[button.dataset.help] || 'Справка пока недоступна.');
 });
 $('#home-see-all,#home-open-markets,#home-open-markets-sell').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
 $('#portfolio-trigger').addEventListener('click', () => document.querySelector('nav button[data-tab="painel"]').click());
-$('#notifications-trigger').addEventListener('click', () => tg.showAlert?.('Уведомлений пока нет.'));
+$('#notifications-trigger').addEventListener('click', () => tg?.showAlert?.('Уведомлений пока нет.'));
 $('#pos').addEventListener('click', async (event) => {
   if (event.target.closest('#empty-open-markets')) { setTab('pares'); return; }
   const manualClose = event.target.closest('[data-manual-close]');
@@ -589,11 +637,11 @@ $('#pos').addEventListener('click', async (event) => {
 });
 $('#wallet-grid-settings').addEventListener('click', () => document.querySelector('nav button[data-tab="ctrl"]').click());
 $('#wallet-grid-run').addEventListener('click', async () => { if (!state?.grid) { setTab('ctrl'); return; } try { const action = state.paused ? 'resume' : state.running ? 'stop' : 'run'; const r=await call('control',{action}); ctrlMessage(r.message); await loadState(); } catch(e) { showError(e); } });
-$('#home-reset-demo').addEventListener('click', () => tg.showAlert?.('Для сброса отправьте боту команду /paper reset. Виртуальный баланс вернётся к $1 000, сетка остановится. История операций сохранится.'));
+$('#home-reset-demo').addEventListener('click', () => tg?.showAlert?.('Для сброса отправьте боту команду /paper reset. Виртуальный баланс вернётся к $1 000, сетка остановится. История операций сохранится.'));
 $('#home-open-grid').addEventListener('click', () => setTab('ctrl'));
 document.querySelectorAll('[data-preset]').forEach((button) => button.addEventListener('click', async () => {
   try {
-    if (!contracts.length) contracts = (await call('contracts')).contracts;
+    if (!contracts.length) await getContracts();
     const form = $('#grid-form');
     const market = form.market.value.trim().toUpperCase() || state?.grid?.market || 'BTC';
     const contract = contracts.find((x) => x.market === market) || contracts[0];
@@ -608,7 +656,7 @@ document.querySelectorAll('[data-preset]').forEach((button) => button.addEventLi
     form.marginUsd.value = Math.max(values.margin, Number(contract.minSizeQuote || 0));
     form.leverage.value = values.leverage;
     document.querySelectorAll('[data-preset]').forEach((x) => x.classList.toggle('selected', x === button));
-    tg.HapticFeedback?.selectionChanged?.();
+    tg?.HapticFeedback?.selectionChanged?.();
   } catch (error) { ctrlMessage(error.message, 'error'); }
 }));
 
@@ -667,7 +715,7 @@ function ctrlMessage(text, ic = 'save') {
 }
 
 function confirm(text) {
-  return new Promise((resolve) => tg.showConfirm(text, resolve));
+  return new Promise((resolve) => tg?.showConfirm ? tg.showConfirm(text, resolve) : resolve(false));
 }
 
 $('#grid-form').addEventListener('submit', async (ev) => {
@@ -708,7 +756,7 @@ document.querySelectorAll('[data-action]').forEach((b) =>
     }
     if (action === 'closeall' && !(await confirm('Закрыть позицию и остановить сетку?'))) return;
     try {
-      tg.HapticFeedback?.impactOccurred('light');
+      tg?.HapticFeedback?.impactOccurred?.('light');
       const r = await call('control', input);
       ctrlMessage(r.message);
       loadState();
@@ -737,7 +785,7 @@ $('#home-timeframes').addEventListener('click', (event) => {
   $('#home-timeframes').querySelectorAll('button').forEach((x) => x.classList.toggle('selected', x === button));
   const market = state?.grid?.market || contracts[0]?.market;
   if (market) loadChart(market, 'chart', button.dataset.chartInterval);
-  tg.HapticFeedback?.selectionChanged?.();
+  tg?.HapticFeedback?.selectionChanged?.();
 });
 
 const onboardingSteps = [
@@ -774,6 +822,7 @@ $('#onboarding').addEventListener('click', (event) => { if (event.target === $('
 try { if (!localStorage.getItem('kripto-guru:onboarding:v1')) showOnboarding(); } catch {}
 
 
+if (telegramInitError) showError(new Error(telegramInitError));
 loadState().then(fillForm);
 const statePoll = setInterval(loadState, 30_000);
 const marketPoll = setInterval(loadMarketPreview, 60_000);

@@ -61,6 +61,26 @@ async function assertViewport(page,label){
   if(result.scrollWidth>result.width+1) throw new Error(`${label}: горизонтальное переполнение ${result.scrollWidth}px при ширине ${result.width}px`);
   if(result.navLeft < -1 || result.navRight > result.width+1) throw new Error(`${label}: нижняя навигация выходит за экран`);
 }
+
+async function assertBottomAccessible(page, selector, label) {
+  const target = page.locator(selector).last();
+  await target.waitFor({ state: "visible" });
+  await target.scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
+  const result = await page.evaluate((sel) => {
+    const element = document.querySelector(sel);
+    const nav = document.querySelector(".bottom-nav");
+    if (!element) return { error: "target not found: " + sel };
+    const rect = element.getBoundingClientRect();
+    const navTop = nav ? nav.getBoundingClientRect().top : window.innerHeight;
+    return { elementBottom: rect.bottom, navTop, viewportHeight: window.innerHeight, scrollY: window.scrollY };
+  }, selector);
+  if (result.error) throw new Error(label + ": " + result.error);
+  if (result.elementBottom > result.navTop + 1) {
+    throw new Error(label + ": последний блок недоступен над нижней навигацией " + JSON.stringify(result));
+  }
+}
+
 try {
   for (const device of [{width:390,height:844},{width:430,height:932}]) {
     const {width,height}=device;
@@ -83,6 +103,7 @@ try {
     await assertViewport(page,"wallet");
     await page.screenshot({path:`wallet-${width}x${height}-dsf3.png`,fullPage:false});
     await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});
+    await assertBottomAccessible(page,"#wallet-asset-list","wallet scroll end");
     await page.evaluate(async()=>{await fetch("/__preview/position"); await window.kriptoGuruDemo.refresh();});
     await page.waitForTimeout(450);
     if(await page.locator("#wallet-position-count").textContent()!=="1") throw new Error("wallet preview: открытая демо-позиция не появилась");
@@ -99,6 +120,7 @@ try {
     await page.locator("#pairs").scrollIntoViewIfNeeded();
     await page.waitForTimeout(250);
     await page.screenshot({path:`trade-list-${width}x${height}-dsf3.png`,fullPage:false});
+    await assertBottomAccessible(page,"#pairs","trade scroll end");
     await page.locator("#pairs .market-row").first().click();
     await page.waitForTimeout(1100);
     await page.evaluate(()=>{window.scrollTo({top:0,behavior:"instant"});document.documentElement.scrollTop=0;document.body.scrollTop=0;});
@@ -144,11 +166,13 @@ try {
     await page.locator('nav button[data-tab="hist"]').click();
     await page.waitForTimeout(350);
     await page.screenshot({path:`history-${width}x${height}-dsf3.png`,fullPage:false});
+    await assertBottomAccessible(page,"#trades","history scroll end");
     await page.locator('nav button[data-tab="ctrl"]').click();
     await page.waitForTimeout(250);
     await assertViewport(page,"settings");
     if(pageErrors.length) throw new Error("JavaScript errors: "+pageErrors.join(" | "));
     await page.screenshot({path:`settings-${width}x${height}-dsf3.png`,fullPage:false});
+    await assertBottomAccessible(page,".disclaimer","settings scroll end");
     await page.close();
   }
 } finally {
