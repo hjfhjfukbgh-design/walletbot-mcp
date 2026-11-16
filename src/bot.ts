@@ -86,7 +86,7 @@ async function runTick(env: Env, state: BotState, msgs: string[]): Promise<void>
     return;
   }
 
-  const price = await currentPrice(cfg, walt);
+  const price = await currentPrice(cfg, live ? walt : null);
   state.lastPrice = price;
   pushPrice(state, cfg.market, price);
   if (live) {
@@ -211,7 +211,7 @@ export async function closeAll(env: Env): Promise<string> {
     if (await walt.openPosition(cfg.contract.contractId)) await walt.closePosition(cfg.contract.contractId);
     const pos = state.grid.position;
     if (pos) {
-      const price = await currentPrice(cfg, walt);
+      const price = await currentPrice(cfg, state.mode === "live" ? walt : null);
       await recordClose(env, state, pos, price, positionPnl(pos, price, cfg.contract.takerFeePct), "manual");
     }
     state.grid.position = undefined;
