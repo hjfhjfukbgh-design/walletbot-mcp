@@ -26,7 +26,7 @@ export async function publicContracts(): Promise<ContractInfo[]> {
   if (!res.ok) throw new Error(`lista pública de mercados indisponível (HTTP ${res.status})`);
   const payload = (await res.json()) as [
     { universe?: Array<{ name: string; szDecimals?: number; maxLeverage?: number }> },
-    Array<{ dayNtlVlm?: string; funding?: string; markPx?: string; midPx?: string }>
+    Array<{ dayNtlVlm?: string; funding?: string; markPx?: string; midPx?: string; prevDayPx?: string }>
   ];
   const universe = payload?.[0]?.universe ?? [];
   const contexts = payload?.[1] ?? [];
@@ -48,6 +48,8 @@ export async function publicContracts(): Promise<ContractInfo[]> {
       priceSlippage: 0.001,
       volume24hUsd: Number(ctx.dayNtlVlm ?? 0),
       fundingRateHourly: Number(ctx.funding ?? 0) / 8,
+      price,
+      change24hPct: Number(ctx.prevDayPx) > 0 && price > 0 ? ((price / Number(ctx.prevDayPx)) - 1) * 100 : undefined,
     } satisfies ContractInfo;
   }).filter((c) => c.volume24hUsd !== undefined);
 }
