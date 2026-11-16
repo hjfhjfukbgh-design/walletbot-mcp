@@ -98,14 +98,33 @@
     strip.innerHTML = selected.slice(0, 10).map((item) => {
       const pct = Number(item.change24hPct || 0);
       const positive = pct >= 0;
-      const line = positive ? "M1 17 C10 16 13 12 20 13 S33 8 42 7 S50 3 56 2" : "M1 3 C10 4 13 9 20 8 S33 13 42 12 S50 18 56 19";
-      const stroke = positive ? "#34C759" : "#FF3B30";
+      const changeUsd = pct > -100 ? Number(item.price) - Number(item.price) / (1 + pct / 100) : 0;
       return `<button class="favorite-card" type="button" data-wallet-market="${escapeHtml(item.market)}">
         <div class="favorite-top"><span class="coin-avatar">${escapeHtml(token(item.market))}</span><b>${escapeHtml(item.market)}</b><small>${Number(item.maxLeverage || 1)}×</small></div>
         <div class="favorite-price" data-fav-price>${priceText(item.price)}</div>
-        <div class="favorite-bottom"><span class="change-chip ${positive ? "up" : "down"}" data-fav-change>${positive ? "↑" : "↓"} ${Math.abs(pct).toFixed(2)}%</span><svg class="favorite-spark" viewBox="0 0 58 22" aria-hidden="true"><path d="${line} L56 22 L1 22 Z" fill="${stroke}" opacity=".10"/><path d="${line}" fill="none" stroke="${stroke}" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+        <div class="favorite-bottom"><span class="change-chip ${positive ? "up" : "down"}" data-fav-change>${positive ? "↑" : "↓"} ${Math.abs(pct).toFixed(2)}%</span><small class="favorite-change-usd">${changeUsd >= 0 ? "+" : "−"}${priceText(Math.abs(changeUsd))}</small><svg class="favorite-spark" data-fav-spark viewBox="0 0 58 22" aria-hidden="true"></svg></div>
       </button>`;
     }).join("");
+    void loadFavoriteSparklines();
+  }
+
+  async function loadFavoriteSparklines() {
+    const cards = [...document.querySelectorAll("#wallet-favorites .favorite-card")];
+    await Promise.all(cards.map(async (card) => {
+      const market = card.dataset.walletMarket;
+      const svg = card.querySelector("[data-fav-spark]");
+      if (!market || !svg) return;
+      try {
+        const result = await call("chart", { market, interval:"15m" });
+        const values = (result.candles || []).map((candle) => Number(candle[4])).filter((value) => Number.isFinite(value) && value > 0);
+        if (values.length < 2) return;
+        const min = Math.min(...values), max = Math.max(...values), span = max - min || max * .001;
+        const points = values.map((value,index) => [1 + index * 56 / (values.length - 1), 19 - (value - min) / span * 16]);
+        const line = points.map(([x,y],index) => (index ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1)).join(" ");
+        const rising = values[values.length - 1] >= values[0], stroke = rising ? "#34C759" : "#FF3B30";
+        svg.innerHTML = '<path d="' + line + ' L57 22 L1 22 Z" fill="' + stroke + '" opacity=".10"/><path d="' + line + '" fill="none" stroke="' + stroke + '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>';
+      } catch { svg.innerHTML = ""; }
+    }));
   }
 
   function renderWallet() {
