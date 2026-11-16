@@ -1,0 +1,26 @@
+name: Mini App iPhone UI screenshots
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "miniapp/web/**"
+      - ".github/workflows/ui-preview.yml"
+permissions:
+  contents: read
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Playwright
+        run: npx --yes playwright@1.56.1 install --with-deps chromium
+      - name: Capture iPhone-sized previews
+        run: |
+          npx --yes playwright@1.56.1 screenshot --viewport-size="390,844" --full-page --wait-for-timeout=500 file://$GITHUB_WORKSPACE/miniapp/web/design-preview.html wallet-390x844.png
+          npx --yes playwright@1.56.1 screenshot --viewport-size="430,932" --full-page --wait-for-timeout=500 file://$GITHUB_WORKSPACE/miniapp/web/design-preview.html wallet-430x932.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kripto-guru-iphone-ui-previews
+          path: |
+            wallet-390x844.png
+            wallet-430x932.png
