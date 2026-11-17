@@ -216,4 +216,5 @@ jobs:
       role: ${{ needs.dispatch-one-task.outputs.role }}
       issue_number: ${{ needs.dispatch-one-task.outputs.issue_number }}
       task: ${{ needs.dispatch-one-task.outputs.task }}
+      base_branch: ${{ github.ref_name }}
     secrets: inherit
