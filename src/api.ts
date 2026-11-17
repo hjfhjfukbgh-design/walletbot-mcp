@@ -50,6 +50,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
       }
     }
     switch (route) {
+      case "GET walt/account":
+        return waltAccountView(scopedEnv);
       case "GET demo":
         return demoAccountView(env, telegramUserId);
       case "GET demo/history":
@@ -111,6 +113,21 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
  * Enrich open DEMO positions with a server-observed mark and fee-aware PnL.
  * A missing quote is represented as unavailable; it never becomes a made-up zero.
  */
+/** Read-only proof that the user's isolated Walt OAuth/MCP connection works. */
+async function waltAccountView(env: Env): Promise<Response> {
+  const client = await connectWalt(env);
+  if (!client) return fail("Walt не подключён. Сначала выполните /connect в Telegram.", 409);
+  const balanceUsd = await client.balanceUsd();
+  return json({
+    ok: true,
+    connected: true,
+    balanceUsd,
+    currency: "USDC",
+    source: "walt-mcp",
+    permission: "read-only",
+  });
+}
+
 async function demoAccountView(env: Env, userId: string): Promise<Response> {
   const response = await engineRequest(env, "/account?userId=" + encodeURIComponent(userId));
   if (!response.ok) return response;
