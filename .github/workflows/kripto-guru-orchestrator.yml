@@ -26,6 +26,15 @@ jobs:
           ref: ${{ github.ref_name }}
           fetch-depth: 1
 
+      - name: Ensure queue labels exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh label create agent-ready --repo "$GITHUB_REPOSITORY" --color "1D76DB" --description "Задача готова к диспетчеризации" 2>/dev/null || true
+          gh label create agent-dispatched --repo "$GITHUB_REPOSITORY" --color "0E8A16" --description "Задача передана диспетчером; исполнение требует отдельного агента" 2>/dev/null || true
+
       - name: Find one ready task
         id: queue
         env:
