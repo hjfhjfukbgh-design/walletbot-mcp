@@ -437,3 +437,22 @@ button:disabled{cursor:not-allowed;opacity:.5}
   #kg-asset-screen .kg-chart{height:132px}
   #kg-asset-screen .kg-section-head{margin:13px 2px 7px}
 }
+
+
+/* Final visual QA: remove excess dead space in the ticket and keep
+   the last asset details clear of the fixed LONG/SHORT action bar. */
+.kg-ticket{
+  justify-content:flex-start!important;
+}
+.kg-ticket-amount{
+  margin-top:clamp(62px,9vh,76px)!important;
+}
+.kg-ticket-settings{
+  margin-top:clamp(26px,4vh,34px)!important;
+}
+.kg-ticket-check{
+  margin-top:18px!important;
+}
+#kg-asset-screen{
+  padding-bottom:calc(210px + var(--kg-safe-bottom))!important;
+}

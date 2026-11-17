@@ -121,6 +121,16 @@ try{
     await page.waitForSelector("#kg-chart svg");
     if(!(await page.locator("#kg-asset-name").innerText()).includes("Bitcoin"))throw new Error("asset detail title missing");
     await page.screenshot({path:`clean-asset-${device.width}x${device.height}.png`,fullPage:false});
+    await page.locator("#kg-asset-screen").evaluate(el=>el.scrollTo(0,el.scrollHeight));
+    const assetScrollCheck=await page.evaluate(()=>{
+      const screen=document.querySelector("#kg-asset-screen");
+      const about=document.querySelector("#kg-asset-screen .kg-asset-about").getBoundingClientRect();
+      const actions=document.querySelector("#kg-asset-screen .kg-asset-actions").getBoundingClientRect();
+      return {scrollTop:screen.scrollTop,scrollHeight:screen.scrollHeight,clientHeight:screen.clientHeight,aboutBottom:about.bottom,actionsTop:actions.top,viewportHeight:window.innerHeight};
+    });
+    if(assetScrollCheck.scrollTop<=0)throw new Error("asset detail should scroll to its final information section");
+    if(assetScrollCheck.aboutBottom>assetScrollCheck.actionsTop-8)throw new Error("asset detail final information is obscured by the fixed LONG/SHORT bar: "+JSON.stringify(assetScrollCheck));
+    await page.locator("#kg-asset-screen").evaluate(el=>el.scrollTo(0,0));
     await page.locator("#kg-long").click();
     await page.waitForSelector("#kg-ticket-screen:not([hidden])");
     if(!(await page.evaluate(()=>document.activeElement?.id==="kg-ticket-margin")))throw new Error("ticket amount input should autofocus during the user gesture");
