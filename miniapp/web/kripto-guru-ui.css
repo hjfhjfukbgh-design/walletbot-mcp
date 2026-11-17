@@ -193,7 +193,9 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .kg-ticket-heading{margin:34px auto 0}
 .kg-ticket-amount{
   flex:0 0 auto;
-  margin:clamp(54px,9vh,88px) 0 5px;
+  /* Match the reference: the amount/leverage group sits around the
+     vertical center, with a deliberate large gap below the instrument chip. */
+  margin:clamp(220px,27vh,270px) 0 5px;
 }
 .kg-ticket-amount input{width:142px;font-size:42px}
 .kg-ticket-volume{margin-top:2px}
@@ -217,7 +219,7 @@ button:disabled{cursor:not-allowed;opacity:.5}
   margin-top:0;
 }
 @media(max-height:700px){
-  .kg-ticket-amount{margin-top:30px}
+  .kg-ticket-amount{margin-top:190px}
   .kg-ticket-actions{padding-top:12px;padding-bottom:9px}
 }
 
@@ -256,7 +258,7 @@ button:disabled{cursor:not-allowed;opacity:.5}
 }
 .kg-unavailable-row>strong{flex:0 0 auto}
 #kg-main{padding-bottom:calc(176px + var(--kg-safe-bottom))}
-.kg-ticket-amount{margin-top:clamp(38px,6vh,58px)}
+.kg-ticket-amount{margin-top:clamp(220px,27vh,270px)!important}
 .kg-ticket-actions{
   justify-content:space-between;
   align-items:center;
@@ -277,7 +279,7 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .kg-ticket-preview{margin-top:12px;line-height:1.4}
 .kg-ticket-check{margin-top:12px;min-height:52px}
 @media(max-height:700px){
-  .kg-ticket-amount{margin-top:25px}
+  .kg-ticket-amount{margin-top:190px!important}
   .kg-ticket-actions{margin-top:18px}
 }
 
