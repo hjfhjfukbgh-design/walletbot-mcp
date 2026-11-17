@@ -82,8 +82,12 @@
     <div id="kg-asset-price" class="kg-asset-price">—</div>
     <div id="kg-asset-change" class="kg-asset-change">—</div>
     <div class="kg-chart-card"><div class="kg-chart-head"><b>График цены</b><span id="kg-chart-state" class="kg-muted">Рыночные данные</span></div><div id="kg-chart" class="kg-chart"></div><div id="kg-timeframes" class="kg-timeframes"><button data-interval="1m">1м</button><button data-interval="5m">5м</button><button data-interval="15m" class="is-selected">15м</button><button data-interval="1h">1ч</button><button data-interval="4h">4ч</button><button data-interval="1d">1д</button></div></div>
-    <div class="kg-section-head"><h2>Подробнее</h2></div>
+    <div class="kg-section-head"><h2>Детали</h2></div>
     <div id="kg-market-details" class="kg-list"></div>
+    <div class="kg-section-head"><h2>История транзакций</h2><button id="kg-asset-history-all" class="kg-link" type="button">Показать все</button></div>
+    <div id="kg-asset-history" class="kg-list"></div>
+    <div class="kg-section-head"><h2>Подробнее</h2></div>
+    <div class="kg-asset-about"><p>В демо-режиме используются публичные рыночные данные, но все сделки совершаются только виртуальными средствами.</p><p>Изменение цены за 24 часа не гарантирует дальнейшего движения рынка.</p></div>
     <div class="kg-asset-actions"><button id="kg-long" class="kg-primary" type="button">↗ Лонг</button><button id="kg-short" class="kg-primary" type="button">↘ Шорт</button></div>
   </section>
 
@@ -93,7 +97,7 @@
     <div class="kg-ticket-amount"><input id="kg-ticket-margin" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0"><span>$</span><button id="kg-ticket-leverage" class="kg-badge" type="button">1×</button></div>
     <div id="kg-ticket-volume" class="kg-ticket-volume">Объём: —</div>
     <div id="kg-ticket-available" class="kg-ticket-available">Доступно: —</div>
-    <div class="kg-ticket-actions"><span class="kg-badge">Оплата в долларах</span><button id="kg-ticket-autoclose" class="kg-badge" type="button">Автозакрытие</button></div>
+    <div class="kg-ticket-actions"><span class="kg-badge">Оплата в долларах</span><button id="kg-ticket-autoclose" class="kg-badge" type="button" disabled title="Автозакрытие пока недоступно">Автозакрытие</button></div>
     <div id="kg-ticket-preview" class="kg-ticket-preview"></div>
     <button id="kg-ticket-check" class="kg-primary kg-ticket-check" type="button" disabled>Проверить</button>
   </section>
