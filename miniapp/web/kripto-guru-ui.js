@@ -352,7 +352,10 @@
     $("#kg-trade-confirm").addEventListener("click",confirmTrade);
     document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("#kg-confirm-screen").hidden||!$("#kg-leverage-screen").hidden)closeModals();else if(!$("#kg-ticket-screen").hidden)closeTicket();else if(!$("#kg-asset-screen").hidden)closeAsset();}});
   }
+  let started=false;
   async function start(){
+    if(started)return;
+    started=true;
     try{tg?.ready?.();tg?.expand?.();tg?.setHeaderColor?.("#ffffff");tg?.setBackgroundColor?.("#f0f0f6");}catch{}
     bind();
     await Promise.all([loadWallet(),loadCapabilities(),loadHistory()]);
