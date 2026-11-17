@@ -1,6 +1,6 @@
 :root{
-  --kg-bg:#f0f0f6;--kg-card:#fff;--kg-ink:#252630;--kg-muted:#8b909d;--kg-line:#ececf2;
-  --kg-blue:#2677f2;--kg-green:#19a66b;--kg-red:#e25360;--kg-shadow:0 2px 12px rgba(28,34,52,.045);
+  --kg-bg:#0b1018;--kg-card:#141c27;--kg-ink:#eef3fa;--kg-muted:#94a3b8;--kg-line:rgba(173,190,211,.12);
+  --kg-blue:#3989f4;--kg-green:#19c784;--kg-red:#f05b68;--kg-shadow:0 8px 24px rgba(0,0,0,.24);
   --kg-safe-bottom:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box}
