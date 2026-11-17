@@ -153,21 +153,28 @@
     renderFavorites();
   }
 
+  let walletRequest = null;
   async function loadWallet() {
-    try {
-      const next = await demoRequest("/api/demo");
-      const key = JSON.stringify({ balanceMicro:next.balanceMicro, positions:(next.positions || []).map((p) => [p.id,p.status,p.symbol,p.side,p.leverage,p.entryPrice,p.qtyUnits,p.marginMicro,p.liquidationPrice,p.takeProfitPrice,p.stopLossPrice]) });
-      account = next;
-      if (key !== lastRenderKey) {
-        renderWallet();
-        lastRenderKey = key;
-      } else if (!$ui("#wallet-favorites .favorite-card") && (typeof contracts !== "undefined" && contracts.length)) {
-        renderFavorites();
+    if (walletRequest) return walletRequest;
+    walletRequest = (async () => {
+      try {
+        const next = await demoRequest("/api/demo");
+        const key = JSON.stringify({ balanceMicro:next.balanceMicro, positions:(next.positions || []).map((p) => [p.id,p.status,p.symbol,p.side,p.leverage,p.entryPrice,p.qtyUnits,p.marginMicro,p.liquidationPrice,p.takeProfitPrice,p.stopLossPrice]) });
+        account = next;
+        if (key !== lastRenderKey) {
+          renderWallet();
+          lastRenderKey = key;
+        } else if (!$ui("#wallet-favorites .favorite-card") && (typeof contracts !== "undefined" && contracts.length)) {
+          renderFavorites();
+        }
+      } catch (error) {
+        const target = $ui("#engine-positions");
+        if (target && !account) target.innerHTML = `<div class="empty-wallet"><b>Не удалось загрузить демо-счёт</b><small>${escapeHtml(error.message)}</small><button class="secondary-button" id="wallet-retry" type="button">Повторить</button></div>`;
+        else console.warn("[Kripto Guru] Не удалось обновить демо-счёт:", error);
       }
-    } catch (error) {
-      const target = $ui("#engine-positions");
-      if (target && !account) target.innerHTML = `<div class="empty-wallet"><b>Не удалось загрузить демо-счёт</b><small>${escapeHtml(error.message)}</small><button class="secondary-button" id="wallet-retry" type="button">Повторить</button></div>`;
-    }
+    })();
+    try { await walletRequest; }
+    finally { walletRequest = null; }
   }
 
   function goToTrade(market) {
