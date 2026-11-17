@@ -4,8 +4,10 @@
   const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
   const tg = window.Telegram?.WebApp || null;
   const state = {
-    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], favorites:new Set(["BTC","ETH","SOL"]),
-    recent:[], selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
+    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[],
+    favorites:(()=>{try{return new Set(JSON.parse(localStorage.getItem("kg:favorites:v1")||'["BTC","ETH","SOL"]'));}catch{return new Set(["BTC","ETH","SOL"]);}})(),
+    recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
+    editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
     autoclose:false, busy:false
   };
@@ -71,7 +73,7 @@
     const fav=[...state.favorites].map(s=>map.get(s)).filter(Boolean).slice(0,8);
     $("#kg-favorites").innerHTML=fav.length?fav.map(m=>{
       const s=m.symbol||m.market, change=changeOf(m), price=quoteOf(m);
-      return `<button class="kg-favorite" data-open-market="${esc(s)}" type="button"><div class="kg-fav-top"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-badge">${Number(m.maxLeverage||1)}×</span></div><b>${esc(s)}</b><strong>${money(price,price>=100?0:2)}</strong><small class="${change>=0?"kg-change-up":"kg-change-down"}">${pct(change)}</small><svg class="kg-sparkline" viewBox="0 0 100 22" preserveAspectRatio="none"><path d="M1 15 L14 12 L25 16 L37 8 L49 10 L62 4 L74 12 L86 9 L99 18" fill="none" stroke="${change>=0?"#22ad78":"#e45a65"}" stroke-width="2"/></svg></button>`;
+      return `<button class="kg-favorite" data-open-market="${esc(s)}" type="button"><div class="kg-fav-top"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-badge">${Number(m.maxLeverage||1)}×</span><span class="kg-fav-remove" data-remove-favorite="${esc(s)}" ${state.editFavorites?"":"hidden"}>×</span></div><b>${esc(s)}</b><strong>${money(price,price>=100?0:2)}</strong><small class="${change>=0?"kg-change-up":"kg-change-down"}">${pct(change)}</small><svg class="kg-sparkline" viewBox="0 0 100 22" preserveAspectRatio="none"><path d="M1 15 L14 12 L25 16 L37 8 L49 10 L62 4 L74 12 L86 9 L99 18" fill="none" stroke="${change>=0?"#22ad78":"#e45a65"}" stroke-width="2"/></svg></button>`;
     }).join(""):'<div class="kg-empty-inline">Добавьте активы в избранное из списка рынка.</div>';
   }
   function renderWalletAssets(){
@@ -205,6 +207,7 @@
       if(detail.tradeable===false){notify("Этот актив недоступен для DEMO-торговли.");return;}
       state.selected=detail;state.selectedMarket=symbol;
       state.recent=[symbol,...state.recent.filter(x=>x!==symbol)].slice(0,8);
+      try{localStorage.setItem("kg:recent:v1",JSON.stringify(state.recent));}catch{}
       renderRecent();
       $("#kg-asset-name").textContent=detail.name||symbolName(symbol);
       $("#kg-asset-symbol").textContent=symbol+" · DEMO-рынок";
@@ -312,19 +315,21 @@
     $("#kg-search-close").addEventListener("click",()=>{$("#kg-market-search").value="";$("#kg-market-search").hidden=true;$("#kg-search-close").hidden=true;$("#kg-search-open").hidden=false;renderMarketList(state.category==="futures"?state.futures:state.markets);});
     $("#kg-market-search").addEventListener("input",()=>renderMarketList(state.category==="futures"?state.futures:state.markets));
     $("#kg-market-search").addEventListener("keydown",e=>{if(e.key==="Escape")$("#kg-search-close").click();});
-    $("#kg-recent-clear").addEventListener("click",()=>{state.recent=[];renderRecent();});
+    $("#kg-recent-clear").addEventListener("click",()=>{state.recent=[];try{localStorage.removeItem("kg:recent:v1");}catch{}renderRecent();});
     $$("[data-sort]").forEach(b=>b.addEventListener("click",()=>{state.sort=b.dataset.sort;$$("[data-sort]").forEach(x=>x.classList.toggle("is-selected",x===b));renderTopDay(state.category==="futures"?state.futures:state.markets);}));
     document.addEventListener("click",event=>{
+      const remove=event.target.closest("[data-remove-favorite]");
+      if(remove){event.preventDefault();event.stopPropagation();state.favorites.delete(remove.dataset.removeFavorite);try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}renderFavorites();return;}
       const open=event.target.closest("[data-open-market]");
       if(open){const symbol=open.dataset.openMarket;if(symbol)openAsset(symbol);return;}
       const fav=event.target.closest("[data-toggle-favorite]");
-      if(fav){const symbol=fav.dataset.toggleFavorite;state.favorites.has(symbol)?state.favorites.delete(symbol):state.favorites.add(symbol);renderFavorites();renderMarketList(state.category==="futures"?state.futures:state.markets);}
+      if(fav){const symbol=fav.dataset.toggleFavorite;state.favorites.has(symbol)?state.favorites.delete(symbol):state.favorites.add(symbol);try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}renderFavorites();renderMarketList(state.category==="futures"?state.futures:state.markets);}
       const close=event.target.closest("[data-close-position]");
       if(close)closePosition(close.dataset.closePosition);
     });
-    $("#kg-edit-favorites").addEventListener("click",()=>notify("Чтобы изменить избранное, используйте звёздочку в списке рынка."));
+    $("#kg-edit-favorites").addEventListener("click",()=>{state.editFavorites=!state.editFavorites;$("#kg-edit-favorites").textContent=state.editFavorites?"Готово":"Изменить";renderFavorites();});
     $("#kg-asset-back").addEventListener("click",closeAsset);
-    $("#kg-asset-favorite").addEventListener("click",()=>{const s=state.selectedMarket;if(!s)return;state.favorites.has(s)?state.favorites.delete(s):state.favorites.add(s);renderFavorites();$("#kg-asset-favorite").textContent=state.favorites.has(s)?"★ В избранном":"☆ В избранное";});
+    $("#kg-asset-favorite").addEventListener("click",()=>{const s=state.selectedMarket;if(!s)return;state.favorites.has(s)?state.favorites.delete(s):state.favorites.add(s);renderFavorites();try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}$("#kg-asset-favorite").textContent=state.favorites.has(s)?"★ В избранном":"☆ В избранное";});
     $$("#kg-timeframes button").forEach(b=>b.addEventListener("click",()=>loadCandles(b.dataset.interval)));
     $("#kg-long").addEventListener("click",()=>openTicket("long"));
     $("#kg-short").addEventListener("click",()=>openTicket("short"));
