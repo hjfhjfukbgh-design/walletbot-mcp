@@ -135,6 +135,8 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
 
   it("persists closed LONG and SHORT results in per-user history across Engine restart", async () => {
     let stub = await boot();
+    const initialAccountResponse = await stub.fetch("https://engine.test/account?userId=" + userId);
+    const initialBalance = (await initialAccountResponse.json() as { balanceMicro: string }).balanceMicro;
     await quote(stub, 50_000n * P);
     const long = await open(stub, 100n * U);
     expect(long.body.ok).toBe(true);
@@ -145,6 +147,10 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       maxOrderBps: "10000", maxTotalExposureBps: "10000",
     });
     expect(short.body.ok).toBe(true);
+    const openAccountResponse = await stub.fetch("https://engine.test/account?userId=" + userId);
+    const openAccount = await openAccountResponse.json() as { balanceMicro: string; positions: Array<{ id: string }> };
+    expect(openAccount.positions).toHaveLength(2);
+    expect(BigInt(openAccount.balanceMicro)).toBeLessThan(BigInt(initialBalance));
     await quote(stub, 51_000n * P);
     const longClose = await post(stub, "/close", { userId, positionId: long.body.position.id, manual: true });
     const shortClose = await post(stub, "/close", { userId, positionId: short.body.position.id, manual: true });
@@ -159,7 +165,10 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(history.trades.filter((item) => item.event === "close").map((item) => item.side).sort()).toEqual(["long", "short"]);
     expect(history.equity.length).toBeGreaterThanOrEqual(5);
     const balance = await stub.fetch("https://engine.test/account?userId=" + userId);
-    const balanceBeforeRestart = (await balance.json() as { balanceMicro: string }).balanceMicro;
+    const closedAccount = await balance.json() as { balanceMicro: string; positions: Array<{ id: string }> };
+    const balanceBeforeRestart = closedAccount.balanceMicro;
+    expect(closedAccount.positions).toHaveLength(0);
+    expect(balanceBeforeRestart).not.toBe(initialBalance);
 
     await mf?.dispose();
     mf = undefined;
