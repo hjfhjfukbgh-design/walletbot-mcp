@@ -280,6 +280,24 @@
         raw: data,
       };
     },
+    async position(market) {
+      const symbol = String(market || "").trim().toUpperCase();
+      if (!symbol) throw new KriptoGuruApiError({ code: "VALIDATION_ERROR", message: "Укажите торговый актив." });
+      const data = await request("/api/walt/position?market=" + encodeURIComponent(symbol));
+      return {
+        market: String(data.market || symbol),
+        position: data.position ? {
+          contractId: Number(data.position.contractId),
+          avgEntryPrice: finite(data.position.avgEntryPrice),
+          valueBase: finite(data.position.valueBase),
+          marginQuote: finite(data.position.marginQuote),
+          liquidationPrice: finite(data.position.liquidationPrice),
+        } : null,
+        source: String(data.source || "walt-mcp"),
+        permission: String(data.permission || "read-only"),
+        raw: data,
+      };
+    },
   };
 
   const capabilities = {
