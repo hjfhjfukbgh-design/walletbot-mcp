@@ -11,7 +11,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: kripto-guru-central-orchestrator
+  group: kripto-guru-queue-claim
   cancel-in-progress: false
 
 jobs:

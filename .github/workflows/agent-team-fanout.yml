@@ -1,0 +1,92 @@
+name: Kripto Guru — parallel team fan-out
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "27 * * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: kripto-guru-queue-claim
+  cancel-in-progress: false
+
+jobs:
+  claim-team-tasks:
+    name: Claim up to one ready task per team
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    outputs:
+      has_tasks: ${{ steps.claim.outputs.has_tasks }}
+      matrix: ${{ steps.claim.outputs.matrix }}
+    steps:
+      - name: Claim one ready task for each team
+        id: claim
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import { execFileSync } from "node:child_process";
+          const repo = process.env.GITHUB_REPOSITORY;
+          const gh = (args) => execFileSync("gh", args, {encoding:"utf8",env:process.env}).trim();
+          const assignments = [];
+          const teams = ["A","B","C"];
+          const roles = new Set(["ARCHITECT","BACKEND","FRONTEND","QA","SECURITY","ANALYST"]);
+          for (const team of teams) {
+            const issues = JSON.parse(gh([
+              "issue","list","--repo",repo,"--state","open",
+              "--label","agent-ready","--label","team-"+team.toLowerCase(),
+              "--limit","1","--json","number,title,body,url"
+            ]) || "[]");
+            const issue = issues[0];
+            if (!issue) continue;
+            const marker = String(issue.body||"").match(/<!-- kg-child-task:v1;parent=(\d+);key=([a-z][a-z0-9-]{2,30});team=([ABC]);role=([A-Z]+);depends=([^ ]*) -->/);
+            if (!marker || marker[3]!==team || !roles.has(marker[4])) {
+              console.log("SKIP #"+issue.number+": missing or invalid team-task metadata");
+              continue;
+            }
+            const expires = new Date(Date.now()+45*60*1000).toISOString().replace(".000","");
+            const lease = "<!-- kg-lease:run="+process.env.RUN_ID+";expires="+expires+" -->";
+            gh(["issue","comment",String(issue.number),"--repo",repo,"--body","Задача захвачена командой "+team+". Исполнитель запускается; lease до "+expires+".\n\n"+lease]);
+            gh(["issue","edit",String(issue.number),"--repo",repo,"--remove-label","agent-ready","--add-label","agent-dispatched"]);
+            assignments.push({
+              team,
+              role:marker[4],
+              issue_number:String(issue.number),
+              task:String(issue.title)+"\n\n"+String(issue.body||"").slice(0,12000),
+              base_branch:process.env.GITHUB_REF_NAME
+            });
+            console.log("CLAIMED #"+issue.number+" for Team "+team+" / "+marker[4]);
+          }
+          const matrix = {include:assignments};
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            "has_tasks="+(assignments.length?"true":"false")+"\n"+
+            "matrix="+JSON.stringify(matrix)+"\n");
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            "## Parallel fan-out\n\nClaimed tasks: "+assignments.length+" of 3 possible team slots.\n"+
+            assignments.map(x=>"- Issue #"+x.issue_number+" — Team "+x.team+" / "+x.role).join("\n")+"\n");
+          NODE
+
+  run-team-workers:
+    name: Run team ${{ matrix.team }} — issue #${{ matrix.issue_number }}
+    needs: claim-team-tasks
+    if: needs.claim-team-tasks.outputs.has_tasks == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJSON(needs.claim-team-tasks.outputs.matrix) }}
+    uses: ./.github/workflows/role-worker.yml
+    with:
+      role: ${{ matrix.role }}
+      issue_number: ${{ matrix.issue_number }}
+      task: ${{ matrix.task }}
+      base_branch: ${{ matrix.base_branch }}
+    secrets:
+      GEMINI_API_KEY: ${{ matrix.team == 'A' && secrets.GEMINI_API_KEY || matrix.team == 'B' && secrets.GEMINI_API_KEY_TEAM_B || secrets.GEMINI_API_KEY_TEAM_C }}

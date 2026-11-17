@@ -162,3 +162,21 @@ The parallel-planning branch adds a manual parent-Issue decomposition workflow:
 - A scheduled dependency-unlock workflow promotes a planned child task only after all referenced sibling tasks carry `agent-done`.
 
 Limitations remain material: the current dispatcher still processes only one ready Issue per run, so task decomposition is not yet concurrent execution. The unlocker uses GitHub Issue labels as a completion signal, not proof that a dependency PR was merged or independently accepted. Parallel team fan-out, conflict arbitration, independent QA gates, and a real end-to-end run remain future work. These scheduled workflows are inactive until merged into the default branch.
+
+## Parallel team fan-out MVP (Draft PR)
+
+The fan-out branch adds a scheduled/manual matrix dispatcher:
+
+- It claims up to one `agent-ready` child Issue per team label (`team-a`, `team-b`, `team-c`) in one serialized claim phase.
+- Each child Issue must contain the planner's explicit team and role metadata; malformed or unlabelled work is skipped.
+- The claim phase writes a per-Issue lease marker before changing its state to `agent-dispatched`.
+- A GitHub Actions matrix then invokes up to three reusable role workers concurrently, routing each worker to the matching Gemini secret.
+- The legacy single-issue orchestrator shares the same queue-claim concurrency group so it cannot race the matrix claimant.
+- Each worker's existing finalizer records success as `agent-done` or failure as `agent-blocked`; the hourly lease recovery remains the fallback for interrupted runs.
+
+This is the first parallel execution path, but it is still an MVP: only one task per team is claimed per run; a single task cannot be split into multiple workers; there is no file-level conflict arbitration across teams yet; and the dependency unlocker treats worker completion as a handoff signal, not human acceptance or merged code. The fan-out and recovery paths need real Actions validation after merge. No automatic merge, deployment, LIVE execution, or funds movement is permitted.
+
+Additional planner guardrails in the fan-out branch:
+
+- A plan is rejected if two tasks that may run concurrently declare overlapping write-scope paths. An explicit dependency serializes a pair, so sequential tasks may intentionally touch the same files. Path comparisons respect directory boundaries (for example, `src/foo` does not conflict with `src/foobar`); wildcard scopes are handled conservatively.
+- Any task assigned the QA role must depend on every non-QA task in the same plan, preventing the QA worker from starting before implementation handoffs complete.
