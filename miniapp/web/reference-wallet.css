@@ -164,3 +164,20 @@ body.asset-open .bottom-nav{display:none!important}
 .favorite-card{flex:0 0 118px!important;min-width:118px!important;min-height:124px!important;padding:11px!important}
 #tab-painel .asset-line{min-height:52px!important;padding:7px 0!important}
 #tab-painel .asset-line .coin-avatar{width:32px!important;height:32px!important;flex-basis:32px!important}
+
+
+/* The order ticket is a full-height Telegram sub-screen in the reference, not a floating modal. */
+.sheet-backdrop:has(#ticket-margin){inset:0!important;padding:0!important;align-items:stretch!important;justify-content:stretch!important;background:#fff!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.bottom-sheet:has(#ticket-margin){display:flex!important;flex-direction:column!important;width:100%!important;height:100%!important;max-height:100%!important;overflow-y:auto!important;padding:13px 17px calc(12px + env(safe-area-inset-bottom))!important;border:0!important;border-radius:0!important;background:#fff!important;box-shadow:none!important}
+.bottom-sheet:has(#ticket-margin) .sheet-grabber,.bottom-sheet:has(#ticket-margin) .sheet-header{display:none!important}
+.bottom-sheet:has(#ticket-margin) .ticket-market-chip{align-self:center!important;min-height:31px!important;margin:3px auto 0!important;padding:6px 11px!important;border:0!important;border-radius:999px!important;background:#f1f2f6!important;color:#4c5060!important;font-size:10px!important}
+.bottom-sheet:has(#ticket-margin) .ticket-market-chip b{font-weight:700!important;color:#2d303a!important}
+.bottom-sheet:has(#ticket-margin) .ticket-amount-wrap{display:flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;margin:22vh 0 5px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important}
+.bottom-sheet:has(#ticket-margin) .ticket-amount-wrap>span{font-size:34px!important;color:#252832!important;font-weight:650!important}
+.bottom-sheet:has(#ticket-margin) .ticket-amount-wrap .number-input{width:auto!important;max-width:70%!important;min-width:100px!important;padding:0!important;border:0!important;background:transparent!important;text-align:center!important;font-size:39px!important;font-weight:760!important;letter-spacing:-1.2px!important;color:#22252e!important}
+.bottom-sheet:has(#ticket-margin) #ticket-leverage{min-width:40px!important;border:0!important;background:#f1f2f6!important}
+.bottom-sheet:has(#ticket-margin) .ticket-volume,.bottom-sheet:has(#ticket-margin) .ticket-available{justify-content:center!important;text-align:center!important;font-size:11px!important}
+.bottom-sheet:has(#ticket-margin) .ticket-actions{margin-top:auto!important;padding-top:18px!important}
+.bottom-sheet:has(#ticket-margin) .ticket-actions .sheet-chip{border:0!important;background:#f2f3f7!important;border-radius:11px!important}
+.bottom-sheet:has(#ticket-margin) .sheet-footer{position:sticky!important;bottom:0!important;margin:12px -17px calc(-12px - env(safe-area-inset-bottom))!important;padding:11px 17px calc(11px + env(safe-area-inset-bottom))!important;border-top:0!important;background:#fff!important}
+.bottom-sheet:has(#ticket-margin) #ticket-check{min-height:48px!important;border-radius:12px!important}
