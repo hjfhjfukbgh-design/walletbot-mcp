@@ -664,10 +664,28 @@ document.querySelectorAll('[data-preset]').forEach((button) => button.addEventLi
 // ---------- histórico ----------
 async function loadHistory() {
   try {
-    const h = await call('trades');
+    const [h, engineHistory] = await Promise.all([
+      call('trades'),
+      call('demo/history').catch((error) => ({ trades: [], error: error.message })),
+    ]);
     drawEquity(h.equity);
-    $('#trades').innerHTML = h.trades.length
-      ? `<table><tr><th>Время</th><th>Событие</th><th>Цена</th><th>Результат</th></tr>${h.trades
+    const engineTrades = (engineHistory.trades || []).map((item) => {
+      const position = item.position || {};
+      const close = item.close || {};
+      return {
+        at: item.closedAt,
+        event: 'close',
+        side: position.side,
+        market: position.symbol,
+        reason: close.reason,
+        price: close.executionPrice ? Number(close.executionPrice) / 100_000_000 : undefined,
+        pnl: close.netPnlMicro === undefined ? undefined : Number(close.netPnlMicro) / 1_000_000,
+        mode: 'paper',
+      };
+    });
+    const rows = [...(h.trades || []), ...engineTrades].sort((a, b) => Number(b.at || 0) - Number(a.at || 0));
+    const table = rows.length
+      ? `<table><tr><th>Время</th><th>Событие</th><th>Цена</th><th>Результат</th></tr>${rows
           .map((t) => {
             const when = new Date(t.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
             const ev =
@@ -677,12 +695,13 @@ async function loadHistory() {
                   ? `<span class="ev up">${icon('tp')}TP</span>`
                   : t.reason === 'sl'
                     ? `<span class="ev down">${icon('sl')}SL</span>`
-                    : `<span class="ev">${icon('hand')}Вручную</span>`;
+                    : `<span class="ev">${icon('hand')}${t.side === 'short' ? 'SHORT' : 'LONG'} · ${esc(t.market || '')}</span>`;
             const pnl = t.pnl === undefined ? '' : `<span class="${t.pnl >= 0 ? 'up' : 'down'}">${usd(t.pnl, 4)}</span>`;
-            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(демо)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price, moneyDecimals(t.price))}</td><td>${pnl}</td></tr>`;
+            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(демо)</small>' : ''}</td><td>${ev}</td><td>${t.price === undefined ? '—' : usd(t.price, moneyDecimals(t.price))}</td><td>${pnl}</td></tr>`;
           })
           .join('')}</table>`
       : 'Сделок пока нет.';
+    $('#trades').innerHTML = table + (engineHistory.error ? `<p class="muted">История демо-позиций временно недоступна: ${esc(engineHistory.error)}</p>` : '');
   } catch (e) {
     $('#trades').textContent = e.message;
   }
