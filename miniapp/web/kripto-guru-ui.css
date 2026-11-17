@@ -280,3 +280,18 @@ button:disabled{cursor:not-allowed;opacity:.5}
   .kg-ticket-amount{margin-top:25px}
   .kg-ticket-actions{margin-top:18px}
 }
+
+
+/* Final ticket composition: keep the payment controls and primary action
+   anchored to the bottom edge; let the flexible gap sit above that group. */
+.kg-ticket-actions{
+  margin-top:auto!important;
+  padding-top:14px;
+}
+.kg-ticket-preview{
+  margin-top:10px;
+}
+.kg-ticket-check{
+  margin-top:12px;
+  margin-bottom:0;
+}
