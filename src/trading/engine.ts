@@ -105,7 +105,7 @@ export class TradingEngine {
           const position = parsePosition(row.position_json);
           const events: Array<Record<string, unknown>> = [{
             id: position.id + ":open", event: "open", at: row.created_at || row.updated_at,
-            market: position.symbol, side: position.side, price: position.entryPrice.toString(), mode: "paper",
+            market: position.symbol, side: position.side, price: Number(position.entryPrice) / 100_000_000, mode: "paper",
           }];
           if (row.close_json) {
             const close = JSON.parse(row.close_json) as { reason?: string; executionPrice?: string; netPnlMicro?: string };
