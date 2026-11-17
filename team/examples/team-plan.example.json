@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "summary": "Параллельная подготовка безопасного DEMO-терминала.",
+  "tasks": [
+    {
+      "task_key": "api-contract",
+      "team": "A",
+      "role": "BACKEND",
+      "title": "Зафиксировать контракт DEMO API",
+      "objective": "Описать и реализовать контракт чтения котировок и виртуальных позиций без доступа к реальному исполнению ордеров.",
+      "acceptance_criteria": [
+        "Контракт документирован",
+        "Тесты проверяют валидацию входных данных",
+        "Нет вызовов LIVE API"
+      ],
+      "write_scope": [
+        "src/demo/**",
+        "team/contracts/**"
+      ],
+      "depends_on": []
+    },
+    {
+      "task_key": "miniapp-demo",
+      "team": "B",
+      "role": "FRONTEND",
+      "title": "Подготовить DEMO интерфейс",
+      "objective": "Собрать русскоязычный интерфейс виртуальной торговли, используя согласованный API-контракт.",
+      "acceptance_criteria": [
+        "Есть состояния загрузки и ошибки",
+        "LONG/SHORT работают только с виртуальными позициями"
+      ],
+      "write_scope": [
+        "miniapp/web/**"
+      ],
+      "depends_on": [
+        "api-contract"
+      ]
+    },
+    {
+      "task_key": "qa-plan",
+      "team": "C",
+      "role": "QA",
+      "title": "Подготовить независимые QA сценарии",
+      "objective": "Составить проверяемые сценарии для DEMO API и интерфейса, включая негативные и граничные случаи.",
+      "acceptance_criteria": [
+        "Сценарии покрывают API и UI",
+        "Есть критерии регрессии"
+      ],
+      "write_scope": [
+        "team/qa/**"
+      ],
+      "depends_on": [
+        "api-contract",
+        "miniapp-demo"
+      ]
+    }
+  ]
+}

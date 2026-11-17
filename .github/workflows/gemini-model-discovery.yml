@@ -1,0 +1,115 @@
+name: Gemini API model discovery
+# One-time verification rerun after repository secret was corrected.
+
+on:
+  push:
+    branches:
+      - team/gemini-model-discovery-20261117
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gemini-model-discovery
+  cancel-in-progress: false
+
+jobs:
+  list-models:
+    name: Verify API key and list available models
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Query Gemini models endpoint
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "::error::Repository secret GEMINI_API_KEY is missing or empty."
+            exit 1
+          fi
+
+          node --input-type=module <<'NODE'
+          const apiKey = process.env.GEMINI_API_KEY;
+          const endpoint = "https://generativelanguage.googleapis.com/v1beta/models";
+          let pageToken = "";
+          const models = [];
+          let pages = 0;
+
+          try {
+            do {
+              const url = new URL(endpoint);
+              url.searchParams.set("pageSize", "100");
+              if (pageToken) url.searchParams.set("pageToken", pageToken);
+
+              const response = await fetch(url, {
+                headers: { "x-goog-api-key": apiKey }
+              });
+
+              const payload = await response.json().catch(() => ({}));
+              if (!response.ok) {
+                const message = payload?.error?.message || "Gemini API returned an error without a message.";
+                console.error(`Gemini API error: HTTP ${response.status}: ${message}`);
+                process.exit(1);
+              }
+
+              for (const model of payload.models || []) {
+                const methods = model.supportedGenerationMethods || [];
+                if (methods.includes("generateContent")) {
+                  models.push({
+                    name: model.name,
+                    displayName: model.displayName || "",
+                    inputTokenLimit: model.inputTokenLimit ?? null,
+                    outputTokenLimit: model.outputTokenLimit ?? null
+                  });
+                }
+              }
+
+              pageToken = payload.nextPageToken || "";
+              pages += 1;
+            } while (pageToken && pages < 5);
+
+            models.sort((a, b) => a.name.localeCompare(b.name));
+            console.log(`Gemini API authentication: SUCCESS`);
+            console.log(`Pages checked: ${pages}`);
+            console.log(`Models supporting generateContent: ${models.length}`);
+            for (const model of models) {
+              console.log([
+                model.name,
+                model.displayName,
+                `input=${model.inputTokenLimit ?? "unknown"}`,
+                `output=${model.outputTokenLimit ?? "unknown"}`
+              ].join(" | "));
+            }
+            if (pageToken) console.log("Note: model listing reached the 5-page safety limit.");
+            console.log("Model listing completed. Sending one minimal generation test to gemini-3.5-flash-lite.");
+            const testResponse = await fetch(
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+              {
+                method: "POST",
+                headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: "Ответь одним словом: ГОТОВО" }] }],
+                  generationConfig: { maxOutputTokens: 16, temperature: 0 }
+                })
+              }
+            );
+            const testPayload = await testResponse.json().catch(() => ({}));
+            if (!testResponse.ok) {
+              const message = testPayload?.error?.message || "Gemini generation test failed without a message.";
+              console.error("Generation test error: HTTP " + testResponse.status + ": " + message);
+              process.exit(1);
+            }
+            const answer = (testPayload?.candidates?.[0]?.content?.parts || []).map(part => part.text || "").join("").trim();
+            console.log("Generation test: SUCCESS");
+            console.log("Model: gemini-3.5-flash-lite");
+            console.log("Prompt: Ответь одним словом: ГОТОВО");
+            console.log("Gemini reply:", answer || "(empty response)");
+            console.log("Exactly one generation request was sent.");
+          } catch (error) {
+            console.error("Gemini API request failed:", error?.message || "Unknown network error");
+            process.exit(1);
+          }
+          NODE
