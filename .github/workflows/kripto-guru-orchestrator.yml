@@ -38,7 +38,8 @@ jobs:
         run: |
           set -euo pipefail
           gh label create agent-ready --repo "$GITHUB_REPOSITORY" --color "1D76DB" --description "Задача готова к диспетчеризации" 2>/dev/null || true
-          gh label create agent-dispatched --repo "$GITHUB_REPOSITORY" --color "0E8A16" --description "Задача передана диспетчером; исполнение требует отдельного агента" 2>/dev/null || true
+          gh label create agent-dispatched --repo "$GITHUB_REPOSITORY" --color "0E8A16" --description "Задача передана исполнителю" 2>/dev/null || true
+          gh label create agent-blocked --repo "$GITHUB_REPOSITORY" --color "B60205" --description "Задаче не хватает данных или она заблокирована" 2>/dev/null || true
 
       - name: Find one ready task
         id: queue
@@ -188,8 +189,13 @@ jobs:
           git commit -m "Add dispatcher packet for issue #${number}"
           git push origin "$branch"
           pr_url="$(gh pr create --repo "$GITHUB_REPOSITORY" --draft --base "$BASE_BRANCH" --head "$branch" --title "Dispatch packet: #${number} — ${title}" --body "AI-generated task assignment packet for Issue #${number}. Dispatch-only: no application source changes, tests, merge, deployment, or LIVE operations are claimed. Human review required.")"
-          gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "Диспетчер подготовил пакет задачи: $pr_url. Пакет требует проверки. Issue автоматически помечена как переданная в работу; фактическое исполнение агентом ещё не началось."
-          gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label agent-ready --add-label agent-dispatched
+          status="$(node -e 'process.stdout.write(require("/tmp/dispatch-meta.json").status)')"
+          gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "Диспетчер подготовил пакет задачи: $pr_url. Статус: $status. Пакет требует проверки человеком."
+          if [ "$status" = "READY" ]; then
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label agent-ready --add-label agent-dispatched
+          else
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label agent-ready --add-label agent-blocked
+          fi
           {
             echo "## Orchestrator: задача передана"
             echo ""
