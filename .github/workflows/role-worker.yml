@@ -203,7 +203,7 @@ jobs:
             exit 1
           fi
 
-      - name: Independent AI review of patch
+      - name: Second-model AI review of patch
         if: steps.checks.outputs.mode == 'code'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -245,9 +245,9 @@ jobs:
             }
             if(result) break;
           }
-          if(!result || !["PASS","REJECT"].includes(result.verdict)) throw new Error("Independent review unavailable: "+last);
+          if(!result || !["PASS","REJECT"].includes(result.verdict)) throw new Error("Second-model review unavailable: "+last);
           fs.writeFileSync("/tmp/worker-review.json",JSON.stringify(result,null,2));
-          console.log("Independent review verdict: "+result.verdict);
+          console.log("Second-model review verdict: "+result.verdict);
           if(result.verdict!=="PASS") {
             console.error(JSON.stringify(result));
             process.exit(1);
@@ -274,7 +274,7 @@ jobs:
           git push origin "$branch"
           gh pr create --draft --base "team/orchestrator-mvp-20261117" --head "$branch" \
             --title "${ROLE} implementation for issue #${ISSUE_NUMBER}" \
-            --body "Automated bounded implementation from central orchestrator. Issue: #${ISSUE_NUMBER}. Runtime checks passed and independent AI review returned PASS. Human code review still required. No merge, deployment, or LIVE actions were performed."
+            --body "Automated bounded implementation from central orchestrator. Issue: #${ISSUE_NUMBER}. Runtime checks passed and a second-model AI review returned PASS; this is not an independent human security audit. Human code review still required. No merge, deployment, or LIVE actions were performed."
 
       - name: Publish report-only role handoff
         if: steps.checks.outputs.mode != 'code'
