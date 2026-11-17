@@ -119,12 +119,7 @@ export class TradingEngine {
           }
           return events;
         }).sort((a, b) => Number(b.at) - Number(a.at));
-        const ledgerRows = this.ctx.storage.sql.exec(
-          "SELECT created_at, balance_after_micro FROM ledger WHERE user_id = ? ORDER BY id DESC LIMIT 200",
-          userId,
-        ).toArray() as Array<{ created_at: number; balance_after_micro: string }>;
-        const equity = ledgerRows.reverse().map((row) => [row.created_at, Number(row.balance_after_micro) / 1_000_000]);
-        return jsonResponse({ ok: true, trades, equity });
+        return jsonResponse({ ok: true, trades, equity: [] });
       }
       if (request.method === "GET" && url.pathname === "/health") {
         return Response.json({ ok: true, openPositions: this.positions.size, socketOpen: this.socket?.readyState === WebSocket.OPEN, quoteCount: this.quotes.size, staleSymbols: [...this.staleSymbols] });
