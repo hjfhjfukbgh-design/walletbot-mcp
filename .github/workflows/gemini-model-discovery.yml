@@ -84,7 +84,30 @@ jobs:
               ].join(" | "));
             }
             if (pageToken) console.log("Note: model listing reached the 5-page safety limit.");
-            console.log("This check lists models only; it does not send a generation request or verify per-model quota.");
+            console.log("Model listing completed. Sending one minimal generation test to gemini-3.5-flash-lite.");
+            const testResponse = await fetch(
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+              {
+                method: "POST",
+                headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: "Ответь одним словом: ГОТОВО" }] }],
+                  generationConfig: { maxOutputTokens: 16, temperature: 0 }
+                })
+              }
+            );
+            const testPayload = await testResponse.json().catch(() => ({}));
+            if (!testResponse.ok) {
+              const message = testPayload?.error?.message || "Gemini generation test failed without a message.";
+              console.error("Generation test error: HTTP " + testResponse.status + ": " + message);
+              process.exit(1);
+            }
+            const answer = (testPayload?.candidates?.[0]?.content?.parts || []).map(part => part.text || "").join("").trim();
+            console.log("Generation test: SUCCESS");
+            console.log("Model: gemini-3.5-flash-lite");
+            console.log("Prompt: Ответь одним словом: ГОТОВО");
+            console.log("Gemini reply:", answer || "(empty response)");
+            console.log("Exactly one generation request was sent.");
           } catch (error) {
             console.error("Gemini API request failed:", error?.message || "Unknown network error");
             process.exit(1);
