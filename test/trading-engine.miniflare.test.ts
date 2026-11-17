@@ -152,9 +152,12 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(BigInt(shortClose.body.result.netPnlMicro)).toBeLessThan(0n);
 
     const first = await stub.fetch("https://engine.test/history?userId=" + userId);
-    const history = await first.json() as { trades: Array<{ position: { side: string }; close: { netPnlMicro: string } }> };
-    expect(history.trades).toHaveLength(2);
-    expect(history.trades.map((item) => item.position.side).sort()).toEqual(["long", "short"]);
+    const history = await first.json() as { trades: Array<{ event: string; side: string; pnl?: number }>; equity: Array<[number, number]> };
+    expect(history.trades).toHaveLength(4);
+    expect(history.trades.filter((item) => item.event === "open")).toHaveLength(2);
+    expect(history.trades.filter((item) => item.event === "close")).toHaveLength(2);
+    expect(history.trades.filter((item) => item.event === "close").map((item) => item.side).sort()).toEqual(["long", "short"]);
+    expect(history.equity.length).toBeGreaterThanOrEqual(5);
     const balance = await stub.fetch("https://engine.test/account?userId=" + userId);
     const balanceBeforeRestart = (await balance.json() as { balanceMicro: string }).balanceMicro;
 
@@ -162,8 +165,8 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     mf = undefined;
     stub = await boot();
     const afterRestart = await stub.fetch("https://engine.test/history?userId=" + userId);
-    const restored = await afterRestart.json() as { trades: Array<{ close: { netPnlMicro: string } }> };
-    expect(restored.trades).toHaveLength(2);
+    const restored = await afterRestart.json() as { trades: Array<{ event: string }> };
+    expect(restored.trades).toHaveLength(4);
     const accountAfterRestart = await stub.fetch("https://engine.test/account?userId=" + userId);
     expect((await accountAfterRestart.json() as { balanceMicro: string }).balanceMicro).toBe(balanceBeforeRestart);
   });
