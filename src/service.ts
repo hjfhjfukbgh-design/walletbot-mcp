@@ -112,3 +112,74 @@ export async function setMode(env: Env, args: string[]): Promise<string> {
   await saveState(env, s);
   return `Режим ${target === "paper" ? "ДЕМО" : "LIVE"} включён. Сетка остановлена — запустите её командой /run.`;
 }
+
+
+export interface PaperSignalResult {
+  signal: "long" | "short" | "hold";
+  shortAverage: number;
+  longAverage: number;
+  reason: string;
+}
+
+export function buildPaperSignal(
+  prices: number[],
+  shortWindow = 5,
+  longWindow = 20
+): PaperSignalResult {
+  const defaultRes: PaperSignalResult = {
+    signal: "hold",
+    shortAverage: 0,
+    longAverage: 0,
+    reason: "Недостаточно данных или некорректные параметры",
+  };
+
+  if (!Array.isArray(prices)) return defaultRes;
+  if (!Number.isInteger(shortWindow) || !Number.isInteger(longWindow)) return defaultRes;
+  if (shortWindow <= 0 || longWindow <= 0 || shortWindow >= longWindow) return defaultRes;
+  if (prices.length < longWindow) return defaultRes;
+
+  const validPrices: number[] = [];
+  for (let i = 0; i < prices.length; i++) {
+    const p = prices[i];
+    if (typeof p !== "number" || !Number.isFinite(p) || p <= 0) {
+      return defaultRes;
+    }
+    validPrices.push(p);
+  }
+
+  if (validPrices.length < longWindow) return defaultRes;
+
+  const shortSlice = validPrices.slice(-shortWindow);
+  const longSlice = validPrices.slice(-longWindow);
+
+  let shortSum = 0;
+  for (let i = 0; i < shortSlice.length; i++) {
+    shortSum += shortSlice[i];
+  }
+  const shortAverage = shortSum / shortSlice.length;
+
+  let longSum = 0;
+  for (let i = 0; i < longSlice.length; i++) {
+    longSum += longSlice[i];
+  }
+  const longAverage = longSum / longSlice.length;
+
+  let signal: "long" | "short" | "hold" = "hold";
+  let reason = "Средние значения равны";
+
+  if (shortAverage > longAverage) {
+    signal = "long";
+    reason = "Короткое среднее выше длинного";
+  } else if (shortAverage < longAverage) {
+    signal = "short";
+    reason = "Короткое среднее ниже длинного";
+  }
+
+  return {
+    signal,
+    shortAverage,
+    longAverage,
+    reason,
+  };
+}
+
