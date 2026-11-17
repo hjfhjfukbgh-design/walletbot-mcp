@@ -298,7 +298,7 @@ async function loadChart(market, target = 'chart', interval = '15m') {
   const requestId = (chartRequestIds.get(target) || 0) + 1;
   chartRequestIds.set(target, requestId);
   const svg = document.getElementById(target);
-  const source = target === 'chart' ? $('#chart-src') : document.querySelector(`[data-chart-source="${target}"]`);
+  const source = target === 'chart' ? $('#chart-src') : target === 'pair-chart' ? $('#asset-chart-source') : document.querySelector(`[data-chart-source="${target}"]`);
   if (source) source.textContent = 'Загрузка свечей…';
   if (svg) svg.innerHTML = '<text x="10" y="20" fill="currentColor" font-size="12">Загрузка…</text>';
   try {
@@ -311,10 +311,26 @@ async function loadChart(market, target = 'chart', interval = '15m') {
     drawChart(result.candles, target, market);
   } catch (error) {
     if (chartRequestIds.get(target) !== requestId) return;
-    if (source) source.textContent = 'Свечи временно недоступны';
+    if (source) {
+      source.textContent = 'Свечи временно недоступны ';
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.textContent = 'Повторить';
+      retry.dataset.chartRetry = '1';
+      retry.dataset.chartTarget = target;
+      retry.dataset.chartMarket = market;
+      retry.dataset.chartInterval = interval;
+      source.append(retry);
+    }
     if (svg) svg.innerHTML = `<text x="10" y="20" fill="currentColor" font-size="12">${esc(error.message)}</text>`;
   }
 }
+
+document.addEventListener('click', (event) => {
+  const retry = event.target.closest('[data-chart-retry]');
+  if (!retry) return;
+  loadChart(retry.dataset.chartMarket, retry.dataset.chartTarget, retry.dataset.chartInterval);
+});
 
 function drawChart(candles, target = 'chart', market = '') {
   const svg = document.getElementById(target);
