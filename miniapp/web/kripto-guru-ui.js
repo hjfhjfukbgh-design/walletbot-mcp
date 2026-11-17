@@ -3,8 +3,21 @@
   const $ = (selector, root=document) => root.querySelector(selector);
   const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
   const tg = window.Telegram?.WebApp || null;
+  const THEME_STORAGE_KEY = "kg:theme:v1";
+  const normalizeThemePreference = (value) => {
+    if (value === "dark" || value === "light" || value === "system") return value;
+    return "dark";
+  };
+  const getStoredThemePreference = () => {
+    try { return normalizeThemePreference(localStorage.getItem(THEME_STORAGE_KEY)); }
+    catch { return "dark"; }
+  };
+  const setStoredThemePreference = (value) => {
+    try { localStorage.setItem(THEME_STORAGE_KEY, normalizeThemePreference(value)); }
+    catch {}
+  };
   const state = {
-    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[],
+    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], theme:getStoredThemePreference(),
     favorites:(()=>{try{return new Set(JSON.parse(localStorage.getItem("kg:favorites:v1")||'["BTC","ETH","SOL"]'));}catch{return new Set(["BTC","ETH","SOL"]);}})(),
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
