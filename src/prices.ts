@@ -5,6 +5,7 @@ export async function publicMid(market: string): Promise<number> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ type: "allMids" }),
+    signal: AbortSignal.timeout(8_000),
   });
   if (!res.ok) throw new Error(`Публичная котировка недоступна (HTTP ${res.status})`);
   const mids = (await res.json()) as Record<string, string>;
@@ -22,6 +23,7 @@ export async function publicContracts(): Promise<ContractInfo[]> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ type: "metaAndAssetCtxs" }),
+    signal: AbortSignal.timeout(8_000),
   });
   if (!res.ok) throw new Error(`Список публичных рынков недоступен (HTTP ${res.status})`);
   const payload = (await res.json()) as [
