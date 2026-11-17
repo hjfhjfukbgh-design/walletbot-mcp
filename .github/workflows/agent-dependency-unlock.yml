@@ -1,0 +1,60 @@
+name: Kripto Guru — unlock dependency-ready team tasks
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "53 * * * *"
+
+permissions:
+  issues: write
+
+concurrency:
+  group: kripto-guru-dependency-unlock
+  cancel-in-progress: false
+
+jobs:
+  unlock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Promote tasks whose dependencies completed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+          import fs from "node:fs";
+          const repo = process.env.GITHUB_REPOSITORY;
+          const gh = (args) => execFileSync("gh", args, {encoding:"utf8",env:process.env}).trim();
+          const planned = JSON.parse(gh(["issue","list","--repo",repo,"--state","open","--label","agent-planned","--limit","100","--json","number,title,body,labels"]) || "[]");
+          const done = JSON.parse(gh(["issue","list","--repo",repo,"--state","all","--label","agent-done","--limit","100","--json","number,title,body,labels"]) || "[]");
+          const childPattern = /<!-- kg-child-task:v1;parent=(\d+);key=([a-z][a-z0-9-]{2,30});team=([ABC]);depends=([^ ]*) -->/;
+          const index = new Map();
+          for (const issue of [...planned,...done]) {
+            const match = String(issue.body||"").match(childPattern);
+            if (!match) continue;
+            index.set(match[1]+":"+match[2],{issue,team:match[3],deps:match[4] ? match[4].split(",") : []});
+          }
+          let unlocked = 0, waiting = 0, invalid = 0;
+          for (const item of planned) {
+            const match = String(item.body||"").match(childPattern);
+            if (!match) { invalid++; console.log("SKIP #"+item.number+": missing child-task metadata"); continue; }
+            const parent = match[1], key = match[2], deps = match[4] ? match[4].split(",") : [];
+            if (!deps.length) { invalid++; console.log("SKIP #"+item.number+": planned task has no dependencies"); continue; }
+            const ready = deps.every(dep => {
+              const dependency = index.get(parent+":"+dep);
+              if (!dependency) return false;
+              const labels = (dependency.issue.labels||[]).map(x=>typeof x==="string"?x:x.name);
+              return labels.includes("agent-done");
+            });
+            if (!ready) { waiting++; continue; }
+            gh(["issue","edit",String(item.number),"--repo",repo,"--remove-label","agent-planned","--add-label","agent-ready"]);
+            gh(["issue","comment",String(item.number),"--repo",repo,"--body","Все зависимости завершили работу. Подзадача автоматически переведена в agent-ready. Требуется обычная проверка результата исполнителя."]);
+            unlocked++;
+            console.log("UNLOCKED #"+item.number+" ("+key+")");
+          }
+          const summary = "## Dependency unlock\n\n- Planned tasks scanned: "+planned.length+"\n- Unlocked: "+unlocked+"\n- Waiting: "+waiting+"\n- Skipped: "+invalid+"\n";
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary);
+          NODE

@@ -49,7 +49,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label agent-ready --limit 1 --json number,title,body,url)"
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label agent-ready --limit 1 --json number,title,body,url,labels)"
           echo "$issue" > /tmp/ready-issue.json
           if [ "$(node -e 'const x=require("/tmp/ready-issue.json"); process.stdout.write(String(x.length))')" = "0" ]; then
             echo "has_task=false" >> "$GITHUB_OUTPUT"
@@ -86,7 +86,9 @@ jobs:
           const [issue] = JSON.parse(fs.readFileSync("/tmp/ready-issue.json", "utf8"));
           if (!issue || !Number.isInteger(issue.number)) throw new Error("No valid queue issue found.");
           const taskText = String(issue.body || "").slice(0, 12000);
-          const team = ["A", "B", "C"][issue.number % 3];
+          const issueLabels = (issue.labels || []).map(label => typeof label === "string" ? label : label.name);
+          const assignedTeam = ["A", "B", "C"].find(candidate => issueLabels.includes("team-" + candidate.toLowerCase()));
+          const team = assignedTeam || ["A", "B", "C"][issue.number % 3];
           const apiKey = process.env["GEMINI_API_KEY_TEAM_" + team];
           const prompt = [
             "Ты — DISPATCHER центральной команды Kripto Guru.",
