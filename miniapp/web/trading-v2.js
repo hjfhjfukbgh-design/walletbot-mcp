@@ -55,6 +55,23 @@
     setTimeout(()=>window.scrollTo(0,0),0);
 
     const top=box.querySelector(".asset-topline");
+    const contract=contractFor(market);
+    if(top){
+      if(!$v("[data-asset-product-type]",top)){
+        const productType=document.createElement("span");
+        productType.className="asset-product-type";
+        productType.dataset.assetProductType="future";
+        productType.textContent="Фьючерс";
+        top.append(productType);
+      }
+      if(!$v("[data-asset-max-leverage]",top)){
+        const leverage=document.createElement("span");
+        leverage.className="asset-max-leverage";
+        leverage.dataset.assetMaxLeverage=String(Math.max(1,Number(contract?.maxLeverage||1)));
+        leverage.textContent=leverage.dataset.assetMaxLeverage+"×";
+        top.append(leverage);
+      }
+    }
     if(top && !$v("#asset-connection",top)){
       const connection=document.createElement("span");
       connection.id="asset-connection";
@@ -72,7 +89,6 @@
     box.querySelectorAll(".asset-tech .row").forEach((row)=>{
       if(/Минимальная маржа|Рекомендуемый диапазон/.test(row.textContent||"")) row.remove();
     });
-    const contract=contractFor(market);
     const openInterest=contract?.openInterestUsd ?? contract?.openInterest;
     if(openInterest!==undefined && Number.isFinite(Number(openInterest))){
       const row=document.createElement("div");
