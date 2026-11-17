@@ -15,6 +15,10 @@ on:
         description: "Исходное описание задачи"
         required: true
         type: string
+      base_branch:
+        description: "Ветка, на которой запущен диспетчер"
+        required: true
+        type: string
     secrets:
       GEMINI_API_KEY:
         required: true
@@ -36,7 +40,7 @@ jobs:
       - name: Checkout isolated baseline
         uses: actions/checkout@v4
         with:
-          ref: team/orchestrator-mvp-20261117
+          ref: ${{ inputs.base_branch }}
           fetch-depth: 0
 
       - name: Generate bounded patch
@@ -272,7 +276,7 @@ jobs:
           git add -u
           git commit -m "Implement ${ROLE} task #${ISSUE_NUMBER}"
           git push origin "$branch"
-          gh pr create --draft --base "team/orchestrator-mvp-20261117" --head "$branch" \
+          gh pr create --draft --base "${{ inputs.base_branch }}" --head "$branch" \
             --title "${ROLE} implementation for issue #${ISSUE_NUMBER}" \
             --body "Automated bounded implementation from central orchestrator. Issue: #${ISSUE_NUMBER}. Runtime checks passed and a second-model AI review returned PASS; this is not an independent human security audit. Human code review still required. No merge, deployment, or LIVE actions were performed."
 
