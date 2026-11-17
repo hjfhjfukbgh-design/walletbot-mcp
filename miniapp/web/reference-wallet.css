@@ -246,3 +246,7 @@ body.asset-open .bottom-nav{display:none!important}
 .asset-topline .asset-product-type,.asset-topline .asset-max-leverage{display:inline-flex!important;align-items:center!important;min-height:25px!important;padding:5px 8px!important;border:0!important;border-radius:8px!important;font-size:9px!important;line-height:1!important;font-weight:700!important}
 .asset-topline .asset-product-type{background:#f1f3f7!important;color:#6f7481!important}
 .asset-topline .asset-max-leverage{background:#eaf1ff!important;color:#2d70df!important}
+
+
+/* Keep an in-app back affordance for asset navigation; Telegram's close control remains separate. */
+.asset-topline .asset-back{display:inline-flex!important;align-items:center!important;justify-content:center!important;margin-right:auto!important;min-height:27px!important;padding:5px 9px!important;border:0!important;border-radius:9px!important;background:#f1f3f7!important;color:#626977!important;font-size:10px!important}
