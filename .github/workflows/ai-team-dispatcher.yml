@@ -1,0 +1,46 @@
+name: Kripto Guru AI Team Dispatcher (dry run)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kripto-guru-ai-dispatcher
+  cancel-in-progress: false
+
+jobs:
+  inspect-queue:
+    name: Inspect team queue (no AI calls)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout team branch
+        uses: actions/checkout@v4
+        with:
+          ref: team/dispatcher-dry-run-20261117
+
+      - name: Report dispatcher state
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "## Kripto Guru AI Team — dry run" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Mode: **DRY RUN**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- LLM provider: **not configured**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- API calls: **0**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Repository writes: **0**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Main branch / deployment: **not touched**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Queue source" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f team/TASKS.md ]; then
+            echo 'team/TASKS.md exists.' >> "$GITHUB_STEP_SUMMARY"
+            echo "Open tasks are listed below; this prototype does not assign or execute them." >> "$GITHUB_STEP_SUMMARY"
+            grep -E '^- \[ \]' team/TASKS.md >> "$GITHUB_STEP_SUMMARY" || true
+          else
+            echo "::error::team/TASKS.md not found"
+            exit 1
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Next gate:** verify a zero-cost model/provider and explicit quota controls before enabling any agent execution.";
