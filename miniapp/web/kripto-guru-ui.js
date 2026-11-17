@@ -152,7 +152,8 @@
         const [cryptoResult,futuresResult]=await Promise.all([invoke("markets.list",{category:"crypto"}),invoke("markets.list",{category:"futures"})]);
         state.markets=listOf(unwrap(cryptoResult,"markets"),["markets","items"]);
         state.futures=listOf(unwrap(futuresResult,"markets"),["markets","items"]);
-        const all=[...state.markets,...state.futures];
+        const unique=new Map([...state.markets,...state.futures].map(m=>[m.symbol||m.market,m]));
+        const all=[...unique.values()];
         $("#kg-market-title").textContent="Все активы";
         $("#kg-market-updated").textContent="Обновлено";
         renderMarketList(all);renderHeatmap(all);renderTopDay(all);renderFavorites();
