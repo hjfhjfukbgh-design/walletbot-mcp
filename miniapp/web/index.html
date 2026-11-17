@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="/style.css?v=20261116-2215" />
   <link rel="stylesheet" href="/design-system.css?v=20261116-2215" />
   <link rel="stylesheet" href="/visual-pass.css?v=20261116-visual-2" />
-  <link rel="stylesheet" href="/reference-wallet.css?v=20261117-reference-2" />
+  <link rel="stylesheet" href="/reference-wallet.css?v=20261117-reference-3" />
 </head>
 <body>
   <header class="topbar">
@@ -55,7 +55,11 @@
     </section>
 
     <section id="tab-pares" class="tab">
-      <div class="trade-search"><i data-icon="search"></i><input id="q" type="search" placeholder="Поиск: BTC, ETH…" autocomplete="off" /></div>
+      <div id="trade-search" class="trade-search">
+        <button id="trade-search-toggle" class="trade-search-toggle" type="button" aria-label="Открыть поиск" aria-expanded="false"><i data-icon="search"></i><span>Поиск</span></button>
+        <input id="q" type="search" placeholder="Поиск: BTC, ETH…" autocomplete="off" hidden />
+        <button id="trade-search-close" class="trade-search-close" type="button" aria-label="Закрыть поиск" hidden>×</button>
+      </div>
       <div class="section-heading"><h2>Недавно просмотренное</h2><button id="recent-clear" class="text-action" type="button">Очистить</button></div>
       <div id="recent-markets" class="recent-strip"><span class="recent-empty">Здесь появятся просмотренные активы</span></div>
       <div class="ipo-card">
@@ -163,6 +167,6 @@
     <button data-tab="ctrl"><i data-icon="gift"></i><span>Бонусы</span></button>
   </nav>
 
-  <script src="/icons.js?v=20261116-2215"></script><script src="/app.js?v=20261117-back-1"></script><script src="/wallet-v2.js?v=20261116-2215"></script><script src="/trading-v2.js?v=20261116-2215"></script>
+  <script src="/icons.js?v=20261116-2215"></script><script src="/app.js?v=20261117-search-1"></script><script src="/wallet-v2.js?v=20261116-2215"></script><script src="/trading-v2.js?v=20261116-2215"></script>
 </body>
 </html>
