@@ -14,7 +14,7 @@ import { buyPrice, minMargin, notional, step, stopLossPrice } from "./strategy/g
 import { timingSafeEqual, type TgUpdate } from "./telegram";
 import { findContract } from "./walt";
 import { tenantEnv } from "./tenants";
-import { MONEY_SCALE, parseFixed, PRICE_SCALE, pnlMicro } from "./trading/money";
+import { feeMicro, MONEY_SCALE, notionalMicro, parseFixed, PRICE_SCALE, pnlMicro } from "./trading/money";
 import { closeManualTrade, manualPositionsView, openManualTrade } from "./manual";
 
 type Json = Record<string, unknown>;
@@ -45,7 +45,7 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
   try {
     switch (route) {
       case "GET demo":
-        return engineRequest(env, "/account?userId=" + encodeURIComponent(telegramUserId));
+        return demoAccountView(env, telegramUserId);
       case "GET demo/history":
         return engineRequest(env, "/history?userId=" + encodeURIComponent(telegramUserId));
       case "POST demo/preview":
@@ -101,6 +101,43 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
  * Enforce all DEMO order limits on the trusted server. Never accept fees,
  * slippage, leverage limits, market eligibility, or account sizing from the client.
  */
+/**
+ * Enrich open DEMO positions with a server-observed mark and fee-aware PnL.
+ * A missing quote is represented as unavailable; it never becomes a made-up zero.
+ */
+async function demoAccountView(env: Env, userId: string): Promise<Response> {
+  const response = await engineRequest(env, "/account?userId=" + encodeURIComponent(userId));
+  if (!response.ok) return response;
+  const account = await response.json() as {
+    balanceMicro: string;
+    positions: Array<{
+      id: string; symbol: string; side: "long" | "short"; qtyUnits: string;
+      entryPrice: string; entryFeeMicro: string; feePpm: string;
+    }>;
+  };
+  const positions = await Promise.all((account.positions ?? []).map(async (position) => {
+    try {
+      const mark = await publicMid(position.symbol);
+      if (!Number.isFinite(mark) || mark <= 0) throw new Error("Нет свежей котировки.");
+      const markUnits = parseFixed(mark.toFixed(8), PRICE_SCALE, 8);
+      const grossPnl = pnlMicro(position.side, BigInt(position.qtyUnits), BigInt(position.entryPrice), markUnits);
+      const exitNotional = notionalMicro(BigInt(position.qtyUnits), markUnits);
+      const exitFee = feeMicro(exitNotional, BigInt(position.feePpm || "0"));
+      const estimatedNet = grossPnl - BigInt(position.entryFeeMicro || "0") - exitFee;
+      return {
+        ...position, markPriceUsd: mark,
+        unrealizedGrossPnlMicro: grossPnl.toString(),
+        estimatedExitFeeMicro: exitFee.toString(),
+        estimatedNetPnlMicro: estimatedNet.toString(),
+        markObservedAt: Date.now(),
+      };
+    } catch {
+      return { ...position, markPriceUsd: null, unrealizedGrossPnlMicro: null, estimatedExitFeeMicro: null, estimatedNetPnlMicro: null, markObservedAt: null };
+    }
+  }));
+  return json({ ok: true, balanceMicro: account.balanceMicro, positions });
+}
+
 /**
  * Read-only DEMO preview. All limits, current marks and fees are calculated
  * from server-owned risk settings and public contract metadata.
