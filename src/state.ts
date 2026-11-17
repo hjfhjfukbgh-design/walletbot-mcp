@@ -62,3 +62,22 @@ export async function cachedContracts(env: Env, fetcher: () => Promise<ContractI
   return fresh;
 }
 
+
+
+export function companionStorageKey(
+  kind: "conversation" | "message",
+  id: string
+): string | null {
+  if (kind !== "conversation" && kind !== "message") {
+    return null;
+  }
+  if (typeof id !== "string" || id.length === 0 || id.length > 128) {
+    return null;
+  }
+  const validIdRegex = /^[a-zA-Z0-9_-]+$/;
+  if (!validIdRegex.test(id)) {
+    return null;
+  }
+  return `companion:${kind}:${id}`;
+}
+
