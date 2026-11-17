@@ -66,7 +66,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     return post(stub, "/quote", { symbol: "BTC", price: price.toString(), observedAt: Date.now() });
   }
 
-  async function open(stub: EngineStub, marginMicro: bigint, limits = { maxOrderBps: "10000", maxTotalExposureBps: "10000" }, forUser = userId) {
+  async function open(stub: EngineStub, marginMicro: bigint, limits = { maxOrderBps: "10000", maxTotalExposureBps: "10000", maxDailyLossBps: "500" }, forUser = userId) {
     return post(stub, "/open", {
       userId: forUser, mode: "demo", symbol: "BTC", side: "long",
       marginMicro: marginMicro.toString(), leverage: "2",
@@ -94,7 +94,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   it("enforces total exposure atomically under concurrent opens and isolates users", async () => {
     const stub = await boot();
     await quote(stub, 50_000n * P);
-    const limits = { maxOrderBps: "10000", maxTotalExposureBps: "500" };
+    const limits = { maxOrderBps: "10000", maxTotalExposureBps: "500", maxDailyLossBps: "500" };
     const sameUser = await Promise.all([open(stub, 40n * U, limits), open(stub, 40n * U, limits)]);
     expect(sameUser.filter((r) => r.body.ok === true)).toHaveLength(1);
     expect(sameUser.filter((r) => r.body.ok === false)).toHaveLength(1);
@@ -114,6 +114,45 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(missing.body.ok).toBe(false);
     const invalid = await open(stub, 40n * U, { maxOrderBps: "10001", maxTotalExposureBps: "500" });
     expect(invalid.body.ok).toBe(false);
+  });
+
+  it("blocks new and concurrent opens when today's open-position loss breaches the UTC daily stop", async () => {
+    const stub = await boot();
+    await quote(stub, 50_000n * P);
+    const opened = await post(stub, "/open", {
+      userId, mode: "demo", symbol: "BTC", side: "long",
+      marginMicro: (300n * U).toString(), leverage: "2",
+      feePpm: "350", slippagePpm: "1000",
+      maxOrderBps: "10000", maxTotalExposureBps: "10000", maxDailyLossBps: "500",
+    });
+    expect(opened.body.ok).toBe(true);
+    await quote(stub, 44_000n * P); // no TP/SL: loss remains unrealized and must still count
+    const results = await Promise.all([open(stub, 10n * U), open(stub, 10n * U)]);
+    expect(results.every((r) => r.body.ok === false)).toBe(true);
+    expect(results.every((r) => String(r.body.error).includes("дневной лимит убытка"))).toBe(true);
+    const account = await stub.fetch("https://engine.test/account?userId=" + userId);
+    const state = await account.json() as { positions: Array<{ status: string }> };
+    expect(state.positions).toHaveLength(1);
+  });
+
+  it("counts realized net losses closed during the current UTC day", async () => {
+    const stub = await boot();
+    await quote(stub, 50_000n * P);
+    const opened = await post(stub, "/open", {
+      userId, mode: "demo", symbol: "BTC", side: "long",
+      marginMicro: (300n * U).toString(), leverage: "2",
+      takeProfitPrice: null, stopLossPrice: null,
+      feePpm: "350", slippagePpm: "1000",
+      maxOrderBps: "10000", maxTotalExposureBps: "10000", maxDailyLossBps: "500",
+    });
+    expect(opened.body.ok).toBe(true);
+    const id = opened.body.position.id as string;
+    await quote(stub, 44_000n * P);
+    const closed = await post(stub, "/close", { userId, positionId: id, manual: true });
+    expect(closed.body.ok).toBe(true);
+    const blocked = await open(stub, 10n * U);
+    expect(blocked.body.ok).toBe(false);
+    expect(String(blocked.body.error)).toContain("дневной лимит убытка");
   });
 
   it("allows a manual close before TP or SL is reached", async () => {
