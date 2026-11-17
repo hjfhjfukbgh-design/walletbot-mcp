@@ -260,7 +260,7 @@ button:disabled{cursor:not-allowed;opacity:.5}
 }
 .kg-unavailable-row>strong{flex:0 0 auto}
 #kg-main{padding-bottom:calc(176px + var(--kg-safe-bottom))}
-.kg-ticket-amount{margin-top:clamp(220px,27vh,270px)!important}
+.kg-ticket-amount{margin-top:clamp(78px,11vh,98px)!important}
 .kg-ticket-actions{
   justify-content:space-between;
   align-items:center;
