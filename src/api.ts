@@ -307,6 +307,7 @@ async function openDemoTrade(env: Env, userId: string, body: Json): Promise<Resp
     takeProfitPrice, stopLossPrice, feePpm, slippagePpm,
     maxOrderBps: String(Math.round(limits.maxOrderPct * 100)),
     maxTotalExposureBps: String(Math.round(limits.maxTotalExposurePct * 100)),
+    maxDailyLossBps: String(Math.round(limits.maxDailyLossPct * 100)),
     userId, mode: "demo",
   });
 }
