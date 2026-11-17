@@ -203,8 +203,9 @@ body.asset-open{padding-bottom:calc(100px + env(safe-area-inset-bottom))}
 
 @media(max-width:410px){.market-copy .name{flex-wrap:wrap;row-gap:2px}.market-copy .name small{white-space:nowrap}.market-leverage{font-size:8px;padding:2px 5px}}
 
-body.asset-open #tab-pares>*:not(#pair-detail){display:none!important}
-body.asset-open #pair-detail{display:block!important;margin:0;padding:15px 14px 118px;min-height:calc(100dvh - 70px)}
+body.asset-open #tab-pares>*:not(#crypto-market-content){display:none!important}
+body.asset-open #crypto-market-content>*:not(#pair-detail){display:none!important}
+body.asset-open #crypto-market-content #pair-detail{display:block!important;margin:0;padding:15px 14px 118px;min-height:calc(100dvh - 70px)}
 body.asset-open main{padding-top:5px}
 .asset-topline{gap:8px}.asset-connection{flex:1;min-width:0;text-align:center;color:var(--kg-muted);font-size:9px;white-space:nowrap}.asset-connection.updated:before{content:"";display:inline-block;width:6px;height:6px;margin-right:4px;border-radius:50%;background:var(--kg-green)}.asset-connection.stale{color:var(--kg-red)}
 .asset-existing-position{margin:0 0 14px;padding:13px;border-radius:16px;background:#F7FAFF;border:1px solid #E5F0FF}
