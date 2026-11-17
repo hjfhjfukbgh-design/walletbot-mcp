@@ -1,0 +1,88 @@
+name: Kripto Guru — durable queue recovery
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 * * * *"
+
+permissions:
+  issues: write
+
+concurrency:
+  group: kripto-guru-queue-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover-expired-leases:
+    name: Recover expired worker leases
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Reconcile dispatched issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+
+          const repo = process.env.GITHUB_REPOSITORY;
+          const gh = (args) => execFileSync("gh", args, { encoding: "utf8", env: process.env }).trim();
+          const issues = JSON.parse(gh([
+            "issue", "list", "--repo", repo, "--state", "open",
+            "--label", "agent-dispatched", "--limit", "100",
+            "--json", "number,title"
+          ]) || "[]");
+
+          let recovered = 0;
+          let skipped = 0;
+          const now = Date.now();
+
+          for (const issue of issues) {
+            const comments = JSON.parse(gh([
+              "api", `repos/${repo}/issues/${issue.number}/comments?per_page=100`
+            ]) || "[]");
+            let latestLease = null;
+            for (const comment of comments) {
+              const match = String(comment.body || "").match(/<!-- kg-lease:run=([0-9]+);expires=([^ ]+) -->/);
+              if (!match) continue;
+              const expires = Date.parse(match[2]);
+              if (!Number.isFinite(expires)) continue;
+              if (!latestLease || expires > latestLease.expires) {
+                latestLease = { runId: match[1], expires, expiresText: match[2] };
+              }
+            }
+
+            if (!latestLease) {
+              console.log(`SKIP #${issue.number}: no valid lease marker; manual inspection required.`);
+              skipped++;
+              continue;
+            }
+
+            const completed = comments.some(comment =>
+              String(comment.body || "").includes(`<!-- kg-complete:run=${latestLease.runId};`)
+            );
+            if (completed || latestLease.expires > now) {
+              console.log(`OK #${issue.number}: lease active or run completed.`);
+              continue;
+            }
+
+            gh([
+              "issue", "edit", String(issue.number), "--repo", repo,
+              "--remove-label", "agent-dispatched", "--add-label", "agent-ready"
+            ]);
+            gh([
+              "issue", "comment", String(issue.number), "--repo", repo,
+              "--body",
+              `Автовосстановление очереди: lease запуска ${latestLease.runId} истёк (${latestLease.expiresText}), маркер завершения не найден. Задача возвращена в agent-ready. Повторная диспетчеризация произойдёт следующим запуском оркестратора.`
+            ]);
+            console.log(`RECOVERED #${issue.number}: expired lease ${latestLease.runId}.`);
+            recovered++;
+          }
+
+          await import("node:fs").then(({ default: fs }) => {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+              `## Queue recovery\\n\\n- Dispatched issues scanned: ${issues.length}\\n- Expired leases recovered: ${recovered}\\n- Skipped (missing lease metadata): ${skipped}\\n`);
+          });
+          NODE

@@ -137,3 +137,15 @@ The current PR #46 orchestrator:
 - is not active until merged into the default branch.
 
 Therefore the current system is an MVP dispatcher, not yet an unattended multi-team studio. This document defines the next engineering stages without claiming those capabilities already exist.
+
+## Implemented queue recovery MVP (Draft PR)
+
+The queue-recovery branch adds a first persisted lease protocol on GitHub Issues:
+
+- The dispatcher writes a `kg-lease` comment marker with the caller workflow run ID and a 45-minute UTC expiry before invoking the reusable worker.
+- The worker has `issues: write` permission and runs an `always()` finalizer. Successful workflows move the Issue from `agent-dispatched` to `agent-done`; failed/cancelled workflows move it to `agent-blocked`. Both write a matching `kg-complete` marker.
+- A separate scheduled recovery workflow runs hourly. It scans up to 100 open `agent-dispatched` Issues, finds the lease marker, and returns an expired lease to `agent-ready` only when the matching completion marker is absent.
+- Issues without valid lease metadata are skipped for manual inspection. Recovery does not blindly retry failed workers; those are blocked for diagnosis.
+- The existing orchestrator schedule remains every two hours. A recovered task is picked up on the next orchestrator run, unless manually dispatched sooner.
+
+This is still a sequential MVP, not the full multi-team autonomy engine. It does not yet decompose one request into dependent work items, fan out three teams, detect file conflicts, or run QA repair loops. It also requires these workflows to be merged into the default branch before GitHub scheduled events can activate. The recovery workflow and worker finalizer must be proven with real Actions runs before claiming end-to-end reliability.
