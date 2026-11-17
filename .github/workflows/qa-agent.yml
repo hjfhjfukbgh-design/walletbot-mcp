@@ -92,7 +92,8 @@ jobs:
           const report = fs.readFileSync("/tmp/backend-report.md", "utf8");
           const task = process.env.TASK || "Independently verify the Backend report against source.";
           const runtimeChecks = process.env.RUNTIME_CHECKS || "Runtime checks unavailable.";
-          const prompt = [\n            "ФАКТИЧЕСКИЕ РЕЗУЛЬТАТЫ КОМАНД npm (не додумывай):\\n" + runtimeChecks,
+          const prompt = [
+            "ФАКТИЧЕСКИЕ РЕЗУЛЬТАТЫ КОМАНД npm (не додумывай):\\n" + runtimeChecks,
             "Ты — независимый QA-аудитор проекта Kripto Guru. Проверь приложенный отчёт Backend Agent по фактическому коду.",
             "ЗАДАЧА: " + task,
             "ОТЧЁТ BACKEND AGENT:\n" + report,
