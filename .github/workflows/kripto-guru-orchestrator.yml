@@ -41,6 +41,7 @@ jobs:
           gh label create agent-ready --repo "$GITHUB_REPOSITORY" --color "1D76DB" --description "Задача готова к диспетчеризации" 2>/dev/null || true
           gh label create agent-dispatched --repo "$GITHUB_REPOSITORY" --color "0E8A16" --description "Задача передана исполнителю" 2>/dev/null || true
           gh label create agent-blocked --repo "$GITHUB_REPOSITORY" --color "B60205" --description "Задаче не хватает данных или она заблокирована" 2>/dev/null || true
+          gh label create orchestrator-ready --repo "$GITHUB_REPOSITORY" --color "5319E7" --description "Родительская задача готова центральному оркестратору" 2>/dev/null || true
 
       - name: Find one ready task
         id: queue
@@ -49,7 +50,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label agent-ready --limit 1 --json number,title,body,url,labels)"
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label orchestrator-ready --limit 1 --json number,title,body,url,labels)"
           echo "$issue" > /tmp/ready-issue.json
           if [ "$(node -e 'const x=require("/tmp/ready-issue.json"); process.stdout.write(String(x.length))')" = "0" ]; then
             echo "has_task=false" >> "$GITHUB_OUTPUT"
