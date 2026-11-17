@@ -91,6 +91,9 @@ try{
     if(walletScrollCheck.scrollY<=0)throw new Error("wallet screen should scroll to the final section");
     if(walletScrollCheck.navTop>=walletScrollCheck.viewportHeight||walletScrollCheck.navBottom>walletScrollCheck.viewportHeight)throw new Error("wallet bottom navigation must remain fixed inside the viewport");
     if(walletScrollCheck.cardBottom>walletScrollCheck.navTop-8)throw new Error("wallet final card is obscured by bottom navigation: "+JSON.stringify(walletScrollCheck));
+    const walletAgentHeading=await page.locator("#kg-wallet-screen .kg-section-head").filter({hasText:"Аккаунты ИИ-агента"}).evaluate(el=>{const r=el.getBoundingClientRect();return {top:r.top,bottom:r.bottom,navTop:document.querySelector("#kg-nav").getBoundingClientRect().top};});
+    if(walletAgentHeading.bottom>walletScrollCheck.navTop-8)throw new Error("wallet AI-agent section heading is obscured by bottom navigation: "+JSON.stringify(walletAgentHeading));
+    await page.screenshot({path:`clean-wallet-bottom-${device.width}x${device.height}.png`,fullPage:false});
     await page.evaluate(()=>window.scrollTo(0,0));
     await page.locator('#kg-nav button[data-screen="trading"]').click();
     await page.waitForSelector("#kg-market-list .kg-market-row");
