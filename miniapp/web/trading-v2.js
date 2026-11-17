@@ -204,13 +204,13 @@
       const value=Number(input.value.replace(",","."));
       s.margin=Number.isFinite(value)?value:0;
       $v("#ticket-volume",ticketOverlay).textContent="Объём: $"+money(s.margin*s.leverage);
-      const required=s.margin*(1+s.leverage*.00035);
+      const required=s.margin*(1+s.leverage*s.feePct);
       button.disabled=!(s.margin>=1 && required<=available);
       button.classList.toggle("disabled",button.disabled);
     };
     input.addEventListener("input",update);
     update();
-    $v("#ticket-max",ticketOverlay).addEventListener("click",()=>{input.value=money(available/(1+s.leverage*.00035),2).replace(/\s/g,"").replace(",",".");update();});
+    $v("#ticket-max",ticketOverlay).addEventListener("click",()=>{input.value=money(available/(1+s.leverage*s.feePct),2).replace(/\s/g,"").replace(",",".");update();});
     $v("#ticket-leverage",ticketOverlay).addEventListener("click",renderLeverageSheet);
     $v("#ticket-autoclose",ticketOverlay).addEventListener("click",renderAutoCloseSheet);
     button.addEventListener("click",()=>{try{validateStops(s);renderConfirmSheet();}catch(error){showTicketToast(error.message);}});
@@ -279,7 +279,7 @@
     const {liq,tp,sl}=validateStops(s);
     const marginMicro=toUnits(s.marginText,6);
     const notional=s.margin*s.leverage;
-    const fee=notional*.00035;
+    const fee=notional*s.feePct;
     mountSheet(`<div class="sheet-grabber"></div><div class="sheet-header"><h2>Проверка сделки</h2><button class="sheet-close" type="button">×</button></div>
       <div class="confirm-side ${s.side}">${sideName(s.side)} · ${safe(s.market)}</div>
       <div class="confirm-price">$${priceText(s.price)}<small>Цена котировки</small></div>
@@ -324,7 +324,7 @@
     const c=contractFor(market)||options.contract||{};
     const available=fromMoneyUnits(account()?.balanceMicro||"0");
     const maxLeverage=Math.max(1,Math.min(Number(options.maxLeverage||3),Number(c.maxLeverage||options.maxLeverage||3)));
-    ticketState={market,side,price:Number(options.price||c.price),margin:0,marginText:"",leverage:1,maxLeverage,tpValue:"",slValue:"",closeMode:"price"};
+    ticketState={market,side,price:Number(options.price||c.price),feePct:Math.max(0,Number(c.takerFeePct||0)),margin:0,marginText:"",leverage:1,maxLeverage,tpValue:"",slValue:"",closeMode:"price"};
     renderTicketMain();
     if(quoteTimer) clearInterval(quoteTimer);
     quoteTimer=setInterval(async()=>{
