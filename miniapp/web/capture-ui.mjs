@@ -1,4 +1,4 @@
-// Playwright previews for all primary screens and the DEMO order flow.
+// Playwright previews for wallet, four product categories, Income, Bonuses and DEMO order flow.
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
