@@ -107,6 +107,11 @@
       takeProfitUsd: position.takeProfitPrice == null ? null : fromPrice(position.takeProfitPrice),
       stopLossUsd: position.stopLossPrice == null ? null : fromPrice(position.stopLossPrice),
       liquidationPriceUsd: fromPrice(position.liquidationPrice),
+      markPriceUsd: finite(position.markPriceUsd),
+      unrealizedGrossPnlUsd: position.unrealizedGrossPnlMicro == null ? null : fromMicro(position.unrealizedGrossPnlMicro),
+      estimatedExitFeeUsd: position.estimatedExitFeeMicro == null ? null : fromMicro(position.estimatedExitFeeMicro),
+      estimatedNetPnlUsd: position.estimatedNetPnlMicro == null ? null : fromMicro(position.estimatedNetPnlMicro),
+      markObservedAt: position.markObservedAt == null ? null : Number(position.markObservedAt),
       raw: position,
     };
   }
