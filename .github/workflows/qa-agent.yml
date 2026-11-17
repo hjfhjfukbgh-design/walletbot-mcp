@@ -1,4 +1,5 @@
 name: QA agent (independent report-only review)
+# Runtime QA validation: npm install, TypeScript typecheck, and Vitest
 
 on:
   push:
