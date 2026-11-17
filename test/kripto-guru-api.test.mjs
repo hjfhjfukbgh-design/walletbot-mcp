@@ -53,6 +53,34 @@ describe("window.KriptoGuruAPI contract", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+
+  it("normalizes live market metadata into the Russian UI contract and caps demo leverage", async () => {
+    const contract = {
+      market: "BTC", name: "BTC-USDC", price: 50000, change24hPct: 2.5,
+      volume24hUsd: 5000000, fundingRateHourly: 0.0001, takerFeePct: 0.00035,
+      maxLeverage: 50, minSizeQuote: 10, allowed: true, liquid: true,
+    };
+    const fetchMock = vi.fn(async (input) => {
+      if (String(input) === "/api/contracts") return json({ ok: true, contracts: [contract] });
+      if (String(input).startsWith("/api/price?market=BTC")) {
+        return json({ ok: true, price: 50000, maxDemoLeverage: 3, minMargin: 10 });
+      }
+      throw new Error("Unexpected request: " + String(input));
+    });
+    const api = loadApi(fetchMock);
+    const list = await api.markets.list({ category: "futures" });
+    expect(list.markets[0]).toMatchObject({
+      symbol: "BTC", priceUsd: 50000, fundingRateHourlyPct: 0.01,
+      takerFeePct: 0.035, tradeable: true,
+    });
+    const detail = await api.market.get("BTC");
+    expect(detail).toMatchObject({
+      symbol: "BTC", priceUsd: 50000, productType: "Фьючерс",
+      maxLeverage: 3, minMarginUsd: 10, takerFeePct: 0.035,
+      fundingRateHourlyPct: 0.01, tradeable: true,
+    });
+  });
+
   it("uses server preview for max margin and estimated fees", async () => {
     const fetchMock = vi.fn(async (_input, init) => {
       expect(init.method).toBe("POST");
