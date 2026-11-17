@@ -368,11 +368,26 @@
     $("#kg-short").addEventListener("click",()=>openTicket("short"));
     $("#kg-ticket-close").addEventListener("click",closeTicket);
     $("#kg-ticket-margin").addEventListener("input",refreshPreview);
-    $("#kg-ticket-max").addEventListener("click",()=>{
+    $("#kg-ticket-max").addEventListener("click",async()=>{
       const available=Number(state.wallet?.balanceUsd??state.wallet?.balance??0);
       if(!(available>0)){notify("Нет доступного демо-баланса.");return;}
-      $("#kg-ticket-margin").value=String(available);
-      refreshPreview();
+      const request={symbol:state.selectedMarket,side:state.side,leverage:state.leverage};
+      const button=$("#kg-ticket-max");
+      button.disabled=true;
+      try{
+        const result=unwrap(await invoke("trade.preview",{...request,marginUsd:available}),"preview");
+        if(state.selectedMarket!==request.symbol||state.side!==request.side||state.leverage!==request.leverage)return;
+        const maxMargin=Number(result.maxMarginUsd);
+        const minMargin=Number(result.minMarginUsd);
+        const allowed=Math.min(available,Number.isFinite(maxMargin)?maxMargin:0);
+        if(!(allowed>0)|| (Number.isFinite(minMargin)&&allowed<minMargin)){
+          notify(result.reason||"Доступного демо-баланса недостаточно для минимальной сделки.");
+          return;
+        }
+        $("#kg-ticket-margin").value=String(Math.floor(allowed*1_000_000)/1_000_000);
+        refreshPreview();
+      }catch(error){notify(normalizeError(error).message);}
+      finally{button.disabled=false;}
     });
     $("#kg-ticket-leverage").addEventListener("click",()=>{
       $("#kg-lev-slider").max=String(state.maxLeverage);$("#kg-lev-slider").value=String(state.leverage);$("#kg-lev-value").textContent=state.leverage+"×";showModal("#kg-leverage-screen");
