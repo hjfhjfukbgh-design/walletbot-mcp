@@ -83,7 +83,7 @@ try{
     if(!walletOrder.includes("kg-wallet-hero,kg-wallet-quick-actions,kg-wallet-currency"))throw new Error("wallet first-screen order is incorrect: "+walletOrder);
     await page.screenshot({path:`clean-wallet-${device.width}x${device.height}.png`,fullPage:false});
     const agentHeading=page.locator("#kg-wallet-screen .kg-section-head").filter({hasText:"Аккаунты ИИ-агента"});
-    await agentHeading.scrollIntoViewIfNeeded();
+    await agentHeading.evaluate(el=>el.scrollIntoView({block:"center",behavior:"instant"}));
     const agentLayout=await page.evaluate(()=>{
       const heading=[...document.querySelectorAll("#kg-wallet-screen .kg-section-head")].find(el=>el.innerText.includes("Аккаунты ИИ-агента"));
       const card=heading?.nextElementSibling?.getBoundingClientRect();
