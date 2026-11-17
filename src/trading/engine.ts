@@ -57,6 +57,10 @@ export class TradingEngine {
     const sql = ctx.storage.sql;
     sql.exec("CREATE TABLE IF NOT EXISTS accounts (user_id TEXT PRIMARY KEY, balance_micro TEXT NOT NULL)");
     sql.exec("CREATE TABLE IF NOT EXISTS positions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, symbol TEXT NOT NULL, status TEXT NOT NULL, position_json TEXT NOT NULL, updated_at INTEGER NOT NULL)");
+    const positionColumns = sql.exec("PRAGMA table_info(positions)").toArray() as Array<{ name: string }>;
+    if (!positionColumns.some((column) => column.name === "close_json")) {
+      sql.exec("ALTER TABLE positions ADD COLUMN close_json TEXT");
+    }
     sql.exec("CREATE INDEX IF NOT EXISTS positions_status_symbol ON positions(status, symbol)");
     sql.exec("CREATE INDEX IF NOT EXISTS positions_user_status ON positions(user_id, status)");
     sql.exec("CREATE TABLE IF NOT EXISTS ledger (id INTEGER PRIMARY KEY AUTOINCREMENT, operation_id TEXT NOT NULL UNIQUE, user_id TEXT NOT NULL, position_id TEXT, kind TEXT NOT NULL, amount_micro TEXT NOT NULL, balance_before_micro TEXT NOT NULL, balance_after_micro TEXT NOT NULL, created_at INTEGER NOT NULL)");
@@ -85,6 +89,22 @@ export class TradingEngine {
         const balance = this.ensureAccount(userId);
         const rows = this.ctx.storage.sql.exec("SELECT position_json FROM positions WHERE user_id = ? AND status = 'open'", userId).toArray() as Array<{ position_json: string }>;
         return jsonResponse({ ok: true, balanceMicro: balance.toString(), positions: rows.map((row) => parsePosition(row.position_json)) });
+      }
+      if (request.method === "GET" && url.pathname === "/history") {
+        const userId = url.searchParams.get("userId") ?? "";
+        if (!/^\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
+        const rows = this.ctx.storage.sql.exec(
+          "SELECT position_json, close_json, updated_at FROM positions WHERE user_id = ? AND status = 'closed' ORDER BY updated_at DESC LIMIT 100",
+          userId,
+        ).toArray() as Array<{ position_json: string; close_json: string | null; updated_at: number }>;
+        return jsonResponse({
+          ok: true,
+          trades: rows.map((row) => ({
+            position: parsePosition(row.position_json),
+            close: row.close_json ? JSON.parse(row.close_json) : null,
+            closedAt: row.updated_at,
+          })),
+        });
       }
       if (request.method === "GET" && url.pathname === "/health") {
         return Response.json({ ok: true, openPositions: this.positions.size, socketOpen: this.socket?.readyState === WebSocket.OPEN, quoteCount: this.quotes.size, staleSymbols: [...this.staleSymbols] });
@@ -213,8 +233,8 @@ export class TradingEngine {
       const current = this.ctx.storage.sql.exec("SELECT status FROM positions WHERE id = ? AND user_id = ?", id, userId).toArray()[0] as { status: string } | undefined;
       if (!current || current.status !== "open") throw new Error("Позиция уже закрыта.");
       this.ctx.storage.sql.exec("UPDATE accounts SET balance_micro = ? WHERE user_id = ?", after.toString(), userId);
-      this.ctx.storage.sql.exec("UPDATE positions SET status = 'closed', position_json = ?, updated_at = ? WHERE id = ? AND user_id = ? AND status = 'open'",
-        serializePosition(result.position), Date.now(), id, userId);
+      this.ctx.storage.sql.exec("UPDATE positions SET status = 'closed', position_json = ?, close_json = ?, updated_at = ? WHERE id = ? AND user_id = ? AND status = 'open'",
+        serializePosition(result.position), JSON.stringify(result, (_key, value) => typeof value === "bigint" ? value.toString() : value), Date.now(), id, userId);
       this.ctx.storage.sql.exec("INSERT INTO ledger(operation_id,user_id,position_id,kind,amount_micro,balance_before_micro,balance_after_micro,created_at) VALUES(?,?,?,?,?,?,?,?)",
         "close:" + id, userId, id, result.reason, result.balanceDeltaMicro.toString(), before.toString(), after.toString(), Date.now());
     });
