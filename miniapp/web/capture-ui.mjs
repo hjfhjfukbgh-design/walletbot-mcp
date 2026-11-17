@@ -107,6 +107,12 @@ try {
       localStorage.setItem("kg:recent:v1", JSON.stringify(["BTC","ETH"]));
       window.Telegram={WebApp:{
         initData:"mock-preview-init-data",ready(){},expand(){},setHeaderColor(){},setBackgroundColor(){},
+        BackButton:{
+          isVisible:false,_handler:null,
+          show(){this.isVisible=true;},hide(){this.isVisible=false;},
+          onClick(handler){this._handler=handler;},offClick(handler){if(this._handler===handler)this._handler=null;},
+          __trigger(){this._handler?.();}
+        },
         HapticFeedback:{selectionChanged(){},impactOccurred(){},notificationOccurred(){}},
         showAlert(message){window.__lastAlert=message;},showConfirm(_message,callback){callback(true);}
       }};
@@ -164,7 +170,8 @@ try {
     await page.locator("#pairs .market-row").first().click();
     await page.waitForTimeout(1100);
     await page.evaluate(()=>{window.scrollTo({top:0,behavior:"instant"});document.documentElement.scrollTop=0;document.body.scrollTop=0;});
-    await page.locator("#asset-back").waitFor({state:"visible"});
+    await page.waitForFunction(()=>window.Telegram?.WebApp?.BackButton?.isVisible===true);
+    if(await page.locator("#asset-back").isVisible()) throw new Error("Telegram asset view should use native BackButton, not a duplicate in-page back control");
     await page.screenshot({path:`asset-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#asset-trade-bar [data-asset-side=long]").click();
     await page.waitForTimeout(350);
@@ -210,7 +217,7 @@ try {
       navDisplay:getComputedStyle(document.querySelector(".bottom-nav")).display
     }));
     if(!assetState.open || assetState.navDisplay!=="none") throw new Error("Asset detail state/nav invalid before back: "+JSON.stringify(assetState));
-    await page.locator("#asset-back").click();
+    await page.evaluate(()=>window.Telegram.WebApp.BackButton.__trigger());
     await page.waitForTimeout(200);
     const returnedState=await page.evaluate(()=>({
       open:document.body.classList.contains("asset-open"),
