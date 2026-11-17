@@ -29,7 +29,11 @@
     const qty=BigInt(position.qtyUnits||"0");
     const current=BigInt(Math.round(price*100_000_000));
     const delta=position.side==="long" ? current-BigInt(position.entryPrice) : BigInt(position.entryPrice)-current;
-    const pnl=Number(qty*delta*1_000_000n/10_000_000_000_000_000n)/1_000_000;
+    const scale=10_000_000_000_000_000n;
+    const grossMicro=qty*delta*1_000_000n/scale;
+    const exitNotionalMicro=qty*current*1_000_000n/scale;
+    const exitFeeMicro=exitNotionalMicro*BigInt(position.feePpm||"0")/1_000_000n;
+    const pnl=Number(grossMicro-exitFeeMicro)/1_000_000;
     const margin=fromMoneyUnits(position.marginMicro);
     const card=document.createElement("div");
     card.className="asset-existing-position";
