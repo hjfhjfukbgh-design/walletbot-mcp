@@ -463,3 +463,71 @@ button:disabled{cursor:not-allowed;opacity:.5}
 #kg-wallet-screen #kg-wallet-assets .kg-asset-row{min-height:54px;padding-top:7px;padding-bottom:7px}
 #kg-wallet-screen .kg-unavailable-row{min-height:70px;padding-top:9px;padding-bottom:9px}
 #kg-wallet-screen .kg-discover-card{min-height:56px}
+
+
+/* Kripto Guru dark surface overrides */
+:root{
+  --kg-bg:#0b1018;
+  --kg-card:#141c27;
+  --kg-ink:#eef3fa;
+  --kg-muted:#94a3b8;
+  --kg-line:rgba(173,190,211,.12);
+  --kg-blue:#3989f4;
+  --kg-green:#19a66b;
+  --kg-red:#e25360;
+  --kg-shadow:0 4px 20px rgba(0,0,0,.4);
+  --kg-surface:#141c27;
+  --kg-elevated:#1b2634;
+  --kg-border:rgba(173,190,211,.12);
+  --kg-radius:16px;
+  --kg-spacing:12px;
+  --kg-motion:all .2s ease;
+}
+html,body{background:var(--kg-bg);color:var(--kg-ink)}
+button,input,textarea{color:inherit}
+button:focus-visible,input:focus-visible{outline:2px solid var(--kg-blue);outline-offset:2px}
+button:active{transform:scale(.98);opacity:.9}
+button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.kg-card,
+.kg-balance-card,
+.kg-favorite,
+.kg-list,
+.kg-asset-row,
+.kg-discover-card,
+.kg-search-toggle,
+.kg-search-close,
+#kg-market-search,
+.kg-recent-chip,
+.kg-ipo-card,
+.kg-category,
+.kg-top-item,
+.kg-market-row,
+.kg-unavailable-panel,
+.kg-empty-inline,
+.kg-empty-card,
+.kg-position,
+.kg-bonus-card,
+.kg-settings-note,
+.kg-subscreen,
+.kg-back,
+.kg-badge,
+.kg-asset-large-icon,
+.kg-chart-card,
+.kg-ticket,
+.kg-modal-card,
+.kg-wallet-currency,
+.kg-asset-about,
+.kg-ticket-settings{background:var(--kg-card)!important;color:var(--kg-ink)!important;border-color:var(--kg-border)!important}
+.kg-nav,
+.kg-asset-actions,
+.kg-ticket{background:rgba(20,28,39,.95)!important;border-color:var(--kg-border)!important}
+.kg-nav button{color:var(--kg-muted)}
+.kg-nav button.is-active,
+.kg-category.is-selected,
+.kg-sort button.is-selected,
+.kg-timeframes button.is-selected,
+.kg-search-filters button.is-selected{background:var(--kg-elevated)!important;color:var(--kg-blue)!important}
+.kg-muted,.kg-page-title p,.kg-card-copy small,.kg-row-copy small,.kg-favorite small,.kg-unavailable-row>strong,.kg-discover-icon,.kg-chevron,.kg-search-toggle,.kg-search-close,#kg-market-search,.kg-ipo-icon,.kg-sort button,.kg-market-copy small,.kg-unavailable-icon,.kg-unavailable-panel p,.kg-empty-inline,.kg-empty-card,.kg-position-meta,.kg-history-copy small,.kg-bonus-card p,.kg-settings-note,.kg-nav button,#kg-asset-screen .kg-asset-identity small,.kg-badge,.kg-detail-row span,.kg-ticket-volume,.kg-ticket-available,.kg-ticket-preview,#kg-lev-warning,.kg-asset-about p,.kg-wallet-hero>small,.kg-wallet-quick-actions button small{color:var(--kg-muted)!important}
+.kg-line,.kg-history-row,.kg-detail-row,.kg-ticket-actions{border-color:var(--kg-border)!important}
+.kg-primary{background:var(--kg-blue)!important;color:#fff!important}
+
