@@ -175,3 +175,6 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .kg-search-filters button{flex:0 0 auto;padding:6px 0;border:0;border-radius:0;background:transparent;color:#888e9b;font-size:10px;font-weight:650}
 .kg-search-filters button.is-selected{color:var(--kg-blue);box-shadow:inset 0 -2px var(--kg-blue)}
 .kg-search-mode [data-catalog-only]{display:none!important}
+
+.kg-ticket-available{align-items:center}
+.kg-ticket-max{padding:2px 0;border:0;background:transparent;color:var(--kg-blue);font-size:10px;font-weight:700}
