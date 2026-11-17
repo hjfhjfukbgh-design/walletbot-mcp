@@ -114,12 +114,15 @@ try {
     await page.route("https://telegram.org/js/telegram-web-app.js",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     await page.waitForTimeout(1800);
-    await page.locator("#wallet-balance-main").waitFor({state:"visible"});
+    await page.locator("#wallet-usdt").waitFor({state:"visible"});
+    await page.locator("#wallet-favorites").waitFor({state:"visible"});
+    await page.locator("#wallet-asset-list").waitFor({state:"visible"});
     await assertViewport(page,"wallet");
     await page.screenshot({path:`wallet-${width}x${height}-dsf3.png`,fullPage:false});
-    await assertHitAboveNav(page,".empty-wallet .primary-button","wallet initial CTA hit-test");
     await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});
     await assertBottomAccessible(page,"#wallet-asset-list","wallet asset list scroll end");
+    await page.locator(".empty-wallet .primary-button").scrollIntoViewIfNeeded();
+    await assertHitAboveNav(page,".empty-wallet .primary-button","wallet empty-state CTA hit-test");
     await assertBottomAccessible(page,".empty-wallet .primary-button","wallet empty-state CTA scroll end");
     await page.screenshot({path:`wallet-maxscroll-${width}x${height}-dsf3.png`,fullPage:false});
     await page.evaluate(async()=>{await fetch("/__preview/position"); await window.kriptoGuruDemo.refresh();});
