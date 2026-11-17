@@ -544,7 +544,7 @@ $('#pairs').addEventListener('click', async (ev) => {
     const isFav = favorites.has(market);
     const funding = Number(c?.fundingRateHourly ?? 0) * 100;
     box.innerHTML =
-      '<div class="asset-topline"><button id="asset-back" class="asset-back secondary" type="button">' + icon('chevron') + 'Рынки</button><button id="asset-favorite" class="asset-favorite ' + (isFav ? 'is-favorite' : '') + '" type="button">' + (isFav ? '★ В избранном' : '☆ В избранное') + '</button></div>' +
+      '<div class="asset-topline"><button id="asset-back" class="asset-back secondary" type="button">' + icon('chevron') + 'Рынки</button><span class="asset-product-type" data-asset-product-type="future">Фьючерс</span><span class="asset-max-leverage" data-asset-max-leverage="' + Number(c?.maxLeverage || 1) + '">' + Number(c?.maxLeverage || 1) + '×</span><button id="asset-favorite" class="asset-favorite ' + (isFav ? 'is-favorite' : '') + '" type="button">' + (isFav ? '★ В избранном' : '☆ В избранное') + '</button></div>' +
       '<div class="asset-identity"><span class="asset-coin">' + esc(market.slice(0,1)) + '</span><div><h2>' + esc(assetName(market)) + '</h2><small>' + esc(market) + ' · Демо-рынок · Цена котировки</small></div></div>' +
       '<div id="asset-live-price" class="asset-detail-price">' + usd(price, moneyDecimals(price)) + '</div>' +
       '<div id="asset-live-change" class="asset-change ' + (change >= 0 ? 'up' : 'down') + '">' + pctText(change) + ' <span>за 24 часа</span></div>' +
