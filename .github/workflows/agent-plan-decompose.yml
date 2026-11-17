@@ -140,7 +140,7 @@ jobs:
 
           // Parallel tasks may not claim overlapping write scopes. Be conservative around wildcards.
           const scopePrefix = (scope) => {
-            const normalized = String(scope).replace(/\\\\/g,"/").replace(/\\*.*$/,"");
+            const normalized = String(scope).replace(/\\/g,"/").replace(/\*.*$/,"");
             return normalized.endsWith("/") ? normalized : normalized;
           };
           for (let i=0;i<plan.tasks.length;i++) {
