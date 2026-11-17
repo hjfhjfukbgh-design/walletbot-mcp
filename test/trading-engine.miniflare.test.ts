@@ -156,6 +156,12 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const shortClose = await post(stub, "/close", { userId, positionId: short.body.position.id, manual: true });
     expect(BigInt(longClose.body.result.netPnlMicro)).toBeGreaterThan(0n);
     expect(BigInt(shortClose.body.result.netPnlMicro)).toBeLessThan(0n);
+    expect(BigInt(longClose.body.result.totalNetPnlMicro)).toBe(
+      BigInt(longClose.body.result.netPnlMicro) - BigInt(long.body.position.entryFeeMicro),
+    );
+    expect(BigInt(shortClose.body.result.totalNetPnlMicro)).toBe(
+      BigInt(shortClose.body.result.netPnlMicro) - BigInt(short.body.position.entryFeeMicro),
+    );
 
     const first = await stub.fetch("https://engine.test/history?userId=" + userId);
     const history = await first.json() as { trades: Array<{ event: string; side: string; pnl?: number }>; equity: Array<[number, number]> };
