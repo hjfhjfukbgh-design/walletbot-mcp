@@ -732,7 +732,7 @@ async function loadHistory() {
 function drawEquity(points) {
   const svg = $('#equity');
   if (!points || points.length < 2) {
-    svg.innerHTML = '<text x="10" y="20" fill="currentColor" font-size="12">Кривая капитала появится после первых сделок.</text>';
+    svg.innerHTML = '<text x="10" y="20" fill="currentColor" font-size="12">Историческая кривая капитала Engine DEMO пока недоступна.</text>';
     return;
   }
   const W = 360, H = 140, P = 6;
