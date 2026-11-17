@@ -162,9 +162,9 @@ async function previewDemoTrade(env: Env, userId: string, body: Json): Promise<R
   const minMarginMicro = (minNotional + BigInt(leverage) - 1n) / BigInt(leverage);
   const maxMarginUsd = Number(maxMarginMicro > 0n ? maxMarginMicro : 0n) / Number(MONEY_SCALE);
   const minMarginUsd = Number(minMarginMicro) / Number(MONEY_SCALE);
+  if (body.marginMicro != null && !/^\d{1,18}$/.test(String(body.marginMicro))) return fail("Некорректная сумма маржи.");
   const requestedMargin = body.marginMicro == null ? minMarginMicro : BigInt(String(body.marginMicro));
-  if (requestedMargin < 0n || (body.marginMicro != null && !/^\d{1,18}$/.test(String(body.marginMicro))))
-    return fail("Некорректная сумма маржи.");
+  if (requestedMargin <= 0n) return fail("Маржа должна быть положительной.");
   const notionalMicro = requestedMargin * BigInt(leverage);
   const entryFeeMicro = notionalMicro * feePpm / 1_000_000n;
   const exitFeeMicro = entryFeeMicro;
