@@ -217,9 +217,10 @@
         estimatedExitFeeUsd: finite(data.estimatedExitFeeUsd),
         exitFeeUsd: finite(data.estimatedExitFeeUsd),
         liquidationPriceUsd: finite(data.liquidationPriceUsd),
-        valid: true,
-        available: true,
+        valid: data.tradeable === true,
+        available: data.tradeable === true,
         tradeable: data.tradeable === true,
+        reason: data.reason || null,
         raw: data,
       };
     },
