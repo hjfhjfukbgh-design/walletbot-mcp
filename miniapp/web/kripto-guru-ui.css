@@ -178,3 +178,45 @@ button:disabled{cursor:not-allowed;opacity:.5}
 
 .kg-ticket-available{align-items:center}
 .kg-ticket-max{padding:2px 0;border:0;background:transparent;color:var(--kg-blue);font-size:10px;font-weight:700}
+
+
+/* Ticket layout correction: remove the artificial 19vh gap and keep all
+   order details in one compact, vertically structured screen. */
+.kg-ticket{
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  min-height:100vh;
+  min-height:100dvh;
+  overflow-y:auto;
+}
+.kg-ticket-heading{margin:34px auto 0}
+.kg-ticket-amount{
+  flex:0 0 auto;
+  margin:clamp(54px,9vh,88px) 0 5px;
+}
+.kg-ticket-amount input{width:142px;font-size:42px}
+.kg-ticket-volume{margin-top:2px}
+.kg-ticket-available{margin-top:7px}
+.kg-ticket-preview{
+  position:static;
+  flex:0 0 auto;
+  margin-top:12px;
+  min-height:14px;
+}
+.kg-ticket-actions{
+  position:static;
+  flex:0 0 auto;
+  margin-top:auto;
+  padding:22px 0 14px;
+}
+.kg-ticket-check{
+  position:static;
+  flex:0 0 auto;
+  width:100%;
+  margin-top:0;
+}
+@media(max-height:700px){
+  .kg-ticket-amount{margin-top:30px}
+  .kg-ticket-actions{padding-top:12px;padding-bottom:9px}
+}
