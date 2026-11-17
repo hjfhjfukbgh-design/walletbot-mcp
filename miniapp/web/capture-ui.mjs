@@ -156,6 +156,8 @@ try {
     await page.screenshot({path:`market-stocks-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#category-funds").click();
     if(!(await page.locator("#equities-title").innerText()).includes("Фонды")) throw new Error("funds category did not switch");
+    if (await page.locator('[data-equity-list="funds"] .equity-tile').count() !== 4) throw new Error("US funds watchlist should contain four honest unavailable cards");
+    if (await page.locator('[data-equity-list="stocks"]').isVisible()) throw new Error("stocks list should hide when funds category is selected");
     await page.screenshot({path:`market-funds-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#category-futures").click();
     await page.locator("#pairs .market-row").first().waitFor({state:"visible"});
