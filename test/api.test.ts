@@ -49,7 +49,7 @@ describe("API da Mini App", () => {
 
   it("reads the connected user's Walt balance through MCP without executing trades", async () => {
     const e = env();
-    await e.STATE.put("oauth:tokens", JSON.stringify({ access_token: "test-access-token" }));
+    await e.STATE.put("tenant:12345:oauth:tokens", JSON.stringify({ access_token: "test-access-token" }));
     const methods: string[] = [];
     vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
       const payload = JSON.parse(String(init?.body || "{}")) as { id?: number; method?: string; params?: { name?: string } };
