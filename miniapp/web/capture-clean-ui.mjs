@@ -115,10 +115,12 @@ try{
     await page.screenshot({path:`clean-ticket-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-ticket-leverage").click();
     await page.waitForSelector("#kg-leverage-screen:not([hidden])");
+    await page.screenshot({path:`clean-leverage-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-lev-max").click();
     await page.locator("#kg-lev-apply").click();
     await page.locator("#kg-ticket-check").click();
     await page.waitForSelector("#kg-confirm-screen:not([hidden])");
+    await page.screenshot({path:`clean-confirm-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-trade-confirm").click();
     await page.waitForSelector("#kg-asset-screen:not([hidden])");
     await page.locator("#kg-asset-back").click();
