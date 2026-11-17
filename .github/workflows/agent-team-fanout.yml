@@ -81,8 +81,9 @@ jobs:
             const issues = JSON.parse(gh([
               "issue","list","--repo",repo,"--state","open",
               "--label","agent-ready","--label","team-"+team.toLowerCase(),
-              "--limit","1","--json","number,title,body,url"
+              "--limit","100","--json","number,title,body,url,createdAt"
             ]) || "[]");
+            issues.sort((left,right) => Date.parse(left.createdAt) - Date.parse(right.createdAt));
             const issue = issues[0];
             if (!issue) continue;
             const marker = String(issue.body||"").match(/<!-- kg-child-task:v1;parent=(\d+);key=([a-z][a-z0-9-]{2,30});team=([ABC]);role=([A-Z]+);depends=([^ ]*) -->/);
