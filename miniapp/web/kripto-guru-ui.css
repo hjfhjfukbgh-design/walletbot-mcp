@@ -422,3 +422,13 @@ button:disabled{cursor:not-allowed;opacity:.5}
 @media(max-height:700px){
   .kg-chart{height:145px}
 }
+
+
+/* Fit asset metadata/history into the first viewport without hiding content. */
+#kg-asset-screen .kg-chart{height:150px}
+#kg-asset-screen .kg-section-head{margin:16px 2px 8px}
+#kg-asset-screen .kg-detail-row{min-height:40px;padding:9px 11px}
+@media(max-height:700px){
+  #kg-asset-screen .kg-chart{height:132px}
+  #kg-asset-screen .kg-section-head{margin:13px 2px 7px}
+}
