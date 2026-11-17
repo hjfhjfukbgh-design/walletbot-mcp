@@ -267,6 +267,16 @@
     },
   };
 
+  const live = {
+    async getStatus() {
+      const data = await request("/api/live/status");
+      return {
+        available: Boolean(data.available),
+        raw: data,
+      };
+    },
+  };
+
   const capabilities = {
     async get() {
       return {
@@ -284,6 +294,7 @@
     version: API_VERSION,
     wallet,
     markets,
+    live,
     market,
     trade,
     history,
