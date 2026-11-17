@@ -6,7 +6,7 @@ Workflow `.github/workflows/kripto-guru-orchestrator.yml`:
 - запускается вручную или по расписанию раз в 2 часа;
 - ищет одну открытую GitHub Issue с меткой `agent-ready`;
 - обрабатывает не более одной задачи за запуск;
-- вызывает Gemini с fallback-моделью, чтобы назначить одну из ролей ARCHITECT / FRONTEND / BACKEND / QA / SECURITY / ANALYST;
+- назначает команду A/B/C по номеру Issue (детерминированное распределение) и вызывает Gemini с fallback-моделью, чтобы назначить одну из ролей ARCHITECT / FRONTEND / BACKEND / QA / SECURITY / ANALYST;
 - при статусе READY запускает reusable workflow `role-worker.yml`;
 - BACKEND ограничен `src/index.ts`, `src/api.ts`, `src/service.ts`, `src/state.ts`, `src/tenants.ts`; FRONTEND — `miniapp/web/*`. Оба могут предложить diff только в существующих файлах (до 3 файлов / 250 строк); остальные роли пока формируют handoff-отчёт без изменения исходников;
 - выполняет `npm ci`, `npm run typecheck`, `npm test` и вторую AI-проверку diff (не заменяет независимый human review); при ошибках или REJECT PR не публикуется;
@@ -35,7 +35,7 @@ Workflow `.github/workflows/kripto-guru-orchestrator.yml`:
 5. Проверяемые критерии приёмки.
 6. Команды проверок и требуемые доказательства.
 
-Если данных недостаточно, диспетчер должен пометить пакет BLOCKED, а не придумывать требования. Workflow автоматически создаёт метки `agent-ready`, `agent-dispatched` и `agent-blocked`; секрет `GEMINI_API_KEY` должен быть доступен GitHub Actions. Для расписания и ручного запуска workflow должен быть слит в default branch; до этого PR не исполняет центральный цикл.
+Если данных недостаточно, диспетчер должен пометить пакет BLOCKED, а не придумывать требования. Workflow автоматически создаёт метки `agent-ready`, `agent-dispatched` и `agent-blocked`; секреты `GEMINI_API_KEY` (команда A), `GEMINI_API_KEY_TEAM_B` и `GEMINI_API_KEY_TEAM_C` должны быть доступны GitHub Actions. Команда выбирается по `Issue number mod 3`; диспетчер и исполнитель одной задачи используют один и тот же выбранный ключ. Это распределяет запросы между тремя проектами, но не гарантирует суммирование квот и не обходит ограничения Google. Для расписания и ручного запуска workflow должен быть слит в default branch; до этого PR не исполняет центральный цикл.
 
 ## Безопасность
 
