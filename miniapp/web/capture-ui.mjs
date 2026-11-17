@@ -123,6 +123,7 @@ try {
     await page.locator("#wallet-usdt").waitFor({state:"visible"});
     await page.locator("#wallet-favorites").waitFor({state:"visible"});
     await page.locator("#wallet-asset-list").waitFor({state:"visible"});
+    if (await page.locator(".wallet-discover-card").count() !== 2) throw new Error("wallet should show agent and futures discovery cards");
     await assertViewport(page,"wallet");
     await page.screenshot({path:`wallet-${width}x${height}-dsf3.png`,fullPage:false});
     await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});
