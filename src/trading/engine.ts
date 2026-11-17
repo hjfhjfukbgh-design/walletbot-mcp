@@ -90,7 +90,7 @@ export class TradingEngine {
       if (request.method === "GET" && url.pathname === "/risk") {
         const userId = url.searchParams.get("userId") ?? "";
         const maxDailyLossBps = BigInt(url.searchParams.get("maxDailyLossBps") ?? "");
-        if (!/^\\d{1,20}$/.test(userId) || maxDailyLossBps <= 0n || maxDailyLossBps > 10_000n)
+        if (!/^\d{1,20}$/.test(userId) || maxDailyLossBps <= 0n || maxDailyLossBps > 10_000n)
           throw new Error("Некорректные параметры дневного лимита риска.");
         this.ensureAccount(userId);
         const dailyNetPnlMicro = this.dailyNetPnl(userId);
