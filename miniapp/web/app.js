@@ -464,8 +464,14 @@ function setMarketCategory(category) {
   activeMarketCategory = category;
   document.querySelectorAll('[data-market-category]').forEach((button) => button.classList.toggle('selected', button.dataset.marketCategory === category));
   const isEquities = category === 'stocks' || category === 'funds';
-  $('#crypto-market-content').classList.toggle('hidden', isEquities);
-  $('#equities-market-content').classList.toggle('hidden', !isEquities);
+  const cryptoContent = $('#crypto-market-content');
+  const equitiesContent = $('#equities-market-content');
+  cryptoContent.classList.toggle('hidden', isEquities);
+  equitiesContent.classList.toggle('hidden', !isEquities);
+  cryptoContent.hidden = isEquities;
+  equitiesContent.hidden = !isEquities;
+  cryptoContent.style.display = isEquities ? 'none' : 'block';
+  equitiesContent.style.display = isEquities ? 'block' : 'none';
   if (isEquities) {
     document.querySelectorAll('[data-equity-kind]').forEach((button) => button.classList.toggle('selected', button.dataset.equityKind === category));
     document.querySelectorAll('[data-equity-list]').forEach((list) => list.classList.toggle('hidden', list.dataset.equityList !== category));
