@@ -24,6 +24,7 @@ describe("window.KriptoGuruAPI contract", () => {
         marginMicro: "100000000", entryNotionalMicro: "300000000",
         entryPrice: "5000000000000", qtyUnits: "6000", entryFeeMicro: "105000",
         liquidationPrice: "3400000000000", takeProfitPrice: null, stopLossPrice: null,
+        markPriceUsd: 51000, unrealizedGrossPnlMicro: "6000000", estimatedExitFeeMicro: "107100", estimatedNetPnlMicro: "5787900", markObservedAt: 123456,
       }] });
     });
     const api = loadApi(fetchMock);
@@ -33,6 +34,8 @@ describe("window.KriptoGuruAPI contract", () => {
     expect(account.positions[0]).toMatchObject({
       id: "p1", side: "long", marginUsd: 100, notionalUsd: 300,
       entryPriceUsd: 50000, entryFeeUsd: 0.105, liquidationPriceUsd: 34000,
+      markPriceUsd: 51000, unrealizedGrossPnlUsd: 6, estimatedExitFeeUsd: 0.1071,
+      estimatedNetPnlUsd: 5.7879, markObservedAt: 123456,
     });
   });
 
