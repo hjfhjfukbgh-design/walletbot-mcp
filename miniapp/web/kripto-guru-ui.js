@@ -363,6 +363,12 @@
     $("#kg-short").addEventListener("click",()=>openTicket("short"));
     $("#kg-ticket-close").addEventListener("click",closeTicket);
     $("#kg-ticket-margin").addEventListener("input",refreshPreview);
+    $("#kg-ticket-max").addEventListener("click",()=>{
+      const available=Number(state.wallet?.balanceUsd??state.wallet?.balance??0);
+      if(!(available>0)){notify("Нет доступного демо-баланса.");return;}
+      $("#kg-ticket-margin").value=String(available);
+      refreshPreview();
+    });
     $("#kg-ticket-leverage").addEventListener("click",()=>{
       $("#kg-lev-slider").max=String(state.maxLeverage);$("#kg-lev-slider").value=String(state.leverage);$("#kg-lev-value").textContent=state.leverage+"×";showModal("#kg-leverage-screen");
     });
