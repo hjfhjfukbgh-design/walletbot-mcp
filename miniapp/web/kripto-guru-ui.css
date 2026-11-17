@@ -169,3 +169,9 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .kg-fav-remove{position:absolute;top:4px;right:3px;display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#fff0f1;color:var(--kg-red);font-size:14px;font-weight:800}
 
 .kg-nav button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+.kg-search-filters{display:flex;align-items:center;gap:13px;overflow-x:auto;margin:0 0 10px;padding:2px 2px 7px;scrollbar-width:none}
+.kg-search-filters::-webkit-scrollbar{display:none}
+.kg-search-filters button{flex:0 0 auto;padding:6px 0;border:0;border-radius:0;background:transparent;color:#888e9b;font-size:10px;font-weight:650}
+.kg-search-filters button.is-selected{color:var(--kg-blue);box-shadow:inset 0 -2px var(--kg-blue)}
+.kg-search-mode [data-catalog-only]{display:none!important}
