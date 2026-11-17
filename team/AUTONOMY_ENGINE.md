@@ -149,3 +149,16 @@ The queue-recovery branch adds a first persisted lease protocol on GitHub Issues
 - The existing orchestrator schedule remains every two hours. A recovered task is picked up on the next orchestrator run, unless manually dispatched sooner.
 
 This is still a sequential MVP, not the full multi-team autonomy engine. It does not yet decompose one request into dependent work items, fan out three teams, detect file conflicts, or run QA repair loops. It also requires these workflows to be merged into the default branch before GitHub scheduled events can activate. The recovery workflow and worker finalizer must be proven with real Actions runs before claiming end-to-end reliability.
+
+## Multi-team planning MVP (Draft PR)
+
+The parallel-planning branch adds a manual parent-Issue decomposition workflow:
+
+- A planner uses the Team A Gemini key to produce a bounded plan of 1–3 child tasks for teams A/B/C.
+- The plan is validated before child Issues are created: allowed roles/teams, required fields, known dependencies, and an acyclic dependency graph.
+- Child Issues carry stable task metadata, a team label, a narrow write scope, acceptance criteria, and either `agent-ready` or `agent-planned`.
+- Re-running the planner reuses child Issues with matching parent/task-key markers rather than creating a duplicate for the same key.
+- The central dispatcher now honors explicit `team-a`, `team-b`, or `team-c` labels rather than always choosing a team from the Issue number.
+- A scheduled dependency-unlock workflow promotes a planned child task only after all referenced sibling tasks carry `agent-done`.
+
+Limitations remain material: the current dispatcher still processes only one ready Issue per run, so task decomposition is not yet concurrent execution. The unlocker uses GitHub Issue labels as a completion signal, not proof that a dependency PR was merged or independently accepted. Parallel team fan-out, conflict arbitration, independent QA gates, and a real end-to-end run remain future work. These scheduled workflows are inactive until merged into the default branch.
