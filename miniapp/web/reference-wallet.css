@@ -1,0 +1,280 @@
+/* Kripto Guru — reference-led Telegram wallet UI.
+   Design layer only: preserves existing DOM hooks, API contracts and trading logic. */
+:root{
+  --kg-ref-bg:#f2f2f7;
+  --kg-ref-card:#fff;
+  --kg-ref-ink:#20212a;
+  --kg-ref-muted:#858995;
+  --kg-ref-line:#ececf1;
+  --kg-ref-blue:#2874f0;
+  --kg-ref-green:#19a66a;
+  --kg-ref-red:#e45762;
+  --kg-ref-shadow:0 2px 10px rgba(31,35,48,.035);
+}
+html,body{background:var(--kg-ref-bg)!important;color:var(--kg-ref-ink)!important}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif!important;letter-spacing:-.18px;padding-bottom:calc(100px + env(safe-area-inset-bottom))!important}
+.topbar{display:none!important}
+main{width:100%!important;max-width:560px!important;margin:0 auto!important;padding:9px 16px calc(130px + env(safe-area-inset-bottom))!important}
+.tab{animation:none!important}
+.tab.active{display:block!important}
+.section-heading{display:flex!important;align-items:center!important;justify-content:space-between!important;margin:21px 2px 9px!important;min-height:20px}
+.section-heading h2{margin:0!important;font-size:16px!important;line-height:1.2!important;font-weight:730!important;letter-spacing:-.45px!important;color:#252630!important}
+.section-muted{font-size:11px!important;color:#9295a0!important}
+.text-action{font-size:12px!important;font-weight:650!important;color:var(--kg-ref-blue)!important}
+
+/* Wallet home: reference opens directly on the dollars card, not a dashboard hero. */
+#tab-painel>.wallet-head,
+#tab-painel>.wallet-performance,
+#tab-painel>.wallet-actions{display:none!important}
+#tab-painel>.section-heading:has(+ .currency-card){display:none!important}
+.currency-card{display:flex!important;align-items:center!important;gap:11px!important;width:100%!important;min-height:76px!important;padding:13px 15px!important;border:0!important;border-radius:17px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important;text-align:left!important}
+.currency-icon{display:grid!important;place-items:center!important;flex:0 0 39px!important;width:39px!important;height:39px!important;border-radius:50%!important;background:#e9f8f0!important;color:#15985d!important;font-size:18px!important;font-weight:800!important}
+.currency-copy{display:flex!important;flex:1!important;flex-direction:column!important;gap:4px!important;min-width:0}
+.currency-copy b{font-size:13px!important;font-weight:680!important;color:#282a33!important}
+.currency-copy small{font-size:10px!important;color:#8d909b!important}
+.currency-card>strong{font-size:14px!important;font-weight:720!important;color:#242630!important;font-variant-numeric:tabular-nums}
+.currency-card>[data-icon=chevron]{display:none!important}
+#tab-painel>.section-heading:has(+ #wallet-favorites){margin-top:23px!important}
+.favorites-strip{display:flex!important;gap:10px!important;overflow-x:auto!important;scroll-snap-type:x mandatory!important;padding:0 0 3px!important;scrollbar-width:none}
+.favorites-strip::-webkit-scrollbar{display:none}
+.favorite-card{flex:0 0 calc((100% - 10px)/2)!important;min-width:0!important;min-height:124px!important;padding:13px!important;border:0!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important;scroll-snap-align:start!important}
+.favorite-card .coin-avatar,.favorite-card .favorite-icon{width:29px!important;height:29px!important;border-radius:50%!important}
+.favorite-card b{font-size:12px!important;color:#343640!important}
+.favorite-card strong{font-size:18px!important;letter-spacing:-.5px!important;color:#22242d!important}
+.favorite-card small{font-size:10px!important}
+.favorite-card .sparkline{height:25px!important}
+#tab-painel>.section-heading:has(+ #engine-positions){margin-top:21px!important}
+.wallet-position-list{display:grid!important;gap:9px!important}
+.engine-position{border:0!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important;padding:13px!important}
+.empty-wallet{display:flex!important;align-items:center!important;gap:9px!important;padding:14px!important;border:0!important;border-radius:15px!important;background:#fff!important;color:#8b8e98!important}
+.empty-wallet-icon{color:#a5a8b1!important}
+.empty-wallet b{font-size:12px!important;color:#656873!important}
+.empty-wallet .primary-button{margin-left:auto!important;width:auto!important;padding:9px 12px!important;font-size:11px!important}
+.wallet-asset-list{padding:0 14px!important;border:0!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.asset-line{display:flex!important;align-items:center!important;gap:11px!important;min-height:64px!important;padding:9px 0!important;border-bottom:1px solid var(--kg-ref-line)!important;background:transparent!important}
+.asset-line:last-child{border-bottom:0!important}
+.coin-avatar{display:grid!important;place-items:center!important;flex:0 0 35px!important;width:35px!important;height:35px!important;border-radius:50%!important;background:#f0f2f7!important;color:#596174!important;font-weight:750!important}
+.asset-line>span:nth-child(2){display:flex!important;flex:1!important;flex-direction:column!important;gap:3px!important}
+.asset-line b{font-size:13px!important;font-weight:670!important;color:#292b35!important}
+.asset-line small{font-size:10px!important;color:#9295a0!important}
+.asset-line strong{font-size:13px!important;font-weight:680!important;color:#282a33!important;font-variant-numeric:tabular-nums}
+#alert{margin-top:12px!important}
+
+/* Trading catalogue: compact surfaces, chips and heatmap like the reference. */
+.trade-search{display:flex!important;align-items:center!important;justify-content:flex-end!important;min-height:38px!important;height:auto!important;margin:0 0 10px!important;border:0!important;border-radius:14px!important;background:transparent!important;box-shadow:none!important}
+.trade-search-toggle{display:flex!important;flex:0 0 auto!important;align-items:center!important;justify-content:center!important;gap:7px!important;width:auto!important;max-width:96px!important;min-height:36px!important;padding:0 12px!important;border:0!important;border-radius:12px!important;background:#fff!important;color:#626b7b!important;box-shadow:var(--kg-ref-shadow)!important;font-size:11px!important;font-weight:650!important}
+.trade-search-toggle i{width:15px!important;height:15px!important}
+.trade-search input{flex:1!important;min-width:0!important;background:transparent!important;border:0!important;font-size:13px!important}
+.trade-search input[hidden],.trade-search-close[hidden],.trade-search-toggle[hidden]{display:none!important}
+.trade-search.is-expanded{justify-content:flex-start!important;min-height:42px!important;padding:0 9px 0 12px!important;border:1px solid #e9ebf1!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.trade-search.is-expanded .trade-search-close{display:grid!important;place-items:center!important;width:28px!important;height:28px!important;border:0!important;border-radius:9px!important;background:#f1f2f6!important;color:#7c8290!important;font-size:20px!important;line-height:1!important}
+.category-row{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:9px!important;margin:12px 0 19px!important}
+.category-tile{display:flex!important;align-items:center!important;gap:8px!important;min-height:56px!important;padding:9px!important;border:0!important;border-radius:14px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.category-tile.selected{background:#eaf1ff!important;box-shadow:inset 0 0 0 1px #d4e1ff!important}
+.category-icon{width:30px!important;height:30px!important;flex:0 0 30px!important;border-radius:50%!important}
+.category-tile b{font-size:10px!important;font-weight:650!important;color:#4c5060!important}
+.recent-strip{display:flex!important;gap:8px!important;overflow-x:auto!important}
+.recent-strip>*{flex:0 0 auto!important;border:0!important;border-radius:12px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.heatmap{overflow:hidden!important;border:0!important;border-radius:16px!important;box-shadow:var(--kg-ref-shadow)!important}
+.heatmap-note{margin:7px 2px 0!important;font-size:10px!important;color:#999ca6!important}
+.top-toggle{padding:3px!important;border-radius:10px!important;background:#e7e8ed!important}
+.top-toggle button{padding:6px 9px!important;border-radius:8px!important;font-size:10px!important}
+.top-toggle button.selected{background:#fff!important;color:var(--kg-ref-blue)!important;box-shadow:0 1px 4px #24263012!important}
+.list{overflow:hidden!important;border:0!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.market-row{min-height:67px!important;padding:10px 13px!important;border-bottom:1px solid var(--kg-ref-line)!important;background:#fff!important}
+.market-row:last-child{border-bottom:0!important}
+
+/* Asset details and fixed LONG/SHORT actions. */
+.asset-screen{overflow:visible!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+.asset-screen .asset-topline{margin:5px 0 12px!important}
+.asset-screen .asset-title{font-size:16px!important;font-weight:720!important}
+.asset-screen .asset-price{font-size:29px!important;font-weight:760!important;letter-spacing:-1px!important}
+.asset-screen .asset-chart-wrap,.asset-screen .asset-tech{border:0!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.asset-screen .asset-chart-wrap{padding:12px!important}
+.asset-screen .asset-tech{padding:13px!important}
+.asset-screen .asset-chart-controls button{border-radius:9px!important}
+.asset-screen .asset-actions{display:none!important}
+body.asset-open main{padding-bottom:calc(105px + env(safe-area-inset-bottom))!important}
+#asset-trade-bar{position:fixed!important;z-index:30!important;left:16px!important;right:16px!important;bottom:calc(9px + env(safe-area-inset-bottom))!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:9px!important;padding:8px!important;border:1px solid #e8e9ef!important;border-radius:17px!important;background:rgba(255,255,255,.96)!important;box-shadow:0 7px 25px rgba(27,33,49,.13)!important;backdrop-filter:blur(18px)!important}
+#asset-trade-bar button{min-height:46px!important;border:0!important;border-radius:12px!important;font-size:14px!important;font-weight:730!important}
+#asset-trade-bar .long-button{background:#2474ed!important;color:#fff!important}
+#asset-trade-bar .short-button{background:#242a38!important;color:#fff!important}
+
+/* Floating four-tab navigation and safe-area behavior. */
+.bottom-nav{position:fixed!important;z-index:40!important;left:14px!important;right:14px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;height:63px!important;padding:5px!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:2px!important;border:1px solid #e7e8ee!important;border-radius:19px!important;background:rgba(255,255,255,.95)!important;box-shadow:0 7px 25px rgba(26,32,48,.12)!important;backdrop-filter:blur(22px)!important}
+.bottom-nav button{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;min-width:0!important;padding:3px!important;border:0!important;border-radius:13px!important;background:transparent!important;color:#9295a0!important;font-size:9px!important;font-weight:620!important}
+.bottom-nav button.active{background:#edf3ff!important;color:#2672e9!important}
+.bottom-nav button i{width:19px!important;height:19px!important}
+.nav-indicator{display:none!important}
+.page-heading h1{font-size:23px!important;letter-spacing:-.7px!important}
+.card,.history-list-card,.history-equity-card,.settings-group,.grid-settings-card{border:0!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+input,select,textarea{border:1px solid #e7e8ee!important;border-radius:12px!important;background:#fff!important}
+.primary-button{border-radius:12px!important;background:#2874f0!important}
+@media(max-width:380px){
+ main{padding-left:13px!important;padding-right:13px!important}
+ .favorite-card{flex-basis:calc((100% - 9px)/2)!important}
+ .section-heading h2{font-size:15px!important}
+ .bottom-nav{left:10px!important;right:10px!important}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+
+/* Match the actual wallet-v2 DOM emitted by the application. */
+.favorite-top{display:flex!important;align-items:center!important;gap:7px!important;min-width:0}
+.favorite-top b{font-size:12px!important;font-weight:700!important;flex:1!important}
+.favorite-top small{padding:3px 5px!important;border-radius:7px!important;background:#f0f2f6!important;color:#6e7380!important;font-size:9px!important;font-weight:700!important}
+.favorite-card .favorite-price{margin-top:10px!important;font-size:18px!important;line-height:1.15!important;font-weight:760!important;letter-spacing:-.45px!important;color:#252731!important;font-variant-numeric:tabular-nums}
+.favorite-bottom{display:flex!important;align-items:center!important;gap:6px!important;margin-top:7px!important;min-width:0}
+.favorite-bottom .change-chip{font-size:9px!important;font-weight:700!important}
+.favorite-bottom .favorite-change-usd{font-size:9px!important;color:#9295a0!important;white-space:nowrap}
+.favorite-card .favorite-spark{display:block!important;width:58px!important;height:22px!important;flex:0 0 58px!important;margin-left:auto!important;overflow:visible!important}
+#tab-painel>.currency-card{margin-top:3px!important}
+#tab-painel>.section-heading{margin:20px 2px 8px!important}
+#tab-painel>.section-heading h2{font-size:16px!important;font-weight:720!important}
+#tab-painel>.wallet-asset-list{padding:0 13px!important}
+#tab-painel .asset-line{min-height:61px!important;padding:9px 0!important}
+#tab-painel .asset-line .coin-avatar{width:35px!important;height:35px!important;flex-basis:35px!important}
+#tab-painel .asset-line strong{font-size:12px!important;font-weight:680!important}
+#wallet-stocks-list .asset-line{opacity:.78}
+#tab-painel>.wallet-position-list{display:grid!important;gap:9px!important}
+#tab-painel .empty-wallet{min-height:62px!important}
+#tab-painel .empty-wallet .primary-button{margin-left:auto!important;white-space:nowrap!important}
+.asset-identity{display:flex!important;align-items:center!important;gap:10px!important;margin:10px 2px 7px!important}
+.asset-identity h2{margin:0!important;font-size:16px!important;font-weight:720!important}
+.asset-identity small{display:block!important;margin-top:3px!important;font-size:10px!important;color:#9295a0!important}
+.asset-coin{display:grid!important;place-items:center!important;width:38px!important;height:38px!important;flex:0 0 38px!important;border-radius:50%!important;background:#f1f3f7!important;color:#3f4655!important;font-size:17px!important;font-weight:750!important}
+.asset-detail-price{margin:7px 2px 2px!important;font-size:29px!important;line-height:1.1!important;font-weight:770!important;letter-spacing:-1px!important;color:#20232c!important;font-variant-numeric:tabular-nums}
+.asset-change{margin:4px 2px 12px!important;font-size:11px!important;font-weight:700!important}
+.asset-change span{font-weight:450!important;color:#9699a3!important}
+.asset-chart-wrap,.asset-tech,.asset-about{border:0!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.asset-chart-wrap{padding:12px!important}
+.asset-chart-wrap svg{height:220px!important}
+.asset-chart-controls{display:flex!important;align-items:center!important;gap:7px!important;overflow-x:auto!important}
+.timeframe-control{display:flex!important;gap:3px!important;flex:1!important;min-width:0!important}
+.timeframe-control button{padding:6px 7px!important;border:0!important;border-radius:8px!important;background:#f3f4f7!important;color:#757985!important;font-size:10px!important}
+.timeframe-control button.selected{background:#eaf1ff!important;color:var(--kg-ref-blue)!important;font-weight:700!important}
+.asset-chart-legend,.chart-caption{font-size:9px!important;color:#9699a3!important}
+.asset-actions{display:none!important}
+.asset-tech{padding:13px!important}
+.asset-tech .row{min-height:38px!important;border-bottom:1px solid var(--kg-ref-line)!important;font-size:11px!important}
+.asset-tech .row:last-child{border-bottom:0!important}
+.asset-tech .row span{color:#858995!important}
+.asset-tech .row b{font-size:11px!important;color:#282a33!important}
+#asset-trade-bar{display:grid!important}
+body.asset-open .bottom-nav{display:none!important}
+
+
+/* Reference proportions: compact three-card favorites row and tighter wallet rows. */
+.currency-card{min-height:66px!important;padding:10px 14px!important}
+.favorite-card{flex:0 0 112px!important;min-width:112px!important;min-height:124px!important;padding:11px!important}
+#tab-painel .asset-line{min-height:52px!important;padding:7px 0!important}
+#tab-painel .asset-line .coin-avatar{width:32px!important;height:32px!important;flex-basis:32px!important}
+
+
+/* The order ticket is a full-height Telegram sub-screen in the reference, not a floating modal. */
+.sheet-backdrop:has(#ticket-margin){inset:0!important;padding:0!important;align-items:stretch!important;justify-content:stretch!important;background:#fff!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.bottom-sheet:has(#ticket-margin){display:flex!important;flex-direction:column!important;width:100%!important;height:100%!important;max-height:100%!important;overflow-y:auto!important;padding:13px 17px calc(12px + env(safe-area-inset-bottom))!important;border:0!important;border-radius:0!important;background:#fff!important;box-shadow:none!important}
+.bottom-sheet:has(#ticket-margin) .sheet-grabber,.bottom-sheet:has(#ticket-margin) .sheet-header{display:none!important}
+.bottom-sheet:has(#ticket-margin) .ticket-market-chip{align-self:center!important;min-height:31px!important;margin:3px auto 0!important;padding:6px 11px!important;border:0!important;border-radius:999px!important;background:#f1f2f6!important;color:#4c5060!important;font-size:10px!important}
+.bottom-sheet:has(#ticket-margin) .ticket-market-chip b{font-weight:700!important;color:#2d303a!important}
+.bottom-sheet:has(#ticket-margin) .ticket-amount-wrap{display:flex!important;flex-direction:row-reverse!important;align-items:center!important;justify-content:center!important;gap:5px!important;margin:22vh 0 5px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important}
+.bottom-sheet:has(#ticket-margin) .ticket-amount-wrap>span{font-size:34px!important;color:#252832!important;font-weight:650!important}
+.bottom-sheet:has(#ticket-margin) .ticket-amount-wrap .number-input{width:auto!important;max-width:70%!important;min-width:100px!important;padding:0!important;border:0!important;outline:none!important;box-shadow:none!important;background:transparent!important;text-align:center!important;font-size:39px!important;font-weight:760!important;letter-spacing:-1.2px!important;color:#22252e!important;caret-color:var(--kg-blue)!important}
+.bottom-sheet:has(#ticket-margin) #ticket-leverage{min-width:40px!important;border:0!important;background:#f1f2f6!important}
+.bottom-sheet:has(#ticket-margin) .ticket-volume,.bottom-sheet:has(#ticket-margin) .ticket-available{justify-content:center!important;text-align:center!important;font-size:11px!important}
+.bottom-sheet:has(#ticket-margin) .ticket-actions{margin-top:auto!important;padding-top:18px!important}
+.bottom-sheet:has(#ticket-margin) .ticket-actions .sheet-chip{border:0!important;background:#f2f3f7!important;border-radius:11px!important}
+.bottom-sheet:has(#ticket-margin) .sheet-footer{position:sticky!important;bottom:0!important;margin:12px -17px calc(-12px - env(safe-area-inset-bottom))!important;padding:11px 17px calc(11px + env(safe-area-inset-bottom))!important;border-top:0!important;background:#fff!important}
+.bottom-sheet:has(#ticket-margin) #ticket-check{min-height:48px!important;border-radius:12px!important}
+
+
+/* Telegram's native back control is already visible; avoid duplicating it inside the asset page. */
+.asset-topline{display:flex!important;justify-content:flex-end!important;min-height:25px!important;margin:2px 0 5px!important}
+html.telegram-native-back .asset-topline .asset-back{display:none!important}
+.asset-topline .asset-favorite{min-height:27px!important;padding:5px 9px!important;border:0!important;border-radius:9px!important;background:#edf3ff!important;color:#2874f0!important;font-size:10px!important;font-weight:650!important}
+
+
+/* Income history: compact transaction rows, not a blank equity chart or inert filter controls. */
+#tab-hist>.section-heading{margin-top:18px!important}
+.history-list-card{padding:0 10px!important}
+#trades{overflow-x:auto!important;font-size:11px!important;color:#777d89!important}
+#trades table{width:100%!important;border-collapse:collapse!important;table-layout:auto!important}
+#trades th{padding:10px 5px!important;text-align:left!important;font-size:9px!important;font-weight:650!important;color:#989ba4!important;white-space:nowrap!important}
+#trades td{padding:11px 5px!important;border-top:1px solid var(--kg-ref-line)!important;font-size:10px!important;vertical-align:middle!important}
+#trades td small{display:block!important;margin-top:3px!important;color:#a1a4ad!important;font-size:9px!important}
+#trades .ev{display:inline-flex!important;align-items:center!important;gap:4px!important;line-height:1.3!important;font-size:10px!important;color:#454a56!important}
+#trades .ev svg{width:13px!important;height:13px!important}
+
+
+/* Catalog hierarchy follows the reference: recently viewed → IPO → four products → market. */
+.category-row{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:7px!important;margin:11px 0 18px!important}
+.category-tile{min-height:78px!important;flex-direction:column!important;justify-content:center!important;gap:5px!important;padding:8px 3px!important;border-radius:14px!important}
+.category-icon{width:31px!important;height:31px!important;display:grid!important;place-items:center!important;font-size:15px!important;font-weight:750!important}
+.category-tile b{font-size:10px!important;white-space:nowrap!important}
+.stocks-gradient{background:linear-gradient(145deg,#e9efff,#dce5ff)!important;color:#3971d9!important}
+.funds-gradient{background:linear-gradient(145deg,#e9f7f2,#d9eee5)!important;color:#258b68!important}
+.ipo-card{display:flex!important;align-items:center!important;gap:11px!important;margin:14px 0 17px!important;padding:13px!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.ipo-mark{display:grid!important;place-items:center!important;width:42px!important;height:42px!important;flex:0 0 42px!important;border-radius:13px!important;background:#f0f3ff!important;color:#3d6fd2!important;font-size:12px!important;font-weight:800!important}
+.ipo-copy{display:flex!important;flex:1!important;min-width:0!important;flex-direction:column!important;gap:3px!important}
+.ipo-copy b{font-size:12px!important;font-weight:720!important;color:#30333d!important}
+.ipo-copy small{font-size:9px!important;line-height:1.35!important;color:#9296a1!important}
+.ipo-badge{align-self:flex-start!important;padding:3px 5px!important;border-radius:5px!important;background:#eaf1ff!important;color:#3974df!important;font-size:8px!important;font-weight:800!important;letter-spacing:.3px!important}
+.ipo-status{flex:0 0 auto!important;padding:5px 7px!important;border-radius:8px!important;background:#f3f4f7!important;color:#858a96!important;font-size:9px!important;font-weight:650!important}
+.equities-switch{display:flex!important;gap:5px!important;margin:0 0 12px!important;padding:4px!important;border-radius:11px!important;background:#eceef3!important}
+.equities-switch button{flex:1!important;min-height:32px!important;border:0!important;border-radius:8px!important;background:transparent!important;color:#7e8390!important;font-size:11px!important;font-weight:650!important}
+.equities-switch button.selected{background:#fff!important;color:#2e66ca!important;box-shadow:0 1px 4px rgba(25,35,60,.08)!important}
+.equities-empty{display:flex!important;align-items:center!important;gap:10px!important;margin:0 0 11px!important;padding:11px 12px!important;border-radius:13px!important;background:#fff!important;text-align:left!important;box-shadow:var(--kg-ref-shadow)!important}
+.equities-empty-icon{display:grid!important;place-items:center!important;width:34px!important;height:34px!important;flex:0 0 34px!important;border-radius:11px!important;background:#f1f3f8!important;color:#788195!important;font-size:18px!important}
+.equities-empty>div{display:flex!important;flex-direction:column!important;gap:3px!important}
+.equities-empty b{font-size:11px!important;font-weight:720!important;color:#363a45!important}
+.equities-empty p{max-width:300px!important;margin:0!important;font-size:9px!important;line-height:1.4!important;color:#858a96!important}
+.equities-empty small{font-size:9px!important;color:#a0a4ae!important}
+.equities-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+.equities-grid.hidden{display:none!important}
+.equity-tile{display:flex!important;align-items:center!important;gap:8px!important;min-width:0!important;min-height:65px!important;padding:10px!important;border:1px solid #eff0f4!important;border-radius:13px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important;opacity:.88!important}
+.equity-symbol{display:grid!important;place-items:center!important;width:29px!important;height:29px!important;flex:0 0 29px!important;border-radius:9px!important;background:#edf2ff!important;color:#4776d4!important;font-size:12px!important;font-weight:800!important}
+.equity-copy{display:flex!important;flex:1!important;flex-direction:column!important;gap:3px!important;min-width:0!important}
+.equity-copy b{overflow:hidden!important;color:#343844!important;font-size:10px!important;font-weight:700!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+.equity-copy small{color:#9a9eaa!important;font-size:8px!important;white-space:nowrap!important}
+.equity-tile>strong{color:#a3a7b1!important;font-size:11px!important;font-weight:700!important}
+.bonus-card{display:flex!important;align-items:flex-start!important;gap:13px!important;margin:12px 0 22px!important;padding:16px!important;border-radius:17px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.bonus-icon{display:grid!important;place-items:center!important;width:42px!important;height:42px!important;flex:0 0 42px!important;border-radius:14px!important;background:#edf2ff!important;color:#3672dc!important;font-size:22px!important}
+.bonus-card>div{display:flex!important;flex-direction:column!important;gap:5px!important}
+.bonus-status{font-size:8px!important;font-weight:800!important;letter-spacing:.5px!important;color:#3974df!important}
+.bonus-card b{font-size:14px!important;font-weight:730!important;color:#30333d!important}
+.bonus-card p{margin:0!important;font-size:10px!important;line-height:1.5!important;color:#858a96!important}
+#tab-ctrl>.section-heading{margin-top:18px!important}
+
+
+.bonus-settings{margin:20px 0 14px!important;border:0!important;border-radius:15px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important;overflow:hidden!important}
+.bonus-settings>summary{display:flex!important;align-items:center!important;justify-content:space-between!important;min-height:51px!important;padding:0 14px!important;list-style:none!important;color:#353945!important;font-size:12px!important;font-weight:700!important;cursor:pointer!important}
+.bonus-settings>summary::-webkit-details-marker{display:none!important}
+.bonus-settings>summary i{width:16px!important;height:16px!important;color:#9297a2!important;transition:transform .18s ease!important}
+.bonus-settings[open]>summary i{transform:rotate(90deg)!important}
+.bonus-settings-content{padding:0 12px 13px!important;border-top:1px solid var(--kg-ref-line)!important}
+.bonus-settings-content>.settings-group{margin-top:10px!important}
+.bonus-settings-content>.section-heading{margin-top:16px!important}
+
+
+/* Asset metadata badges supplied by the functional layer; visual treatment stays here. */
+.asset-topline .asset-product-type,.asset-topline .asset-max-leverage{display:inline-flex!important;align-items:center!important;min-height:25px!important;padding:5px 8px!important;border:0!important;border-radius:8px!important;font-size:9px!important;line-height:1!important;font-weight:700!important}
+.asset-topline .asset-product-type{background:#f1f3f7!important;color:#6f7481!important}
+.asset-topline .asset-max-leverage{background:#eaf1ff!important;color:#2d70df!important}
+
+
+/* Keep an in-app back affordance for asset navigation; Telegram's close control remains separate. */
+.asset-topline .asset-back{display:inline-flex!important;align-items:center!important;justify-content:center!important;margin-right:auto!important;min-height:27px!important;padding:5px 9px!important;border:0!important;border-radius:9px!important;background:#f1f3f7!important;color:#626977!important;font-size:10px!important}
+
+
+/* Wallet discovery sections from the reference app; unavailable services stay clearly disabled. */
+.agent-avatar{background:#f0f1f4!important;color:#343945!important}
+.wallet-discover-list{display:grid!important;gap:9px!important}
+.wallet-discover-card{display:flex!important;align-items:center!important;gap:10px!important;width:100%!important;min-height:64px!important;padding:10px 12px!important;border:0!important;border-radius:15px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important;text-align:left!important;color:inherit!important}
+.wallet-discover-card.unavailable{opacity:.72!important}
+.discover-icon{display:grid!important;place-items:center!important;flex:0 0 34px!important;width:34px!important;height:34px!important;border-radius:12px!important;font-size:17px!important;font-weight:750!important}
+.agent-discover{background:#eef0f4!important;color:#5e6471!important}
+.futures-discover{background:#e6f7f1!important;color:#22a98a!important}
+.discover-copy{display:flex!important;flex:1!important;flex-direction:column!important;gap:4px!important;min-width:0!important}
+.discover-copy b{font-size:11px!important;font-weight:700!important;color:#343741!important}
+.discover-copy small{font-size:9px!important;color:#9095a1!important;line-height:1.35!important}
+.discover-arrow{color:#a5a9b3!important;font-size:21px!important;line-height:1!important}

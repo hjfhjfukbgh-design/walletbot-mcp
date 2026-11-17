@@ -1,4 +1,4 @@
-// Playwright previews for all primary screens and the DEMO order flow.
+// Playwright previews for wallet, four product categories, Income, Bonuses and DEMO order flow.
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -62,13 +62,28 @@ async function assertViewport(page,label){
   if(result.navLeft < -1 || result.navRight > result.width+1) throw new Error(`${label}: нижняя навигация выходит за экран`);
 }
 
+async function assertHitAboveNav(page, selector, label) {
+  const result = await page.evaluate((sel) => {
+    const target = Array.from(document.querySelectorAll(sel)).at(-1);
+    const nav = document.querySelector(".bottom-nav");
+    if (!target) return {error:"missing target "+sel};
+    const r=target.getBoundingClientRect(), n=nav?.getBoundingClientRect();
+    const x=Math.max(0,Math.min(innerWidth-1,r.left+r.width/2));
+    const y=Math.max(0,Math.min(innerHeight-1,r.top+r.height/2));
+    const hit=document.elementFromPoint(x,y);
+    return {top:r.top,bottom:r.bottom,navTop:n?.top??innerHeight,hit:!!hit&&(hit===target||target.contains(hit)),hitTag:hit?.tagName,hitId:hit?.id};
+  },selector);
+  if(result.error || result.bottom > result.navTop-1 || !result.hit)
+    throw new Error(label+": target not clear/clickable above nav "+JSON.stringify(result));
+}
+
 async function assertBottomAccessible(page, selector, label) {
   const target = page.locator(selector).last();
   await target.waitFor({ state: "visible" });
   await target.scrollIntoViewIfNeeded();
   await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
   const result = await page.evaluate((sel) => {
-    const element = document.querySelector(sel);
+    const element = Array.from(document.querySelectorAll(sel)).at(-1);
     const nav = document.querySelector(".bottom-nav");
     if (!element) return { error: "target not found: " + sel };
     const rect = element.getBoundingClientRect();
@@ -92,6 +107,12 @@ try {
       localStorage.setItem("kg:recent:v1", JSON.stringify(["BTC","ETH"]));
       window.Telegram={WebApp:{
         initData:"mock-preview-init-data",ready(){},expand(){},setHeaderColor(){},setBackgroundColor(){},
+        BackButton:{
+          isVisible:false,_handler:null,
+          show(){this.isVisible=true;},hide(){this.isVisible=false;},
+          onClick(handler){this._handler=handler;},offClick(handler){if(this._handler===handler)this._handler=null;},
+          __trigger(){this._handler?.();}
+        },
         HapticFeedback:{selectionChanged(){},impactOccurred(){},notificationOccurred(){}},
         showAlert(message){window.__lastAlert=message;},showConfirm(_message,callback){callback(true);}
       }};
@@ -99,33 +120,78 @@ try {
     await page.route("https://telegram.org/js/telegram-web-app.js",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     await page.waitForTimeout(1800);
-    await page.locator("#wallet-balance-main").waitFor({state:"visible"});
+    await page.locator("#wallet-usdt").waitFor({state:"visible"});
+    await page.locator("#wallet-favorites").waitFor({state:"visible"});
+    await page.locator("#wallet-asset-list").waitFor({state:"visible"});
+    if (await page.locator(".wallet-discover-card").count() !== 2) throw new Error("wallet should show agent and futures discovery cards");
     await assertViewport(page,"wallet");
     await page.screenshot({path:`wallet-${width}x${height}-dsf3.png`,fullPage:false});
     await page.screenshot({path:`wallet-full-${width}x${height}-dsf3.png`,fullPage:true});
-    await assertBottomAccessible(page,"#wallet-asset-list","wallet scroll end");
+    await assertBottomAccessible(page,"#wallet-asset-list","wallet asset list scroll end");
+    await page.screenshot({path:`wallet-maxscroll-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.locator('nav button[data-tab="hist"]').click();
+    await page.waitForTimeout(300);
+    await assertViewport(page,"income");
+    await page.locator(".empty-wallet .primary-button").scrollIntoViewIfNeeded();
+    await assertHitAboveNav(page,".empty-wallet .primary-button","income empty-position CTA hit-test");
+    await assertBottomAccessible(page,".empty-wallet .primary-button","income empty-position CTA scroll end");
     await page.evaluate(async()=>{await fetch("/__preview/position"); await window.kriptoGuruDemo.refresh();});
     await page.waitForTimeout(450);
-    if(await page.locator("#wallet-position-count").textContent()!=="1") throw new Error("wallet preview: открытая демо-позиция не появилась");
-    await assertViewport(page,"wallet-position");
-    await page.screenshot({path:`wallet-position-${width}x${height}-dsf3.png`,fullPage:false});
-    await page.screenshot({path:`wallet-position-full-${width}x${height}-dsf3.png`,fullPage:true});
+    if(await page.locator("#wallet-position-count").textContent()!=="1") throw new Error("income preview: открытая демо-позиция не появилась");
+    await page.evaluate(()=>window.scrollTo({top:0,behavior:"instant"}));
+    await assertViewport(page,"income-position");
+    await page.screenshot({path:`income-position-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.screenshot({path:`income-position-full-${width}x${height}-dsf3.png`,fullPage:true});
     await page.evaluate(async()=>{await fetch("/__preview/empty"); await window.kriptoGuruDemo.refresh();});
     await page.waitForTimeout(250);
+    await page.locator('nav button[data-tab="painel"]').click();
     await page.locator('nav button[data-tab="pares"]').click();
     await page.waitForTimeout(900);
+    if(await page.locator('[data-market-category]').count()!==4) throw new Error("catalog: expected four product categories");
+    await assertViewport(page,"market-catalog");
+    await page.screenshot({path:`market-catalog-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.locator("#category-stocks").click();
+    await page.locator("#equities-market-content").waitFor({state:"visible"});
+    if (await page.locator('[data-equity-list="stocks"] .equity-tile').count() !== 4) throw new Error("US stocks watchlist should contain four honest unavailable cards");
+    if(!(await page.locator(".equities-empty").innerText()).includes("Котировки пока не подключены")) throw new Error("stocks category must show honest unavailable state");
+    await page.screenshot({path:`market-stocks-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.locator("#category-funds").click();
+    if(!(await page.locator("#equities-title").innerText()).includes("Фонды")) throw new Error("funds category did not switch");
+    if (await page.locator('[data-equity-list="funds"] .equity-tile').count() !== 4) throw new Error("US funds watchlist should contain four honest unavailable cards");
+    if (await page.locator('[data-equity-list="stocks"]').isVisible()) throw new Error("stocks list should hide when funds category is selected");
+    await page.screenshot({path:`market-funds-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.locator("#category-futures").click();
+    await page.locator("#pairs .market-row").first().waitFor({state:"visible"});
+    if (await page.locator("#q").isVisible()) throw new Error("market search should start collapsed");
+    await page.locator("#trade-search-toggle").click();
+    await page.locator("#q").waitFor({state:"visible"});
+    await page.locator("#q").fill("BTC");
+    if (await page.locator("#pairs .market-row").count() !== 1) throw new Error("expanded market search did not filter BTC");
+    await page.keyboard.press("Escape");
+    if (await page.locator("#q").isVisible()) throw new Error("market search did not collapse on Escape");
+    await page.locator("#category-crypto").click();
     await page.locator("#pairs .market-row").first().waitFor({state:"visible"});
     await assertViewport(page,"trade");
     await page.screenshot({path:`trade-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#pairs").scrollIntoViewIfNeeded();
     await page.waitForTimeout(250);
     await page.screenshot({path:`trade-list-${width}x${height}-dsf3.png`,fullPage:false});
-    await assertBottomAccessible(page,"#pairs","trade scroll end");
+    await assertBottomAccessible(page,"#pairs .market-row","trade last market row scroll end");
+    await page.screenshot({path:`trade-maxscroll-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#pairs .market-row").first().click();
     await page.waitForTimeout(1100);
     await page.evaluate(()=>{window.scrollTo({top:0,behavior:"instant"});document.documentElement.scrollTop=0;document.body.scrollTop=0;});
-    await page.locator("#asset-back").waitFor({state:"visible"});
+    await page.waitForFunction(()=>window.Telegram?.WebApp?.BackButton?.isVisible===true);
+    if(await page.locator("#asset-back").isVisible()) throw new Error("Telegram asset view should use native BackButton, not a duplicate in-page back control");
+    const assetDebug=await page.evaluate(()=>{
+      const el=document.querySelector("#pair-detail"),r=el?.getBoundingClientRect(),parent=el?.parentElement;
+      return {className:el?.className,display:el?getComputedStyle(el).display:null,visibility:el?getComputedStyle(el).visibility:null,rect:r?{top:r.top,bottom:r.bottom,width:r.width,height:r.height}:null,parent:parent?{id:parent.id,className:parent.className,display:getComputedStyle(parent).display}:null,text:(el?.innerText||"").slice(0,260),bodyClass:document.body.className,tab:document.querySelector("#tab-pares")?.className,scrollY:window.scrollY,scrollHeight:document.documentElement.scrollHeight};
+    });
+    if(!assetDebug.rect || assetDebug.display==="none" || assetDebug.rect.height<120 || !assetDebug.text.includes("Bitcoin")) throw new Error("Asset detail is not visibly rendered: "+JSON.stringify(assetDebug));
+    if (await page.locator("[data-asset-product-type]").innerText() !== "Фьючерс") throw new Error("asset product type badge missing");
+    if (!(await page.locator("[data-asset-max-leverage]").innerText()).includes("×")) throw new Error("asset leverage badge missing");
     await page.screenshot({path:`asset-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.screenshot({path:`asset-full-${width}x${height}-dsf3.png`,fullPage:true});
     await page.locator("#asset-trade-bar [data-asset-side=long]").click();
     await page.waitForTimeout(350);
     const ticketDebug=await page.evaluate(()=>{
@@ -161,18 +227,38 @@ try {
     await page.waitForTimeout(150);
     await page.screenshot({path:`tp-sl-${width}x${height}-dsf3.png`,fullPage:false});
     await page.keyboard.press("Escape");
-    await page.locator("#asset-back").click();
+    await page.locator("#asset-trade-bar [data-asset-side=short]").click();
+    await page.locator("#ticket-margin").waitFor({state:"visible"});
+    await page.locator("#ticket-margin").fill("50");
+    await page.keyboard.press("Escape");
+    const assetState=await page.evaluate(()=>({
+      open:document.body.classList.contains("asset-open"),
+      navDisplay:getComputedStyle(document.querySelector(".bottom-nav")).display
+    }));
+    if(!assetState.open || assetState.navDisplay!=="none") throw new Error("Asset detail state/nav invalid before back: "+JSON.stringify(assetState));
+    await page.evaluate(()=>window.Telegram.WebApp.BackButton.__trigger());
     await page.waitForTimeout(200);
+    const returnedState=await page.evaluate(()=>({
+      open:document.body.classList.contains("asset-open"),
+      navDisplay:getComputedStyle(document.querySelector(".bottom-nav")).display
+    }));
+    if(returnedState.open || returnedState.navDisplay==="none") throw new Error("Bottom navigation did not return after asset back: "+JSON.stringify(returnedState));
     await page.locator('nav button[data-tab="hist"]').click();
     await page.waitForTimeout(350);
     await page.screenshot({path:`history-${width}x${height}-dsf3.png`,fullPage:false});
     await assertBottomAccessible(page,"#trades","history scroll end");
+    await page.screenshot({path:`history-maxscroll-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator('nav button[data-tab="ctrl"]').click();
     await page.waitForTimeout(250);
-    await assertViewport(page,"settings");
+    await assertViewport(page,"bonuses");
+    await page.locator(".bonus-card").waitFor({state:"visible"});
+    if(!(await page.locator("#tab-ctrl h1").innerText()).includes("Бонусы")) throw new Error("bottom navigation fourth tab is not Bonuses");
     if(pageErrors.length) throw new Error("JavaScript errors: "+pageErrors.join(" | "));
-    await page.screenshot({path:`settings-${width}x${height}-dsf3.png`,fullPage:false});
-    await assertBottomAccessible(page,".disclaimer","settings scroll end");
+    await page.screenshot({path:`bonuses-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.locator(".bonus-settings > summary").click();
+    await page.locator(".bonus-settings-content .disclaimer").waitFor({state:"visible"});
+    await assertBottomAccessible(page,".disclaimer","expanded bonuses settings scroll end");
+    await page.screenshot({path:`bonuses-maxscroll-${width}x${height}-dsf3.png`,fullPage:false});
     await page.close();
   }
 } finally {

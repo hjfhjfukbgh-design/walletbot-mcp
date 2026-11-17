@@ -1,5 +1,5 @@
 import { applyEntrySlippage, closePosition, checkTrigger, manualCloseTrigger, openPosition, unrealizedPnl, type Position, type PositionInput } from "./positions";
-import { MONEY_SCALE, PRICE_SCALE, divRound, parseFixed } from "./money";
+import { MONEY_SCALE, PRICE_SCALE, divRound, feeMicro, notionalMicro, parseFixed } from "./money";
 
 interface EngineEnv { HYPERLIQUID_WS_URL?: string; ENGINE_MAX_QUOTE_AGE_MS?: string; ENGINE_DISABLE_SOCKET?: string; }
 interface Quote { price: bigint; observedAt: number; }
@@ -57,6 +57,14 @@ export class TradingEngine {
     const sql = ctx.storage.sql;
     sql.exec("CREATE TABLE IF NOT EXISTS accounts (user_id TEXT PRIMARY KEY, balance_micro TEXT NOT NULL)");
     sql.exec("CREATE TABLE IF NOT EXISTS positions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, symbol TEXT NOT NULL, status TEXT NOT NULL, position_json TEXT NOT NULL, updated_at INTEGER NOT NULL)");
+    const positionColumns = sql.exec("PRAGMA table_info(positions)").toArray() as Array<{ name: string }>;
+    if (!positionColumns.some((column) => column.name === "close_json")) {
+      sql.exec("ALTER TABLE positions ADD COLUMN close_json TEXT");
+    }
+    if (!positionColumns.some((column) => column.name === "created_at")) {
+      sql.exec("ALTER TABLE positions ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0");
+      sql.exec("UPDATE positions SET created_at = updated_at WHERE created_at = 0");
+    }
     sql.exec("CREATE INDEX IF NOT EXISTS positions_status_symbol ON positions(status, symbol)");
     sql.exec("CREATE INDEX IF NOT EXISTS positions_user_status ON positions(user_id, status)");
     sql.exec("CREATE TABLE IF NOT EXISTS ledger (id INTEGER PRIMARY KEY AUTOINCREMENT, operation_id TEXT NOT NULL UNIQUE, user_id TEXT NOT NULL, position_id TEXT, kind TEXT NOT NULL, amount_micro TEXT NOT NULL, balance_before_micro TEXT NOT NULL, balance_after_micro TEXT NOT NULL, created_at INTEGER NOT NULL)");
@@ -79,12 +87,62 @@ export class TradingEngine {
   async fetch(request: Request): Promise<Response> {
     try {
       const url = new URL(request.url);
+      if (request.method === "GET" && url.pathname === "/risk") {
+        const userId = url.searchParams.get("userId") ?? "";
+        const maxDailyLossBps = BigInt(url.searchParams.get("maxDailyLossBps") ?? "");
+        if (!/^\d{1,20}$/.test(userId) || maxDailyLossBps <= 0n || maxDailyLossBps > 10_000n)
+          throw new Error("Некорректные параметры дневного лимита риска.");
+        this.ensureAccount(userId);
+        const dailyNetPnlMicro = this.dailyNetPnl(userId);
+        const dailyLossLimitMicro = DEMO_SEED * maxDailyLossBps / 10_000n;
+        return jsonResponse({
+          ok: true, dailyNetPnlMicro: dailyNetPnlMicro.toString(),
+          dailyLossLimitMicro: dailyLossLimitMicro.toString(),
+          blocked: dailyNetPnlMicro <= -dailyLossLimitMicro,
+          resetAt: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()) + 86_400_000).toISOString(),
+        });
+      }
       if (request.method === "GET" && url.pathname === "/account") {
         const userId = url.searchParams.get("userId") ?? "";
         if (!/^\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
         const balance = this.ensureAccount(userId);
         const rows = this.ctx.storage.sql.exec("SELECT position_json FROM positions WHERE user_id = ? AND status = 'open'", userId).toArray() as Array<{ position_json: string }>;
         return jsonResponse({ ok: true, balanceMicro: balance.toString(), positions: rows.map((row) => parsePosition(row.position_json)) });
+      }
+      if (request.method === "GET" && url.pathname === "/history") {
+        const userId = url.searchParams.get("userId") ?? "";
+        if (!/^\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
+        const rows = this.ctx.storage.sql.exec(
+          "SELECT position_json, close_json, status, created_at, updated_at FROM positions WHERE user_id = ? ORDER BY updated_at DESC LIMIT 100",
+          userId,
+        ).toArray() as Array<{ position_json: string; close_json: string | null; status: string; created_at: number; updated_at: number }>;
+        const trades = rows.flatMap((row) => {
+          const position = parsePosition(row.position_json);
+          const events: Array<Record<string, unknown>> = [{
+            id: position.id + ":open", event: "open", at: row.created_at || row.updated_at,
+            market: position.symbol, side: position.side, price: Number(position.entryPrice) / 100_000_000, mode: "paper",
+          }];
+          if (row.close_json) {
+            const close = JSON.parse(row.close_json) as { reason?: string; executionPrice?: string; netPnlMicro?: string; totalNetPnlMicro?: string };
+            events.push({
+              id: position.id + ":close", event: "close", at: row.updated_at,
+              market: position.symbol, side: position.side, reason: close.reason,
+              price: close.executionPrice ? (Number(close.executionPrice) / 100_000_000) : undefined,
+              pnl: close.totalNetPnlMicro === undefined ? (close.netPnlMicro === undefined ? undefined : Number(close.netPnlMicro) / 1_000_000) : Number(close.totalNetPnlMicro) / 1_000_000,
+              mode: "paper",
+            });
+          }
+          return events;
+        }).sort((a, b) => Number(b.at) - Number(a.at));
+        const ledgerRows = this.ctx.storage.sql.exec(
+          "SELECT id, created_at, balance_before_micro, balance_after_micro FROM ledger WHERE user_id = ? ORDER BY id",
+          userId,
+        ).toArray() as Array<{ id: number; created_at: number; balance_before_micro: string; balance_after_micro: string }>;
+        const equity = ledgerRows
+          .map((row) => [Number(row.created_at), Number(row.balance_after_micro) / 1_000_000, Number(row.id)] as [number, number, number])
+          .sort((a, b) => a[0] - b[0] || a[2] - b[2])
+          .map(([at, balance]) => [at, balance] as [number, number]);
+        return jsonResponse({ ok: true, trades, equity });
       }
       if (request.method === "GET" && url.pathname === "/health") {
         return Response.json({ ok: true, openPositions: this.positions.size, socketOpen: this.socket?.readyState === WebSocket.OPEN, quoteCount: this.quotes.size, staleSymbols: [...this.staleSymbols] });
@@ -136,6 +194,31 @@ export class TradingEngine {
     return quote;
   }
 
+  /** UTC-day PnL: realized net PnL from closes today plus fee-aware mark-to-market on open positions. */
+  private dailyNetPnl(userId: string, now = Date.now()): bigint {
+    const utc = new Date(now);
+    const dayStart = Date.UTC(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate());
+    const closedRows = this.ctx.storage.sql.exec(
+      "SELECT close_json FROM positions WHERE user_id = ? AND status = 'closed' AND updated_at >= ?",
+      userId, dayStart,
+    ).toArray() as Array<{ close_json: string | null }>;
+    let pnl = 0n;
+    for (const row of closedRows) {
+      if (!row.close_json) continue;
+      const close = JSON.parse(row.close_json) as { totalNetPnlMicro?: string; netPnlMicro?: string };
+      const value = close.totalNetPnlMicro ?? close.netPnlMicro;
+      if (value !== undefined) pnl += BigInt(value);
+    }
+    for (const position of this.positions.values()) {
+      if (position.userId !== userId || position.status !== "open") continue;
+      const mark = this.freshQuote(position.symbol).price;
+      const gross = unrealizedPnl(position, mark);
+      const exitFee = feeMicro(notionalMicro(position.qtyUnits, mark), position.feePpm);
+      pnl += gross - position.entryFeeMicro - exitFee;
+    }
+    return pnl;
+  }
+
   private open(body: Record<string, unknown>): { ok: true; position: Position; balanceMicro: string } {
     if (body.mode !== "demo") throw new Error("LIVE отключён. Engine принимает только DEMO-сделки.");
     const userId = String(body.userId ?? "");
@@ -162,7 +245,9 @@ export class TradingEngine {
     // balance/position write. API-only checks are not sufficient under concurrency.
     const maxOrderBps = BigInt(String(body.maxOrderBps ?? ""));
     const maxTotalExposureBps = BigInt(String(body.maxTotalExposureBps ?? ""));
-    if (maxOrderBps <= 0n || maxOrderBps > 10_000n || maxTotalExposureBps <= 0n || maxTotalExposureBps > 10_000n)
+    const maxDailyLossBps = BigInt(String(body.maxDailyLossBps ?? ""));
+    if (maxOrderBps <= 0n || maxOrderBps > 10_000n || maxTotalExposureBps <= 0n || maxTotalExposureBps > 10_000n
+      || maxDailyLossBps <= 0n || maxDailyLossBps > 10_000n)
       throw new Error("Серверные лимиты риска не заданы или некорректны.");
     let openMargin = 0n;
     let unrealized = 0n;
@@ -178,10 +263,19 @@ export class TradingEngine {
     if ((openMargin + input.marginMicro) * 10_000n > equity * maxTotalExposureBps)
       throw new Error("Общая маржа превысит серверный лимит открытой экспозиции.");
     const opened = openPosition(input, before);
+    // Daily stop is anchored to the $1,000 demo seed and resets at 00:00 UTC.
+    // Include today's realized net PnL, open-position mark-to-market after both fees,
+    // and the entry fee of this proposed order. This check runs inside the DO,
+    // so concurrent opens cannot race past the loss threshold.
+    const dailyLossLimit = DEMO_SEED * maxDailyLossBps / 10_000n;
+    const dailyPnlAfterEntry = this.dailyNetPnl(userId) - opened.position.entryFeeMicro;
+    if (dailyPnlAfterEntry <= -dailyLossLimit)
+      throw new Error("Достигнут дневной лимит убытка демо-счёта. Новые сделки заблокированы до 00:00 UTC.");
     this.ctx.storage.transactionSync(() => {
       this.ctx.storage.sql.exec("UPDATE accounts SET balance_micro = ? WHERE user_id = ?", opened.balanceAfterMicro.toString(), userId);
-      this.ctx.storage.sql.exec("INSERT INTO positions(id,user_id,symbol,status,position_json,updated_at) VALUES(?,?,?,?,?,?)",
-        input.id, userId, symbol, "open", serializePosition(opened.position), Date.now());
+      const openedAt = Date.now();
+      this.ctx.storage.sql.exec("INSERT INTO positions(id,user_id,symbol,status,position_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+        input.id, userId, symbol, "open", serializePosition(opened.position), openedAt, openedAt);
       this.ctx.storage.sql.exec("INSERT INTO ledger(operation_id,user_id,position_id,kind,amount_micro,balance_before_micro,balance_after_micro,created_at) VALUES(?,?,?,?,?,?,?,?)",
         "open:" + input.id, userId, input.id, "open", opened.balanceDeltaMicro.toString(), before.toString(), opened.balanceAfterMicro.toString(), Date.now());
     });
@@ -213,8 +307,8 @@ export class TradingEngine {
       const current = this.ctx.storage.sql.exec("SELECT status FROM positions WHERE id = ? AND user_id = ?", id, userId).toArray()[0] as { status: string } | undefined;
       if (!current || current.status !== "open") throw new Error("Позиция уже закрыта.");
       this.ctx.storage.sql.exec("UPDATE accounts SET balance_micro = ? WHERE user_id = ?", after.toString(), userId);
-      this.ctx.storage.sql.exec("UPDATE positions SET status = 'closed', position_json = ?, updated_at = ? WHERE id = ? AND user_id = ? AND status = 'open'",
-        serializePosition(result.position), Date.now(), id, userId);
+      this.ctx.storage.sql.exec("UPDATE positions SET status = 'closed', position_json = ?, close_json = ?, updated_at = ? WHERE id = ? AND user_id = ? AND status = 'open'",
+        serializePosition(result.position), JSON.stringify(result, (_key, value) => typeof value === "bigint" ? value.toString() : value), Date.now(), id, userId);
       this.ctx.storage.sql.exec("INSERT INTO ledger(operation_id,user_id,position_id,kind,amount_micro,balance_before_micro,balance_after_micro,created_at) VALUES(?,?,?,?,?,?,?,?)",
         "close:" + id, userId, id, result.reason, result.balanceDeltaMicro.toString(), before.toString(), after.toString(), Date.now());
     });
