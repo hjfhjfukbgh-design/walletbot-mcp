@@ -1,203 +1,115 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#F2F2F7" />
-  <meta name="color-scheme" content="light" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f1f1f6">
+  <meta name="color-scheme" content="light">
   <title>Kripto Guru</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="/style.css?v=20261116-2215" />
-  <link rel="stylesheet" href="/design-system.css?v=20261117-asset-parent-fix" />
-  <link rel="stylesheet" href="/visual-pass.css?v=20261116-visual-2" />
-  <link rel="stylesheet" href="/reference-wallet.css?v=20261117-reference-8" />
+  <link rel="stylesheet" href="/kripto-guru-ui.css?v=20261117-shell-1">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand-title"><span class="brand-symbol">K</span><strong>Kripto Guru</strong></div>
-    <div class="top-actions">
-      <button id="notifications-trigger" class="round-action" aria-label="Уведомления"><i data-icon="bell"></i></button>
-      <button id="profile-trigger" class="profile-trigger" aria-label="Аккаунт и режим торговли" aria-expanded="false"><i data-icon="user"></i></button>
-    </div>
-    <div id="profile-menu" class="profile-menu hidden">
-      <div class="profile-menu-head"><span class="profile-avatar"><i data-icon="user"></i></span><div><b>Аккаунт</b><small>Настройки терминала</small></div></div>
-      <div class="profile-menu-label">РЕЖИМ ТОРГОВЛИ</div>
-      <button id="profile-demo" class="mode-option selected" type="button"><span><b>Демо</b><small>Виртуальные средства</small></span><i data-icon="check"></i></button>
-      <button id="profile-live" class="mode-option locked" type="button" disabled aria-disabled="true" title="LIVE пока не подключён"><span><b>Реальный</b><small>Биржа не подключена</small></span><i data-icon="lock"></i></button>
-      <p class="profile-menu-note" role="note">LIVE отключён: интеграция с биржей и проверка безопасности ещё не завершены. Все доступные сделки — только на виртуальные средства.</p>
-    </div>
-  </header>
-
-  <main>
-    <section id="tab-painel" class="tab active">
-      <button class="currency-card" type="button" aria-label="Баланс демо-счёта в USDT">
-        <span class="currency-icon">$</span>
-        <span class="currency-copy"><b>Доллары</b><small>USDT · Демо-счёт</small></span>
-        <strong id="wallet-usdt">$1 000,00</strong>
+  <main id="kg-main">
+    <section id="kg-wallet-screen" class="kg-screen is-active" aria-label="Кошелёк">
+      <button class="kg-balance-card" type="button" aria-label="Демо-баланс в USDT">
+        <span class="kg-currency-icon">$</span>
+        <span class="kg-card-copy"><b>Доллары</b><small>USDT · Демо-счёт</small></span>
+        <strong id="kg-wallet-balance">—</strong>
       </button>
-
-      <div class="section-heading"><h2>Избранное</h2><button id="wallet-edit-favorites" class="text-action" type="button">Изменить</button></div>
-      <div id="wallet-favorites" class="favorites-strip"><div class="favorite-skeleton"></div><div class="favorite-skeleton"></div></div>
-
-      <div class="section-heading"><h2>Крипто</h2><button class="text-action" id="wallet-show-assets" type="button">Всего</button></div>
-      <div id="wallet-asset-list" class="wallet-asset-list">
-        <div class="asset-line"><span class="coin-avatar">G</span><span><b>Gram</b><small>GRAM</small></span><strong>0,00 $</strong></div>
-        <div class="asset-line"><span class="coin-avatar">₿</span><span><b>Bitcoin</b><small>BTC</small></span><strong>0,00 $</strong></div>
-        <div class="asset-line"><span class="coin-avatar">Ξ</span><span><b>Ethereum</b><small>ETH</small></span><strong>0,00 $</strong></div>
-      </div>
-
-      <div class="section-heading"><h2>Акции и фонды</h2><span class="section-muted">Информационный раздел</span></div>
-      <div id="wallet-stocks-list" class="wallet-asset-list">
-        <div class="asset-line"><span class="coin-avatar">A</span><span><b>Apple</b><small>Акции · котировка недоступна</small></span><strong>—</strong></div>
-      </div>
-
-      <div class="section-heading"><h2>Аккаунты ИИ-агента</h2><span class="section-muted">Информация</span></div>
-      <div class="wallet-asset-list">
-        <div class="asset-line"><span class="coin-avatar agent-avatar">◎</span><span><b>Агент Grok</b><small>Подключение пока недоступно</small></span><strong>—</strong></div>
-      </div>
-
-      <div class="section-heading"><h2>Попробуйте</h2></div>
-      <div class="wallet-discover-list">
-        <div class="wallet-discover-card unavailable" aria-disabled="true">
-          <span class="discover-icon agent-discover">◎</span>
-          <span class="discover-copy"><b>Создайте аккаунт ИИ-агента</b><small>Подключение появится позже</small></span>
-          <span class="discover-arrow">›</span>
-        </div>
-        <button id="wallet-open-futures" class="wallet-discover-card" type="button">
-          <span class="discover-icon futures-discover">↗</span>
-          <span class="discover-copy"><b>Бессрочные фьючерсы</b><small>Откройте демо-рынок и изучите инструменты</small></span>
-          <span class="discover-arrow">›</span>
-        </button>
-      </div>
-
-      <div id="alert" class="alert hidden"></div>
-    </section>
-
-    <section id="tab-pares" class="tab">
-      <div id="trade-search" class="trade-search">
-        <button id="trade-search-toggle" class="trade-search-toggle" type="button" aria-label="Открыть поиск" aria-expanded="false"><i data-icon="search"></i><span>Поиск</span></button>
-        <input id="q" type="search" placeholder="Поиск: BTC, ETH…" autocomplete="off" hidden />
-        <button id="trade-search-close" class="trade-search-close" type="button" aria-label="Закрыть поиск" hidden>×</button>
-      </div>
-      <div class="section-heading"><h2>Недавно просмотренное</h2><button id="recent-clear" class="text-action" type="button">Очистить</button></div>
-      <div id="recent-markets" class="recent-strip"><span class="recent-empty">Здесь появятся просмотренные активы</span></div>
-      <div class="ipo-card">
-        <div class="ipo-mark">IPO</div>
-        <div class="ipo-copy"><span class="ipo-badge">НОВОЕ</span><b>Новые размещения</b><small>Информация об IPO появится после подключения проверенного источника данных.</small></div>
-        <span class="ipo-status">Скоро</span>
-      </div>
-      <div class="section-heading"><h2>Продукты</h2><span class="section-muted">Выберите рынок</span></div>
-      <div class="category-row">
-        <button id="category-crypto" data-market-category="crypto" class="category-tile selected" type="button"><span class="category-icon crypto-gradient">₿</span><b>Крипто</b></button>
-        <button id="category-stocks" data-market-category="stocks" class="category-tile" type="button"><span class="category-icon stocks-gradient">A</span><b>Акции</b></button>
-        <button id="category-funds" data-market-category="funds" class="category-tile" type="button"><span class="category-icon funds-gradient">▥</span><b>Фонды</b></button>
-        <button id="category-futures" data-market-category="futures" class="category-tile" type="button"><span class="category-icon futures-gradient">↗</span><b>Фьючерсы</b></button>
-      </div>
-      <div id="crypto-market-content">
-        <div class="section-heading"><h2>Тепловая карта рынка</h2><span class="section-muted">24 часа</span></div>
-        <div id="heatmap" class="heatmap"><div class="skeleton"></div></div>
-        <p class="heatmap-note">Размер ячейки отражает объём торгов, цвет — изменение цены.</p>
-        <div class="section-heading top-section-heading"><h2>Топ дня</h2><div class="top-toggle"><button class="selected" data-top-sort="up" type="button">Топ роста</button><button data-top-sort="down" type="button">Топ падения</button></div></div>
-        <div id="top-day" class="top-day"></div>
-        <div class="section-heading"><h2 id="pairs-title">Все активы</h2><button id="home-see-all" class="text-action" type="button">Посмотреть все</button></div>
-        <div id="pair-detail" class="asset-screen card hidden" aria-live="polite"></div>
-        <div id="pairs" class="list"><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div></div>
-      </div>
-      <div id="equities-market-content" class="hidden">
-        <div class="section-heading"><h2 id="equities-title">Рынок США · Акции</h2><span class="section-muted">Информация</span></div>
-        <div class="equities-switch"><button class="selected" data-equity-kind="stocks" type="button">Акции</button><button data-equity-kind="funds" type="button">Фонды</button></div>
-        <div class="equities-empty"><span class="equities-empty-icon">◫</span><div><b>Котировки пока не подключены</b><p>Карточки ниже — только список инструментов. Цены и торговля появятся после подключения проверенного источника данных.</p></div></div>
-        <div class="equities-grid" data-equity-list="stocks">
-          <div class="equity-tile"><span class="equity-symbol">A</span><span class="equity-copy"><b>Apple</b><small>AAPL · Нет котировки</small></span><strong>—</strong></div>
-          <div class="equity-tile"><span class="equity-symbol">M</span><span class="equity-copy"><b>Microsoft</b><small>MSFT · Нет котировки</small></span><strong>—</strong></div>
-          <div class="equity-tile"><span class="equity-symbol">N</span><span class="equity-copy"><b>NVIDIA</b><small>NVDA · Нет котировки</small></span><strong>—</strong></div>
-          <div class="equity-tile"><span class="equity-symbol">A</span><span class="equity-copy"><b>Amazon</b><small>AMZN · Нет котировки</small></span><strong>—</strong></div>
-        </div>
-        <div class="equities-grid hidden" data-equity-list="funds">
-          <div class="equity-tile"><span class="equity-symbol">S</span><span class="equity-copy"><b>SPDR S&P 500</b><small>SPY · Нет котировки</small></span><strong>—</strong></div>
-          <div class="equity-tile"><span class="equity-symbol">Q</span><span class="equity-copy"><b>Invesco QQQ</b><small>QQQ · Нет котировки</small></span><strong>—</strong></div>
-          <div class="equity-tile"><span class="equity-copy"><b>Vanguard S&P 500</b><small>VOO · Нет котировки</small></span><strong>—</strong></div>
-          <div class="equity-tile"><span class="equity-symbol">I</span><span class="equity-copy"><b>iShares Russell 2000</b><small>IWM · Нет котировки</small></span><strong>—</strong></div>
-        </div>
+      <div class="kg-section-head"><h2>Избранное</h2><button id="kg-edit-favorites" class="kg-link" type="button">Изменить</button></div>
+      <div id="kg-favorites" class="kg-favorites"><div class="kg-empty-inline">Загрузка избранного…</div></div>
+      <div class="kg-section-head"><h2>Крипто</h2><button class="kg-link" type="button" data-open-trading>Все</button></div>
+      <div id="kg-wallet-assets" class="kg-list"><div class="kg-skeleton"></div></div>
+      <div class="kg-section-head"><h2>Акции и фонды</h2><span class="kg-muted">Информация</span></div>
+      <div class="kg-list kg-unavailable-row"><div class="kg-asset-icon">A</div><div class="kg-row-copy"><b>Акции и фонды</b><small id="kg-equity-wallet-reason">Котировки пока недоступны</small></div><strong>—</strong></div>
+      <div class="kg-section-head"><h2>Аккаунты ИИ-агента</h2><span class="kg-muted">Информация</span></div>
+      <div class="kg-list kg-unavailable-row"><div class="kg-asset-icon">◎</div><div class="kg-row-copy"><b>Агент Grok</b><small>Подключение пока недоступно</small></div><strong>—</strong></div>
+      <div class="kg-section-head"><h2>Попробуйте</h2></div>
+      <div class="kg-discover-list">
+        <div class="kg-discover-card is-disabled"><span class="kg-discover-icon">◎</span><span class="kg-row-copy"><b>Создайте аккаунт ИИ-агента</b><small>Функция пока недоступна</small></span><span class="kg-chevron">›</span></div>
+        <button class="kg-discover-card" type="button" data-open-futures><span class="kg-discover-icon is-green">↗</span><span class="kg-row-copy"><b>Бессрочные фьючерсы</b><small>Откройте демо-рынок</small></span><span class="kg-chevron">›</span></button>
       </div>
     </section>
 
-    <section id="tab-hist" class="tab">
-      <div class="page-heading"><h1>Доход</h1><p>Результат демо-счёта и история сделок.</p></div>
-      <div class="section-heading"><h2>Открытые позиции</h2><span id="wallet-position-count" class="section-muted">0</span></div>
-      <div id="engine-positions" class="wallet-position-list">
-        <div class="empty-wallet"><span class="empty-wallet-icon"><i data-icon="chart"></i></span><b>Позиций пока нет</b><button id="empty-open-markets" class="primary-button" type="button">Открыть рынки</button></div>
+    <section id="kg-trading-screen" class="kg-screen" aria-label="Торговля">
+      <div class="kg-search-row">
+        <button id="kg-search-open" class="kg-search-toggle" type="button">⌕ <span>Поиск</span></button>
+        <input id="kg-market-search" type="search" placeholder="Поиск: BTC, ETH…" autocomplete="off" hidden>
+        <button id="kg-search-close" class="kg-search-close" type="button" hidden>×</button>
       </div>
-      <div class="section-heading"><h2>История транзакций</h2></div>
-      <div class="card history-list-card"><div id="trades">Сделок пока нет.</div></div>
+      <div class="kg-section-head"><h2>Недавно просмотренные</h2><button id="kg-recent-clear" class="kg-link" type="button">Очистить</button></div>
+      <div id="kg-recent" class="kg-recent"><span class="kg-muted">Здесь появятся просмотренные активы</span></div>
+      <div class="kg-ipo-card"><span class="kg-ipo-icon">IPO</span><span class="kg-row-copy"><small class="kg-ipo-badge">НОВОЕ</small><b>Новые размещения</b><small id="kg-ipo-reason">Проверенные данные об IPO пока недоступны.</small></span><span class="kg-muted">Скоро</span></div>
+      <div class="kg-section-head"><h2>Продукты</h2><span class="kg-muted">Выберите рынок</span></div>
+      <div class="kg-categories">
+        <button class="kg-category is-selected" data-category="crypto" type="button"><span class="kg-category-icon is-orange">₿</span><b>Крипто</b></button>
+        <button class="kg-category" data-category="stocks" type="button"><span class="kg-category-icon is-blue">A</span><b>Акции</b></button>
+        <button class="kg-category" data-category="funds" type="button"><span class="kg-category-icon is-purple">▥</span><b>Фонды</b></button>
+        <button class="kg-category" data-category="futures" type="button"><span class="kg-category-icon is-teal">↗</span><b>Фьючерсы</b></button>
+      </div>
+      <div id="kg-market-live">
+        <div class="kg-section-head"><h2>Тепловая карта рынка</h2><span class="kg-muted">24 часа</span></div>
+        <div id="kg-heatmap" class="kg-heatmap"><div class="kg-empty-inline">Загрузка рынка…</div></div>
+        <div class="kg-section-head"><h2>Топ дня</h2><div class="kg-sort"><button class="is-selected" data-sort="up" type="button">Топ роста</button><button data-sort="down" type="button">Топ падения</button></div></div>
+        <div id="kg-top-day" class="kg-top-day"></div>
+        <div class="kg-section-head"><h2 id="kg-market-title">Все активы</h2><span class="kg-muted" id="kg-market-updated">—</span></div>
+        <div id="kg-market-list" class="kg-list"><div class="kg-skeleton"></div></div>
+      </div>
+      <div id="kg-market-unavailable" class="kg-unavailable-panel" hidden>
+        <span class="kg-unavailable-icon">◫</span><b id="kg-unavailable-title">Рынок недоступен</b><p id="kg-unavailable-reason">Проверенный источник данных пока не подключён.</p>
+      </div>
     </section>
 
-    <section id="tab-ctrl" class="tab">
-      <div class="page-heading"><h1>Бонусы</h1><p>Привилегии и специальные предложения Kripto Guru.</p></div>
-      <div class="bonus-card">
-        <span class="bonus-icon">✦</span>
-        <div><span class="bonus-status">ПРОГРАММА ГОТОВИТСЯ</span><b>Бонусы Kripto Guru</b><p>Бонусные механики появятся после запуска программы. Сейчас здесь нет платных условий и скрытых начислений.</p></div>
-      </div>
-      <details class="bonus-settings">
-        <summary>Настройки и аккаунт <i data-icon="chevron"></i></summary>
-        <div class="bonus-settings-content">
-      <div class="settings-group">
-        <div class="settings-row"><span class="settings-icon"><i data-icon="user"></i></span><span><b>Аккаунт</b><small>Telegram</small></span><i data-icon="chevron"></i></div>
-        <div class="settings-row"><span class="settings-icon"><i data-icon="flask"></i></span><span><b>Режим торговли</b><small>Демо активно · Реальный режим закрыт</small></span><span class="demo-badge">ДЕМО</span></div>
-        <div class="settings-row"><span class="settings-icon"><i data-icon="bell"></i></span><span><b>Уведомления в Telegram</b><small>Управление уведомлениями</small></span><span class="settings-toggle">Вкл.</span></div>
-        <button id="repeat-onboarding" class="settings-row" type="button"><span class="settings-icon"><i data-icon="book"></i></span><span><b>Повторить обучение</b><small>Краткое знакомство с приложением</small></span><i data-icon="chevron"></i></button>
-      </div>
-      <div class="section-heading"><h2>Торговая сетка</h2><span id="grid-status" class="section-muted">Не настроена</span></div>
-      <div class="card grid-settings-card">
-        <div class="row"><span>Рынок и диапазон</span><b id="g-desc">Не настроена</b></div>
-        <div class="row"><span>Объём на сделку</span><b id="g-trade">—</b></div>
-        <div class="row hidden" id="g-recenter-row"><span>Последний перенос</span><b id="g-recenter">—</b></div>
-        <div class="preset-row"><span>Быстрая настройка</span><div><button type="button" class="preset-chip" data-preset="careful">Осторожно</button><button type="button" class="preset-chip" data-preset="standard">Стандарт</button><button type="button" class="preset-chip" data-preset="active">Активно</button></div></div>
-        <form id="grid-form">
-          <label>Торговая пара<input name="market" required placeholder="BTC" /></label>
-          <div class="two"><label>Нижняя граница<input name="low" type="number" step="any" required /></label><label>Верхняя граница<input name="high" type="number" step="any" required /></label></div>
-          <div class="three"><label>Уровни<input name="levels" type="number" min="2" max="50" value="8" required /></label><label>Маржа, $<input name="marginUsd" type="number" step="0.01" value="10" required /></label><label>Плечо<input name="leverage" type="number" min="1" max="3" value="1" required /></label></div>
-          <button type="submit" class="primary-button">Сохранить настройки</button>
-        </form>
-        <div class="grid-control-actions"><button id="wallet-grid-settings" class="secondary-button" type="button">Параметры</button><button id="wallet-grid-run" class="primary-button" type="button">Запустить</button></div>
-        <div class="grid-control-actions"><button data-action="stop" class="secondary-button" type="button">Остановить</button><button data-action="resume" class="secondary-button" type="button">Продолжить</button></div>
-        <button data-action="closeall" class="danger-button full-width" type="button">Закрыть позицию сетки</button>
-        <div id="ctrl-msg" class="ctrl-message hidden"></div>
-      </div>
-      <button id="settings-reset-demo" class="settings-row" type="button"><span class="settings-icon"><i data-icon="refresh"></i></span><span><b>Сброс демо-счёта</b><small>Вернуть виртуальный баланс к начальному</small></span><i data-icon="chevron"></i></button>
-      <p class="disclaimer">Реальная торговля отключена. Все сделки в этом приложении виртуальные.</p>
-        </div>
-      </details>
+    <section id="kg-income-screen" class="kg-screen" aria-label="Доход">
+      <div class="kg-page-title"><h1>Доход</h1><p>Открытые позиции и история демо-сделок.</p></div>
+      <div class="kg-section-head"><h2>Открытые позиции</h2><span id="kg-position-count" class="kg-muted">0</span></div>
+      <div id="kg-positions" class="kg-position-list"><div class="kg-empty-card">Загрузка позиций…</div></div>
+      <div class="kg-section-head"><h2>История транзакций</h2></div>
+      <div id="kg-history" class="kg-list"><div class="kg-empty-card">Загрузка истории…</div></div>
+    </section>
+
+    <section id="kg-bonuses-screen" class="kg-screen" aria-label="Бонусы">
+      <div class="kg-page-title"><h1>Бонусы</h1><p>Привилегии и специальные предложения Kripto Guru.</p></div>
+      <div class="kg-bonus-card"><span class="kg-bonus-icon">✦</span><div><small>ПРОГРАММА ГОТОВИТСЯ</small><b>Бонусы Kripto Guru</b><p id="kg-bonus-reason">Бонусная программа пока недоступна. Никакие начисления не имитируются.</p></div></div>
+      <div class="kg-settings-note">Режим: <b>ДЕМО</b>. LIVE заблокирован.</div>
     </section>
   </main>
 
-  <!-- Runtime compatibility for the existing grid engine; visible grid controls live in Settings. -->
-      <div class="runtime-compat" aria-hidden="true">
-        <div class="wallet-head"><div><div class="eyebrow">ОБЩИЙ БАЛАНС</div><div class="wallet-balance" id="wallet-balance-main">$1 000<span>,00</span></div></div><span class="demo-badge">ДЕМО</span></div>
-        <div class="wallet-performance"><span id="wallet-change-usd">+$0,00 за 24 ч</span><span id="wallet-change-pct" class="change-chip up">↑ 0,00%</span></div>
-        <div class="wallet-actions">
-          <button id="wallet-add-demo" class="wallet-action" type="button"><span class="action-icon"><i data-icon="plus-circle"></i></span><span>Пополнить<br>демо</span></button>
-          <button id="home-open-markets" class="wallet-action" type="button"><span class="action-icon"><i data-icon="chart"></i></span><span>Торговать</span></button>
-          <button id="wallet-open-history" class="wallet-action" type="button"><span class="action-icon"><i data-icon="receipt"></i></span><span>История</span></button>
-          <button id="home-reset-demo" class="wallet-action" type="button"><span class="action-icon"><i data-icon="refresh"></i></span><span>Сбросить<br>демо</span></button>
-        </div>
-        <div class="card history-equity-card"><div class="section-heading"><h2>Кривая капитала</h2></div><svg id="equity" viewBox="0 0 360 140" preserveAspectRatio="none"></svg><div id="history-empty" class="history-empty">Историческая кривая капитала Engine DEMO пока недоступна.</div></div>
-        <span id="mode">ДЕМО</span><span id="wallet-assets-total">$1 000,00</span><span id="home-equity">$1 000,00</span><span id="home-cash">$1 000,00</span><span id="home-pnl">+$0,00</span><span id="home-change">↑0,00%</span><span id="home-positions">0</span><span id="run">ДЕМО</span><span id="market-updated">—</span>
-        <span id="metric-trades">0</span><span id="metric-wins">0 / 0</span><span id="metric-pnl">—</span><span id="demo-capital">$1 000,00</span><div id="stats"></div><div id="pos"></div>
-        <div id="education-banner"></div><button id="home-open-markets-sell" type="button"></button><button id="home-open-grid" type="button"></button>
-        <div id="home-timeframes"></div><svg id="chart"></svg><span id="chart-src"></span>
-        <button id="portfolio-trigger" type="button"></button>
-      </div>
+  <section id="kg-asset-screen" class="kg-subscreen" hidden aria-label="Актив">
+    <div class="kg-asset-top"><button id="kg-asset-back" class="kg-back" type="button" aria-label="Назад">‹</button><span id="kg-asset-product" class="kg-badge">Фьючерс</span><span id="kg-asset-leverage" class="kg-badge">—×</span><button id="kg-asset-favorite" class="kg-link" type="button">☆ В избранное</button></div>
+    <div class="kg-asset-identity"><span id="kg-asset-icon" class="kg-asset-large-icon">₿</span><div><h1 id="kg-asset-name">Bitcoin</h1><small id="kg-asset-symbol">BTC · DEMO</small></div></div>
+    <div id="kg-asset-price" class="kg-asset-price">—</div>
+    <div id="kg-asset-change" class="kg-asset-change">—</div>
+    <div class="kg-chart-card"><div class="kg-chart-head"><b>График цены</b><span id="kg-chart-state" class="kg-muted">Рыночные данные</span></div><div id="kg-chart" class="kg-chart"></div><div id="kg-timeframes" class="kg-timeframes"><button data-interval="1m">1м</button><button data-interval="5m">5м</button><button data-interval="15m" class="is-selected">15м</button><button data-interval="1h">1ч</button><button data-interval="4h">4ч</button><button data-interval="1d">1д</button></div></div>
+    <div class="kg-section-head"><h2>Подробнее</h2></div>
+    <div id="kg-market-details" class="kg-list"></div>
+    <div class="kg-asset-actions"><button id="kg-long" class="kg-primary" type="button">↗ Лонг</button><button id="kg-short" class="kg-primary" type="button">↘ Шорт</button></div>
+  </section>
 
-  <div id="onboarding" class="onboarding-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-title"><div class="onboarding-sheet"><div class="onboarding-progress"><span id="onboarding-progress"></span></div><div class="onboarding-step" id="onboarding-step">ШАГ 1 ИЗ 3</div><h2 id="onboarding-title">Начните с демо</h2><p id="onboarding-copy">Вы торгуете виртуальными средствами. Реальные деньги не используются.</p><div class="onboarding-actions"><button id="onboarding-skip" class="secondary" type="button">Пропустить</button><button id="onboarding-next" type="button">Далее</button></div></div></div>
+  <section id="kg-ticket-screen" class="kg-subscreen kg-ticket" hidden aria-label="Демо-сделка">
+    <button id="kg-ticket-close" class="kg-ticket-close" type="button" aria-label="Закрыть">×</button>
+    <div id="kg-ticket-heading" class="kg-ticket-heading">Лонг BTC · —</div>
+    <div class="kg-ticket-amount"><input id="kg-ticket-margin" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0"><span>$</span><button id="kg-ticket-leverage" class="kg-badge" type="button">1×</button></div>
+    <div id="kg-ticket-volume" class="kg-ticket-volume">Объём: —</div>
+    <div id="kg-ticket-available" class="kg-ticket-available">Доступно: —</div>
+    <div class="kg-ticket-actions"><span class="kg-badge">Оплата в долларах</span><button id="kg-ticket-autoclose" class="kg-badge" type="button">Автозакрытие</button></div>
+    <div id="kg-ticket-preview" class="kg-ticket-preview"></div>
+    <button id="kg-ticket-check" class="kg-primary kg-ticket-check" type="button" disabled>Проверить</button>
+  </section>
 
-  <nav class="bottom-nav"><span id="nav-indicator" class="nav-indicator" aria-hidden="true"></span>
-    <button data-tab="painel" class="active"><i data-icon="wallet"></i><span>Кошелёк</span></button>
-    <button data-tab="pares"><i data-icon="chart"></i><span>Торговля</span></button>
-    <button data-tab="hist"><i data-icon="receipt"></i><span>Доход</span></button>
-    <button data-tab="ctrl"><i data-icon="gift"></i><span>Бонусы</span></button>
+  <section id="kg-leverage-screen" class="kg-modal" hidden aria-label="Выбор плеча">
+    <div class="kg-modal-card"><div class="kg-modal-head"><b>Плечо</b><button data-close-modal type="button">×</button></div><div class="kg-leverage-value"><button id="kg-lev-min" type="button">Мин</button><strong id="kg-lev-value">1×</strong><button id="kg-lev-max" type="button">Макс</button></div><input id="kg-lev-slider" type="range" min="1" max="50" value="1"><p id="kg-lev-warning">Чем выше плечо, тем ближе ликвидация.</p><button id="kg-lev-apply" class="kg-primary" type="button">Применить</button></div>
+  </section>
+  <section id="kg-confirm-screen" class="kg-modal" hidden aria-label="Подтверждение сделки"><div class="kg-modal-card"><div class="kg-modal-head"><b>Проверка сделки</b><button data-close-modal type="button">×</button></div><div id="kg-confirm-details"></div><button id="kg-trade-confirm" class="kg-primary" type="button">Подтвердить демо-сделку</button></div></section>
+
+  <nav id="kg-nav" class="kg-nav" aria-label="Основная навигация">
+    <button class="is-active" data-screen="wallet" type="button"><span>▣</span><small>Кошелёк</small></button>
+    <button data-screen="trading" type="button"><span>⌁</span><small>Торговля</small></button>
+    <button data-screen="income" type="button"><span>◫</span><small>Доход</small></button>
+    <button data-screen="bonuses" type="button"><span>♧</span><small>Бонусы</small></button>
   </nav>
-
-  <script src="/icons.js?v=20261116-2215"></script><script src="/app.js?v=20261117-search-5"></script><script src="/wallet-v2.js?v=20261116-2215"></script><script src="/trading-v2.js?v=20261116-2215"></script>
+  <div id="kg-toast" class="kg-toast" role="status" aria-live="polite"></div>
+  <script src="/kripto-guru-ui.js?v=20261117-shell-1"></script>
 </body>
 </html>
