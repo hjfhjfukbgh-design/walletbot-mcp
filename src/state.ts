@@ -62,3 +62,27 @@ export async function cachedContracts(env: Env, fetcher: () => Promise<ContractI
   return fresh;
 }
 
+
+
+export type ProductMode = "demo" | "live" | "ai";
+
+declare module "./state" {
+  interface BotState {
+    productMode?: ProductMode;
+  }
+}
+
+export function normalizeProductMode(value: unknown): ProductMode {
+  if (value === "demo" || value === "live" || value === "ai") {
+    return value;
+  }
+  return "demo";
+}
+
+export function withProductMode(state: BotState, value: unknown): BotState {
+  return {
+    ...state,
+    productMode: normalizeProductMode(value),
+  };
+}
+
