@@ -218,15 +218,15 @@ jobs:
           const role = process.env.ROLE;
           const allowed = {
             BACKEND: p => ["src/index.ts","src/api.ts","src/service.ts","src/state.ts","src/tenants.ts"].includes(p),
-            FRONTEND: p => p.startsWith("miniapp/web/") && /\\.(js|mjs|css|html)$/.test(p)
+            FRONTEND: p => p.startsWith("miniapp/web/") && /\.(js|mjs|css|html)$/.test(p)
           };
-          const paths = [...new Set([...original.matchAll(/^--- a\\/(.+)$/gm)].map(m=>m[1]))];
+          const paths = [...new Set([...original.matchAll(/^--- a\/(.+)$/gm)].map(m=>m[1]))];
           if (!paths.length || !allowed[role] || paths.some(p=>!allowed[role](p))) {
             throw new Error("Cannot repair patch: target paths are missing or outside role scope.");
           }
           const context = paths.map(path => {
             if (!fs.existsSync(path)) throw new Error("Target file does not exist: "+path);
-            return "\\n\\n===== CURRENT FILE "+path+" =====\\n"+fs.readFileSync(path,"utf8");
+            return "\n\n===== CURRENT FILE "+path+" =====\n"+fs.readFileSync(path,"utf8");
           }).join("");
           const prompt = [
             "Исправь unified diff так, чтобы он точно применялся к текущим файлам ниже.",
@@ -235,7 +235,7 @@ jobs:
             "Задача: "+process.env.TASK,
             "Исходный diff, который не применился:\\n"+original,
             "Текущие точные файлы:\\n"+context
-          ].join("\\n\\n");
+          ].join("\n\n");
           let repaired = "", last = "";
           for (const model of ["gemini-3.5-flash-lite","gemini-3.1-flash-lite"]) {
             try {
@@ -252,10 +252,10 @@ jobs:
             } catch(e) { last=e.message; }
           }
           if(!repaired || repaired==="NO_SAFE_PATCH") throw new Error("Patch repair unavailable: "+last);
-          if(repaired.includes("```") || !repaired.startsWith("--- a/") || !repaired.includes("\\n+++ b/")) {
+          if(repaired.includes("```") || !repaired.startsWith("--- a/") || !repaired.includes("\n+++ b/")) {
             throw new Error("Repair model did not return a clean unified diff.");
           }
-          fs.writeFileSync("/tmp/worker.patch",repaired+"\\n");
+          fs.writeFileSync("/tmp/worker.patch",repaired+"\n");
           execFileSync("git",["apply","--check","/tmp/worker.patch"],{stdio:"inherit"});
           console.log("Patch repaired and apply-check passed.");
           NODE
