@@ -168,7 +168,8 @@ async function previewDemoTrade(env: Env, userId: string, body: Json): Promise<R
   const notionalMicro = requestedMargin * BigInt(leverage);
   const entryFeeMicro = notionalMicro * feePpm / 1_000_000n;
   const exitFeeMicro = entryFeeMicro;
-  const tradeable = maxMarginMicro >= minMarginMicro && maxMarginMicro > 0n;
+  const tradeable = maxMarginMicro >= minMarginMicro && maxMarginMicro > 0n
+    && requestedMargin >= minMarginMicro && requestedMargin <= maxMarginMicro;
   const liquidation = side === "long"
     ? mid * (1 - 1 / leverage + 0.005) / (1 - 0.005)
     : mid * (1 + 1 / leverage - 0.005) / (1 + 0.005);
