@@ -75,6 +75,15 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     });
   }
 
+  async function openWithoutStops(stub: EngineStub, marginMicro: bigint) {
+    return post(stub, "/open", {
+      userId, mode: "demo", symbol: "BTC", side: "long",
+      marginMicro: marginMicro.toString(), leverage: "2",
+      feePpm: "350", slippagePpm: "1000",
+      maxOrderBps: "10000", maxTotalExposureBps: "10000", maxDailyLossBps: "500",
+    });
+  }
+
   it("rejects stale quotes for both market updates and trade entry", async () => {
     const stub = await boot();
     const stale = await post(stub, "/quote", { symbol: "BTC", price: (50_000n * P).toString(), observedAt: Date.now() - 20_000 });
@@ -127,7 +136,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     });
     expect(opened.body.ok).toBe(true);
     await quote(stub, 44_000n * P); // no TP/SL: loss remains unrealized and must still count
-    const results = await Promise.all([open(stub, 10n * U), open(stub, 10n * U)]);
+    const results = await Promise.all([openWithoutStops(stub, 10n * U), openWithoutStops(stub, 10n * U)]);
     expect(results.every((r) => r.body.ok === false)).toBe(true);
     expect(results.every((r) => String(r.body.error).includes("дневной лимит убытка"))).toBe(true);
     const account = await stub.fetch("https://engine.test/account?userId=" + userId);
@@ -150,7 +159,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     await quote(stub, 44_000n * P);
     const closed = await post(stub, "/close", { userId, positionId: id, manual: true });
     expect(closed.body.ok).toBe(true);
-    const blocked = await open(stub, 10n * U);
+    const blocked = await openWithoutStops(stub, 10n * U);
     expect(blocked.body.ok).toBe(false);
     expect(String(blocked.body.error)).toContain("дневной лимит убытка");
   });
