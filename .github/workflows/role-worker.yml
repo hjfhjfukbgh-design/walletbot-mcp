@@ -292,12 +292,20 @@ jobs:
         run: |
           set -euo pipefail
           mode="$(cat /tmp/worker-mode.txt)"
-          if [ "$mode" != "code" ]; then
+          if [ "$mode" = "css-append" ]; then
+            target="$(cat /tmp/worker-css-target.txt)"
+            [[ "$target" == "miniapp/web/"*.css ]] || { echo "::error::CSS append target outside scope."; exit 1; }
+            git ls-files --error-unmatch "$target" >/dev/null 2>&1 || { echo "::error::CSS append target is not tracked."; exit 1; }
+            printf '\\n\\n/* Kripto Guru dark surface overrides */\\n' >> "$target"
+            cat /tmp/worker-css.txt >> "$target"
+            printf '\\n' >> "$target"
+          elif [ "$mode" = "code" ]; then
+            git apply --check /tmp/worker.patch
+            git apply /tmp/worker.patch
+          else
             echo "No source patch to apply ($mode)."
             exit 0
           fi
-          git apply --check /tmp/worker.patch
-          git apply /tmp/worker.patch
           mapfile -t changed < <(git diff --name-only)
           if [ "${#changed[@]}" -eq 0 ] || [ "${#changed[@]}" -gt 3 ]; then
             echo "::error::Patch must change 1–3 files."
@@ -328,7 +336,7 @@ jobs:
         run: |
           set +e
           mode="$(cat /tmp/worker-mode.txt)"
-          if [ "$mode" != "code" ]; then
+          if [ "$mode" != "code" ] && [ "$mode" != "css-append" ]; then
             if [ "${ROLE}" = "QA" ]; then
               npm ci
               install=$?
