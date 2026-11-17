@@ -28,6 +28,7 @@ jobs:
           path: |
             clean-wallet-*.png
             clean-catalog-*.png
+            clean-search-*.png
             clean-stocks-*.png
             clean-asset-*.png
             clean-ticket-*.png
