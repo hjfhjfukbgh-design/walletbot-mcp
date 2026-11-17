@@ -267,6 +267,21 @@
     },
   };
 
+  // Read-only Walt account bridge. No order or transfer methods are exposed here.
+  const walt = {
+    async account() {
+      const data = await request("/api/walt/account");
+      return {
+        connected: data.connected === true,
+        balanceUsd: finite(data.balanceUsd),
+        currency: String(data.currency || "USDC"),
+        source: String(data.source || "walt-mcp"),
+        permission: String(data.permission || "read-only"),
+        raw: data,
+      };
+    },
+  };
+
   const capabilities = {
     async get() {
       return {
@@ -287,6 +302,7 @@
     market,
     trade,
     history,
+    walt,
     capabilities,
     errors: Object.freeze({ ApiError: KriptoGuruApiError }),
   });
