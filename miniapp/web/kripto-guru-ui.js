@@ -100,6 +100,10 @@
     const sorted=[...markets].sort((a,b)=>state.sort==="up"?changeOf(b)-changeOf(a):changeOf(a)-changeOf(b)).slice(0,8);
     $("#kg-top-day").innerHTML=sorted.length?sorted.map(m=>{const s=m.symbol||m.market,ch=changeOf(m);return `<button class="kg-top-item" data-open-market="${esc(s)}" type="button"><span class="kg-asset-icon">${esc(iconFor(s))}</span><b>${esc(s)}</b><small class="${ch>=0?"kg-change-up":"kg-change-down"}">${pct(ch)}</small></button>`;}).join(""):'<div class="kg-empty-inline">Нет данных для рейтинга.</div>';
   }
+  function currentMarkets(){
+    if(state.category==="all")return [...state.markets,...state.futures];
+    return state.category==="futures"?state.futures:state.markets;
+  }
   function renderMarketList(markets){
     const query=$("#kg-market-search").value.trim().toUpperCase();
     const visible=markets.filter(m=>(m.symbol||m.market||"").toUpperCase().includes(query));
@@ -110,7 +114,8 @@
   }
   async function loadCategory(category){
     state.category=category;
-    $$("#kg-categories button").forEach(b=>b.classList.toggle("is-selected",b.dataset.category===category));
+    $(".kg-category").forEach(b=>b.classList.toggle("is-selected",b.dataset.category===category));
+    $("#kg-search-filters button").forEach(b=>b.classList.toggle("is-selected",b.dataset.searchFilter===category));
     $$(".kg-category").forEach(b=>b.classList.toggle("is-selected",b.dataset.category===category));
     const live=$("#kg-market-live"), unavailable=$("#kg-market-unavailable");
     if(category==="stocks"||category==="funds"){
@@ -137,6 +142,24 @@
       $("#kg-heatmap").innerHTML='<div class="kg-empty-inline">Нет данных рынка.</div>';
       $("#kg-top-day").innerHTML="";
     }
+  }
+  async function setSearchFilter(category){
+    state.category=category;
+    $("#kg-search-filters button").forEach(b=>b.classList.toggle("is-selected",b.dataset.searchFilter===category));
+    if(category==="all"){
+      $("#kg-market-live").hidden=false;$("#kg-market-unavailable").hidden=true;
+      try{
+        const [cryptoResult,futuresResult]=await Promise.all([invoke("markets.list",{category:"crypto"}),invoke("markets.list",{category:"futures"})]);
+        state.markets=listOf(unwrap(cryptoResult,"markets"),["markets","items"]);
+        state.futures=listOf(unwrap(futuresResult,"markets"),["markets","items"]);
+        const all=[...state.markets,...state.futures];
+        $("#kg-market-title").textContent="Все активы";
+        $("#kg-market-updated").textContent="Обновлено";
+        renderMarketList(all);renderHeatmap(all);renderTopDay(all);renderFavorites();
+      }catch(error){$("#kg-market-list").innerHTML=`<div class="kg-empty-inline">${esc(normalizeError(error).message)}</div>`;}
+      return;
+    }
+    await loadCategory(category);
   }
   async function loadWallet(){
     try{
@@ -304,19 +327,20 @@
     $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
       setScreen(button.dataset.screen);
       if(state.screen==="wallet")await loadWallet();
-      if(state.screen==="trading")await loadCategory(state.category);
+      if(state.screen==="trading")await (state.category==="all"?setSearchFilter("all"):loadCategory(state.category));
       if(state.screen==="income"){await loadWallet();await loadHistory();}
       if(state.screen==="bonuses")await loadCapabilities();
     }));
     $$("[data-open-trading]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("crypto");}));
     $$("[data-open-futures]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("futures");}));
     $$(".kg-category").forEach(b=>b.addEventListener("click",()=>loadCategory(b.dataset.category)));
-    $("#kg-search-open").addEventListener("click",()=>{$("#kg-search-open").hidden=true;$("#kg-market-search").hidden=false;$("#kg-search-close").hidden=false;$("#kg-market-search").focus();});
-    $("#kg-search-close").addEventListener("click",()=>{$("#kg-market-search").value="";$("#kg-market-search").hidden=true;$("#kg-search-close").hidden=true;$("#kg-search-open").hidden=false;renderMarketList(state.category==="futures"?state.futures:state.markets);});
-    $("#kg-market-search").addEventListener("input",()=>renderMarketList(state.category==="futures"?state.futures:state.markets));
+    $("#kg-search-open").addEventListener("click",()=>{$("#kg-trading-screen").classList.add("kg-search-mode");$("#kg-search-open").hidden=true;$("#kg-market-search").hidden=false;$("#kg-search-close").hidden=false;$("#kg-search-filters").hidden=false;setSearchFilter("all");$("#kg-market-search").focus();});
+    $("#kg-search-close").addEventListener("click",()=>{$("#kg-market-search").value="";$("#kg-trading-screen").classList.remove("kg-search-mode");$("#kg-search-filters").hidden=true;$("#kg-market-search").hidden=true;$("#kg-search-close").hidden=true;$("#kg-search-open").hidden=false;loadCategory("crypto");});
+    $("#kg-market-search").addEventListener("input",()=>renderMarketList(currentMarkets()));
+    $("#kg-search-filters button").forEach(b=>b.addEventListener("click",()=>setSearchFilter(b.dataset.searchFilter)));
     $("#kg-market-search").addEventListener("keydown",e=>{if(e.key==="Escape")$("#kg-search-close").click();});
     $("#kg-recent-clear").addEventListener("click",()=>{state.recent=[];try{localStorage.removeItem("kg:recent:v1");}catch{}renderRecent();});
-    $$("[data-sort]").forEach(b=>b.addEventListener("click",()=>{state.sort=b.dataset.sort;$$("[data-sort]").forEach(x=>x.classList.toggle("is-selected",x===b));renderTopDay(state.category==="futures"?state.futures:state.markets);}));
+    $$("[data-sort]").forEach(b=>b.addEventListener("click",()=>{state.sort=b.dataset.sort;$$("[data-sort]").forEach(x=>x.classList.toggle("is-selected",x===b));renderTopDay(currentMarkets());}));
     document.addEventListener("click",event=>{
       const remove=event.target.closest("[data-remove-favorite]");
       if(remove){event.preventDefault();event.stopPropagation();state.favorites.delete(remove.dataset.removeFavorite);try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}renderFavorites();return;}
