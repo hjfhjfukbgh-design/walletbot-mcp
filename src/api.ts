@@ -48,6 +48,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         return engineRequest(env, "/account?userId=" + encodeURIComponent(telegramUserId));
       case "GET demo/history":
         return engineRequest(env, "/history?userId=" + encodeURIComponent(telegramUserId));
+      case "POST demo/preview":
+        return previewDemoTrade(env, telegramUserId, body);
       case "POST demo/open":
         return openDemoTrade(env, telegramUserId, body);
       case "POST demo/close":
@@ -99,6 +101,90 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
  * Enforce all DEMO order limits on the trusted server. Never accept fees,
  * slippage, leverage limits, market eligibility, or account sizing from the client.
  */
+/**
+ * Read-only DEMO preview. All limits, current marks and fees are calculated
+ * from server-owned risk settings and public contract metadata.
+ */
+async function previewDemoTrade(env: Env, userId: string, body: Json): Promise<Response> {
+  const symbol = String(body.symbol ?? "").trim().toUpperCase();
+  const side = String(body.side ?? "");
+  const leverage = Number(body.leverage);
+  const limits = riskLimits(env);
+  if (!/^[A-Z0-9:_-]{2,32}$/.test(symbol)) return fail("Некорректный торговый актив.");
+  if (side !== "long" && side !== "short") return fail("Направление должно быть LONG или SHORT.");
+  if (!Number.isSafeInteger(leverage) || leverage < 1 || leverage > limits.maxLeverage)
+    return fail(`Максимальное плечо демо-счёта: ${limits.maxLeverage}×.`);
+
+  const contracts = await publicContracts();
+  const contract = contracts.find((item) => item.name.replace(/-USDC?$/i, "").toUpperCase() === symbol);
+  if (!contract) return fail("Этот актив сейчас недоступен для демо-торговли.");
+  if (!marketAllowed(limits, symbol)) return fail("Этот рынок не входит в список разрешённых.", 403);
+  if ((contract.volume24hUsd ?? 0) < limits.minVolume24hUsd) return fail("Недостаточная ликвидность рынка для демо-сделки.");
+  const allowedLeverage = Math.min(limits.maxLeverage, contract.maxLeverage);
+  if (leverage > allowedLeverage) return fail(`Для этого актива доступно плечо не выше ${allowedLeverage}×.`);
+
+  const mid = await publicMid(symbol);
+  if (!Number.isFinite(mid) || mid <= 0) return fail("Не удалось получить свежую цену актива.", 503);
+  const accountResponse = await engineRequest(env, "/account?userId=" + encodeURIComponent(userId));
+  if (!accountResponse.ok) return accountResponse;
+  const account = await accountResponse.json() as {
+    balanceMicro: string;
+    positions: Array<{ symbol: string; side: "long" | "short"; marginMicro: string; qtyUnits: string; entryPrice: string }>;
+  };
+  const balanceMicro = BigInt(account.balanceMicro);
+  let openMarginMicro = 0n;
+  let unrealizedMicro = 0n;
+  const marks = new Map<string, number>();
+  for (const position of account.positions ?? []) {
+    openMarginMicro += BigInt(position.marginMicro);
+    let mark = marks.get(position.symbol);
+    if (mark === undefined) {
+      mark = await publicMid(position.symbol);
+      marks.set(position.symbol, mark);
+    }
+    const markUnits = parseFixed(mark.toFixed(8), PRICE_SCALE, 8);
+    unrealizedMicro += pnlMicro(position.side, BigInt(position.qtyUnits), BigInt(position.entryPrice), markUnits);
+  }
+  const equityMicro = balanceMicro + openMarginMicro + unrealizedMicro;
+  if (equityMicro <= 0n) return fail("Демо-капитал исчерпан. Новые позиции заблокированы.");
+  const orderLimitBps = BigInt(Math.max(0, Math.round(limits.maxOrderPct * 100)));
+  const exposureLimitBps = BigInt(Math.max(0, Math.round(limits.maxTotalExposurePct * 100)));
+  const orderCap = equityMicro * orderLimitBps / 10_000n;
+  const exposureCap = (equityMicro * exposureLimitBps / 10_000n) - openMarginMicro;
+  const cashCap = balanceMicro;
+  const feePpm = BigInt(Math.max(0, Math.round(contract.takerFeePct * 1_000_000)));
+  const feeFactor = 1_000_000n + BigInt(leverage) * feePpm;
+  const feeAdjustedCashCap = cashCap * 1_000_000n / feeFactor;
+  const maxNotional = BigInt(Math.floor(contract.maxSizeQuote * Number(MONEY_SCALE)));
+  const minNotional = BigInt(Math.ceil(contract.minSizeQuote * Number(MONEY_SCALE)));
+  const maxMarginMicro = [orderCap, exposureCap, feeAdjustedCashCap, maxNotional / BigInt(leverage)]
+    .reduce((min, value) => value < min ? value : min);
+  const minMarginMicro = (minNotional + BigInt(leverage) - 1n) / BigInt(leverage);
+  const maxMarginUsd = Number(maxMarginMicro > 0n ? maxMarginMicro : 0n) / Number(MONEY_SCALE);
+  const minMarginUsd = Number(minMarginMicro) / Number(MONEY_SCALE);
+  const requestedMargin = body.marginMicro == null ? minMarginMicro : BigInt(String(body.marginMicro));
+  if (requestedMargin < 0n || (body.marginMicro != null && !/^\d{1,18}$/.test(String(body.marginMicro))))
+    return fail("Некорректная сумма маржи.");
+  const notionalMicro = requestedMargin * BigInt(leverage);
+  const entryFeeMicro = notionalMicro * feePpm / 1_000_000n;
+  const exitFeeMicro = entryFeeMicro;
+  const tradeable = maxMarginMicro >= minMarginMicro && maxMarginMicro > 0n;
+  const liquidation = side === "long"
+    ? mid * (1 - 1 / leverage + 0.005) / (1 - 0.005)
+    : mid * (1 + 1 / leverage - 0.005) / (1 + 0.005);
+  return json({
+    ok: true, symbol, side, priceUsd: mid, leverage,
+    marginUsd: Number(requestedMargin) / Number(MONEY_SCALE),
+    maxMarginUsd, minMarginUsd,
+    volumeUsd: Number(notionalMicro) / Number(MONEY_SCALE),
+    entryFeeUsd: Number(entryFeeMicro) / Number(MONEY_SCALE),
+    estimatedExitFeeUsd: Number(exitFeeMicro) / Number(MONEY_SCALE),
+    liquidationPriceUsd: liquidation, tradeable,
+    reason: tradeable ? null : "Лимит демо-счёта не позволяет открыть позицию минимального размера.",
+    source: "hyperliquid",
+  });
+}
+
 async function openDemoTrade(env: Env, userId: string, body: Json): Promise<Response> {
   const symbol = String(body.symbol ?? "").trim().toUpperCase();
   const side = String(body.side ?? "");
