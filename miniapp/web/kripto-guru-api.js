@@ -1,6 +1,12 @@
 (() => {
   "use strict";
 
+  // Preserve an API implementation injected by the host/test harness.
+  if (window.KriptoGuruAPI) {
+    window.dispatchEvent(new Event("kripto-guru-api-ready"));
+    return;
+  }
+
   const tg = window.Telegram?.WebApp || null;
   const MONEY_SCALE = 1_000_000n;
   const PRICE_SCALE = 100_000_000n;
