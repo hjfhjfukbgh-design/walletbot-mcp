@@ -361,7 +361,7 @@ jobs:
         run: |
           set +e
           mode="$(cat /tmp/worker-mode.txt)"
-          if [ "$mode" != "code" ] && [ "$mode" != "css-append" ]; then
+          if [ "$mode" != "code" ] && [ "$mode" != "css-append" ] && [ "$mode" != "ts-append" ]; then
             if [ "${ROLE}" = "QA" ]; then
               npm ci
               install=$?
