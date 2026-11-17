@@ -158,6 +158,13 @@ try {
     await page.screenshot({path:`market-funds-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#category-futures").click();
     await page.locator("#pairs .market-row").first().waitFor({state:"visible"});
+    if (await page.locator("#q").isVisible()) throw new Error("market search should start collapsed");
+    await page.locator("#trade-search-toggle").click();
+    await page.locator("#q").waitFor({state:"visible"});
+    await page.locator("#q").fill("BTC");
+    if (await page.locator("#pairs .market-row").count() !== 1) throw new Error("expanded market search did not filter BTC");
+    await page.keyboard.press("Escape");
+    if (await page.locator("#q").isVisible()) throw new Error("market search did not collapse on Escape");
     await page.locator("#category-crypto").click();
     await page.locator("#pairs .market-row").first().waitFor({state:"visible"});
     await assertViewport(page,"trade");
