@@ -161,7 +161,7 @@ body.asset-open .bottom-nav{display:none!important}
 
 /* Reference proportions: compact three-card favorites row and tighter wallet rows. */
 .currency-card{min-height:66px!important;padding:10px 14px!important}
-.favorite-card{flex:0 0 118px!important;min-width:118px!important;min-height:124px!important;padding:11px!important}
+.favorite-card{flex:0 0 112px!important;min-width:112px!important;min-height:124px!important;padding:11px!important}
 #tab-painel .asset-line{min-height:52px!important;padding:7px 0!important}
 #tab-painel .asset-line .coin-avatar{width:32px!important;height:32px!important;flex-basis:32px!important}
 
