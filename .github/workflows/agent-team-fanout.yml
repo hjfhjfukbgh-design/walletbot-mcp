@@ -1,6 +1,8 @@
 name: Kripto Guru — parallel team fan-out
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: "27 * * * *"
