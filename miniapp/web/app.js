@@ -69,14 +69,25 @@ async function call(name, input = {}, { timeoutMs = 12_000, signal: externalSign
 let contractsPromise = null;
 let contractsGeneration = 0;
 async function getContracts({ force = false } = {}) {
-  if (contractsPromise) return contractsPromise;
+  if (!force && contractsPromise) return contractsPromise;
   if (!force && contracts.length) return { contracts };
   const generation = ++contractsGeneration;
-  const request = call('contracts').then(result => {
-    const list = Array.isArray(result.contracts) ? result.contracts : [];
-    if (generation === contractsGeneration) contracts = list;
-    return { ...result, contracts: list };
-  });
+  const request = (async () => {
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const result = await call('contracts', {}, { timeoutMs: 8_000 });
+        const list = Array.isArray(result.contracts) ? result.contracts : [];
+        if (!list.length) throw new Error('Публичный список рынков временно пуст.');
+        if (generation === contractsGeneration) contracts = list;
+        return { ...result, contracts: list };
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 300 * (2 ** attempt)));
+      }
+    }
+    throw lastError;
+  })();
   contractsPromise = request;
   try { return await request; }
   finally { if (contractsPromise === request) contractsPromise = null; }
@@ -96,13 +107,15 @@ let assetChartMode = 'candles';
 let lastQuoteUpdate = null;
 let topSort = 'up';
 let favoritesOnly = false;
+function storageGet(key) { try { return window.localStorage.getItem(key); } catch { return null; } }
+function storageSet(key, value) { try { window.localStorage.setItem(key, value); return true; } catch { return false; } }
+function storageRemove(key) { try { window.localStorage.removeItem(key); return true; } catch { return false; } }
 const FAVORITES_KEY = 'kripto-guru:favorites:v1';
 let favorites = new Set();
-try { favorites = new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]')); }
+try { favorites = new Set(JSON.parse(storageGet(FAVORITES_KEY) || '[]')); }
 catch (error) { console.warn('[Kripto Guru] Не удалось прочитать избранное из localStorage:', error); favorites = new Set(); }
-function saveFavorites() { try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites])); } catch (error) { console.warn('[Kripto Guru] Не удалось сохранить избранное:', error); } }
-try { if (localStorage.getItem(FAVORITES_KEY) === null) { favorites = new Set(["BTC", "ETH", "SOL"]); saveFavorites(); } }
-catch (error) { console.warn('[Kripto Guru] localStorage недоступен:', error); }
+function saveFavorites() { if (!storageSet(FAVORITES_KEY, JSON.stringify([...favorites]))) console.warn('[Kripto Guru] Не удалось сохранить избранное: localStorage недоступен.'); }
+if (storageGet(FAVORITES_KEY) === null) { favorites = new Set(["BTC", "ETH", "SOL"]); saveFavorites(); }
 
 // ---------- menu do perfil e modo ---------- 
 const profileTrigger = $('#profile-trigger');
@@ -828,7 +841,7 @@ function renderOnboarding() {
 }
 function closeOnboarding() {
   $('#onboarding').classList.add('hidden');
-  try { localStorage.setItem('kripto-guru:onboarding:v1', 'done'); } catch {}
+  storageSet('kripto-guru:onboarding:v1', 'done');
 }
 $('#onboarding-next').addEventListener('click', () => {
   if (onboardingIndex < 2) { onboardingIndex++; renderOnboarding(); }
@@ -838,7 +851,7 @@ $('#onboarding-skip').addEventListener('click', closeOnboarding);
 $('#education-banner').addEventListener('click', showOnboarding);
 $('#repeat-onboarding').addEventListener('click', showOnboarding);
 $('#onboarding').addEventListener('click', (event) => { if (event.target === $('#onboarding')) closeOnboarding(); });
-try { if (!localStorage.getItem('kripto-guru:onboarding:v1')) showOnboarding(); } catch {}
+if (!storageGet('kripto-guru:onboarding:v1')) showOnboarding();
 
 
 if (telegramInitError) showError(new Error(telegramInitError));
