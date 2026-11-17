@@ -123,10 +123,8 @@ export class TradingEngine {
           "SELECT id, created_at, balance_before_micro, balance_after_micro FROM ledger WHERE user_id = ? ORDER BY id",
           userId,
         ).toArray() as Array<{ id: number; created_at: number; balance_before_micro: string; balance_after_micro: string }>;
-        const equity = ledgerRows.flatMap((row) => [
-          [Number(row.created_at), Number(row.balance_before_micro) / 1_000_000, Number(row.id) * 2],
-          [Number(row.created_at), Number(row.balance_after_micro) / 1_000_000, Number(row.id) * 2 + 1],
-        ] as Array<[number, number, number]>)
+        const equity = ledgerRows
+          .map((row) => [Number(row.created_at), Number(row.balance_after_micro) / 1_000_000, Number(row.id)] as [number, number, number])
           .sort((a, b) => a[0] - b[0] || a[2] - b[2])
           .map(([at, balance]) => [at, balance] as [number, number]);
         return jsonResponse({ ok: true, trades, equity });
