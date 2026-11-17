@@ -67,21 +67,26 @@ async function call(name, input = {}, { timeoutMs = 12_000, signal: externalSign
 }
 
 let contractsPromise = null;
+let contractsAbortController = null;
 let contractsGeneration = 0;
 async function getContracts({ force = false } = {}) {
   if (!force && contractsPromise) return contractsPromise;
   if (!force && contracts.length) return { contracts };
+  if (force) contractsAbortController?.abort();
+  const controller = new AbortController();
+  contractsAbortController = controller;
   const generation = ++contractsGeneration;
   const request = (async () => {
     let lastError;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const result = await call('contracts', {}, { timeoutMs: 8_000 });
+        const result = await call('contracts', {}, { timeoutMs: 8_000, signal: controller.signal });
         const list = Array.isArray(result.contracts) ? result.contracts : [];
         if (!list.length) throw new Error('Публичный список рынков временно пуст.');
         if (generation === contractsGeneration) contracts = list;
         return { ...result, contracts: list };
       } catch (error) {
+        if (generation !== contractsGeneration || controller.signal.aborted) throw error;
         lastError = error;
         if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 300 * (2 ** attempt)));
       }
@@ -90,7 +95,10 @@ async function getContracts({ force = false } = {}) {
   })();
   contractsPromise = request;
   try { return await request; }
-  finally { if (contractsPromise === request) contractsPromise = null; }
+  finally {
+    if (contractsPromise === request) contractsPromise = null;
+    if (contractsAbortController === controller) contractsAbortController = null;
+  }
 }
 
 function showError(err) {
