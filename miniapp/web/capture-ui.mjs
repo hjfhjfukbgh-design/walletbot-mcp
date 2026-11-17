@@ -237,7 +237,7 @@ try {
     if(pageErrors.length) throw new Error("JavaScript errors: "+pageErrors.join(" | "));
     await page.screenshot({path:`bonuses-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator(".bonus-settings > summary").click();
-    await page.locator(".disclaimer").waitFor({state:"visible"});
+    await page.locator(".bonus-settings-content .disclaimer").waitFor({state:"visible"});
     await assertBottomAccessible(page,".disclaimer","expanded bonuses settings scroll end");
     await page.screenshot({path:`bonuses-maxscroll-${width}x${height}-dsf3.png`,fullPage:false});
     await page.close();
