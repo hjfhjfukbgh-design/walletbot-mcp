@@ -30,32 +30,34 @@
 
   <main>
     <section id="tab-painel" class="tab active">
-      <div class="wallet-head"><div><div class="eyebrow">ОБЩИЙ БАЛАНС</div><div class="wallet-balance" id="wallet-balance-main">$1 000<span>,00</span></div></div><span class="demo-badge">ДЕМО</span></div>
-      <div class="wallet-performance"><span id="wallet-change-usd">+$0,00 за 24 ч</span><span id="wallet-change-pct" class="change-chip up">↑ 0,00%</span></div>
-      <div class="wallet-actions">
-        <button id="wallet-add-demo" class="wallet-action" type="button"><span class="action-icon"><i data-icon="plus-circle"></i></span><span>Пополнить<br>демо</span></button>
-        <button id="home-open-markets" class="wallet-action" type="button"><span class="action-icon"><i data-icon="chart"></i></span><span>Торговать</span></button>
-        <button id="wallet-open-history" class="wallet-action" type="button"><span class="action-icon"><i data-icon="receipt"></i></span><span>История</span></button>
-        <button id="home-reset-demo" class="wallet-action" type="button"><span class="action-icon"><i data-icon="refresh"></i></span><span>Сбросить<br>демо</span></button>
-      </div>
-
-      <div class="section-heading"><h2>Активы</h2><span class="section-muted">Демо-счёт</span></div>
-      <button class="currency-card" type="button"><span class="currency-icon">$</span><span class="currency-copy"><b>Доллары (USDT)</b><small>Доступный баланс</small></span><strong id="wallet-usdt">$1 000,00</strong><i data-icon="chevron"></i></button>
+      <button class="currency-card" type="button" aria-label="Баланс демо-счёта в USDT">
+        <span class="currency-icon">$</span>
+        <span class="currency-copy"><b>Доллары</b><small>USDT · Демо-счёт</small></span>
+        <strong id="wallet-usdt">$1 000,00</strong>
+      </button>
 
       <div class="section-heading"><h2>Избранное</h2><button id="wallet-edit-favorites" class="text-action" type="button">Изменить</button></div>
       <div id="wallet-favorites" class="favorites-strip"><div class="favorite-skeleton"></div><div class="favorite-skeleton"></div></div>
+
+      <div class="section-heading"><h2>Крипто</h2><button class="text-action" id="wallet-show-assets" type="button">Всего</button></div>
+      <div id="wallet-asset-list" class="wallet-asset-list">
+        <div class="asset-line"><span class="coin-avatar">G</span><span><b>Gram</b><small>GRAM</small></span><strong>0,00 $</strong></div>
+        <div class="asset-line"><span class="coin-avatar">₿</span><span><b>Bitcoin</b><small>BTC</small></span><strong>0,00 $</strong></div>
+        <div class="asset-line"><span class="coin-avatar">Ξ</span><span><b>Ethereum</b><small>ETH</small></span><strong>0,00 $</strong></div>
+      </div>
+
+      <div class="section-heading"><h2>Акции и фонды</h2><span class="section-muted">Информационный раздел</span></div>
+      <div id="wallet-stocks-list" class="wallet-asset-list">
+        <div class="asset-line"><span class="coin-avatar">A</span><span><b>Apple</b><small>Акции · недоступно в DEMO</small></span><strong>—</strong></div>
+      </div>
 
       <div class="section-heading"><h2>Открытые позиции</h2><span id="wallet-position-count" class="section-muted">0</span></div>
       <div id="engine-positions" class="wallet-position-list">
         <div class="empty-wallet"><span class="empty-wallet-icon"><i data-icon="chart"></i></span><b>Позиций пока нет</b><button id="empty-open-markets" class="primary-button" type="button">Открыть рынки</button></div>
       </div>
 
-      <div class="section-heading"><h2>Крипто</h2><button class="text-action" id="wallet-show-assets" type="button">Всего</button></div>
-      <div id="wallet-asset-list" class="wallet-asset-list"><div class="asset-line"><span class="coin-avatar">₮</span><span><b>USDT</b><small>Демо-доллары</small></span><strong id="wallet-assets-total">$1 000,00</strong></div></div>
-
       <div id="alert" class="alert hidden"></div>
-
-   </section>
+    </section>
 
     <section id="tab-pares" class="tab">
       <div class="trade-search"><i data-icon="search"></i><input id="q" type="search" placeholder="Поиск: BTC, ETH…" autocomplete="off" /></div>
@@ -115,6 +117,14 @@
 
   <!-- Runtime compatibility for the existing grid engine; visible grid controls live in Settings. -->
       <div class="runtime-compat" aria-hidden="true">
+        <div class="wallet-head"><div><div class="eyebrow">ОБЩИЙ БАЛАНС</div><div class="wallet-balance" id="wallet-balance-main">$1 000<span>,00</span></div></div><span class="demo-badge">ДЕМО</span></div>
+        <div class="wallet-performance"><span id="wallet-change-usd">+$0,00 за 24 ч</span><span id="wallet-change-pct" class="change-chip up">↑ 0,00%</span></div>
+        <div class="wallet-actions">
+          <button id="wallet-add-demo" class="wallet-action" type="button"><span class="action-icon"><i data-icon="plus-circle"></i></span><span>Пополнить<br>демо</span></button>
+          <button id="home-open-markets" class="wallet-action" type="button"><span class="action-icon"><i data-icon="chart"></i></span><span>Торговать</span></button>
+          <button id="wallet-open-history" class="wallet-action" type="button"><span class="action-icon"><i data-icon="receipt"></i></span><span>История</span></button>
+          <button id="home-reset-demo" class="wallet-action" type="button"><span class="action-icon"><i data-icon="refresh"></i></span><span>Сбросить<br>демо</span></button>
+        </div>
         <span id="mode">ДЕМО</span><span id="home-equity">$1 000,00</span><span id="home-cash">$1 000,00</span><span id="home-pnl">+$0,00</span><span id="home-change">↑0,00%</span><span id="home-positions">0</span><span id="run">ДЕМО</span><span id="market-updated">—</span>
         <span id="metric-trades">0</span><span id="metric-wins">0 / 0</span><span id="metric-pnl">—</span><span id="demo-capital">$1 000,00</span><div id="stats"></div><div id="pos"></div>
         <div id="education-banner"></div><button id="home-open-markets-sell" type="button"></button><button id="home-open-grid" type="button"></button>
