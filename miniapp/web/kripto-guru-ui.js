@@ -182,8 +182,9 @@
   }
   function renderPositions(positions){
     $("#kg-positions").innerHTML=positions.length?positions.map(p=>{
-      const s=p.symbol||p.market, side=String(p.side||"").toLowerCase(), pnl=Number(p.unrealizedPnlUsd ?? p.pnlUsd ?? 0), id=p.id||p.positionId;
-      return `<article class="kg-position"><div class="kg-position-head"><b>${esc(side==="short"?"Шорт":"Лонг")} ${esc(s)}</b><span class="kg-position-pnl ${pnl>=0?"kg-positive":"kg-negative"}">${money(pnl)}</span></div><div class="kg-position-meta">Маржа ${money(Number(p.marginUsd))} · Плечо ${Number(p.leverage||1)}×</div><div class="kg-position-foot"><small class="kg-muted">Виртуальная позиция DEMO</small><button class="kg-close-position" data-close-position="${esc(id)}" type="button">Закрыть</button></div></article>`;
+      const s=p.symbol||p.market, side=String(p.side||"").toLowerCase(), pnl=Number(p.unrealizedPnlUsd ?? p.pnlUsd ?? NaN), id=p.id||p.positionId;
+      const pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
+      return `<article class="kg-position"><div class="kg-position-head"><b>${esc(side==="short"?"Шорт":"Лонг")} ${esc(s)}</b><span class="kg-position-pnl ${pnlClass}">${money(pnl)}</span></div><div class="kg-position-meta">Маржа ${money(Number(p.marginUsd))} · Плечо ${Number(p.leverage||1)}×</div><div class="kg-position-foot"><small class="kg-muted">Виртуальная позиция DEMO</small><button class="kg-close-position" data-close-position="${esc(id)}" type="button">Закрыть</button></div></article>`;
     }).join(""):'<div class="kg-empty-card">Открытых позиций пока нет.</div>';
   }
   function renderAssetHistory(symbol){
@@ -191,7 +192,8 @@
     const events=state.history.filter(e=>(e.symbol||e.market)===symbol).slice(0,4);
     $("#kg-asset-history").innerHTML=events.length?events.map(e=>{
       const side=String(e.side||"").toLowerCase(),pnl=Number(e.netPnlUsd??e.pnlUsd??e.pnl);
-      return `<div class="kg-history-row"><span class="kg-history-dot">${side==="short"?"↘":"↗"}</span><span class="kg-history-copy"><b>${esc(e.event||e.type||"Сделка")} · ${esc(symbol)}</b><small>${esc(e.timestamp||e.createdAt||"")}</small></span><strong class="kg-history-value ${pnl>=0?"kg-positive":"kg-negative"}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
+      const pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
+      return `<div class="kg-history-row"><span class="kg-history-dot">${side==="short"?"↘":"↗"}</span><span class="kg-history-copy"><b>${esc(e.event||e.type||"Сделка")} · ${esc(symbol)}</b><small>${esc(e.timestamp||e.createdAt||"")}</small></span><strong class="kg-history-value ${pnlClass}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
     }).join(""):'<div class="kg-empty-inline">Операций по этому активу пока нет.</div>';
   }
   async function loadHistory(){
@@ -202,7 +204,8 @@
       $("#kg-history").innerHTML=state.history.length?state.history.map(e=>{
         const side=String(e.side||"").toLowerCase(), pnl=Number(e.netPnlUsd ?? e.pnlUsd ?? e.pnl);
         const action=e.event||e.type||e.status||"Сделка";
-        return `<div class="kg-history-row"><span class="kg-history-dot">${side==="short"?"↘":"↗"}</span><span class="kg-history-copy"><b>${esc(action)} · ${esc(e.symbol||e.market||"")}</b><small>${esc(e.timestamp||e.createdAt||"")}</small></span><strong class="kg-history-value ${pnl>=0?"kg-positive":"kg-negative"}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
+        const pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
+        return `<div class="kg-history-row"><span class="kg-history-dot">${side==="short"?"↘":"↗"}</span><span class="kg-history-copy"><b>${esc(action)} · ${esc(e.symbol||e.market||"")}</b><small>${esc(e.timestamp||e.createdAt||"")}</small></span><strong class="kg-history-value ${pnlClass}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
       }).join(""):'<div class="kg-empty-card">Сделок пока нет.</div>';
     }catch(error){$("#kg-history").innerHTML=`<div class="kg-empty-card">${esc(normalizeError(error).message)}</div>`;}
   }
