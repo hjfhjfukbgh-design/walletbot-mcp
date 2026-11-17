@@ -59,6 +59,24 @@ describe("API da Mini App", () => {
     expect(await response.json()).toMatchObject({ ok: true, trades: [] });
   });
 
+  it("keeps authenticated DEMO API requests alive when tenant KV registration fails", async () => {
+    const e = env();
+    vi.spyOn(e.STATE, "put").mockRejectedValue(new Error("KV temporarily unavailable"));
+    e.ENGINE = {
+      idFromName: (name: string) => name,
+      get: () => ({
+        fetch: async () => Response.json({ ok: true, trades: [], equity: [] }),
+      }),
+    } as unknown as DurableObjectNamespace;
+    const response = await call(e, "demo/history", "chave-teste");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true, trades: [], equity: [] });
+    expect(e.STATE.put).toHaveBeenCalledWith(
+      "tenant:user:12345",
+      expect.stringContaining('"chatId":"12345"'),
+    );
+  });
+
   it("recusa tudo se o token do bot não estiver configurado", async () => {
     const e = { ...env(), TELEGRAM_BOT_TOKEN: "" };
     expect((await call(e, "state", "chave-teste")).status).toBe(401);
