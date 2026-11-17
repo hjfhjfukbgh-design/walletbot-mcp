@@ -293,15 +293,26 @@ function renderState() {
   $('#stats').classList.add('hidden');
 }
 
+const chartRequestIds = new Map();
 async function loadChart(market, target = 'chart', interval = '15m') {
+  const requestId = (chartRequestIds.get(target) || 0) + 1;
+  chartRequestIds.set(target, requestId);
+  const svg = document.getElementById(target);
+  const source = target === 'chart' ? $('#chart-src') : document.querySelector(`[data-chart-source="${target}"]`);
+  if (source) source.textContent = 'Загрузка свечей…';
+  if (svg) svg.innerHTML = '<text x="10" y="20" fill="currentColor" font-size="12">Загрузка…</text>';
   try {
-    const c = await call('chart', { market, interval });
-    const source = target === 'chart' ? $('#chart-src') : document.querySelector(`[data-chart-source="${target}"]`);
+    const result = await call('chart', { market, interval }, { timeoutMs: 10_000 });
+    if (chartRequestIds.get(target) !== requestId) return;
+    if (result.interval !== interval || !Array.isArray(result.candles) || !result.candles.length) {
+      throw new Error(`Нет свечных данных для ${market} на таймфрейме ${interval}.`);
+    }
     if (source) source.textContent = `Рыночные свечи · ${{'1m':'1м','5m':'5м','15m':'15м','1h':'1Ч','4h':'4Ч','1d':'1Д'}[interval] || '15м'}`;
-    drawChart(c.candles, target, market);
-  } catch (e) {
-    const svg = document.getElementById(target);
-    if (svg) svg.innerHTML = `<text x="10" y="20" fill="currentColor" font-size="12">${esc(e.message)}</text>`;
+    drawChart(result.candles, target, market);
+  } catch (error) {
+    if (chartRequestIds.get(target) !== requestId) return;
+    if (source) source.textContent = 'Свечи временно недоступны';
+    if (svg) svg.innerHTML = `<text x="10" y="20" fill="currentColor" font-size="12">${esc(error.message)}</text>`;
   }
 }
 
