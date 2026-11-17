@@ -115,6 +115,20 @@ describe("API da Mini App", () => {
     expect(b.mode).toBe("paper");
   });
 
+  it("validates the DEMO preview direction and margin before market lookup", async () => {
+    const invalidSide = await call(env(), "demo/preview", "chave-teste", {
+      method: "POST", body: JSON.stringify({ symbol: "BTC", side: "buy", leverage: 2 }),
+    });
+    expect(invalidSide.status).toBe(400);
+    expect(await invalidSide.json()).toMatchObject({ ok: false, error: "Направление должно быть LONG или SHORT." });
+
+    const invalidMargin = await call(env(), "demo/preview", "chave-teste", {
+      method: "POST", body: JSON.stringify({ symbol: "BTC", side: "long", leverage: 2, marginMicro: "not-a-number" }),
+    });
+    expect(invalidMargin.status).toBe(400);
+    expect(await invalidMargin.json()).toMatchObject({ ok: false });
+  });
+
   it("enforces the DEMO leverage cap before contacting the Engine", async () => {
     const res = await call(env(), "demo/open", "chave-teste", {
       method: "POST",
