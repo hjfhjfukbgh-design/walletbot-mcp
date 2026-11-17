@@ -161,7 +161,10 @@ jobs:
               for (const left of leftTask.write_scope) {
                 for (const right of rightTask.write_scope) {
                   const a = scopePrefix(left), b = scopePrefix(right);
-                  if (!a || !b || a.startsWith(b) || b.startsWith(a)) {
+                  const overlaps = !a || !b || a === b ||
+                    a.startsWith(b.endsWith("/") ? b : b + "/") ||
+                    b.startsWith(a.endsWith("/") ? a : a + "/");
+                  if (overlaps) {
                     throw new Error("Overlapping concurrent write scopes between "+leftTask.task_key+" ("+left+") and "+rightTask.task_key+" ("+right+"). Add a dependency to serialize these tasks or split their scopes.");
                   }
                 }
