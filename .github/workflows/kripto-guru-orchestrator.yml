@@ -17,6 +17,11 @@ concurrency:
 jobs:
   dispatch-one-task:
     name: Dispatch one ready issue
+    outputs:
+      status: ${{ steps.packet.outputs.status }}
+      role: ${{ steps.packet.outputs.role }}
+      issue_number: ${{ steps.packet.outputs.issue_number }}
+      task: ${{ steps.packet.outputs.task }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -54,6 +59,7 @@ jobs:
           echo "Найдена одна готовая задача. За один запуск обрабатывается не более одной Issue."
 
       - name: Build role assignment and task packet
+        id: packet
         if: steps.queue.outputs.has_task == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -149,8 +155,17 @@ jobs:
           ].join("\n");
           fs.mkdirSync("team/dispatches", { recursive: true });
           fs.writeFileSync("team/dispatches/issue-" + issue.number + "-run-" + process.env.RUN_ID + ".md", output);
-          fs.writeFileSync("/tmp/dispatch-meta.json", JSON.stringify({ number: issue.number, url: issue.url, title: issue.title, model: usedModel }));
-          console.log("Dispatch packet generated for Issue #" + issue.number + " with " + usedModel + ".");
+          const statusMatch = packet.match(/Статус\\s*[:：]\\s*(READY|BLOCKED)/i);
+          const roleMatch = packet.match(/Назначенная роль\\s*[:：]\\s*(ARCHITECT|FRONTEND|BACKEND|QA|SECURITY|ANALYST)\\b/i);
+          const status = statusMatch ? statusMatch[1].toUpperCase() : "BLOCKED";
+          const role = roleMatch ? roleMatch[1].toUpperCase() : "NONE";
+          const taskDelimiter = "TASK_" + process.env.RUN_ID;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, "status=" + status + "\\n");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, "role=" + role + "\\n");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, "issue_number=" + issue.number + "\\n");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, "task<<" + taskDelimiter + "\\n" + taskText + "\\n" + taskDelimiter + "\\n");
+          fs.writeFileSync("/tmp/dispatch-meta.json", JSON.stringify({ number: issue.number, url: issue.url, title: issue.title, model: usedModel, status, role }));
+          console.log("Dispatch packet generated for Issue #" + issue.number + ": " + status + " / " + role + " / " + usedModel + ".");
           NODE
 
       - name: Publish dispatch packet and update queue issue
@@ -183,3 +198,15 @@ jobs:
             echo "- Source changes: none"
             echo "- Agent execution: not yet started"
           } >> "$GITHUB_STEP_SUMMARY"
+
+
+  run-assigned-agent:
+    name: Run assigned specialist
+    needs: dispatch-one-task
+    if: needs.dispatch-one-task.outputs.status == 'READY'
+    uses: ./.github/workflows/role-worker.yml
+    with:
+      role: ${{ needs.dispatch-one-task.outputs.role }}
+      issue_number: ${{ needs.dispatch-one-task.outputs.issue_number }}
+      task: ${{ needs.dispatch-one-task.outputs.task }}
+    secrets: inherit
