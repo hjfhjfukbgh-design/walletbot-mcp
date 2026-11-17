@@ -60,6 +60,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         return openDemoTrade(env, telegramUserId, body);
       case "POST demo/close":
         return engineRequest(env, "/close", { ...body, userId: telegramUserId, manual: true });
+      case "GET live/status":
+        return liveStatusView(scopedEnv);
       case "GET state":
         // Read-only polling must not run the legacy KV position monitor:
         // scheduled processing is the single monitor for that compatibility path.
@@ -103,6 +105,59 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
 }
 
  
+/**
+ * Read-only LIVE connection status. This route never prepares or executes orders.
+ * Each Walt read is isolated so a partial outage is represented explicitly.
+ */
+async function liveStatusView(env: Env): Promise<Response> {
+  const observedAt = Date.now();
+  const client = await connectWalt(env).catch(() => null);
+  if (!client) {
+    return json({
+      ok: true,
+      connected: false,
+      readiness: { available: false, ok: false },
+      contracts: { available: false, count: null },
+      balance: { available: false, usd: null },
+      issues: [{ code: "not_connected", description: "Подключение к Walt не настроено." }],
+      observedAt,
+    });
+  }
+
+  const issues: Array<{ code: string; description: string }> = [];
+  let readiness: { available: boolean; ok: boolean } = { available: false, ok: false };
+  let contracts: { available: boolean; count: number | null } = { available: false, count: null };
+  let balance: { available: boolean; usd: number | null } = { available: false, usd: null };
+
+  try {
+    const result = await client.readiness();
+    readiness = { available: true, ok: result.ok };
+    for (const issue of result.issues) {
+      issues.push({ code: String(issue.code || "readiness_issue"), description: String(issue.description || "Проверка готовности не пройдена.") });
+    }
+  } catch {
+    issues.push({ code: "readiness_unavailable", description: "Не удалось проверить готовность Walt." });
+  }
+
+  if (readiness.available && readiness.ok) {
+    try {
+      const list = await client.contracts();
+      contracts = { available: true, count: list.length };
+    } catch {
+      issues.push({ code: "contracts_unavailable", description: "Не удалось получить список контрактов." });
+    }
+    try {
+      const usd = await client.balanceUsd();
+      if (Number.isFinite(usd) && usd >= 0) balance = { available: true, usd };
+      else issues.push({ code: "balance_invalid", description: "Walt вернул некорректное значение баланса." });
+    } catch {
+      issues.push({ code: "balance_unavailable", description: "Не удалось получить баланс." });
+    }
+  }
+
+  return json({ ok: true, connected: true, readiness, contracts, balance, issues, observedAt });
+}
+
 /**
  * Enforce all DEMO order limits on the trusted server. Never accept fees,
  * slippage, leverage limits, market eligibility, or account sizing from the client.
