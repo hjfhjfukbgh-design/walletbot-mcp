@@ -153,6 +153,7 @@ jobs:
             exit 1
           fi
           for path in "${changed[@]}"; do
+            git ls-files --error-unmatch "$path" >/dev/null 2>&1 || { echo "::error::New files are not allowed: $path"; exit 1; }
             case "${ROLE}" in
               BACKEND) [[ "$path" == src/*.ts ]] || { echo "::error::Forbidden path: $path"; exit 1; } ;;
               FRONTEND) [[ "$path" == miniapp/web/*.js || "$path" == miniapp/web/*.mjs || "$path" == miniapp/web/*.css || "$path" == miniapp/web/*.html ]] || { echo "::error::Forbidden path: $path"; exit 1; } ;;
