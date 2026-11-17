@@ -688,46 +688,28 @@ document.querySelectorAll('[data-preset]').forEach((button) => button.addEventLi
 // ---------- histórico ----------
 async function loadHistory() {
   try {
-    const [h, engineHistory] = await Promise.all([
-      call('trades'),
-      call('demo/history').catch((error) => ({ trades: [], error: error.message })),
-    ]);
-    drawEquity(h.equity);
-    const engineTrades = (engineHistory.trades || []).map((item) => {
-      const position = item.position || {};
-      const close = item.close || {};
-      return {
-        at: item.closedAt,
-        event: 'close',
-        side: position.side,
-        market: position.symbol,
-        reason: close.reason,
-        price: close.executionPrice ? Number(close.executionPrice) / 100_000_000 : undefined,
-        pnl: close.netPnlMicro === undefined ? undefined : Number(close.netPnlMicro) / 1_000_000,
-        mode: 'paper',
-      };
-    });
-    const rows = [...(h.trades || []), ...engineTrades].sort((a, b) => Number(b.at || 0) - Number(a.at || 0));
-    const table = rows.length
+    const history = await call('demo/history');
+    drawEquity(history.equity || []);
+    const rows = history.trades || [];
+    $('#trades').innerHTML = rows.length
       ? `<table><tr><th>Время</th><th>Событие</th><th>Цена</th><th>Результат</th></tr>${rows
-          .map((t) => {
-            const when = new Date(t.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-            const ev =
-              t.event === 'open'
-                ? `<span class="ev ev-open">${icon('open')}${t.side === 'short' ? 'SHORT' : t.side === 'long' ? 'LONG' : 'Покупка'} ${esc(t.market)}</span>`
-                : t.reason === 'tp'
-                  ? `<span class="ev up">${icon('tp')}TP</span>`
-                  : t.reason === 'sl'
-                    ? `<span class="ev down">${icon('sl')}SL</span>`
-                    : `<span class="ev">${icon('hand')}${t.side === 'short' ? 'SHORT' : 'LONG'} · ${esc(t.market || '')}</span>`;
-            const pnl = t.pnl === undefined ? '' : `<span class="${t.pnl >= 0 ? 'up' : 'down'}">${usd(t.pnl, 4)}</span>`;
-            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(демо)</small>' : ''}</td><td>${ev}</td><td>${t.price === undefined ? '—' : usd(t.price, moneyDecimals(t.price))}</td><td>${pnl}</td></tr>`;
+          .map((trade) => {
+            const when = new Date(trade.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            const side = trade.side === 'short' ? 'SHORT' : 'LONG';
+            const ev = trade.event === 'open'
+              ? `<span class="ev ev-open">${icon('open')}${side} ${esc(trade.market)} · открытие</span>`
+              : trade.reason === 'tp'
+                ? `<span class="ev up">${icon('tp')}TP · ${side} ${esc(trade.market)}</span>`
+                : trade.reason === 'sl' || trade.reason === 'liquidation'
+                  ? `<span class="ev down">${icon('sl')}${trade.reason === 'sl' ? 'SL' : 'Ликвидация'} · ${side} ${esc(trade.market)}</span>`
+                  : `<span class="ev">${icon('hand')}${side} ${esc(trade.market)} · закрытие</span>`;
+            const pnl = trade.pnl === undefined ? '' : `<span class="${trade.pnl >= 0 ? 'up' : 'down'}">${usd(trade.pnl, 4)}</span>`;
+            return `<tr><td>${when} <small>(демо)</small></td><td>${ev}</td><td>${trade.price === undefined ? '—' : usd(trade.price, moneyDecimals(trade.price))}</td><td>${pnl}</td></tr>`;
           })
           .join('')}</table>`
       : 'Сделок пока нет.';
-    $('#trades').innerHTML = table + (engineHistory.error ? `<p class="muted">История демо-позиций временно недоступна: ${esc(engineHistory.error)}</p>` : '');
-  } catch (e) {
-    $('#trades').textContent = e.message;
+  } catch (error) {
+    $('#trades').textContent = error.message;
   }
 }
 
