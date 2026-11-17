@@ -235,7 +235,7 @@ jobs:
           import { execFileSync } from "node:child_process";
           const original = fs.readFileSync("/tmp/worker.patch","utf8");
           try {
-            execFileSync("git",["apply","--check","/tmp/worker.patch"],{stdio:"pipe"});
+            execFileSync("git",["apply","--recount","--check","/tmp/worker.patch"],{stdio:"pipe"});
             console.log("Patch applies cleanly; repair not needed.");
             process.exit(0);
           } catch {}
@@ -282,7 +282,7 @@ jobs:
             throw new Error("Repair model did not return a clean unified diff.");
           }
           fs.writeFileSync("/tmp/worker.patch",repaired+"\n");
-          execFileSync("git",["apply","--check","/tmp/worker.patch"],{stdio:"inherit"});
+          execFileSync("git",["apply","--recount","--check","/tmp/worker.patch"],{stdio:"inherit"});
           console.log("Patch repaired and apply-check passed.");
           NODE
 
@@ -300,8 +300,8 @@ jobs:
             cat /tmp/worker-css.txt >> "$target"
             printf '\n' >> "$target"
           elif [ "$mode" = "code" ]; then
-            git apply --check /tmp/worker.patch
-            git apply /tmp/worker.patch
+            git apply --recount --check /tmp/worker.patch
+            git apply --recount /tmp/worker.patch
           else
             echo "No source patch to apply ($mode)."
             exit 0
