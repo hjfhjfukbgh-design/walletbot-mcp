@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - team/qa-agent-mvp-20261117
+      - team/qa-runtime-tests-20261117
   workflow_dispatch:
     inputs:
       task:
