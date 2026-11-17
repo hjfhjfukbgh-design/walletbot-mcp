@@ -156,10 +156,19 @@
       return `<article class="kg-position"><div class="kg-position-head"><b>${esc(side==="short"?"Шорт":"Лонг")} ${esc(s)}</b><span class="kg-position-pnl ${pnl>=0?"kg-positive":"kg-negative"}">${money(pnl)}</span></div><div class="kg-position-meta">Маржа ${money(Number(p.marginUsd))} · Плечо ${Number(p.leverage||1)}×</div><div class="kg-position-foot"><small class="kg-muted">Виртуальная позиция DEMO</small><button class="kg-close-position" data-close-position="${esc(id)}" type="button">Закрыть</button></div></article>`;
     }).join(""):'<div class="kg-empty-card">Открытых позиций пока нет.</div>';
   }
+  function renderAssetHistory(symbol){
+    if(!$("#kg-asset-history"))return;
+    const events=state.history.filter(e=>(e.symbol||e.market)===symbol).slice(0,4);
+    $("#kg-asset-history").innerHTML=events.length?events.map(e=>{
+      const side=String(e.side||"").toLowerCase(),pnl=Number(e.netPnlUsd??e.pnlUsd??e.pnl);
+      return `<div class="kg-history-row"><span class="kg-history-dot">${side==="short"?"↘":"↗"}</span><span class="kg-history-copy"><b>${esc(e.event||e.type||"Сделка")} · ${esc(symbol)}</b><small>${esc(e.timestamp||e.createdAt||"")}</small></span><strong class="kg-history-value ${pnl>=0?"kg-positive":"kg-negative"}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
+    }).join(""):'<div class="kg-empty-inline">Операций по этому активу пока нет.</div>';
+  }
   async function loadHistory(){
     try{
       const result=unwrap(await invoke("history.list"),"history");
       state.history=listOf(result,["events","history","items","trades"]);
+      if(state.selectedMarket)renderAssetHistory(state.selectedMarket);
       $("#kg-history").innerHTML=state.history.length?state.history.map(e=>{
         const side=String(e.side||"").toLowerCase(), pnl=Number(e.netPnlUsd ?? e.pnlUsd ?? e.pnl);
         const action=e.event||e.type||e.status||"Сделка";
@@ -214,6 +223,8 @@
         ["Доступное плечо",Number(detail.maxLeverage||1)+"×"]
       ];
       $("#kg-market-details").innerHTML=rows.map(([k,v])=>`<div class="kg-detail-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
+      await loadHistory();
+      renderAssetHistory(symbol);
       showSubscreen("asset");
       await loadCandles(state.interval);
     }catch(error){notify(normalizeError(error).message);}
@@ -273,6 +284,7 @@
     try{
       const result=await invoke("trade.open",{symbol:state.selectedMarket,side:state.side,marginUsd:state.margin,leverage:state.leverage,previewId:state.preview.previewId});
       closeModals();closeTicket();await Promise.all([loadWallet(),loadHistory()]);
+      if(state.selectedMarket)renderAssetHistory(state.selectedMarket);
       notify("Демо-сделка открыта.");
     }catch(error){notify(normalizeError(error).message);}
     finally{state.busy=false;$("#kg-trade-confirm").disabled=false;}
@@ -325,7 +337,7 @@
     $("#kg-lev-max").addEventListener("click",()=>{$("#kg-lev-slider").value=String(state.maxLeverage);$("#kg-lev-value").textContent=state.maxLeverage+"×";});
     $("#kg-lev-apply").addEventListener("click",()=>{state.leverage=Number($("#kg-lev-slider").value);$("#kg-ticket-leverage").textContent=state.leverage+"×";closeModals();refreshPreview();});
     $$("[data-close-modal]").forEach(b=>b.addEventListener("click",closeModals));
-    $("#kg-ticket-autoclose").addEventListener("click",()=>{state.autoclose=!state.autoclose;$("#kg-ticket-autoclose").textContent=state.autoclose?"Автозакрытие включено":"Автозакрытие";});
+    $("#kg-asset-history-all").addEventListener("click",()=>{setScreen("income");loadWallet();loadHistory();});
     $("#kg-ticket-check").addEventListener("click",()=>{
       if(!state.preview)return;
       $("#kg-confirm-details").innerHTML=`<div class="kg-detail-row"><span>Направление</span><b>${state.side==="long"?"Лонг":"Шорт"} ${esc(state.selectedMarket)}</b></div><div class="kg-detail-row"><span>Маржа</span><b>${money(state.margin)}</b></div><div class="kg-detail-row"><span>Плечо</span><b>${state.leverage}×</b></div><div class="kg-detail-row"><span>Объём</span><b>${money(Number(state.preview.volumeUsd??state.preview.notionalUsd))}</b></div>`;
