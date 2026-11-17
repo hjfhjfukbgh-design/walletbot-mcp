@@ -230,6 +230,7 @@ html.telegram-native-back .asset-topline .asset-back{display:none!important}
 .equities-empty p{max-width:300px!important;margin:0!important;font-size:9px!important;line-height:1.4!important;color:#858a96!important}
 .equities-empty small{font-size:9px!important;color:#a0a4ae!important}
 .equities-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+.equities-grid.hidden{display:none!important}
 .equity-tile{display:flex!important;align-items:center!important;gap:8px!important;min-width:0!important;min-height:65px!important;padding:10px!important;border:1px solid #eff0f4!important;border-radius:13px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important;opacity:.88!important}
 .equity-symbol{display:grid!important;place-items:center!important;width:29px!important;height:29px!important;flex:0 0 29px!important;border-radius:9px!important;background:#edf2ff!important;color:#4776d4!important;font-size:12px!important;font-weight:800!important}
 .equity-copy{display:flex!important;flex:1!important;flex-direction:column!important;gap:3px!important;min-width:0!important}
