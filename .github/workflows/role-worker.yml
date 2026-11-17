@@ -182,10 +182,10 @@ jobs:
             if (patch) break;
           }
           if (!patch) throw new Error("Patch generation failed: " + lastError);
-          patch = patch.replace(/^\uFEFF/, "").trim();
+          patch = patch.replace(/^```(?:diff)?\s*/, "").replace(/\s*```$/, "").trim();
           if (patch === "NO_SAFE_PATCH") {
             fs.writeFileSync("/tmp/worker-mode.txt", "no-safe-patch");
-            fs.writeFileSync("/tmp/worker-report.md", "# Исполнитель остановлен безопасно\\n\\nМодель не смогла сформировать безопасный diff для этой задачи. Изменений исходного кода нет. Нужна декомпозиция или уточнение требований.\\n\\nIssue: #" + process.env.ISSUE_NUMBER + "\\nРоль: " + role + "\\n");
+            throw new Error("Model output is not a clean unified diff: " + patch.slice(0,200).replace(/\s+/g," "));
             console.log("Model declined to create a safe patch.");
             process.exit(0);
           }
