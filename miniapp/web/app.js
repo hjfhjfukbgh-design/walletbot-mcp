@@ -468,6 +468,7 @@ function setMarketCategory(category) {
   $('#equities-market-content').classList.toggle('hidden', !isEquities);
   if (isEquities) {
     document.querySelectorAll('[data-equity-kind]').forEach((button) => button.classList.toggle('selected', button.dataset.equityKind === category));
+    document.querySelectorAll('[data-equity-list]').forEach((list) => list.classList.toggle('hidden', list.dataset.equityList !== category));
     $('#equities-title').textContent = category === 'stocks' ? 'Рынок США · Акции' : 'Рынок США · Фонды';
   } else {
     $('#pairs-title').textContent = category === 'futures' ? 'Фьючерсы' : 'Криптовалюты';
