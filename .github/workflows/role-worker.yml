@@ -129,7 +129,7 @@ jobs:
             console.log(role + " analysis report generated.");
             process.exit(0);
           }
-          const explicitPaths = [...new Set([...task.matchAll(/(?:`|^|\\s)((?:src|miniapp\\/web)\\/[A-Za-z0-9_./-]+\\.(?:ts|js|mjs|css|html))(?:`|\\s|$)/g)].map(m => m[1]))];
+          const explicitPaths = [...new Set(task.match(/(?:src|miniapp\/web)\/[A-Za-z0-9_./-]+\.(?:ts|js|mjs|css|html)/g) || [])];
           const selected = tracked.filter(path => allowed[role](path) && (!explicitPaths.length || explicitPaths.includes(path))).slice(0, 35);
           if (explicitPaths.length && !selected.length) throw new Error("Explicit task files are missing or outside role scope: " + explicitPaths.join(", "));
           if (!selected.length) throw new Error("No source files available for role " + role);
