@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { handleApi } from "../src/api";
 import type { RiskLimits } from "../src/env";
 import { MAX_PRICES, pushEquity, pushPrice } from "../src/history";
@@ -41,9 +41,53 @@ describe("API da Mini App", () => {
     expect((await call(e, "state", "chave-teste", {}, "")).status).toBe(401);
   });
 
+  it("routes demo history through the authenticated user-scoped Engine", async () => {
+    const e = env();
+    let requestedUrl = "";
+    e.ENGINE = {
+      idFromName: (name: string) => name,
+      get: () => ({
+        fetch: async (request: Request) => {
+          requestedUrl = request.url;
+          return Response.json({ ok: true, trades: [] });
+        },
+      }),
+    } as unknown as DurableObjectNamespace;
+    const response = await call(e, "demo/history", "chave-teste");
+    expect(response.status).toBe(200);
+    expect(requestedUrl).toContain("/history?userId=12345");
+    expect(await response.json()).toMatchObject({ ok: true, trades: [] });
+  });
+
   it("recusa tudo se o token do bot não estiver configurado", async () => {
     const e = { ...env(), TELEGRAM_BOT_TOKEN: "" };
     expect((await call(e, "state", "chave-teste")).status).toBe(401);
+  });
+
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it("requests real candle snapshots for every supported timeframe", async () => {
+    const e = env();
+    const requested: string[] = [];
+    vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const payload = JSON.parse(String(init?.body || "{}"));
+      requested.push(payload.req.interval);
+      return Response.json([{ t: Date.now(), o: "100", h: "105", l: "99", c: "103" }]);
+    });
+    for (const interval of ["1m", "5m", "15m", "1h", "4h", "1d"]) {
+      const response = await call(e, "chart?market=BTC&interval=" + interval, "chave-teste");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ interval, source: "hyperliquid" });
+    }
+    expect(requested).toEqual(["1m", "5m", "15m", "1h", "4h", "1d"]);
+  });
+
+  it("returns an explicit error instead of relabeling sparse ticks as timeframe candles", async () => {
+    const e = env();
+    vi.stubGlobal("fetch", async () => Response.json([]));
+    const response = await call(e, "chart?market=BTC&interval=1m", "chave-teste");
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({ ok: false });
   });
 
   it("devolve estado, histórico e 404 para rota desconhecida", async () => {
@@ -69,6 +113,20 @@ describe("API da Mini App", () => {
     const b = (await (await call(e, "state", "chave-teste", {}, "222")).json()) as { mode: string };
     expect(a.mode).toBe("live");
     expect(b.mode).toBe("paper");
+  });
+
+  it("validates the DEMO preview direction and margin before market lookup", async () => {
+    const invalidSide = await call(env(), "demo/preview", "chave-teste", {
+      method: "POST", body: JSON.stringify({ symbol: "BTC", side: "buy", leverage: 2 }),
+    });
+    expect(invalidSide.status).toBe(400);
+    expect(await invalidSide.json()).toMatchObject({ ok: false, error: "Направление должно быть LONG или SHORT." });
+
+    const invalidMargin = await call(env(), "demo/preview", "chave-teste", {
+      method: "POST", body: JSON.stringify({ symbol: "BTC", side: "long", leverage: 2, marginMicro: "not-a-number" }),
+    });
+    expect(invalidMargin.status).toBe(400);
+    expect(await invalidMargin.json()).toMatchObject({ ok: false });
   });
 
   it("enforces the DEMO leverage cap before contacting the Engine", async () => {
