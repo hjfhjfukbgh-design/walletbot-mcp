@@ -177,6 +177,12 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const closedAccount = await balance.json() as { balanceMicro: string; positions: Array<{ id: string }> };
     const balanceBeforeRestart = closedAccount.balanceMicro;
     expect(closedAccount.positions).toHaveLength(0);
+    const expectedBalance = BigInt(initialBalance)
+      + BigInt(longClose.body.result.totalNetPnlMicro)
+      + BigInt(shortClose.body.result.totalNetPnlMicro);
+    expect(BigInt(balanceBeforeRestart)).toBe(expectedBalance);
+    const reconciliation = await post(stub, "/reconcile", {});
+    expect(reconciliation.body.ok).toBe(true);
     expect(balanceBeforeRestart).not.toBe(initialBalance);
 
     await mf?.dispose();
