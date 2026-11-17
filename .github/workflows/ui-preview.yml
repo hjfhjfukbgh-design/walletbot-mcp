@@ -32,5 +32,7 @@ jobs:
             clean-stocks-*.png
             clean-asset-*.png
             clean-ticket-*.png
+            clean-leverage-*.png
+            clean-confirm-*.png
             clean-income-*.png
             clean-bonuses-*.png
