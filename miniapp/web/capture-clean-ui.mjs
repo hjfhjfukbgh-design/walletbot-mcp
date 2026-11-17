@@ -60,6 +60,7 @@ try{
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     await page.waitForSelector("#kg-wallet-balance");
     await page.waitForFunction(()=>document.querySelector("#kg-wallet-balance")?.textContent.includes("1"));
+    await page.waitForFunction(()=>document.querySelectorAll("#kg-favorites .kg-favorite").length===3);
     if(await page.locator("#kg-favorites .kg-favorite").count()!==3)throw new Error("wallet should show three favorite markets");
     if(await page.locator("#kg-nav button").count()!==4)throw new Error("bottom navigation should have four tabs");
     await page.screenshot({path:`clean-wallet-${device.width}x${device.height}.png`,fullPage:false});
@@ -95,6 +96,7 @@ try{
     await page.waitForSelector("#kg-confirm-screen:not([hidden])");
     await page.locator("#kg-trade-confirm").click();
     await page.waitForSelector("#kg-asset-screen:not([hidden])");
+    await page.locator("#kg-asset-back").click();
     await page.locator('#kg-nav button[data-screen="income"]').click();
     await page.waitForSelector("#kg-income-screen.is-active");
     await page.waitForSelector(".kg-position");
