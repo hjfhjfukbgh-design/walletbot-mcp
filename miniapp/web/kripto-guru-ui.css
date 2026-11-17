@@ -356,6 +356,9 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .kg-wallet-currency .kg-chevron{font-size:20px;line-height:1}
 
 
+
+/* Center the compact ticket composition in tall phone viewports. */
+.kg-ticket{justify-content:center}
 /* Reference ticket pass: compact amount group and unified settings surface. */
 .kg-ticket{
   display:flex;
