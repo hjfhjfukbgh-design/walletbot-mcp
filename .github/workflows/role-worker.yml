@@ -26,7 +26,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: read
+  issues: write
 
 concurrency:
   group: kripto-guru-worker-${{ inputs.issue_number }}
@@ -374,3 +374,21 @@ jobs:
           gh pr create --draft --base "${{ inputs.base_branch }}" --head "$branch" \
             --title "${ROLE} handoff for issue #${ISSUE_NUMBER}" \
             --body "Report-only handoff. This role is not yet authorized for source changes in the MVP. Human review required."
+
+      - name: Finalize durable queue state
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          RUN_ID: ${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$JOB_STATUS" = "success" ]; then
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label agent-dispatched --add-label agent-done
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Исполнитель завершил workflow успешно. Результат опубликован в Draft PR/отчёте; требуется человеческая проверка.\n\n<!-- kg-complete:run=$RUN_ID;status=success -->"
+          else
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label agent-dispatched --add-label agent-blocked
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Исполнение завершилось со статусом $JOB_STATUS. Задача переведена в blocked; требуется разбор причины. Автоматический повтор не запускается.\n\n<!-- kg-complete:run=$RUN_ID;status=$JOB_STATUS -->"
+          fi
