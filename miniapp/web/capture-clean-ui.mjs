@@ -74,7 +74,7 @@ try{
     }
     await page.waitForFunction(()=>document.querySelectorAll("#kg-favorites .kg-favorite").length===3);
     if(await page.locator("#kg-favorites .kg-favorite").count()!==3)throw new Error("wallet should show three favorite markets");
-    if(await page.locator("#kg-nav button").count()!==4)throw new Error("bottom navigation should have four tabs");
+    if(await page.locator("#kg-nav button").count()!==4)throw new Error("bottom navigation should have four tabs");\n    if(await page.locator("#kg-wallet-quick-actions button").count()!==4)throw new Error("wallet should show four reference quick actions");\n    if(!(await page.locator("#kg-wallet-currency").isVisible()))throw new Error("wallet currency row should be visible");
     await page.screenshot({path:`clean-wallet-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator('#kg-nav button[data-screen="trading"]').click();
     await page.waitForSelector("#kg-market-list .kg-market-row");
