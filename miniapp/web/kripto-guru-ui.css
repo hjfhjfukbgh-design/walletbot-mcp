@@ -435,3 +435,12 @@ button:disabled{cursor:not-allowed;opacity:.5}
   #kg-asset-screen .kg-chart{height:132px}
   #kg-asset-screen .kg-section-head{margin:13px 2px 7px}
 }
+
+
+/* Sync the latest visual-owner ticket pass: center the complete form on tall
+   phones while keeping the primary action attached to the settings panel. */
+.kg-ticket{justify-content:center}
+.kg-ticket-check{margin:14px 0 0!important}
+@media(max-height:700px){
+  .kg-ticket-check{margin:14px 0 0!important}
+}
