@@ -82,6 +82,16 @@ try{
     const walletOrder=await page.locator("#kg-wallet-screen").evaluate(el=>[...el.children].filter(x=>["kg-wallet-hero","kg-wallet-quick-actions","kg-wallet-currency"].some(id=>x.id===id||x.classList.contains(id))).slice(0,3).map(x=>x.className||x.id).join(","));
     if(!walletOrder.includes("kg-wallet-hero,kg-wallet-quick-actions,kg-wallet-currency"))throw new Error("wallet first-screen order is incorrect: "+walletOrder);
     await page.screenshot({path:`clean-wallet-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
+    const walletScrollCheck=await page.evaluate(()=>{
+      const nav=document.querySelector("#kg-nav").getBoundingClientRect();
+      const finalCard=document.querySelector("#kg-wallet-screen .kg-discover-list .kg-discover-card:last-child").getBoundingClientRect();
+      return {scrollY:window.scrollY,navTop:nav.top,navBottom:nav.bottom,cardBottom:finalCard.bottom,viewportHeight:window.innerHeight};
+    });
+    if(walletScrollCheck.scrollY<=0)throw new Error("wallet screen should scroll to the final section");
+    if(walletScrollCheck.navTop>=walletScrollCheck.viewportHeight||walletScrollCheck.navBottom>walletScrollCheck.viewportHeight)throw new Error("wallet bottom navigation must remain fixed inside the viewport");
+    if(walletScrollCheck.cardBottom>walletScrollCheck.navTop-8)throw new Error("wallet final card is obscured by bottom navigation: "+JSON.stringify(walletScrollCheck));
+    await page.evaluate(()=>window.scrollTo(0,0));
     await page.locator('#kg-nav button[data-screen="trading"]').click();
     await page.waitForSelector("#kg-market-list .kg-market-row");
     await page.screenshot({path:`clean-catalog-${device.width}x${device.height}.png`,fullPage:false});
