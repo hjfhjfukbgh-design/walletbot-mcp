@@ -197,11 +197,13 @@ jobs:
           git push origin "$branch"
           pr_url="$(gh pr create --repo "$GITHUB_REPOSITORY" --draft --base "$BASE_BRANCH" --head "$branch" --title "Dispatch packet: #${number} — ${title}" --body "AI-generated task assignment packet for Issue #${number}. Dispatch-only: no application source changes, tests, merge, deployment, or LIVE operations are claimed. Human review required.")"
           status="$(node -e 'process.stdout.write(require("/tmp/dispatch-meta.json").status)')"
-          gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "Диспетчер подготовил пакет задачи: $pr_url. Статус: $status. Пакет требует проверки человеком."
           if [ "$status" = "READY" ]; then
+            lease_expires_at="$(date -u -d '+45 minutes' '+%Y-%m-%dT%H:%M:%SZ')"
             gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label agent-ready --add-label agent-dispatched
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "Диспетчер подготовил пакет: $pr_url. Исполнитель запускается. Lease до: $lease_expires_at.\n\n<!-- kg-lease:run=$RUN_ID;expires=$lease_expires_at -->"
           else
             gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label agent-ready --add-label agent-blocked
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "Диспетчер заблокировал задачу. Пакет: $pr_url. Требуется уточнение и ручная проверка."
           fi
           {
             echo "## Orchestrator: задача передана"
