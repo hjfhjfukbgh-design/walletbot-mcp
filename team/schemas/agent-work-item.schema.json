@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kripto-guru.invalid/schemas/agent-work-item.schema.json",
+  "title": "Kripto Guru Agent Work Item",
+  "description": "Durable state record for one independently scheduled AI-studio work item. Persist it in GitHub or another approved durable store; never rely on an Actions runner workspace.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "parent_issue",
+    "title",
+    "team",
+    "role",
+    "status",
+    "attempt",
+    "max_attempts",
+    "created_at",
+    "updated_at",
+    "dependencies",
+    "write_scope",
+    "next_action"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^kg-[a-z0-9][a-z0-9-]{5,63}$"
+    },
+    "parent_issue": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "team": {
+      "enum": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "role": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{1,39}$"
+    },
+    "status": {
+      "enum": [
+        "ready",
+        "claimed",
+        "running",
+        "review",
+        "blocked",
+        "retry",
+        "done",
+        "cancelled"
+      ]
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "max_attempts": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "claimed_by": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 120
+    },
+    "lease_expires_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "dependencies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^kg-[a-z0-9][a-z0-9-]{5,63}$"
+      }
+    },
+    "write_scope": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 240
+      }
+    },
+    "branch": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 240
+    },
+    "pull_request_url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uri"
+    },
+    "run_url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uri"
+    },
+    "last_error": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 2000
+    },
+    "check_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "failed",
+              "skipped",
+              "unknown"
+            ]
+          },
+          "details": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          }
+        }
+      }
+    },
+    "next_action": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "claimed",
+              "running"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "claimed_by",
+          "lease_expires_at"
+        ],
+        "properties": {
+          "claimed_by": {
+            "type": "string",
+            "minLength": 1
+          },
+          "lease_expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "done"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "pull_request_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "next_action": {
+            "const": "none"
+          }
+        }
+      }
+    }
+  ]
+}
