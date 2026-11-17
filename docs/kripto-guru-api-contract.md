@@ -22,6 +22,7 @@ Load the adapter after the Telegram WebApp SDK and before the new UI bundle. The
 - Telegram `initData` is the sole client authentication source; requests send `Authorization: tma ...`.
 - The adapter sends no exchange credentials and exposes no LIVE order method.
 - Contract eligibility, leverage, fee, slippage, account size and exposure limits are server-owned. `trade.preview` is not an authorization to open; `trade.open` repeats server-side validation immediately before the Engine write.
+- The DEMO daily-loss stop is enforced inside the Durable Object on every open: realized net PnL from positions closed since 00:00 UTC plus fee-aware mark-to-market PnL on currently open positions is compared with 5% (or the configured `MAX_DAILY_LOSS_PCT`) of the $1,000 seed balance. The limit resets at 00:00 UTC; when reached, preview and new opens are blocked. Existing positions can still be closed. If an open position cannot be marked with a fresh quote, the risk check fails closed.
 - Monetary values are normalized to USD for UI display while raw integer/micro values are preserved. The Engine ledger semantics are unchanged: entry fee is charged at open; close cash movement does not charge it a second time; history PnL includes both entry and exit fees.
 - Errors reject with `KriptoGuruApiError` and the normalized shape `{ code, message, status, retryable }`.
 - Missing quotes/candles produce an explicit error. No mock market data or simulated successful order response is used by this adapter.
