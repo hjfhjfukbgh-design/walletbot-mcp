@@ -133,6 +133,68 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(closed.body.result.reason).toBe("manual");
   });
 
+  it("persists closed LONG and SHORT results in per-user history across Engine restart", async () => {
+    let stub = await boot();
+    const initialAccountResponse = await stub.fetch("https://engine.test/account?userId=" + userId);
+    const initialBalance = (await initialAccountResponse.json() as { balanceMicro: string }).balanceMicro;
+    await quote(stub, 50_000n * P);
+    const long = await open(stub, 100n * U);
+    expect(long.body.ok).toBe(true);
+    const short = await post(stub, "/open", {
+      userId, mode: "demo", symbol: "BTC", side: "short",
+      marginMicro: (100n * U).toString(), leverage: "2",
+      feePpm: "350", slippagePpm: "1000",
+      maxOrderBps: "10000", maxTotalExposureBps: "10000",
+    });
+    expect(short.body.ok).toBe(true);
+    const openAccountResponse = await stub.fetch("https://engine.test/account?userId=" + userId);
+    const openAccount = await openAccountResponse.json() as { balanceMicro: string; positions: Array<{ id: string }> };
+    expect(openAccount.positions).toHaveLength(2);
+    expect(BigInt(openAccount.balanceMicro)).toBeLessThan(BigInt(initialBalance));
+    await quote(stub, 51_000n * P);
+    const longClose = await post(stub, "/close", { userId, positionId: long.body.position.id, manual: true });
+    const shortClose = await post(stub, "/close", { userId, positionId: short.body.position.id, manual: true });
+    expect(BigInt(longClose.body.result.netPnlMicro)).toBeGreaterThan(0n);
+    expect(BigInt(shortClose.body.result.netPnlMicro)).toBeLessThan(0n);
+    expect(BigInt(longClose.body.result.totalNetPnlMicro)).toBe(
+      BigInt(longClose.body.result.netPnlMicro) - BigInt(long.body.position.entryFeeMicro),
+    );
+    expect(BigInt(shortClose.body.result.totalNetPnlMicro)).toBe(
+      BigInt(shortClose.body.result.netPnlMicro) - BigInt(short.body.position.entryFeeMicro),
+    );
+
+    const first = await stub.fetch("https://engine.test/history?userId=" + userId);
+    const history = await first.json() as { trades: Array<{ event: string; side: string; pnl?: number }>; equity: Array<[number, number]> };
+    expect(history.trades).toHaveLength(4);
+    expect(history.trades.filter((item) => item.event === "open")).toHaveLength(2);
+    expect(history.trades.filter((item) => item.event === "close")).toHaveLength(2);
+    expect(history.trades.filter((item) => item.event === "close").map((item) => item.side).sort()).toEqual(["long", "short"]);
+    expect(history.equity.length).toBeGreaterThanOrEqual(5);
+    expect(history.equity.every(([at, balance]) => Number.isFinite(at) && Number.isFinite(balance))).toBe(true);
+    expect(history.equity[0][1]).toBe(1000);
+    const balance = await stub.fetch("https://engine.test/account?userId=" + userId);
+    const closedAccount = await balance.json() as { balanceMicro: string; positions: Array<{ id: string }> };
+    const balanceBeforeRestart = closedAccount.balanceMicro;
+    expect(history.equity[history.equity.length - 1][1]).toBe(Number(BigInt(balanceBeforeRestart)) / 1_000_000);
+    expect(closedAccount.positions).toHaveLength(0);
+    const expectedBalance = BigInt(initialBalance)
+      + BigInt(longClose.body.result.totalNetPnlMicro)
+      + BigInt(shortClose.body.result.totalNetPnlMicro);
+    expect(BigInt(balanceBeforeRestart)).toBe(expectedBalance);
+    const reconciliation = await post(stub, "/reconcile", {});
+    expect(reconciliation.body.ok).toBe(true);
+    expect(balanceBeforeRestart).not.toBe(initialBalance);
+
+    await mf?.dispose();
+    mf = undefined;
+    stub = await boot();
+    const afterRestart = await stub.fetch("https://engine.test/history?userId=" + userId);
+    const restored = await afterRestart.json() as { trades: Array<{ event: string }> };
+    expect(restored.trades).toHaveLength(4);
+    const accountAfterRestart = await stub.fetch("https://engine.test/account?userId=" + userId);
+    expect((await accountAfterRestart.json() as { balanceMicro: string }).balanceMicro).toBe(balanceBeforeRestart);
+  });
+
   it("closes once under Promise.all and duplicate ticks do not duplicate ledger credits", async () => {
     const stub = await boot();
     await quote(stub, 50_000n * P);
