@@ -116,6 +116,7 @@
       unrealizedGrossPnlUsd: position.unrealizedGrossPnlMicro == null ? null : fromMicro(position.unrealizedGrossPnlMicro),
       estimatedExitFeeUsd: position.estimatedExitFeeMicro == null ? null : fromMicro(position.estimatedExitFeeMicro),
       estimatedNetPnlUsd: position.estimatedNetPnlMicro == null ? null : fromMicro(position.estimatedNetPnlMicro),
+      unrealizedPnlUsd: position.estimatedNetPnlMicro == null ? null : fromMicro(position.estimatedNetPnlMicro),
       markObservedAt: position.markObservedAt == null ? null : Number(position.markObservedAt),
       raw: position,
     };
@@ -151,7 +152,8 @@
           volume24hUsd: finite(item.volume24hUsd),
           productType: "future",
           maxLeverage: Number(item.maxLeverage || 1),
-          takerFeePct: finite(item.takerFeePct),
+          takerFeePct: finite(item.takerFeePct) == null ? null : Number(item.takerFeePct) * 100,
+          fundingRateHourlyPct: finite(item.fundingRateHourly) == null ? null : Number(item.fundingRateHourly) * 100,
           minSizeUsd: finite(item.minSizeQuote),
           tradeable: item.allowed === true,
           source: item.source || "Hyperliquid",
@@ -175,8 +177,11 @@
       return {
         ...item,
         priceUsd: finite(quote.price),
-        maxLeverage: Number(item.maxLeverage || quote.maxDemoLeverage || 1),
+        maxLeverage: Math.min(Number(item.maxLeverage || 1), Number(quote.maxDemoLeverage || item.maxLeverage || 1)),
         minMarginUsd: finite(quote.minMargin),
+        fundingRateHourlyPct: finite(item.fundingRateHourly) == null ? null : Number(item.fundingRateHourly) * 100,
+        takerFeePct: finite(item.takerFeePct) == null ? null : Number(item.takerFeePct) * 100,
+        productType: "Фьючерс",
         tradeable: item.tradeable === true,
         raw: { contract: item.raw, quote },
       };
@@ -210,7 +215,10 @@
         volumeUsd: finite(data.volumeUsd),
         entryFeeUsd: finite(data.entryFeeUsd),
         estimatedExitFeeUsd: finite(data.estimatedExitFeeUsd),
+        exitFeeUsd: finite(data.estimatedExitFeeUsd),
         liquidationPriceUsd: finite(data.liquidationPriceUsd),
+        valid: true,
+        available: true,
         tradeable: data.tradeable === true,
         raw: data,
       };
@@ -243,7 +251,7 @@
         events: (data.trades || []).map((event) => ({
           id: event.id,
           event: event.event,
-          timestamp: Number(event.at),
+          timestamp: Number.isFinite(Number(event.at)) ? new Date(Number(event.at)).toLocaleString("ru-RU") : String(event.at || ""),
           symbol: event.market,
           side: event.side,
           priceUsd: finite(event.price),
