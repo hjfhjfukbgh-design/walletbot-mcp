@@ -62,7 +62,12 @@ try{
     });
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     await page.waitForSelector("#kg-wallet-balance");
-    await page.waitForFunction(()=>document.querySelector("#kg-wallet-balance")?.textContent.includes("1"));
+    try{
+      await page.waitForFunction(()=>document.querySelector("#kg-wallet-balance")?.textContent.includes("1"),null,{timeout:6000});
+    }catch(error){
+      const debug=await page.evaluate(()=>({apiReady:!!window.KriptoGuruAPI,uiReady:!!window.KriptoGuruUI,balance:document.querySelector("#kg-wallet-balance")?.textContent,body:document.body.innerText.slice(0,500)}));
+      throw new Error("wallet API startup failed: "+JSON.stringify(debug)+" pageErrors="+pageErrors.join("; ")+" "+error.message);
+    }
     await page.waitForFunction(()=>document.querySelectorAll("#kg-favorites .kg-favorite").length===3);
     if(await page.locator("#kg-favorites .kg-favorite").count()!==3)throw new Error("wallet should show three favorite markets");
     if(await page.locator("#kg-nav button").count()!==4)throw new Error("bottom navigation should have four tabs");
