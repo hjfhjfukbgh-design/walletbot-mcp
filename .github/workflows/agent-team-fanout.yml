@@ -23,6 +23,42 @@ jobs:
       has_tasks: ${{ steps.claim.outputs.has_tasks }}
       matrix: ${{ steps.claim.outputs.matrix }}
     steps:
+      - name: Bootstrap 18-role task queue (idempotent)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+          const repo = process.env.GITHUB_REPOSITORY;
+          const gh = (args) => execFileSync("gh", args, {encoding:"utf8",env:process.env}).trim();
+          for (const [name,color,description] of [
+            ["agent-ready","1D76DB","Задача готова к диспетчеризации"],
+            ["agent-dispatched","0E8A16","Задача передана исполнителю"],
+            ["agent-blocked","B60205","Задача заблокирована"],
+            ["team-a","5319E7","Команда A — Trading"],
+            ["team-b","0E8A16","Команда B — Product"],
+            ["team-c","FBCA04","Команда C — Intelligence"]
+          ]) gh(["label","create",name,"--repo",repo,"--color",color,"--description",description,"--force"]);
+          const tasks = [["A","BACKEND","[KG-A-01] Trading: Walt MCP read-only integration","Проведи ограниченную реализацию/проверку слоя чтения Walt MCP. Цель: подтвердить и при необходимости улучшить только read-only получение котировок, баланса и позиций через существующие API-границы. Write scope: только src/api.ts. Не вызывай perps_execute_operation и любые инструменты записи. LIVE-разработка разрешена; реальные ордера и изменения аккаунта запрещены. Добавь/уточни безопасную обработку ошибок, если это возможно в рамках файла."],["A","ARCHITECT","[KG-A-02] Trading: архитектура торгового ядра","Проанализируй существующие Walt MCP, src/walt.ts, API и модель состояния. Подготовь план единого ядра DEMO/LIVE с раздельными адаптерами и строгими write-gates. Только отчёт, исходники не менять."],["A","QA","[KG-A-03] Trading: QA-матрица DEMO/LIVE","Составь воспроизводимую QA-матрицу для котировок, баланса, позиций, LONG/SHORT, подготовки ордера, confirmation gate, отказов API и DEMO. Не отправлять реальные ордера. Только отчёт."],["A","SECURITY","[KG-A-04] Trading: Security review Walt MCP","Проведи threat-model Walt MCP: OAuth/токены, tenant isolation, права API, read/write разделение, replay/idempotency, confirmation token и audit trail. Не читать/выводить секреты. Только отчёт."],["A","ANALYST","[KG-A-05] Trading: аудит Walt MCP tools","Сопоставь доступные MCP tools и фактические вызовы проекта; выяви подтверждённые возможности и неизвестное. Особое внимание read-only market data/account state и prepare/execute. Только отчёт."],["A","FRONTEND","[KG-A-06] Trading: интерфейс самостоятельной торговли","В Mini App изучи текущий экран и подготовь небольшой UX-патч для безопасного отображения LIVE-состояния, LONG/SHORT и preview/confirmation gate. Работай только в существующих miniapp/web файлах; не добавляй реальное исполнение ордеров."],["B","FRONTEND","[KG-B-01] Product: единый интерфейс трёх режимов","Реализуй в существующих miniapp/web файлах главный экран выбора DEMO, LIVE и AI TRADING с единым русским брендингом Kripto Guru. Сохрани текущую навигацию и мобильную адаптацию. Не подключай реальные торговые действия."],["B","BACKEND","[KG-B-02] Product: API-контракт трёх режимов","В рамках src/state.ts опиши/реализуй безопасную модель режима пользователя DEMO/LIVE/AI с явной изоляцией состояний и обратной совместимостью. Не меняй секреты, настройки аккаунтов и внешние торговые операции."],["B","ARCHITECT","[KG-B-03] Product: архитектура единого Telegram-продукта","Подготовь архитектуру одного Telegram-бота и Mini App с тремя режимами, единым onboarding, навигацией и границами аккаунтов. Только отчёт."],["B","QA","[KG-B-04] Product: UX и интеграционное тестирование","Подготовь QA-план для переходов DEMO/LIVE/AI, мобильного UI, пустых состояний, ошибок соединения и защиты от случайного переключения. Только отчёт."],["B","SECURITY","[KG-B-05] Product: безопасность Mini App","Проведи аудит Telegram initData, API auth, tenant isolation, XSS, CSRF, режима доступа и утечки данных между пользователями. Только отчёт."],["B","ANALYST","[KG-B-06] Product: пользовательские сценарии","Опиши end-to-end сценарии пользователя: обучение в DEMO, самостоятельная торговля LIVE, наблюдение за AI. Выяви пробелы и критерии готовности. Только отчёт."],["C","BACKEND","[KG-C-01] Intelligence: AI Trading DEMO engine","Разработай изолированный AI Trading Engine только в DEMO/paper. Начни с безопасного цикла: получение доступных рыночных данных, формирование объяснимого сигнала, виртуальная позиция, PnL и журнал решений. Write scope: только src/service.ts. Не вызывай Walt execute, не отправляй реальные ордера и не меняй пользовательский LIVE."],["C","ARCHITECT","[KG-C-02] Intelligence: архитектура AI Trading Engine","Спроектируй AI Trading Engine: market data pipeline, feature extraction, стратегии, risk engine, virtual execution, position monitor, explainability и evaluation. Отдели paper и live execution интерфейсы. Только отчёт."],["C","QA","[KG-C-03] Intelligence: тестирование AI paper trading","Составь тесты симуляции: вход/выход, комиссии, проскальзывание, плечо, ликвидация, stale data, drawdown, отказ источника и воспроизводимость. Только отчёт."],["C","SECURITY","[KG-C-04] Intelligence: Security review автономного ИИ","Проведи threat model AI Trading: изоляция AI-счёта, минимальные API-права, отсутствие withdraw, kill switch, лимиты, audit trail, prompt/data injection и запрет live execution без допуска. Только отчёт."],["C","ANALYST","[KG-C-05] Intelligence: исследование стратегий и данных","Определи доступные источники данных и реалистичный объём анализа рынка; предложи проверяемый baseline стратегии и метрики качества без обещаний доходности. Только отчёт."],["C","FRONTEND","[KG-C-06] Intelligence: прозрачность решений AI","В существующих miniapp/web файлах подготовь отдельный экран/панель наблюдения за AI: что анализирует, сигнал, причина входа/выхода, paper-позиция, PnL и журнал. Не добавляй реальное исполнение."]];
+          const existing = JSON.parse(gh(["issue","list","--repo",repo,"--state","all","--limit","200","--json","title"]) || "[]");
+          let created = 0;
+          for (const [team,role,title,description] of tasks) {
+            if (existing.some(x => x.title === title)) continue;
+            const key = title.match(/KG-([ABC])-([0-9]+)/)?.[0]?.toLowerCase().replace("kg-","") || "task-"+created;
+            const parent = 53;
+            const marker = "<!-- kg-child-task:v1;parent="+parent+";key="+key+";team="+team+";role="+role+";depends=none -->";
+            const body = marker+"\n\n## Цель\n"+description+"\n\n## Границы безопасности\n- LIVE-разработка разрешена; реальные ордера/исполнение, изменение или закрытие реальных позиций, переводы средств и изменение настроек аккаунта запрещены.\n- AI Trading на этом этапе работает только в DEMO/paper.\n- Не выполнять merge и production deploy.\n- Не запрашивать и не выводить секреты.\n- Результат — Draft PR для code tasks либо отчётный Draft PR для analysis tasks; обязательны доказательства проверок и список непроверенного.\n\nРодительская миссия: #53.";
+            gh(["issue","create","--repo",repo,"--title",title,"--body",body,"--label","agent-ready","--label","team-"+team.toLowerCase()]);
+            created++;
+          }
+          const summary = "Bootstrap complete. Existing tasks preserved; newly created: "+created+"; total planned: "+tasks.length+". No trading/deployment actions performed.";
+          console.log(summary);
+          fsSummary(summary);
+          function fsSummary(s) { execFileSync("bash",["-lc","echo "+JSON.stringify(s)+" >> \"$GITHUB_STEP_SUMMARY\""],{env:process.env}); }
+          NODE
+
       - name: Claim one ready task for each team
         id: claim
         env:
