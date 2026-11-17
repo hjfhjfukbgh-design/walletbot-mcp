@@ -9,7 +9,7 @@ Workflow `.github/workflows/kripto-guru-orchestrator.yml`:
 - вызывает Gemini с fallback-моделью, чтобы назначить одну из ролей ARCHITECT / FRONTEND / BACKEND / QA / SECURITY / ANALYST;
 - при статусе READY запускает reusable workflow `role-worker.yml`;
 - BACKEND и FRONTEND могут предложить ограниченный diff только в разрешённых существующих файлах (до 3 файлов / 250 строк); остальные роли пока формируют handoff-отчёт без изменения исходников;
-- выполняет `npm ci`, `npm run typecheck`, `npm test` и независимую AI-проверку diff; при ошибках или REJECT PR не публикуется;
+- выполняет `npm ci`, `npm run typecheck`, `npm test` и вторую AI-проверку diff (не заменяет независимый human review); при ошибках или REJECT PR не публикуется;
 - публикует пакет диспетчера и результат исполнителя отдельными Draft PR;
 - оставляет ссылки в Issue; неполные задачи помечает `agent-blocked`.
 
@@ -19,7 +19,7 @@ Workflow `.github/workflows/kripto-guru-orchestrator.yml`:
 
 - Не пишет и не изменяет прикладной код.
 - Не исправляет замечания QA автоматически и не повторяет цикл исправлений.
-- AI review не заменяет независимого человеческого code review; PASS не доказывает отсутствие дефектов.
+- Вторая AI-проверка не является независимым аудитом; PASS не доказывает отсутствие дефектов. Human code review обязателен.
 - Не сливает PR, не деплоит и не включает LIVE.
 - GitHub Actions остаётся событийным исполнителем, а не постоянно работающим сервером.
 
