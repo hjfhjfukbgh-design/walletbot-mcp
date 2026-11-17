@@ -240,3 +240,9 @@ body.asset-open .bottom-nav{display:none!important}
 .bonus-settings-content{padding:0 12px 13px!important;border-top:1px solid var(--kg-ref-line)!important}
 .bonus-settings-content>.settings-group{margin-top:10px!important}
 .bonus-settings-content>.section-heading{margin-top:16px!important}
+
+
+/* Asset metadata badges supplied by the functional layer; visual treatment stays here. */
+.asset-topline .asset-product-type,.asset-topline .asset-max-leverage{display:inline-flex!important;align-items:center!important;min-height:25px!important;padding:5px 8px!important;border:0!important;border-radius:8px!important;font-size:9px!important;line-height:1!important;font-weight:700!important}
+.asset-topline .asset-product-type{background:#f1f3f7!important;color:#6f7481!important}
+.asset-topline .asset-max-leverage{background:#eaf1ff!important;color:#2d70df!important}
