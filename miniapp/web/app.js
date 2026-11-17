@@ -475,6 +475,31 @@ function setMarketCategory(category) {
   }
 }
 $('#q').addEventListener('input', renderPairs);
+const tradeSearch = $('#trade-search');
+const tradeSearchToggle = $('#trade-search-toggle');
+const tradeSearchClose = $('#trade-search-close');
+function focusMarketSearch() {
+  if ($('#q') && !$('#q').hidden) $('#q').focus();
+  else tradeSearchToggle?.focus();
+}
+function setTradeSearchOpen(open) {
+  if (!tradeSearch) return;
+  tradeSearch.classList.toggle('is-expanded', open);
+  tradeSearchToggle.hidden = open;
+  $('#q').hidden = !open;
+  tradeSearchClose.hidden = !open;
+  tradeSearchToggle.setAttribute('aria-expanded', String(open));
+  if (open) setTimeout(() => $('#q').focus(), 0);
+  else {
+    $('#q').value = '';
+    renderPairs();
+  }
+}
+tradeSearchToggle?.addEventListener('click', () => setTradeSearchOpen(true));
+tradeSearchClose?.addEventListener('click', () => { setTradeSearchOpen(false); tradeSearchToggle?.focus(); });
+$('#q').addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') { setTradeSearchOpen(false); tradeSearchToggle?.focus(); }
+});
 document.querySelectorAll('[data-market-category]').forEach((button) => button.addEventListener('click', () => setMarketCategory(button.dataset.marketCategory)));
 document.querySelectorAll('[data-equity-kind]').forEach((button) => button.addEventListener('click', () => setMarketCategory(button.dataset.equityKind)));
 $('#pairs').addEventListener('click', (ev) => { const fav=ev.target.closest('[data-favorite]'); if(!fav)return; ev.stopPropagation(); const m=fav.dataset.favorite; favorites.has(m)?favorites.delete(m):favorites.add(m); saveFavorites(); renderPairs(); });
@@ -505,7 +530,7 @@ $('#pairs').addEventListener('click', async (ev) => {
       document.body.classList.remove('asset-open');
       $('#asset-trade-bar')?.remove();
     }
-    $('#q')?.focus();
+    focusMarketSearch();
   });
   box.innerHTML = '<div class="asset-loading"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>';
   box.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -546,7 +571,7 @@ $('#pairs').addEventListener('click', async (ev) => {
       tg?.HapticFeedback?.selectionChanged?.();
     });
     $('#asset-grid-toggle').addEventListener('click', () => { showAssetGrid = !showAssetGrid; $('#asset-grid-toggle').textContent = showAssetGrid ? 'Скрыть сетку' : 'Показать сетку'; loadChart(market, 'pair-chart', $('#pair-timeframes button.selected')?.dataset.interval || '15m'); });
-    $('#asset-back').addEventListener('click', () => { box.classList.add('hidden'); setTelegramBackAction(null); $('#q').focus(); });
+    $('#asset-back').addEventListener('click', () => { box.classList.add('hidden'); setTelegramBackAction(null); focusMarketSearch(); });
     $('#asset-favorite').addEventListener('click', () => {
       favorites.has(market) ? favorites.delete(market) : favorites.add(market);
       saveFavorites();
