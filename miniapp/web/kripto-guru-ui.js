@@ -101,7 +101,10 @@
     $("#kg-top-day").innerHTML=sorted.length?sorted.map(m=>{const s=m.symbol||m.market,ch=changeOf(m);return `<button class="kg-top-item" data-open-market="${esc(s)}" type="button"><span class="kg-asset-icon">${esc(iconFor(s))}</span><b>${esc(s)}</b><small class="${ch>=0?"kg-change-up":"kg-change-down"}">${pct(ch)}</small></button>`;}).join(""):'<div class="kg-empty-inline">Нет данных для рейтинга.</div>';
   }
   function currentMarkets(){
-    if(state.category==="all")return [...state.markets,...state.futures];
+    if(state.category==="all"){
+      const unique=new Map([...state.markets,...state.futures].map(m=>[m.symbol||m.market,m]));
+      return [...unique.values()];
+    }
     return state.category==="futures"?state.futures:state.markets;
   }
   function renderMarketList(markets){
