@@ -57,7 +57,7 @@ try{
         market:{async get(symbol){const item=markets.find(x=>x.symbol===symbol);if(!item)throw {code:"NOT_FOUND",message:"Инструмент не найден"};return {...item,productType:"Фьючерс"};},async candles(symbol,interval){return {candles:interval==="1m"?candles:candles};}},
         trade:{
           async preview({marginUsd,leverage}){return {valid:marginUsd>0,available:true,volumeUsd:marginUsd*leverage,entryFeeUsd:marginUsd*leverage*.00035,exitFeeUsd:marginUsd*leverage*.00035};},
-          async open(payload){const p={id:"preview-position-1",symbol:payload.symbol,side:payload.side,marginUsd:payload.marginUsd,leverage:payload.leverage,unrealizedPnlUsd:.42};mockPositions.push(p);mockHistory.unshift({event:"Открытие",symbol:p.symbol,side:p.side,pnl:0,timestamp:"Сейчас"});return {position:p};},
+          async open(payload){const p={id:"preview-position-1",symbol:payload.symbol,side:payload.side,marginUsd:payload.marginUsd,leverage:payload.leverage};mockPositions.push(p);mockHistory.unshift({event:"Открытие",symbol:p.symbol,side:p.side,timestamp:"Сейчас"});return {position:p};},
           async close(id){const i=mockPositions.findIndex(x=>x.id===id);if(i>=0){const p=mockPositions.splice(i,1)[0];mockHistory.unshift({event:"Закрытие",symbol:p.symbol,side:p.side,netPnlUsd:.37,timestamp:"Сейчас"});}return {closed:true};}
         },
         history:{async list(){return {events:mockHistory.map(x=>({...x}))};}},
@@ -143,6 +143,9 @@ try{
     await page.locator('#kg-nav button[data-screen="income"]').click();
     await page.waitForSelector("#kg-income-screen.is-active");
     await page.waitForSelector(".kg-position");
+    const missingPnl=page.locator(".kg-position-pnl").first();
+    if((await missingPnl.innerText()).trim()!=="—")throw new Error("missing position PnL must render as an em dash");
+    if(!(await missingPnl.evaluate(el=>el.classList.contains("kg-muted"))))throw new Error("missing position PnL must use neutral styling");
     await page.screenshot({path:`clean-income-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator('#kg-nav button[data-screen="bonuses"]').click();
     await page.waitForSelector("#kg-bonuses-screen.is-active");
