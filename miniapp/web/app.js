@@ -18,6 +18,24 @@ try {
 }
 
 const $ = (sel) => document.querySelector(sel);
+
+const telegramBackButton = tg?.BackButton ?? null;
+let telegramBackAction = null;
+if (telegramBackButton) {
+  document.documentElement.classList.add('telegram-native-back');
+  telegramBackButton.onClick?.(() => {
+    const action = telegramBackAction;
+    telegramBackAction = null;
+    telegramBackButton.hide?.();
+    action?.();
+  });
+}
+function setTelegramBackAction(action) {
+  telegramBackAction = typeof action === 'function' ? action : null;
+  if (!telegramBackButton) return;
+  if (telegramBackAction) telegramBackButton.show?.();
+  else telegramBackButton.hide?.();
+}
 const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: Math.min(d, 2) }));
 const usd = (n, d = 2) => (n === null || n === undefined || !Number.isFinite(+n) ? '—' : '$' + fmt(n, d));
 const signedPct = (n) => `${n >= 0 ? '↑+' : '↓'}${fmt(Math.abs(n), 2)}%`;
@@ -479,6 +497,16 @@ $('#pairs').addEventListener('click', async (ev) => {
   selectedMarket = market;
   const box = $('#pair-detail');
   box.classList.remove('hidden');
+  setTelegramBackAction(() => {
+    const backControl = $('#asset-back') || $('#asset-back-error');
+    if (backControl) backControl.click();
+    else {
+      box.classList.add('hidden');
+      document.body.classList.remove('asset-open');
+      $('#asset-trade-bar')?.remove();
+    }
+    $('#q')?.focus();
+  });
   box.innerHTML = '<div class="asset-loading"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>';
   box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   try {
@@ -518,7 +546,7 @@ $('#pairs').addEventListener('click', async (ev) => {
       tg?.HapticFeedback?.selectionChanged?.();
     });
     $('#asset-grid-toggle').addEventListener('click', () => { showAssetGrid = !showAssetGrid; $('#asset-grid-toggle').textContent = showAssetGrid ? 'Скрыть сетку' : 'Показать сетку'; loadChart(market, 'pair-chart', $('#pair-timeframes button.selected')?.dataset.interval || '15m'); });
-    $('#asset-back').addEventListener('click', () => { box.classList.add('hidden'); $('#q').focus(); });
+    $('#asset-back').addEventListener('click', () => { box.classList.add('hidden'); setTelegramBackAction(null); $('#q').focus(); });
     $('#asset-favorite').addEventListener('click', () => {
       favorites.has(market) ? favorites.delete(market) : favorites.add(market);
       saveFavorites();
@@ -576,7 +604,7 @@ $('#pairs').addEventListener('click', async (ev) => {
     });
   } catch (error) {
     box.innerHTML = '<div class="empty-state"><b>Не удалось загрузить актив</b><small>' + esc(error.message) + '</small><button id="asset-back-error" class="secondary" type="button">Вернуться к рынкам</button></div>';
-    $('#asset-back-error').addEventListener('click', () => box.classList.add('hidden'));
+    $('#asset-back-error').addEventListener('click', () => { box.classList.add('hidden'); setTelegramBackAction(null); });
   }
 });
 
