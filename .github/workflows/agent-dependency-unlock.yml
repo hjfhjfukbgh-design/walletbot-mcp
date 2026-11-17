@@ -30,7 +30,7 @@ jobs:
           const gh = (args) => execFileSync("gh", args, {encoding:"utf8",env:process.env}).trim();
           const planned = JSON.parse(gh(["issue","list","--repo",repo,"--state","open","--label","agent-planned","--limit","100","--json","number,title,body,labels"]) || "[]");
           const done = JSON.parse(gh(["issue","list","--repo",repo,"--state","all","--label","agent-done","--limit","100","--json","number,title,body,labels"]) || "[]");
-          const childPattern = /<!-- kg-child-task:v1;parent=(\d+);key=([a-z][a-z0-9-]{2,30});team=([ABC]);depends=([^ ]*) -->/;
+          const childPattern = /<!-- kg-child-task:v1;parent=(\d+);key=([a-z][a-z0-9-]{2,30});team=([ABC]);role=([A-Z]+);depends=([^ ]*) -->/;
           const index = new Map();
           for (const issue of [...planned,...done]) {
             const match = String(issue.body||"").match(childPattern);
