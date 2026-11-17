@@ -95,7 +95,7 @@ let showAssetGrid = false;
 let assetChartMode = 'candles';
 let lastQuoteUpdate = null;
 let topSort = 'up';
-let favoritesOnly = false;
+let activeMarketCategory = 'crypto';
 const FAVORITES_KEY = 'kripto-guru:favorites:v1';
 let favorites = new Set();
 try { favorites = new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]')); }
@@ -430,7 +430,7 @@ async function loadPairs() {
 
 function renderPairs() {
   const q = $('#q').value.trim().toUpperCase();
-  const list = contracts.filter((c) => (!q || c.market.includes(q)) && (!favoritesOnly || favorites.has(c.market)));
+  const list = ['crypto','futures'].includes(activeMarketCategory) ? contracts.filter((c) => !q || c.market.includes(q)) : [];
   $('#pairs').innerHTML = list.map((c) => {
     const favorite = favorites.has(c.market);
     const change = c.change24hPct === undefined ? '—' : pctText(c.change24hPct);
@@ -442,9 +442,23 @@ function renderPairs() {
   }).join('') || '<div class="empty-state card-empty">Ничего не найдено</div>';
   renderMarketVisuals(list);
 }
+function setMarketCategory(category) {
+  activeMarketCategory = category;
+  document.querySelectorAll('[data-market-category]').forEach((button) => button.classList.toggle('selected', button.dataset.marketCategory === category));
+  const isEquities = category === 'stocks' || category === 'funds';
+  $('#crypto-market-content').classList.toggle('hidden', isEquities);
+  $('#equities-market-content').classList.toggle('hidden', !isEquities);
+  if (isEquities) {
+    document.querySelectorAll('[data-equity-kind]').forEach((button) => button.classList.toggle('selected', button.dataset.equityKind === category));
+    $('#equities-title').textContent = category === 'stocks' ? 'Рынок США · Акции' : 'Рынок США · Фонды';
+  } else {
+    $('#pairs-title').textContent = category === 'futures' ? 'Фьючерсы' : 'Криптовалюты';
+    renderPairs();
+  }
+}
 $('#q').addEventListener('input', renderPairs);
-$('#category-favorites').addEventListener('click', () => { favoritesOnly = true; $('#category-favorites').classList.add('selected'); $('#category-crypto').classList.remove('selected'); renderPairs(); });
-$('#category-crypto').addEventListener('click', () => { favoritesOnly = false; $('#category-favorites').classList.remove('selected'); $('#category-crypto').classList.add('selected'); renderPairs(); });
+document.querySelectorAll('[data-market-category]').forEach((button) => button.addEventListener('click', () => setMarketCategory(button.dataset.marketCategory)));
+document.querySelectorAll('[data-equity-kind]').forEach((button) => button.addEventListener('click', () => setMarketCategory(button.dataset.equityKind)));
 $('#pairs').addEventListener('click', (ev) => { const fav=ev.target.closest('[data-favorite]'); if(!fav)return; ev.stopPropagation(); const m=fav.dataset.favorite; favorites.has(m)?favorites.delete(m):favorites.add(m); saveFavorites(); renderPairs(); });
 $('#pairs').addEventListener('keydown', (ev) => { if((ev.key==='Enter'||ev.key===' ')&&ev.target.matches('.market-row')){ev.preventDefault();ev.target.click();} });
 document.querySelectorAll('[data-top-sort]').forEach((b) => b.addEventListener('click', () => { topSort=b.dataset.topSort; document.querySelectorAll('[data-top-sort]').forEach(x=>x.classList.toggle('selected',x===b)); renderMarketVisuals(contracts.filter(c=>!$('#q').value || c.market.includes($('#q').value.trim().toUpperCase()))); }));
