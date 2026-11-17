@@ -98,6 +98,21 @@ describe("window.KriptoGuruAPI contract", () => {
     expect(preview).toMatchObject({ maxMarginUsd: 80, volumeUsd: 125, entryFeeUsd: 0.04375, tradeable: true });
   });
 
+  it("marks an otherwise successful preview unavailable when server risk limits reject its size", async () => {
+    const fetchMock = vi.fn(async () => json({
+      ok: true, symbol: "BTC", side: "long", priceUsd: 50000, leverage: 3,
+      marginUsd: 1, maxMarginUsd: 0, volumeUsd: 3, entryFeeUsd: 0.00105,
+      estimatedExitFeeUsd: 0.00105, liquidationPriceUsd: 33500,
+      tradeable: false, reason: "Лимит демо-счёта не позволяет открыть позицию минимального размера.",
+    }));
+    const api = loadApi(fetchMock);
+    const preview = await api.trade.preview({ symbol: "BTC", side: "long", marginUsd: 1, leverage: 3 });
+    expect(preview).toMatchObject({
+      valid: false, available: false, tradeable: false,
+      reason: "Лимит демо-счёта не позволяет открыть позицию минимального размера.",
+    });
+  });
+
   it("opens and closes only through authenticated DEMO endpoints", async () => {
     const fetchMock = vi.fn(async (input, init) => {
       if (String(input) === "/api/demo/open") {
