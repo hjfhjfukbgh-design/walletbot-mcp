@@ -41,6 +41,76 @@ describe("API da Mini App", () => {
     expect((await call(e, "state", "chave-teste", {}, "")).status).toBe(401);
   });
 
+  it("reports an unconnected Walt account without exposing another tenant", async () => {
+    const response = await call(env(), "walt/account", "chave-teste");
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ ok: false, error: expect.stringContaining("Walt не подключён") });
+  });
+
+  it("reads the connected user's Walt balance through MCP without executing trades", async () => {
+    const e = env();
+    await e.STATE.put("tenant:12345:oauth:tokens", JSON.stringify({ access_token: "test-access-token" }));
+    const methods: string[] = [];
+    vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const payload = JSON.parse(String(init?.body || "{}")) as { id?: number; method?: string; params?: { name?: string } };
+      if (payload.method) methods.push(payload.method);
+      if (payload.method === "notifications/initialized") return new Response(null, { status: 202 });
+      if (payload.method === "initialize") {
+        return Response.json({ jsonrpc: "2.0", id: payload.id, result: { protocolVersion: "2025-06-18", capabilities: {}, serverInfo: { name: "test", version: "1" } } });
+      }
+      if (payload.method === "tools/call" && payload.params?.name === "balance_get") {
+        return Response.json({ jsonrpc: "2.0", id: payload.id, result: { structuredContent: { balances: [{ asset: "USDC", available: "42.5" }] } } });
+      }
+      throw new Error("Unexpected Walt MCP request: " + JSON.stringify(payload));
+    });
+    const response = await call(e, "walt/account", "chave-teste");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      ok: true, connected: true, balanceUsd: 42.5, currency: "USDC",
+      source: "walt-mcp", permission: "read-only",
+    });
+    expect(methods).toContain("initialize");
+    expect(methods).toContain("tools/call");
+    expect(methods).not.toContain("perps_execute_operation");
+  });
+
+  it("reads only the requested Walt market position through MCP", async () => {
+    const e = env();
+    await e.STATE.put("tenant:12345:oauth:tokens", JSON.stringify({ access_token: "test-access-token" }));
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const payload = JSON.parse(String(init?.body || "{}")) as { id?: number; method?: string; params?: { name?: string; arguments?: { contractId?: number } } };
+      if (payload.method === "notifications/initialized") return new Response(null, { status: 202 });
+      if (payload.method === "initialize") return Response.json({ jsonrpc: "2.0", id: payload.id, result: { protocolVersion: "2025-06-18", capabilities: {}, serverInfo: { name: "test", version: "1" } } });
+      if (payload.method === "tools/call") {
+        const name = payload.params?.name || "";
+        calls.push(name);
+        if (name === "perps_list_contracts") {
+          return Response.json({ jsonrpc: "2.0", id: payload.id, result: { structuredContent: { contracts: [{
+            contract_id: 7, contract_name: "BTC-USDC", price_decimals: 2, min_size_base: 0.001,
+            min_size_quote: 10, max_size_quote: 1000000, max_leverage: 20,
+            taker_fee_pct: 0.0005, price_slippage: 0.001, volume_24h_usd: 5000000,
+          }] } } });
+        }
+        if (name === "perps_list_positions") {
+          expect(payload.params?.arguments).toEqual({ contractId: 7 });
+          return Response.json({ jsonrpc: "2.0", id: payload.id, result: { structuredContent: { positions: [{
+            contract_id: 7, status: "open", value_base: 0.02, avg_entry_price: 50000,
+            margin_quote: 100, liquidation_price: 35000,
+          }] } } });
+        }
+      }
+      throw new Error("Unexpected Walt MCP request: " + JSON.stringify(payload));
+    });
+    const response = await call(e, "walt/position?market=BTC", "chave-teste");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      ok: true, market: "BTC", source: "walt-mcp", permission: "read-only",
+      position: { contractId: 7, avgEntryPrice: 50000, valueBase: 0.02, marginQuote: 100, liquidationPrice: 35000 },
+    });
+    expect(calls).toEqual(["perps_list_contracts", "perps_list_positions"]);
+  });
+
   it("routes demo history through the authenticated user-scoped Engine", async () => {
     const e = env();
     let requestedUrl = "";

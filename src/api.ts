@@ -50,6 +50,10 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
       }
     }
     switch (route) {
+      case "GET walt/account":
+        return waltAccountView(scopedEnv);
+      case "GET walt/position":
+        return waltPositionView(scopedEnv, url.searchParams.get("market") ?? "");
       case "GET demo":
         return demoAccountView(env, telegramUserId);
       case "GET demo/history":
@@ -111,6 +115,45 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
  * Enrich open DEMO positions with a server-observed mark and fee-aware PnL.
  * A missing quote is represented as unavailable; it never becomes a made-up zero.
  */
+/** Read-only lookup for one market; never enumerates every contract or places orders. */
+async function waltPositionView(env: Env, requestedMarket: string): Promise<Response> {
+  const market = requestedMarket.trim().toUpperCase();
+  if (!/^[A-Z0-9:_-]{2,32}$/.test(market)) return fail("Укажите корректный рынок.", 400);
+  const client = await connectWalt(env);
+  if (!client) return fail("Walt не подключён. Сначала выполните /connect в Telegram.", 409);
+  const contract = findContract(await client.contracts(), market);
+  if (!contract) return fail("Рынок не найден в аккаунте Walt.", 404);
+  const position = await client.openPosition(contract.contractId);
+  return json({
+    ok: true,
+    market,
+    position: position ? {
+      contractId: position.contractId,
+      avgEntryPrice: position.avgEntryPrice ?? null,
+      valueBase: position.valueBase ?? null,
+      marginQuote: position.marginQuote ?? null,
+      liquidationPrice: position.liquidationPrice ?? null,
+    } : null,
+    source: "walt-mcp",
+    permission: "read-only",
+  });
+}
+
+/** Read-only proof that the user's isolated Walt OAuth/MCP connection works. */
+async function waltAccountView(env: Env): Promise<Response> {
+  const client = await connectWalt(env);
+  if (!client) return fail("Walt не подключён. Сначала выполните /connect в Telegram.", 409);
+  const balanceUsd = await client.balanceUsd();
+  return json({
+    ok: true,
+    connected: true,
+    balanceUsd,
+    currency: "USDC",
+    source: "walt-mcp",
+    permission: "read-only",
+  });
+}
+
 async function demoAccountView(env: Env, userId: string): Promise<Response> {
   const response = await engineRequest(env, "/account?userId=" + encodeURIComponent(userId));
   if (!response.ok) return response;
