@@ -108,12 +108,12 @@ export class TradingEngine {
             market: position.symbol, side: position.side, price: Number(position.entryPrice) / 100_000_000, mode: "paper",
           }];
           if (row.close_json) {
-            const close = JSON.parse(row.close_json) as { reason?: string; executionPrice?: string; netPnlMicro?: string };
+            const close = JSON.parse(row.close_json) as { reason?: string; executionPrice?: string; netPnlMicro?: string; totalNetPnlMicro?: string };
             events.push({
               id: position.id + ":close", event: "close", at: row.updated_at,
               market: position.symbol, side: position.side, reason: close.reason,
               price: close.executionPrice ? (Number(close.executionPrice) / 100_000_000) : undefined,
-              pnl: close.netPnlMicro === undefined ? undefined : Number(close.netPnlMicro) / 1_000_000,
+              pnl: close.totalNetPnlMicro === undefined ? (close.netPnlMicro === undefined ? undefined : Number(close.netPnlMicro) / 1_000_000) : Number(close.totalNetPnlMicro) / 1_000_000,
               mode: "paper",
             });
           }
