@@ -18,6 +18,24 @@ try {
 }
 
 const $ = (sel) => document.querySelector(sel);
+
+const telegramBackButton = tg?.BackButton ?? null;
+let telegramBackAction = null;
+if (telegramBackButton) {
+  document.documentElement.classList.add('telegram-native-back');
+  telegramBackButton.onClick?.(() => {
+    const action = telegramBackAction;
+    telegramBackAction = null;
+    telegramBackButton.hide?.();
+    action?.();
+  });
+}
+function setTelegramBackAction(action) {
+  telegramBackAction = typeof action === 'function' ? action : null;
+  if (!telegramBackButton) return;
+  if (telegramBackAction) telegramBackButton.show?.();
+  else telegramBackButton.hide?.();
+}
 const fmt = (n, d = 2) => (n === null || n === undefined || Number.isNaN(+n) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: Math.min(d, 2) }));
 const usd = (n, d = 2) => (n === null || n === undefined || !Number.isFinite(+n) ? '—' : '$' + fmt(n, d));
 const signedPct = (n) => `${n >= 0 ? '↑+' : '↓'}${fmt(Math.abs(n), 2)}%`;
@@ -95,7 +113,7 @@ let showAssetGrid = false;
 let assetChartMode = 'candles';
 let lastQuoteUpdate = null;
 let topSort = 'up';
-let favoritesOnly = false;
+let activeMarketCategory = 'crypto';
 const FAVORITES_KEY = 'kripto-guru:favorites:v1';
 let favorites = new Set();
 try { favorites = new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]')); }
@@ -430,7 +448,7 @@ async function loadPairs() {
 
 function renderPairs() {
   const q = $('#q').value.trim().toUpperCase();
-  const list = contracts.filter((c) => (!q || c.market.includes(q)) && (!favoritesOnly || favorites.has(c.market)));
+  const list = ['crypto','futures'].includes(activeMarketCategory) ? contracts.filter((c) => !q || c.market.includes(q)) : [];
   $('#pairs').innerHTML = list.map((c) => {
     const favorite = favorites.has(c.market);
     const change = c.change24hPct === undefined ? '—' : pctText(c.change24hPct);
@@ -442,9 +460,55 @@ function renderPairs() {
   }).join('') || '<div class="empty-state card-empty">Ничего не найдено</div>';
   renderMarketVisuals(list);
 }
+function setMarketCategory(category) {
+  activeMarketCategory = category;
+  document.querySelectorAll('[data-market-category]').forEach((button) => button.classList.toggle('selected', button.dataset.marketCategory === category));
+  const isEquities = category === 'stocks' || category === 'funds';
+  const cryptoContent = $('#crypto-market-content');
+  const equitiesContent = $('#equities-market-content');
+  cryptoContent.classList.toggle('hidden', isEquities);
+  equitiesContent.classList.toggle('hidden', !isEquities);
+  cryptoContent.hidden = isEquities;
+  equitiesContent.hidden = !isEquities;
+  cryptoContent.style.display = isEquities ? 'none' : 'block';
+  equitiesContent.style.display = isEquities ? 'block' : 'none';
+  if (isEquities) {
+    document.querySelectorAll('[data-equity-kind]').forEach((button) => button.classList.toggle('selected', button.dataset.equityKind === category));
+    document.querySelectorAll('[data-equity-list]').forEach((list) => list.classList.toggle('hidden', list.dataset.equityList !== category));
+    $('#equities-title').textContent = category === 'stocks' ? 'Рынок США · Акции' : 'Рынок США · Фонды';
+  } else {
+    $('#pairs-title').textContent = category === 'futures' ? 'Фьючерсы' : 'Криптовалюты';
+    renderPairs();
+  }
+}
 $('#q').addEventListener('input', renderPairs);
-$('#category-favorites').addEventListener('click', () => { favoritesOnly = true; $('#category-favorites').classList.add('selected'); $('#category-crypto').classList.remove('selected'); renderPairs(); });
-$('#category-crypto').addEventListener('click', () => { favoritesOnly = false; $('#category-favorites').classList.remove('selected'); $('#category-crypto').classList.add('selected'); renderPairs(); });
+const tradeSearch = $('#trade-search');
+const tradeSearchToggle = $('#trade-search-toggle');
+const tradeSearchClose = $('#trade-search-close');
+function focusMarketSearch() {
+  if ($('#q') && !$('#q').hidden) $('#q').focus();
+  else tradeSearchToggle?.focus();
+}
+function setTradeSearchOpen(open) {
+  if (!tradeSearch) return;
+  tradeSearch.classList.toggle('is-expanded', open);
+  tradeSearchToggle.hidden = open;
+  $('#q').hidden = !open;
+  tradeSearchClose.hidden = !open;
+  tradeSearchToggle.setAttribute('aria-expanded', String(open));
+  if (open) setTimeout(() => $('#q').focus(), 0);
+  else {
+    $('#q').value = '';
+    renderPairs();
+  }
+}
+tradeSearchToggle?.addEventListener('click', () => setTradeSearchOpen(true));
+tradeSearchClose?.addEventListener('click', () => { setTradeSearchOpen(false); tradeSearchToggle?.focus(); });
+$('#q').addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') { setTradeSearchOpen(false); tradeSearchToggle?.focus(); }
+});
+document.querySelectorAll('[data-market-category]').forEach((button) => button.addEventListener('click', () => setMarketCategory(button.dataset.marketCategory)));
+document.querySelectorAll('[data-equity-kind]').forEach((button) => button.addEventListener('click', () => setMarketCategory(button.dataset.equityKind)));
 $('#pairs').addEventListener('click', (ev) => { const fav=ev.target.closest('[data-favorite]'); if(!fav)return; ev.stopPropagation(); const m=fav.dataset.favorite; favorites.has(m)?favorites.delete(m):favorites.add(m); saveFavorites(); renderPairs(); });
 $('#pairs').addEventListener('keydown', (ev) => { if((ev.key==='Enter'||ev.key===' ')&&ev.target.matches('.market-row')){ev.preventDefault();ev.target.click();} });
 document.querySelectorAll('[data-top-sort]').forEach((b) => b.addEventListener('click', () => { topSort=b.dataset.topSort; document.querySelectorAll('[data-top-sort]').forEach(x=>x.classList.toggle('selected',x===b)); renderMarketVisuals(contracts.filter(c=>!$('#q').value || c.market.includes($('#q').value.trim().toUpperCase()))); }));
@@ -465,6 +529,16 @@ $('#pairs').addEventListener('click', async (ev) => {
   selectedMarket = market;
   const box = $('#pair-detail');
   box.classList.remove('hidden');
+  setTelegramBackAction(() => {
+    const backControl = $('#asset-back') || $('#asset-back-error');
+    if (backControl) backControl.click();
+    else {
+      box.classList.add('hidden');
+      document.body.classList.remove('asset-open');
+      $('#asset-trade-bar')?.remove();
+    }
+    focusMarketSearch();
+  });
   box.innerHTML = '<div class="asset-loading"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>';
   box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   try {
@@ -476,7 +550,7 @@ $('#pairs').addEventListener('click', async (ev) => {
     const isFav = favorites.has(market);
     const funding = Number(c?.fundingRateHourly ?? 0) * 100;
     box.innerHTML =
-      '<div class="asset-topline"><button id="asset-back" class="asset-back secondary" type="button">' + icon('chevron') + 'Рынки</button><button id="asset-favorite" class="asset-favorite ' + (isFav ? 'is-favorite' : '') + '" type="button">' + (isFav ? '★ В избранном' : '☆ В избранное') + '</button></div>' +
+      '<div class="asset-topline"><button id="asset-back" class="asset-back secondary" type="button">' + icon('chevron') + 'Рынки</button><span class="asset-product-type" data-asset-product-type="future">Фьючерс</span><span class="asset-max-leverage" data-asset-max-leverage="' + Number(c?.maxLeverage || 1) + '">' + Number(c?.maxLeverage || 1) + '×</span><button id="asset-favorite" class="asset-favorite ' + (isFav ? 'is-favorite' : '') + '" type="button">' + (isFav ? '★ В избранном' : '☆ В избранное') + '</button></div>' +
       '<div class="asset-identity"><span class="asset-coin">' + esc(market.slice(0,1)) + '</span><div><h2>' + esc(assetName(market)) + '</h2><small>' + esc(market) + ' · Демо-рынок · Цена котировки</small></div></div>' +
       '<div id="asset-live-price" class="asset-detail-price">' + usd(price, moneyDecimals(price)) + '</div>' +
       '<div id="asset-live-change" class="asset-change ' + (change >= 0 ? 'up' : 'down') + '">' + pctText(change) + ' <span>за 24 часа</span></div>' +
@@ -504,7 +578,7 @@ $('#pairs').addEventListener('click', async (ev) => {
       tg?.HapticFeedback?.selectionChanged?.();
     });
     $('#asset-grid-toggle').addEventListener('click', () => { showAssetGrid = !showAssetGrid; $('#asset-grid-toggle').textContent = showAssetGrid ? 'Скрыть сетку' : 'Показать сетку'; loadChart(market, 'pair-chart', $('#pair-timeframes button.selected')?.dataset.interval || '15m'); });
-    $('#asset-back').addEventListener('click', () => { box.classList.add('hidden'); $('#q').focus(); });
+    $('#asset-back').addEventListener('click', () => { box.classList.add('hidden'); setTelegramBackAction(null); focusMarketSearch(); });
     $('#asset-favorite').addEventListener('click', () => {
       favorites.has(market) ? favorites.delete(market) : favorites.add(market);
       saveFavorites();
@@ -562,7 +636,7 @@ $('#pairs').addEventListener('click', async (ev) => {
     });
   } catch (error) {
     box.innerHTML = '<div class="empty-state"><b>Не удалось загрузить актив</b><small>' + esc(error.message) + '</small><button id="asset-back-error" class="secondary" type="button">Вернуться к рынкам</button></div>';
-    $('#asset-back-error').addEventListener('click', () => box.classList.add('hidden'));
+    $('#asset-back-error').addEventListener('click', () => { box.classList.add('hidden'); setTelegramBackAction(null); });
   }
 });
 
@@ -616,6 +690,7 @@ document.addEventListener('click', (event) => {
 });
 $('#home-see-all,#home-open-markets,#home-open-markets-sell').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
 $('#portfolio-trigger').addEventListener('click', () => document.querySelector('nav button[data-tab="painel"]').click());
+$('#wallet-open-futures').addEventListener('click', () => { setTab('pares'); setMarketCategory('futures'); });
 $('#notifications-trigger').addEventListener('click', () => tg?.showAlert?.('Уведомлений пока нет.'));
 $('#pos').addEventListener('click', async (event) => {
   if (event.target.closest('#empty-open-markets')) { setTab('pares'); return; }
