@@ -26,7 +26,8 @@ jobs:
 
   deploy:
     needs: test
-    if: github.ref == 'refs/heads/main'
+    # Production deployment is disabled until the owner explicitly re-authorizes it.
+    if: false
     runs-on: ubuntu-latest
     environment: TELEGRAM_BOT_TOKEN
     steps:
