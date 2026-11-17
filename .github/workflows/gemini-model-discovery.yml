@@ -1,0 +1,88 @@
+name: Gemini API model discovery
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gemini-model-discovery
+  cancel-in-progress: false
+
+jobs:
+  list-models:
+    name: Verify API key and list available models
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Query Gemini models endpoint
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "::error::Repository secret GEMINI_API_KEY is missing or empty."
+            exit 1
+          fi
+
+          node --input-type=module <<'NODE'
+          const apiKey = process.env.GEMINI_API_KEY;
+          const endpoint = "https://generativelanguage.googleapis.com/v1beta/models";
+          let pageToken = "";
+          const models = [];
+          let pages = 0;
+
+          try {
+            do {
+              const url = new URL(endpoint);
+              url.searchParams.set("pageSize", "100");
+              if (pageToken) url.searchParams.set("pageToken", pageToken);
+
+              const response = await fetch(url, {
+                headers: { "x-goog-api-key": apiKey }
+              });
+
+              const payload = await response.json().catch(() => ({}));
+              if (!response.ok) {
+                const message = payload?.error?.message || "Gemini API returned an error without a message.";
+                console.error(`Gemini API error: HTTP ${response.status}: ${message}`);
+                process.exit(1);
+              }
+
+              for (const model of payload.models || []) {
+                const methods = model.supportedGenerationMethods || [];
+                if (methods.includes("generateContent")) {
+                  models.push({
+                    name: model.name,
+                    displayName: model.displayName || "",
+                    inputTokenLimit: model.inputTokenLimit ?? null,
+                    outputTokenLimit: model.outputTokenLimit ?? null
+                  });
+                }
+              }
+
+              pageToken = payload.nextPageToken || "";
+              pages += 1;
+            } while (pageToken && pages < 5);
+
+            models.sort((a, b) => a.name.localeCompare(b.name));
+            console.log(`Gemini API authentication: SUCCESS`);
+            console.log(`Pages checked: ${pages}`);
+            console.log(`Models supporting generateContent: ${models.length}`);
+            for (const model of models) {
+              console.log([
+                model.name,
+                model.displayName,
+                `input=${model.inputTokenLimit ?? "unknown"}`,
+                `output=${model.outputTokenLimit ?? "unknown"}`
+              ].join(" | "));
+            }
+            if (pageToken) console.log("Note: model listing reached the 5-page safety limit.");
+            console.log("This check lists models only; it does not send a generation request or verify per-model quota.");
+          } catch (error) {
+            console.error("Gemini API request failed:", error?.message || "Unknown network error");
+            process.exit(1);
+          }
+          NODE
