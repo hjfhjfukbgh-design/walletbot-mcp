@@ -34,6 +34,7 @@ const server = http.createServer((req,res)=>{
   });
   if (url.pathname === "/api/contracts") return send(res,{ok:true,contracts:markets});
   if (url.pathname === "/api/chart") return send(res,{ok:true,source:"preview",interval:url.searchParams.get("interval") || "15m",candles});
+  if (url.pathname === "/api/demo/history") return send(res,{ok:true,trades:[],equity:[[now-86400000,1000],[now-43200000,1005],[now,1000]]});
   if (url.pathname === "/api/trades") return send(res,{ok:true,trades:[],equity:[]});
   if (url.pathname === "/api/price") {
     const item=markets.find(x=>x.market===url.searchParams.get("market")) || markets[0];

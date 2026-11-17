@@ -67,19 +67,38 @@ async function call(name, input = {}, { timeoutMs = 12_000, signal: externalSign
 }
 
 let contractsPromise = null;
+let contractsAbortController = null;
 let contractsGeneration = 0;
 async function getContracts({ force = false } = {}) {
-  if (contractsPromise) return contractsPromise;
+  if (!force && contractsPromise) return contractsPromise;
   if (!force && contracts.length) return { contracts };
+  if (force) contractsAbortController?.abort();
+  const controller = new AbortController();
+  contractsAbortController = controller;
   const generation = ++contractsGeneration;
-  const request = call('contracts').then(result => {
-    const list = Array.isArray(result.contracts) ? result.contracts : [];
-    if (generation === contractsGeneration) contracts = list;
-    return { ...result, contracts: list };
-  });
+  const request = (async () => {
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const result = await call('contracts', {}, { timeoutMs: 8_000, signal: controller.signal });
+        const list = Array.isArray(result.contracts) ? result.contracts : [];
+        if (!list.length) throw new Error('Публичный список рынков временно пуст.');
+        if (generation === contractsGeneration) contracts = list;
+        return { ...result, contracts: list };
+      } catch (error) {
+        if (generation !== contractsGeneration || controller.signal.aborted) throw error;
+        lastError = error;
+        if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 300 * (2 ** attempt)));
+      }
+    }
+    throw lastError;
+  })();
   contractsPromise = request;
   try { return await request; }
-  finally { if (contractsPromise === request) contractsPromise = null; }
+  finally {
+    if (contractsPromise === request) contractsPromise = null;
+    if (contractsAbortController === controller) contractsAbortController = null;
+  }
 }
 
 function showError(err) {
@@ -96,13 +115,15 @@ let assetChartMode = 'candles';
 let lastQuoteUpdate = null;
 let topSort = 'up';
 let favoritesOnly = false;
+function storageGet(key) { try { return window.localStorage.getItem(key); } catch { return null; } }
+function storageSet(key, value) { try { window.localStorage.setItem(key, value); return true; } catch { return false; } }
+function storageRemove(key) { try { window.localStorage.removeItem(key); return true; } catch { return false; } }
 const FAVORITES_KEY = 'kripto-guru:favorites:v1';
 let favorites = new Set();
-try { favorites = new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]')); }
+try { favorites = new Set(JSON.parse(storageGet(FAVORITES_KEY) || '[]')); }
 catch (error) { console.warn('[Kripto Guru] Не удалось прочитать избранное из localStorage:', error); favorites = new Set(); }
-function saveFavorites() { try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites])); } catch (error) { console.warn('[Kripto Guru] Не удалось сохранить избранное:', error); } }
-try { if (localStorage.getItem(FAVORITES_KEY) === null) { favorites = new Set(["BTC", "ETH", "SOL"]); saveFavorites(); } }
-catch (error) { console.warn('[Kripto Guru] localStorage недоступен:', error); }
+function saveFavorites() { if (!storageSet(FAVORITES_KEY, JSON.stringify([...favorites]))) console.warn('[Kripto Guru] Не удалось сохранить избранное: localStorage недоступен.'); }
+if (storageGet(FAVORITES_KEY) === null) { favorites = new Set(["BTC", "ETH", "SOL"]); saveFavorites(); }
 
 // ---------- menu do perfil e modo ---------- 
 const profileTrigger = $('#profile-trigger');
@@ -280,17 +301,44 @@ function renderState() {
   $('#stats').classList.add('hidden');
 }
 
+const chartRequestIds = new Map();
 async function loadChart(market, target = 'chart', interval = '15m') {
+  const requestId = (chartRequestIds.get(target) || 0) + 1;
+  chartRequestIds.set(target, requestId);
+  const svg = document.getElementById(target);
+  const source = target === 'chart' ? $('#chart-src') : target === 'pair-chart' ? $('#asset-chart-source') : document.querySelector(`[data-chart-source="${target}"]`);
+  if (source) source.textContent = 'Загрузка свечей…';
+  if (svg) svg.innerHTML = '<text x="10" y="20" fill="currentColor" font-size="12">Загрузка…</text>';
   try {
-    const c = await call('chart', { market, interval });
-    const source = target === 'chart' ? $('#chart-src') : document.querySelector(`[data-chart-source="${target}"]`);
+    const result = await call('chart', { market, interval }, { timeoutMs: 10_000 });
+    if (chartRequestIds.get(target) !== requestId) return;
+    if (result.interval !== interval || !Array.isArray(result.candles) || !result.candles.length) {
+      throw new Error(`Нет свечных данных для ${market} на таймфрейме ${interval}.`);
+    }
     if (source) source.textContent = `Рыночные свечи · ${{'1m':'1м','5m':'5м','15m':'15м','1h':'1Ч','4h':'4Ч','1d':'1Д'}[interval] || '15м'}`;
-    drawChart(c.candles, target, market);
-  } catch (e) {
-    const svg = document.getElementById(target);
-    if (svg) svg.innerHTML = `<text x="10" y="20" fill="currentColor" font-size="12">${esc(e.message)}</text>`;
+    drawChart(result.candles, target, market);
+  } catch (error) {
+    if (chartRequestIds.get(target) !== requestId) return;
+    if (source) {
+      source.textContent = 'Свечи временно недоступны ';
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.textContent = 'Повторить';
+      retry.dataset.chartRetry = '1';
+      retry.dataset.chartTarget = target;
+      retry.dataset.chartMarket = market;
+      retry.dataset.chartInterval = interval;
+      source.append(retry);
+    }
+    if (svg) svg.innerHTML = `<text x="10" y="20" fill="currentColor" font-size="12">${esc(error.message)}</text>`;
   }
 }
+
+document.addEventListener('click', (event) => {
+  const retry = event.target.closest('[data-chart-retry]');
+  if (!retry) return;
+  loadChart(retry.dataset.chartMarket, retry.dataset.chartTarget, retry.dataset.chartInterval);
+});
 
 function drawChart(candles, target = 'chart', market = '') {
   const svg = document.getElementById(target);
@@ -664,34 +712,35 @@ document.querySelectorAll('[data-preset]').forEach((button) => button.addEventLi
 // ---------- histórico ----------
 async function loadHistory() {
   try {
-    const h = await call('trades');
-    drawEquity(h.equity);
-    $('#trades').innerHTML = h.trades.length
-      ? `<table><tr><th>Время</th><th>Событие</th><th>Цена</th><th>Результат</th></tr>${h.trades
-          .map((t) => {
-            const when = new Date(t.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-            const ev =
-              t.event === 'open'
-                ? `<span class="ev ev-open">${icon('open')}${t.side === 'short' ? 'SHORT' : t.side === 'long' ? 'LONG' : 'Покупка'} ${esc(t.market)}</span>`
-                : t.reason === 'tp'
-                  ? `<span class="ev up">${icon('tp')}TP</span>`
-                  : t.reason === 'sl'
-                    ? `<span class="ev down">${icon('sl')}SL</span>`
-                    : `<span class="ev">${icon('hand')}Вручную</span>`;
-            const pnl = t.pnl === undefined ? '' : `<span class="${t.pnl >= 0 ? 'up' : 'down'}">${usd(t.pnl, 4)}</span>`;
-            return `<tr><td>${when}${t.mode === 'paper' ? ' <small>(демо)</small>' : ''}</td><td>${ev}</td><td>${usd(t.price, moneyDecimals(t.price))}</td><td>${pnl}</td></tr>`;
+    const history = await call('demo/history');
+    drawEquity(history.equity || []);
+    const rows = history.trades || [];
+    $('#trades').innerHTML = rows.length
+      ? `<table><tr><th>Время</th><th>Событие</th><th>Цена</th><th>Результат</th></tr>${rows
+          .map((trade) => {
+            const when = new Date(trade.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            const side = trade.side === 'short' ? 'SHORT' : 'LONG';
+            const ev = trade.event === 'open'
+              ? `<span class="ev ev-open">${icon('open')}${side} ${esc(trade.market)} · открытие</span>`
+              : trade.reason === 'tp'
+                ? `<span class="ev up">${icon('tp')}TP · ${side} ${esc(trade.market)}</span>`
+                : trade.reason === 'sl' || trade.reason === 'liquidation'
+                  ? `<span class="ev down">${icon('sl')}${trade.reason === 'sl' ? 'SL' : 'Ликвидация'} · ${side} ${esc(trade.market)}</span>`
+                  : `<span class="ev">${icon('hand')}${side} ${esc(trade.market)} · закрытие</span>`;
+            const pnl = trade.pnl === undefined ? '' : `<span class="${trade.pnl >= 0 ? 'up' : 'down'}">${usd(trade.pnl, 4)}</span>`;
+            return `<tr><td>${when} <small>(демо)</small></td><td>${ev}</td><td>${trade.price === undefined ? '—' : usd(trade.price, moneyDecimals(trade.price))}</td><td>${pnl}</td></tr>`;
           })
           .join('')}</table>`
       : 'Сделок пока нет.';
-  } catch (e) {
-    $('#trades').textContent = e.message;
+  } catch (error) {
+    $('#trades').textContent = error.message;
   }
 }
 
 function drawEquity(points) {
   const svg = $('#equity');
   if (!points || points.length < 2) {
-    svg.innerHTML = '<text x="10" y="20" fill="currentColor" font-size="12">Кривая капитала появится после первых сделок.</text>';
+    svg.innerHTML = '<text x="10" y="20" fill="currentColor" font-size="12">Историческая кривая капитала Engine DEMO пока недоступна.</text>';
     return;
   }
   const W = 360, H = 140, P = 6;
@@ -809,7 +858,7 @@ function renderOnboarding() {
 }
 function closeOnboarding() {
   $('#onboarding').classList.add('hidden');
-  try { localStorage.setItem('kripto-guru:onboarding:v1', 'done'); } catch {}
+  storageSet('kripto-guru:onboarding:v1', 'done');
 }
 $('#onboarding-next').addEventListener('click', () => {
   if (onboardingIndex < 2) { onboardingIndex++; renderOnboarding(); }
@@ -819,7 +868,7 @@ $('#onboarding-skip').addEventListener('click', closeOnboarding);
 $('#education-banner').addEventListener('click', showOnboarding);
 $('#repeat-onboarding').addEventListener('click', showOnboarding);
 $('#onboarding').addEventListener('click', (event) => { if (event.target === $('#onboarding')) closeOnboarding(); });
-try { if (!localStorage.getItem('kripto-guru:onboarding:v1')) showOnboarding(); } catch {}
+if (!storageGet('kripto-guru:onboarding:v1')) showOnboarding();
 
 
 if (telegramInitError) showError(new Error(telegramInitError));

@@ -29,7 +29,12 @@
     const qty=BigInt(position.qtyUnits||"0");
     const current=BigInt(Math.round(price*100_000_000));
     const delta=position.side==="long" ? current-BigInt(position.entryPrice) : BigInt(position.entryPrice)-current;
-    const pnl=Number(qty*delta*1_000_000n/10_000_000_000_000_000n)/1_000_000;
+    const scale=10_000_000_000_000_000n;
+    const grossMicro=qty*delta*1_000_000n/scale;
+    const exitNotionalMicro=qty*current*1_000_000n/scale;
+    const exitFeeMicro=exitNotionalMicro*BigInt(position.feePpm||"0")/1_000_000n;
+    const entryFeeMicro=BigInt(position.entryFeeMicro||"0");
+    const pnl=Number(grossMicro-entryFeeMicro-exitFeeMicro)/1_000_000;
     const margin=fromMoneyUnits(position.marginMicro);
     const card=document.createElement("div");
     card.className="asset-existing-position";
@@ -50,6 +55,23 @@
     setTimeout(()=>window.scrollTo(0,0),0);
 
     const top=box.querySelector(".asset-topline");
+    const contract=contractFor(market);
+    if(top){
+      if(!$v("[data-asset-product-type]",top)){
+        const productType=document.createElement("span");
+        productType.className="asset-product-type";
+        productType.dataset.assetProductType="future";
+        productType.textContent="Фьючерс";
+        top.append(productType);
+      }
+      if(!$v("[data-asset-max-leverage]",top)){
+        const leverage=document.createElement("span");
+        leverage.className="asset-max-leverage";
+        leverage.dataset.assetMaxLeverage=String(Math.max(1,Number(contract?.maxLeverage||1)));
+        leverage.textContent=leverage.dataset.assetMaxLeverage+"×";
+        top.append(leverage);
+      }
+    }
     if(top && !$v("#asset-connection",top)){
       const connection=document.createElement("span");
       connection.id="asset-connection";
@@ -67,7 +89,6 @@
     box.querySelectorAll(".asset-tech .row").forEach((row)=>{
       if(/Минимальная маржа|Рекомендуемый диапазон/.test(row.textContent||"")) row.remove();
     });
-    const contract=contractFor(market);
     const openInterest=contract?.openInterestUsd ?? contract?.openInterest;
     if(openInterest!==undefined && Number.isFinite(Number(openInterest))){
       const row=document.createElement("div");
@@ -204,13 +225,13 @@
       const value=Number(input.value.replace(",","."));
       s.margin=Number.isFinite(value)?value:0;
       $v("#ticket-volume",ticketOverlay).textContent="Объём: $"+money(s.margin*s.leverage);
-      const required=s.margin*(1+s.leverage*.00035);
+      const required=s.margin*(1+s.leverage*s.feePct);
       button.disabled=!(s.margin>=1 && required<=available);
       button.classList.toggle("disabled",button.disabled);
     };
     input.addEventListener("input",update);
     update();
-    $v("#ticket-max",ticketOverlay).addEventListener("click",()=>{input.value=money(available/(1+s.leverage*.00035),2).replace(/\s/g,"").replace(",",".");update();});
+    $v("#ticket-max",ticketOverlay).addEventListener("click",()=>{input.value=money(available/(1+s.leverage*s.feePct),2).replace(/\s/g,"").replace(",",".");update();});
     $v("#ticket-leverage",ticketOverlay).addEventListener("click",renderLeverageSheet);
     $v("#ticket-autoclose",ticketOverlay).addEventListener("click",renderAutoCloseSheet);
     button.addEventListener("click",()=>{try{validateStops(s);renderConfirmSheet();}catch(error){showTicketToast(error.message);}});
@@ -256,10 +277,15 @@
       try {
         const tp=closePrice(s.tpValue,s.closeMode,"tp",s.side,s.price,notional);
         const sl=closePrice(s.slValue,s.closeMode,"sl",s.side,s.price,notional);
-        const tpPnl=tp===null?null:notional*Math.abs(tp-s.price)/s.price;
-        const slPnl=sl===null?null:-notional*Math.abs(sl-s.price)/s.price;
-        $v("#ticket-tp-result",ticketOverlay).textContent=tpPnl===null?"—":"+$"+money(tpPnl);
-        $v("#ticket-sl-result",ticketOverlay).textContent=slPnl===null?"—":"−$"+money(Math.abs(slPnl));
+        const entryFee=notional*s.feePct;
+        const tpGross=tp===null?null:notional*Math.abs(tp-s.price)/s.price;
+        const slGross=sl===null?null:-notional*Math.abs(sl-s.price)/s.price;
+        const tpExitFee=tp===null?0:notional*(tp/s.price)*s.feePct;
+        const slExitFee=sl===null?0:notional*(sl/s.price)*s.feePct;
+        const tpPnl=tpGross===null?null:tpGross-entryFee-tpExitFee;
+        const slPnl=slGross===null?null:slGross-entryFee-slExitFee;
+        $v("#ticket-tp-result",ticketOverlay).textContent=tpPnl===null?"—":(tpPnl>=0?"+$":"−$")+money(Math.abs(tpPnl));
+        $v("#ticket-sl-result",ticketOverlay).textContent=slPnl===null?"—":(slPnl>=0?"+$":"−$")+money(Math.abs(slPnl));
         $v("#close-validation",ticketOverlay).textContent="Стоп-лосс должен быть строго между входом и ликвидацией.";
         $v("#close-validation",ticketOverlay).classList.remove("down");
       } catch(error) {
@@ -279,7 +305,7 @@
     const {liq,tp,sl}=validateStops(s);
     const marginMicro=toUnits(s.marginText,6);
     const notional=s.margin*s.leverage;
-    const fee=notional*.00035;
+    const fee=notional*s.feePct;
     mountSheet(`<div class="sheet-grabber"></div><div class="sheet-header"><h2>Проверка сделки</h2><button class="sheet-close" type="button">×</button></div>
       <div class="confirm-side ${s.side}">${sideName(s.side)} · ${safe(s.market)}</div>
       <div class="confirm-price">$${priceText(s.price)}<small>Цена котировки</small></div>
@@ -324,7 +350,7 @@
     const c=contractFor(market)||options.contract||{};
     const available=fromMoneyUnits(account()?.balanceMicro||"0");
     const maxLeverage=Math.max(1,Math.min(Number(options.maxLeverage||3),Number(c.maxLeverage||options.maxLeverage||3)));
-    ticketState={market,side,price:Number(options.price||c.price),margin:0,marginText:"",leverage:1,maxLeverage,tpValue:"",slValue:"",closeMode:"price"};
+    ticketState={market,side,price:Number(options.price||c.price),feePct:Math.max(0,Number(c.takerFeePct||0)),margin:0,marginText:"",leverage:1,maxLeverage,tpValue:"",slValue:"",closeMode:"price"};
     renderTicketMain();
     if(quoteTimer) clearInterval(quoteTimer);
     quoteTimer=setInterval(async()=>{

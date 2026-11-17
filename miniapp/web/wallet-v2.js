@@ -8,7 +8,7 @@
   let account = null;
   let lastRenderKey = "";
   let recent = [];
-  try { recent = JSON.parse(localStorage.getItem("kg:recent:v1") || "[]"); } catch {}
+  try { recent = JSON.parse(window.localStorage.getItem("kg:recent:v1") || "[]"); } catch {}
   const authHeaders = () => ({ Authorization: `tma ${window.Telegram?.WebApp?.initData || ""}` });
 
   async function demoRequest(path, options = {}) {
@@ -39,7 +39,12 @@
     const entry = BigInt(position.entryPrice);
     const current = toPriceUnits(marketPrice);
     const delta = position.side === "long" ? current - entry : entry - current;
-    return Number(qty * delta * 1_000_000n / 10_000_000_000_000_000n) / 1_000_000;
+    const scale = 10_000_000_000_000_000n;
+    const grossMicro = qty * delta * 1_000_000n / scale;
+    const exitNotionalMicro = qty * current * 1_000_000n / scale;
+    const exitFeeMicro = exitNotionalMicro * BigInt(position.feePpm || "0") / 1_000_000n;
+    const entryFeeMicro = BigInt(position.entryFeeMicro || "0");
+    return Number(grossMicro - entryFeeMicro - exitFeeMicro) / 1_000_000;
   }
   function fmtPnl(value) {
     const n = Number(value || 0);
@@ -149,21 +154,28 @@
     renderFavorites();
   }
 
+  let walletRequest = null;
   async function loadWallet() {
-    try {
-      const next = await demoRequest("/api/demo");
-      const key = JSON.stringify({ balanceMicro:next.balanceMicro, positions:(next.positions || []).map((p) => [p.id,p.status,p.symbol,p.side,p.leverage,p.entryPrice,p.qtyUnits,p.marginMicro,p.liquidationPrice,p.takeProfitPrice,p.stopLossPrice]) });
-      account = next;
-      if (key !== lastRenderKey) {
-        renderWallet();
-        lastRenderKey = key;
-      } else if (!$ui("#wallet-favorites .favorite-card") && (typeof contracts !== "undefined" && contracts.length)) {
-        renderFavorites();
+    if (walletRequest) return walletRequest;
+    walletRequest = (async () => {
+      try {
+        const next = await demoRequest("/api/demo");
+        const key = JSON.stringify({ balanceMicro:next.balanceMicro, positions:(next.positions || []).map((p) => [p.id,p.status,p.symbol,p.side,p.leverage,p.entryPrice,p.qtyUnits,p.marginMicro,p.liquidationPrice,p.takeProfitPrice,p.stopLossPrice]) });
+        account = next;
+        if (key !== lastRenderKey) {
+          renderWallet();
+          lastRenderKey = key;
+        } else if (!$ui("#wallet-favorites .favorite-card") && (typeof contracts !== "undefined" && contracts.length)) {
+          renderFavorites();
+        }
+      } catch (error) {
+        const target = $ui("#engine-positions");
+        if (target && !account) target.innerHTML = `<div class="empty-wallet"><b>Не удалось загрузить демо-счёт</b><small>${escapeHtml(error.message)}</small><button class="secondary-button" id="wallet-retry" type="button">Повторить</button></div>`;
+        else console.warn("[Kripto Guru] Не удалось обновить демо-счёт:", error);
       }
-    } catch (error) {
-      const target = $ui("#engine-positions");
-      if (target && !account) target.innerHTML = `<div class="empty-wallet"><b>Не удалось загрузить демо-счёт</b><small>${escapeHtml(error.message)}</small><button class="secondary-button" id="wallet-retry" type="button">Повторить</button></div>`;
-    }
+    })();
+    try { await walletRequest; }
+    finally { walletRequest = null; }
   }
 
   function goToTrade(market) {
@@ -194,7 +206,7 @@
   $ui("#engine-positions")?.addEventListener("click", (event) => { if (event.target.closest("#empty-open-markets")) goToTrade(); });
   $ui("#wallet-add-demo")?.addEventListener("click", () => window.Telegram?.WebApp?.showAlert?.("Пополнение виртуального счёта будет добавлено отдельной функцией. Реальные средства не используются."));
   $ui("#settings-reset-demo")?.addEventListener("click", () => window.Telegram?.WebApp?.showAlert?.("Сброс демо-счёта пока не подключён к Engine. Баланс и история не изменены."));
-  $ui("#recent-clear")?.addEventListener("click", () => { recent = []; localStorage.removeItem("kg:recent:v1"); renderRecent(); });
+  $ui("#recent-clear")?.addEventListener("click", () => { recent = []; try { window.localStorage.removeItem("kg:recent:v1"); } catch {} renderRecent(); });
   $ui("#category-futures")?.addEventListener("click", () => {
     document.querySelectorAll(".category-tile").forEach((item) => item.classList.toggle("selected", item.id === "category-futures"));
     if (typeof favoritesOnly !== "undefined") favoritesOnly = false;
