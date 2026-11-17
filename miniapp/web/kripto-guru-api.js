@@ -2,6 +2,11 @@
  * Load this file before the visual UI bundle. All order authority remains server-side.
  */
 (() => {
+  // Preserve host-provided adapters used by the visual preview harness.
+  if (window.KriptoGuruAPI) {
+    window.dispatchEvent(new Event("kripto-guru-api-ready"));
+    return;
+  }
   const API_VERSION = "1.0.0";
   const MICRO = 1_000_000n;
   const PRICE_SCALE = 100_000_000n;
