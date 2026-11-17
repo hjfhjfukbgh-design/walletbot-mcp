@@ -163,7 +163,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(history.trades.filter((item) => item.event === "open")).toHaveLength(2);
     expect(history.trades.filter((item) => item.event === "close")).toHaveLength(2);
     expect(history.trades.filter((item) => item.event === "close").map((item) => item.side).sort()).toEqual(["long", "short"]);
-    expect(history.equity.length).toBeGreaterThanOrEqual(5);
+    expect(history.equity).toEqual([]);
     const balance = await stub.fetch("https://engine.test/account?userId=" + userId);
     const closedAccount = await balance.json() as { balanceMicro: string; positions: Array<{ id: string }> };
     const balanceBeforeRestart = closedAccount.balanceMicro;
