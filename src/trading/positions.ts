@@ -43,6 +43,8 @@ export interface CloseResult {
   grossPnlMicro: bigint;
   exitFeeMicro: bigint;
   netPnlMicro: bigint;
+  /** Total position PnL after both entry and exit fees; balanceDelta excludes entry fee because it was charged at open. */
+  totalNetPnlMicro: bigint;
   releasedMarginMicro: bigint;
   balanceDeltaMicro: bigint;
 }
@@ -137,6 +139,7 @@ export function closePosition(position: Position, trigger: Trigger): CloseResult
   const closed: Position = { ...position, status: "closed" };
   return {
     position: closed, reason: trigger.reason, quotePrice: trigger.quotePrice, executionPrice: trigger.executionPrice,
-    grossPnlMicro, exitFeeMicro, netPnlMicro, releasedMarginMicro, balanceDeltaMicro: releasedMarginMicro,
+    grossPnlMicro, exitFeeMicro, netPnlMicro, totalNetPnlMicro: netPnlMicro - position.entryFeeMicro,
+    releasedMarginMicro, balanceDeltaMicro: releasedMarginMicro,
   };
 }
