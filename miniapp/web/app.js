@@ -690,6 +690,7 @@ document.addEventListener('click', (event) => {
 });
 $('#home-see-all,#home-open-markets,#home-open-markets-sell').addEventListener('click', () => document.querySelector('nav button[data-tab="pares"]').click());
 $('#portfolio-trigger').addEventListener('click', () => document.querySelector('nav button[data-tab="painel"]').click());
+$('#wallet-open-futures').addEventListener('click', () => { setTab('pares'); setMarketCategory('futures'); });
 $('#notifications-trigger').addEventListener('click', () => tg?.showAlert?.('Уведомлений пока нет.'));
 $('#pos').addEventListener('click', async (event) => {
   if (event.target.closest('#empty-open-markets')) { setTab('pares'); return; }
