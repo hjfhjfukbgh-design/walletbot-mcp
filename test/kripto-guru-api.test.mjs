@@ -105,7 +105,7 @@ describe("window.KriptoGuruAPI contract", () => {
     const api = loadApi(fetchMock);
     const result = await api.history.list();
     expect(result.events[0]).toMatchObject({
-      event: "close", timestamp: 1234, symbol: "BTC", side: "short", netPnlUsd: 12.3456, mode: "demo",
+      event: "close", timestamp: "01.01.1970, 00:00:01", symbol: "BTC", side: "short", netPnlUsd: 12.3456, mode: "demo",
     });
     expect(result.equity).toEqual([{ timestamp: 1000, balanceUsd: 1000 }, { timestamp: 1234, balanceUsd: 1012.3456 }]);
   });
