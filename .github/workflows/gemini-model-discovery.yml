@@ -1,6 +1,9 @@
 name: Gemini API model discovery
 
 on:
+  push:
+    branches:
+      - team/gemini-model-discovery-20261117
   workflow_dispatch:
 
 permissions:
