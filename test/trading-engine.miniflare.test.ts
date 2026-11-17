@@ -162,7 +162,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       userId, mode: "demo", symbol: "BTC", side: "long",
       marginMicro: (100n * U).toString(), leverage: "2",
       feePpm: "350", slippagePpm: "1000",
-      maxOrderBps: "10000", maxTotalExposureBps: "10000",
+      maxOrderBps: "10000", maxTotalExposureBps: "10000", maxDailyLossBps: "500",
     });
     expect(opened.body.ok).toBe(true);
     const id = opened.body.position.id as string;
