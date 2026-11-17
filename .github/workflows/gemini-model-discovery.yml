@@ -1,4 +1,5 @@
 name: Gemini API model discovery
+# One-time verification rerun after repository secret was corrected.
 
 on:
   push:
