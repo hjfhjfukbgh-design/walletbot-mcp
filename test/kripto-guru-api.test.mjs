@@ -19,10 +19,10 @@ describe("window.KriptoGuruAPI contract", () => {
     const fetchMock = vi.fn(async (input, init) => {
       expect(String(input)).toBe("/api/demo");
       expect(init.headers).toMatchObject({ Authorization: "tma signed-telegram-init-data" });
-      return json({ ok: true, balanceMicro: "1255000000", positions: [{
+      return json({ ok: true, balanceMicro: "1255500000", positions: [{
         id: "p1", symbol: "BTC", side: "long", status: "open", leverage: "3",
         marginMicro: "100000000", entryNotionalMicro: "300000000",
-        entryPrice: "5000000000000", qtyUnits: "6000", entryFeeMicro: "105000",
+        entryPrice: "5000000000000", qtyUnits: "600000", entryFeeMicro: "105000",
         liquidationPrice: "3400000000000", takeProfitPrice: null, stopLossPrice: null,
         markPriceUsd: 51000, unrealizedGrossPnlMicro: "6000000", estimatedExitFeeMicro: "107100", estimatedNetPnlMicro: "5787900", markObservedAt: 123456,
       }] });
