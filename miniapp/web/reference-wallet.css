@@ -157,3 +157,10 @@ input,select,textarea{border:1px solid #e7e8ee!important;border-radius:12px!impo
 .asset-tech .row b{font-size:11px!important;color:#282a33!important}
 #asset-trade-bar{display:grid!important}
 body.asset-open .bottom-nav{display:none!important}
+
+
+/* Reference proportions: compact three-card favorites row and tighter wallet rows. */
+.currency-card{min-height:66px!important;padding:10px 14px!important}
+.favorite-card{flex:0 0 118px!important;min-width:118px!important;min-height:124px!important;padding:11px!important}
+#tab-painel .asset-line{min-height:52px!important;padding:7px 0!important}
+#tab-painel .asset-line .coin-avatar{width:32px!important;height:32px!important;flex-basis:32px!important}
