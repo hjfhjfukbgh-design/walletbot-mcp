@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="/style.css?v=20261116-2215" />
   <link rel="stylesheet" href="/design-system.css?v=20261117-asset-parent-fix" />
   <link rel="stylesheet" href="/visual-pass.css?v=20261116-visual-2" />
-  <link rel="stylesheet" href="/reference-wallet.css?v=20261117-reference-6" />
+  <link rel="stylesheet" href="/reference-wallet.css?v=20261117-reference-7" />
 </head>
 <body>
   <header class="topbar">
@@ -48,7 +48,26 @@
 
       <div class="section-heading"><h2>Акции и фонды</h2><span class="section-muted">Информационный раздел</span></div>
       <div id="wallet-stocks-list" class="wallet-asset-list">
-        <div class="asset-line"><span class="coin-avatar">A</span><span><b>Apple</b><small>Акции · недоступно в DEMO</small></span><strong>—</strong></div>
+        <div class="asset-line"><span class="coin-avatar">A</span><span><b>Apple</b><small>Акции · котировка недоступна</small></span><strong>—</strong></div>
+      </div>
+
+      <div class="section-heading"><h2>Аккаунты ИИ-агента</h2><span class="section-muted">Информация</span></div>
+      <div class="wallet-asset-list">
+        <div class="asset-line"><span class="coin-avatar agent-avatar">◎</span><span><b>Агент Grok</b><small>Подключение пока недоступно</small></span><strong>—</strong></div>
+      </div>
+
+      <div class="section-heading"><h2>Попробуйте</h2></div>
+      <div class="wallet-discover-list">
+        <div class="wallet-discover-card unavailable" aria-disabled="true">
+          <span class="discover-icon agent-discover">◎</span>
+          <span class="discover-copy"><b>Создайте аккаунт ИИ-агента</b><small>Подключение появится позже</small></span>
+          <span class="discover-arrow">›</span>
+        </div>
+        <button id="wallet-open-futures" class="wallet-discover-card" type="button">
+          <span class="discover-icon futures-discover">↗</span>
+          <span class="discover-copy"><b>Бессрочные фьючерсы</b><small>Откройте демо-рынок и изучите инструменты</small></span>
+          <span class="discover-arrow">›</span>
+        </button>
       </div>
 
       <div id="alert" class="alert hidden"></div>
@@ -179,6 +198,6 @@
     <button data-tab="ctrl"><i data-icon="gift"></i><span>Бонусы</span></button>
   </nav>
 
-  <script src="/icons.js?v=20261116-2215"></script><script src="/app.js?v=20261117-search-4"></script><script src="/wallet-v2.js?v=20261116-2215"></script><script src="/trading-v2.js?v=20261116-2215"></script>
+  <script src="/icons.js?v=20261116-2215"></script><script src="/app.js?v=20261117-search-5"></script><script src="/wallet-v2.js?v=20261116-2215"></script><script src="/trading-v2.js?v=20261116-2215"></script>
 </body>
 </html>
