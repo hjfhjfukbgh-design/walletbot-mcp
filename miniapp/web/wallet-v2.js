@@ -8,7 +8,7 @@
   let account = null;
   let lastRenderKey = "";
   let recent = [];
-  try { recent = JSON.parse(localStorage.getItem("kg:recent:v1") || "[]"); } catch {}
+  try { recent = JSON.parse(window.localStorage.getItem("kg:recent:v1") || "[]"); } catch {}
   const authHeaders = () => ({ Authorization: `tma ${window.Telegram?.WebApp?.initData || ""}` });
 
   async function demoRequest(path, options = {}) {
@@ -194,7 +194,7 @@
   $ui("#engine-positions")?.addEventListener("click", (event) => { if (event.target.closest("#empty-open-markets")) goToTrade(); });
   $ui("#wallet-add-demo")?.addEventListener("click", () => window.Telegram?.WebApp?.showAlert?.("Пополнение виртуального счёта будет добавлено отдельной функцией. Реальные средства не используются."));
   $ui("#settings-reset-demo")?.addEventListener("click", () => window.Telegram?.WebApp?.showAlert?.("Сброс демо-счёта пока не подключён к Engine. Баланс и история не изменены."));
-  $ui("#recent-clear")?.addEventListener("click", () => { recent = []; localStorage.removeItem("kg:recent:v1"); renderRecent(); });
+  $ui("#recent-clear")?.addEventListener("click", () => { recent = []; try { window.localStorage.removeItem("kg:recent:v1"); } catch {} renderRecent(); });
   $ui("#category-futures")?.addEventListener("click", () => {
     document.querySelectorAll(".category-tile").forEach((item) => item.classList.toggle("selected", item.id === "category-futures"));
     if (typeof favoritesOnly !== "undefined") favoritesOnly = false;
