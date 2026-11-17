@@ -1,0 +1,114 @@
+/* Kripto Guru — reference-led Telegram wallet UI.
+   Design layer only: preserves existing DOM hooks, API contracts and trading logic. */
+:root{
+  --kg-ref-bg:#f2f2f7;
+  --kg-ref-card:#fff;
+  --kg-ref-ink:#20212a;
+  --kg-ref-muted:#858995;
+  --kg-ref-line:#ececf1;
+  --kg-ref-blue:#2874f0;
+  --kg-ref-green:#19a66a;
+  --kg-ref-red:#e45762;
+  --kg-ref-shadow:0 2px 10px rgba(31,35,48,.035);
+}
+html,body{background:var(--kg-ref-bg)!important;color:var(--kg-ref-ink)!important}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif!important;letter-spacing:-.18px;padding-bottom:calc(100px + env(safe-area-inset-bottom))!important}
+.topbar{display:none!important}
+main{width:100%!important;max-width:560px!important;margin:0 auto!important;padding:9px 16px calc(130px + env(safe-area-inset-bottom))!important}
+.tab{animation:none!important}
+.tab.active{display:block!important}
+.section-heading{display:flex!important;align-items:center!important;justify-content:space-between!important;margin:21px 2px 9px!important;min-height:20px}
+.section-heading h2{margin:0!important;font-size:16px!important;line-height:1.2!important;font-weight:730!important;letter-spacing:-.45px!important;color:#252630!important}
+.section-muted{font-size:11px!important;color:#9295a0!important}
+.text-action{font-size:12px!important;font-weight:650!important;color:var(--kg-ref-blue)!important}
+
+/* Wallet home: reference opens directly on the dollars card, not a dashboard hero. */
+#tab-painel>.wallet-head,
+#tab-painel>.wallet-performance,
+#tab-painel>.wallet-actions{display:none!important}
+#tab-painel>.section-heading:has(+ .currency-card){display:none!important}
+.currency-card{display:flex!important;align-items:center!important;gap:11px!important;width:100%!important;min-height:76px!important;padding:13px 15px!important;border:0!important;border-radius:17px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important;text-align:left!important}
+.currency-icon{display:grid!important;place-items:center!important;flex:0 0 39px!important;width:39px!important;height:39px!important;border-radius:50%!important;background:#e9f8f0!important;color:#15985d!important;font-size:18px!important;font-weight:800!important}
+.currency-copy{display:flex!important;flex:1!important;flex-direction:column!important;gap:4px!important;min-width:0}
+.currency-copy b{font-size:13px!important;font-weight:680!important;color:#282a33!important}
+.currency-copy small{font-size:10px!important;color:#8d909b!important}
+.currency-card>strong{font-size:14px!important;font-weight:720!important;color:#242630!important;font-variant-numeric:tabular-nums}
+.currency-card>[data-icon=chevron]{display:none!important}
+#tab-painel>.section-heading:has(+ #wallet-favorites){margin-top:23px!important}
+.favorites-strip{display:flex!important;gap:10px!important;overflow-x:auto!important;scroll-snap-type:x mandatory!important;padding:0 0 3px!important;scrollbar-width:none}
+.favorites-strip::-webkit-scrollbar{display:none}
+.favorite-card{flex:0 0 calc((100% - 10px)/2)!important;min-width:0!important;min-height:124px!important;padding:13px!important;border:0!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important;scroll-snap-align:start!important}
+.favorite-card .coin-avatar,.favorite-card .favorite-icon{width:29px!important;height:29px!important;border-radius:50%!important}
+.favorite-card b{font-size:12px!important;color:#343640!important}
+.favorite-card strong{font-size:18px!important;letter-spacing:-.5px!important;color:#22242d!important}
+.favorite-card small{font-size:10px!important}
+.favorite-card .sparkline{height:25px!important}
+#tab-painel>.section-heading:has(+ #engine-positions){margin-top:21px!important}
+.wallet-position-list{display:grid!important;gap:9px!important}
+.engine-position{border:0!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important;padding:13px!important}
+.empty-wallet{display:flex!important;align-items:center!important;gap:9px!important;padding:14px!important;border:0!important;border-radius:15px!important;background:#fff!important;color:#8b8e98!important}
+.empty-wallet-icon{color:#a5a8b1!important}
+.empty-wallet b{font-size:12px!important;color:#656873!important}
+.empty-wallet .primary-button{margin-left:auto!important;width:auto!important;padding:9px 12px!important;font-size:11px!important}
+.wallet-asset-list{padding:0 14px!important;border:0!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.asset-line{display:flex!important;align-items:center!important;gap:11px!important;min-height:64px!important;padding:9px 0!important;border-bottom:1px solid var(--kg-ref-line)!important;background:transparent!important}
+.asset-line:last-child{border-bottom:0!important}
+.coin-avatar{display:grid!important;place-items:center!important;flex:0 0 35px!important;width:35px!important;height:35px!important;border-radius:50%!important;background:#f0f2f7!important;color:#596174!important;font-weight:750!important}
+.asset-line>span:nth-child(2){display:flex!important;flex:1!important;flex-direction:column!important;gap:3px!important}
+.asset-line b{font-size:13px!important;font-weight:670!important;color:#292b35!important}
+.asset-line small{font-size:10px!important;color:#9295a0!important}
+.asset-line strong{font-size:13px!important;font-weight:680!important;color:#282a33!important;font-variant-numeric:tabular-nums}
+#alert{margin-top:12px!important}
+
+/* Trading catalogue: compact surfaces, chips and heatmap like the reference. */
+.trade-search{height:45px!important;border:0!important;border-radius:14px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.trade-search input{background:transparent!important;border:0!important;font-size:13px!important}
+.category-row{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:9px!important;margin:12px 0 19px!important}
+.category-tile{display:flex!important;align-items:center!important;gap:8px!important;min-height:56px!important;padding:9px!important;border:0!important;border-radius:14px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.category-tile.selected{background:#eaf1ff!important;box-shadow:inset 0 0 0 1px #d4e1ff!important}
+.category-icon{width:30px!important;height:30px!important;flex:0 0 30px!important;border-radius:50%!important}
+.category-tile b{font-size:10px!important;font-weight:650!important;color:#4c5060!important}
+.recent-strip{display:flex!important;gap:8px!important;overflow-x:auto!important}
+.recent-strip>*{flex:0 0 auto!important;border:0!important;border-radius:12px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.heatmap{overflow:hidden!important;border:0!important;border-radius:16px!important;box-shadow:var(--kg-ref-shadow)!important}
+.heatmap-note{margin:7px 2px 0!important;font-size:10px!important;color:#999ca6!important}
+.top-toggle{padding:3px!important;border-radius:10px!important;background:#e7e8ed!important}
+.top-toggle button{padding:6px 9px!important;border-radius:8px!important;font-size:10px!important}
+.top-toggle button.selected{background:#fff!important;color:var(--kg-ref-blue)!important;box-shadow:0 1px 4px #24263012!important}
+.list{overflow:hidden!important;border:0!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.market-row{min-height:67px!important;padding:10px 13px!important;border-bottom:1px solid var(--kg-ref-line)!important;background:#fff!important}
+.market-row:last-child{border-bottom:0!important}
+
+/* Asset details and fixed LONG/SHORT actions. */
+.asset-screen{overflow:visible!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+.asset-screen .asset-topline{margin:5px 0 12px!important}
+.asset-screen .asset-title{font-size:16px!important;font-weight:720!important}
+.asset-screen .asset-price{font-size:29px!important;font-weight:760!important;letter-spacing:-1px!important}
+.asset-screen .asset-chart-wrap,.asset-screen .asset-tech{border:0!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+.asset-screen .asset-chart-wrap{padding:12px!important}
+.asset-screen .asset-tech{padding:13px!important}
+.asset-screen .asset-chart-controls button{border-radius:9px!important}
+.asset-screen .asset-actions{display:none!important}
+body.asset-open main{padding-bottom:calc(105px + env(safe-area-inset-bottom))!important}
+#asset-trade-bar{position:fixed!important;z-index:30!important;left:16px!important;right:16px!important;bottom:calc(9px + env(safe-area-inset-bottom))!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:9px!important;padding:8px!important;border:1px solid #e8e9ef!important;border-radius:17px!important;background:rgba(255,255,255,.96)!important;box-shadow:0 7px 25px rgba(27,33,49,.13)!important;backdrop-filter:blur(18px)!important}
+#asset-trade-bar button{min-height:46px!important;border:0!important;border-radius:12px!important;font-size:14px!important;font-weight:730!important}
+#asset-trade-bar .long-button{background:#2474ed!important;color:#fff!important}
+#asset-trade-bar .short-button{background:#242a38!important;color:#fff!important}
+
+/* Floating four-tab navigation and safe-area behavior. */
+.bottom-nav{position:fixed!important;z-index:40!important;left:14px!important;right:14px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;height:63px!important;padding:5px!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:2px!important;border:1px solid #e7e8ee!important;border-radius:19px!important;background:rgba(255,255,255,.95)!important;box-shadow:0 7px 25px rgba(26,32,48,.12)!important;backdrop-filter:blur(22px)!important}
+.bottom-nav button{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;min-width:0!important;padding:3px!important;border:0!important;border-radius:13px!important;background:transparent!important;color:#9295a0!important;font-size:9px!important;font-weight:620!important}
+.bottom-nav button.active{background:#edf3ff!important;color:#2672e9!important}
+.bottom-nav button i{width:19px!important;height:19px!important}
+.nav-indicator{display:none!important}
+.page-heading h1{font-size:23px!important;letter-spacing:-.7px!important}
+.card,.history-list-card,.history-equity-card,.settings-group,.grid-settings-card{border:0!important;border-radius:16px!important;background:#fff!important;box-shadow:var(--kg-ref-shadow)!important}
+input,select,textarea{border:1px solid #e7e8ee!important;border-radius:12px!important;background:#fff!important}
+.primary-button{border-radius:12px!important;background:#2874f0!important}
+@media(max-width:380px){
+ main{padding-left:13px!important;padding-right:13px!important}
+ .favorite-card{flex-basis:calc((100% - 9px)/2)!important}
+ .section-heading h2{font-size:15px!important}
+ .bottom-nav{left:10px!important;right:10px!important}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
