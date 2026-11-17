@@ -151,6 +151,7 @@ try {
     await page.screenshot({path:`market-catalog-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#category-stocks").click();
     await page.locator("#equities-market-content").waitFor({state:"visible"});
+    if (await page.locator('[data-equity-list="stocks"] .equity-tile').count() !== 4) throw new Error("US stocks watchlist should contain four honest unavailable cards");
     if(!(await page.locator(".equities-empty").innerText()).includes("Котировки пока не подключены")) throw new Error("stocks category must show honest unavailable state");
     await page.screenshot({path:`market-stocks-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#category-funds").click();
@@ -179,6 +180,8 @@ try {
     await page.evaluate(()=>{window.scrollTo({top:0,behavior:"instant"});document.documentElement.scrollTop=0;document.body.scrollTop=0;});
     await page.waitForFunction(()=>window.Telegram?.WebApp?.BackButton?.isVisible===true);
     if(await page.locator("#asset-back").isVisible()) throw new Error("Telegram asset view should use native BackButton, not a duplicate in-page back control");
+    if (await page.locator("[data-asset-product-type]").innerText() !== "Фьючерс") throw new Error("asset product type badge missing");
+    if (!(await page.locator("[data-asset-max-leverage]").innerText()).includes("×")) throw new Error("asset leverage badge missing");
     await page.screenshot({path:`asset-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator("#asset-trade-bar [data-asset-side=long]").click();
     await page.waitForTimeout(350);
