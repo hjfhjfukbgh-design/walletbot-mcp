@@ -39,6 +39,20 @@ describe("window.KriptoGuruAPI contract", () => {
     });
   });
 
+  it("exposes Walt as a read-only account API and normalizes its USDC balance", async () => {
+    const fetchMock = vi.fn(async (input, init) => {
+      expect(String(input)).toBe("/api/walt/account");
+      expect(init.headers).toMatchObject({ Authorization: "tma signed-telegram-init-data" });
+      return json({ ok: true, connected: true, balanceUsd: 42.5, currency: "USDC", source: "walt-mcp", permission: "read-only" });
+    });
+    const api = loadApi(fetchMock);
+    const account = await api.walt.account();
+    expect(account).toMatchObject({
+      connected: true, balanceUsd: 42.5, currency: "USDC",
+      source: "walt-mcp", permission: "read-only",
+    });
+  });
+
   it("returns explicit unavailable states instead of inventing stocks, funds or bonuses", async () => {
     const fetchMock = vi.fn();
     const api = loadApi(fetchMock);
