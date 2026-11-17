@@ -51,11 +51,6 @@
         <div class="asset-line"><span class="coin-avatar">A</span><span><b>Apple</b><small>Акции · недоступно в DEMO</small></span><strong>—</strong></div>
       </div>
 
-      <div class="section-heading"><h2>Открытые позиции</h2><span id="wallet-position-count" class="section-muted">0</span></div>
-      <div id="engine-positions" class="wallet-position-list">
-        <div class="empty-wallet"><span class="empty-wallet-icon"><i data-icon="chart"></i></span><b>Позиций пока нет</b><button id="empty-open-markets" class="primary-button" type="button">Открыть рынки</button></div>
-      </div>
-
       <div id="alert" class="alert hidden"></div>
     </section>
 
@@ -79,7 +74,11 @@
     </section>
 
     <section id="tab-hist" class="tab">
-      <div class="page-heading"><h1>История транзакций</h1><p>Все операции демо-счёта.</p></div>
+      <div class="page-heading"><h1>Доход</h1><p>Результат демо-счёта и история сделок.</p></div>
+      <div class="section-heading"><h2>Открытые позиции</h2><span id="wallet-position-count" class="section-muted">0</span></div>
+      <div id="engine-positions" class="wallet-position-list">
+        <div class="empty-wallet"><span class="empty-wallet-icon"><i data-icon="chart"></i></span><b>Позиций пока нет</b><button id="empty-open-markets" class="primary-button" type="button">Открыть рынки</button></div>
+      </div>
       <div class="card history-equity-card"><div class="section-heading"><h2>Кривая капитала</h2></div><svg id="equity" viewBox="0 0 360 140" preserveAspectRatio="none"></svg><div id="history-empty" class="history-empty">График появится после первых сделок.</div></div>
       <div class="history-filters"><button class="selected" data-history-filter="all" type="button">Все</button><button data-history-filter="positions" type="button">Позиции</button><button data-history-filter="balance" type="button">Демо-баланс</button></div>
       <div class="card history-list-card"><div id="trades">Сделок пока нет.</div></div>
@@ -137,7 +136,7 @@
   <nav class="bottom-nav"><span id="nav-indicator" class="nav-indicator" aria-hidden="true"></span>
     <button data-tab="painel" class="active"><i data-icon="wallet"></i><span>Кошелёк</span></button>
     <button data-tab="pares"><i data-icon="chart"></i><span>Торговля</span></button>
-    <button data-tab="hist"><i data-icon="receipt"></i><span>История</span></button>
+    <button data-tab="hist"><i data-icon="receipt"></i><span>Доход</span></button>
     <button data-tab="ctrl"><i data-icon="sliders"></i><span>Настройки</span></button>
   </nav>
 
