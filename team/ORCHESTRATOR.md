@@ -8,7 +8,7 @@ Workflow `.github/workflows/kripto-guru-orchestrator.yml`:
 - обрабатывает не более одной задачи за запуск;
 - вызывает Gemini с fallback-моделью, чтобы назначить одну из ролей ARCHITECT / FRONTEND / BACKEND / QA / SECURITY / ANALYST;
 - при статусе READY запускает reusable workflow `role-worker.yml`;
-- BACKEND и FRONTEND могут предложить ограниченный diff только в разрешённых существующих файлах (до 3 файлов / 250 строк); остальные роли пока формируют handoff-отчёт без изменения исходников;
+- BACKEND ограничен `src/index.ts`, `src/api.ts`, `src/service.ts`, `src/state.ts`, `src/tenants.ts`; FRONTEND — `miniapp/web/*`. Оба могут предложить diff только в существующих файлах (до 3 файлов / 250 строк); остальные роли пока формируют handoff-отчёт без изменения исходников;
 - выполняет `npm ci`, `npm run typecheck`, `npm test` и вторую AI-проверку diff (не заменяет независимый human review); при ошибках или REJECT PR не публикуется;
 - публикует пакет диспетчера и результат исполнителя отдельными Draft PR;
 - оставляет ссылки в Issue; неполные задачи помечает `agent-blocked`.
