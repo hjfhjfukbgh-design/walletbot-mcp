@@ -22,6 +22,7 @@ jobs:
       role: ${{ steps.packet.outputs.role }}
       issue_number: ${{ steps.packet.outputs.issue_number }}
       task: ${{ steps.packet.outputs.task }}
+      team: ${{ steps.packet.outputs.team }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -63,15 +64,17 @@ jobs:
         id: packet
         if: steps.queue.outputs.has_task == 'true'
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_TEAM_A: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_TEAM_B: ${{ secrets.GEMINI_API_KEY_TEAM_B }}
+          GEMINI_API_KEY_TEAM_C: ${{ secrets.GEMINI_API_KEY_TEAM_C }}
           GH_TOKEN: ${{ github.token }}
           BASE_BRANCH: ${{ github.ref_name }}
           RUN_ID: ${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${GEMINI_API_KEY:-}" ]; then
-            echo "::error::GEMINI_API_KEY secret is missing."
+          if [ -z "${GEMINI_API_KEY_TEAM_A:-}" ] || [ -z "${GEMINI_API_KEY_TEAM_B:-}" ] || [ -z "${GEMINI_API_KEY_TEAM_C:-}" ]; then
+            echo "::error::One or more team API key secrets are missing (A/B/C)."
             exit 1
           fi
 
@@ -83,6 +86,8 @@ jobs:
           const [issue] = JSON.parse(fs.readFileSync("/tmp/ready-issue.json", "utf8"));
           if (!issue || !Number.isInteger(issue.number)) throw new Error("No valid queue issue found.");
           const taskText = String(issue.body || "").slice(0, 12000);
+          const team = ["A", "B", "C"][issue.number % 3];
+          const apiKey = process.env["GEMINI_API_KEY_TEAM_" + team];
           const prompt = [
             "Ты — DISPATCHER центральной команды Kripto Guru.",
             "Назначь задаче ровно одну ведущую роль из: ARCHITECT, FRONTEND, BACKEND, QA, SECURITY, ANALYST.",
@@ -111,7 +116,7 @@ jobs:
                   "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent",
                   {
                     method: "POST",
-                    headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
+                    headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
                     body: JSON.stringify({
                       contents: [{ role: "user", parts: [{ text: prompt }] }],
                       generationConfig: { temperature: 0.1, maxOutputTokens: 3500 }
@@ -147,6 +152,7 @@ jobs:
             "- Title: " + issue.title,
             "- Run ID: " + process.env.RUN_ID,
             "- Model: " + usedModel,
+            "- Assigned team: " + team,
             "- Baseline branch: " + process.env.BASE_BRANCH,
             "- Mode: dispatch-only; no application source changes",
             "",
@@ -164,9 +170,10 @@ jobs:
           const taskDelimiter = "TASK_" + randomUUID();
           fs.appendFileSync(process.env.GITHUB_OUTPUT, "status=" + status + "\n");
           fs.appendFileSync(process.env.GITHUB_OUTPUT, "role=" + role + "\n");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, "team=" + team + "\n");
           fs.appendFileSync(process.env.GITHUB_OUTPUT, "issue_number=" + issue.number + "\n");
           fs.appendFileSync(process.env.GITHUB_OUTPUT, "task<<" + taskDelimiter + "\n" + taskText + "\n" + taskDelimiter + "\n");
-          fs.writeFileSync("/tmp/dispatch-meta.json", JSON.stringify({ number: issue.number, url: issue.url, title: issue.title, model: usedModel, status, role }));
+          fs.writeFileSync("/tmp/dispatch-meta.json", JSON.stringify({ number: issue.number, url: issue.url, title: issue.title, model: usedModel, status, role, team }));
           console.log("Dispatch packet generated for Issue #" + issue.number + ": " + status + " / " + role + " / " + usedModel + ".");
           NODE
 
@@ -217,4 +224,5 @@ jobs:
       issue_number: ${{ needs.dispatch-one-task.outputs.issue_number }}
       task: ${{ needs.dispatch-one-task.outputs.task }}
       base_branch: ${{ github.ref_name }}
-    secrets: inherit
+    secrets:
+      GEMINI_API_KEY: ${{ needs.dispatch-one-task.outputs.team == 'A' && secrets.GEMINI_API_KEY || needs.dispatch-one-task.outputs.team == 'B' && secrets.GEMINI_API_KEY_TEAM_B || secrets.GEMINI_API_KEY_TEAM_C }}
