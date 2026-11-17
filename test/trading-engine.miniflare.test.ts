@@ -112,7 +112,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       marginMicro: (40n * U).toString(), leverage: "2", feePpm: "350", slippagePpm: "1000",
     });
     expect(missing.body.ok).toBe(false);
-    const invalid = await open(stub, 40n * U, { maxOrderBps: "10001", maxTotalExposureBps: "500" });
+    const invalid = await open(stub, 40n * U, { maxOrderBps: "10001", maxTotalExposureBps: "500", maxDailyLossBps: "500" });
     expect(invalid.body.ok).toBe(false);
   });
 
