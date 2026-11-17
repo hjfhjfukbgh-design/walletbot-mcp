@@ -53,6 +53,22 @@ describe("window.KriptoGuruAPI contract", () => {
     });
   });
 
+  it("normalizes a read-only Walt position lookup", async () => {
+    const fetchMock = vi.fn(async (input) => {
+      expect(String(input)).toBe("/api/walt/position?market=BTC");
+      return json({
+        ok: true, market: "BTC", source: "walt-mcp", permission: "read-only",
+        position: { contractId: 7, avgEntryPrice: 50000, valueBase: 0.02, marginQuote: 100, liquidationPrice: 35000 },
+      });
+    });
+    const api = loadApi(fetchMock);
+    const result = await api.walt.position("btc");
+    expect(result).toMatchObject({
+      market: "BTC", source: "walt-mcp", permission: "read-only",
+      position: { contractId: 7, avgEntryPrice: 50000, valueBase: 0.02, marginQuote: 100, liquidationPrice: 35000 },
+    });
+  });
+
   it("returns explicit unavailable states instead of inventing stocks, funds or bonuses", async () => {
     const fetchMock = vi.fn();
     const api = loadApi(fetchMock);
