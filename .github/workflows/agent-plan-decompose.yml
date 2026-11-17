@@ -138,18 +138,31 @@ jobs:
             }
           }
 
-          // Parallel tasks may not claim overlapping write scopes. Be conservative around wildcards.
+          // Reject overlapping scopes only for tasks that may run concurrently.
+          // An explicit dependency serializes the pair, so shared files are then allowed.
+          const dependsTransitively = (taskKey, targetKey, seen = new Set()) => {
+            if (seen.has(taskKey)) return false;
+            seen.add(taskKey);
+            const task = byKey.get(taskKey);
+            if (!task) return false;
+            return task.depends_on.some(dep => dep === targetKey || dependsTransitively(dep, targetKey, seen));
+          };
           const scopePrefix = (scope) => {
-            const normalized = String(scope).replace(/\\/g,"/").replace(/\*.*$/,"");
-            return normalized.endsWith("/") ? normalized : normalized;
+            const normalized = String(scope).replaceAll(String.fromCharCode(92), "/");
+            const wildcard = normalized.indexOf("*");
+            return (wildcard < 0 ? normalized : normalized.slice(0, wildcard)).trim();
           };
           for (let i=0;i<plan.tasks.length;i++) {
             for (let j=i+1;j<plan.tasks.length;j++) {
-              for (const left of plan.tasks[i].write_scope) {
-                for (const right of plan.tasks[j].write_scope) {
+              const leftTask = plan.tasks[i], rightTask = plan.tasks[j];
+              const serialized = dependsTransitively(leftTask.task_key,rightTask.task_key) ||
+                                 dependsTransitively(rightTask.task_key,leftTask.task_key);
+              if (serialized) continue;
+              for (const left of leftTask.write_scope) {
+                for (const right of rightTask.write_scope) {
                   const a = scopePrefix(left), b = scopePrefix(right);
                   if (!a || !b || a.startsWith(b) || b.startsWith(a)) {
-                    throw new Error("Overlapping write scopes between "+plan.tasks[i].task_key+" ("+left+") and "+plan.tasks[j].task_key+" ("+right+"). Split or serialize these tasks.");
+                    throw new Error("Overlapping concurrent write scopes between "+leftTask.task_key+" ("+left+") and "+rightTask.task_key+" ("+right+"). Add a dependency to serialize these tasks or split their scopes.");
                   }
                 }
               }
