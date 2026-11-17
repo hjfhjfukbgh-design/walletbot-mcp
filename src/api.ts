@@ -54,6 +54,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         return demoAccountView(env, telegramUserId);
       case "GET demo/history":
         return engineRequest(env, "/history?userId=" + encodeURIComponent(telegramUserId));
+      case "GET demo/health":
+        return engineRequest(env, "/health");
       case "POST demo/preview":
         return previewDemoTrade(env, telegramUserId, body);
       case "POST demo/open":
@@ -493,10 +495,17 @@ async function validateTelegramInitData(initData: string, botToken: string): Pro
 
 /** All user-scoped Engine calls use the Telegram ID verified from signed initData above. */
 async function engineRequest(env: Env, path: string, body?: Json): Promise<Response> {
-  const id = env.ENGINE.idFromName("global-engine");
-  const stub = env.ENGINE.get(id);
-  const request = body === undefined
-    ? new Request("https://engine.internal" + path)
-    : new Request("https://engine.internal" + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  return stub.fetch(request);
+  try {
+    const id = env.ENGINE.idFromName("global-engine");
+    const stub = env.ENGINE.get(id);
+    const request = body === undefined
+      ? new Request("https://engine.internal" + path)
+      : new Request("https://engine.internal" + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const response = await stub.fetch(request);
+    if (!response.ok) console.error("[demo-engine] non-2xx response", { path, status: response.status });
+    return response;
+  } catch (error) {
+    console.error("[demo-engine] Durable Object request failed", { path, error: error instanceof Error ? error.message : String(error) });
+    throw new Error("Торговый движок DEMO временно недоступен. Код диагностики: demo-engine-unreachable.");
+  }
 }
