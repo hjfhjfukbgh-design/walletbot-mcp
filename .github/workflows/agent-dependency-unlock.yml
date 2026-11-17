@@ -25,6 +25,7 @@ jobs:
           set -euo pipefail
           node --input-type=module <<'NODE'
           import { execFileSync } from "node:child_process";
+          import fs from "node:fs";
           const repo = process.env.GITHUB_REPOSITORY;
           const gh = (args) => execFileSync("gh", args, {encoding:"utf8",env:process.env}).trim();
           const planned = JSON.parse(gh(["issue","list","--repo",repo,"--state","open","--label","agent-planned","--limit","100","--json","number,title,body,labels"]) || "[]");
@@ -55,5 +56,5 @@ jobs:
             console.log("UNLOCKED #"+item.number+" ("+key+")");
           }
           const summary = "## Dependency unlock\n\n- Planned tasks scanned: "+planned.length+"\n- Unlocked: "+unlocked+"\n- Waiting: "+waiting+"\n- Skipped: "+invalid+"\n";
-          require("node:fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary);
           NODE
