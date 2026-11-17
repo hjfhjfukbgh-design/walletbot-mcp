@@ -277,10 +277,15 @@
       try {
         const tp=closePrice(s.tpValue,s.closeMode,"tp",s.side,s.price,notional);
         const sl=closePrice(s.slValue,s.closeMode,"sl",s.side,s.price,notional);
-        const tpPnl=tp===null?null:notional*Math.abs(tp-s.price)/s.price;
-        const slPnl=sl===null?null:-notional*Math.abs(sl-s.price)/s.price;
-        $v("#ticket-tp-result",ticketOverlay).textContent=tpPnl===null?"—":"+$"+money(tpPnl);
-        $v("#ticket-sl-result",ticketOverlay).textContent=slPnl===null?"—":"−$"+money(Math.abs(slPnl));
+        const entryFee=notional*s.feePct;
+        const tpGross=tp===null?null:notional*Math.abs(tp-s.price)/s.price;
+        const slGross=sl===null?null:-notional*Math.abs(sl-s.price)/s.price;
+        const tpExitFee=tp===null?0:notional*(tp/s.price)*s.feePct;
+        const slExitFee=sl===null?0:notional*(sl/s.price)*s.feePct;
+        const tpPnl=tpGross===null?null:tpGross-entryFee-tpExitFee;
+        const slPnl=slGross===null?null:slGross-entryFee-slExitFee;
+        $v("#ticket-tp-result",ticketOverlay).textContent=tpPnl===null?"—":(tpPnl>=0?"+$":"−$")+money(Math.abs(tpPnl));
+        $v("#ticket-sl-result",ticketOverlay).textContent=slPnl===null?"—":(slPnl>=0?"+$":"−$")+money(Math.abs(slPnl));
         $v("#close-validation",ticketOverlay).textContent="Стоп-лосс должен быть строго между входом и ликвидацией.";
         $v("#close-validation",ticketOverlay).classList.remove("down");
       } catch(error) {
