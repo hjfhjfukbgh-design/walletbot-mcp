@@ -36,8 +36,12 @@ try{
     page.on("pageerror",error=>pageErrors.push(error.message));
     await page.route("https://telegram.org/js/telegram-web-app.js",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.addInitScript(()=>{
-      localStorage.setItem("kg:favorites:v1",JSON.stringify(["BTC","ETH","SOL"]));
-      localStorage.setItem("kg:recent:v1",JSON.stringify(["BTC","ETH"]));
+      try{
+        if(location.origin!=="null"){
+          localStorage.setItem("kg:favorites:v1",JSON.stringify(["BTC","ETH","SOL"]));
+          localStorage.setItem("kg:recent:v1",JSON.stringify(["BTC","ETH"]));
+        }
+      }catch{}
       const mockPositions=[];
       const mockHistory=[];
       const markets=[
