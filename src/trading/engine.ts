@@ -1,5 +1,5 @@
 import { applyEntrySlippage, closePosition, checkTrigger, manualCloseTrigger, openPosition, unrealizedPnl, type Position, type PositionInput } from "./positions";
-import { MONEY_SCALE, PRICE_SCALE, divRound, parseFixed } from "./money";
+import { MONEY_SCALE, PRICE_SCALE, divRound, feeMicro, notionalMicro, parseFixed } from "./money";
 
 interface EngineEnv { HYPERLIQUID_WS_URL?: string; ENGINE_MAX_QUOTE_AGE_MS?: string; ENGINE_DISABLE_SOCKET?: string; }
 interface Quote { price: bigint; observedAt: number; }
@@ -179,6 +179,31 @@ export class TradingEngine {
     return quote;
   }
 
+  /** UTC-day PnL: realized net PnL from closes today plus fee-aware mark-to-market on open positions. */
+  private dailyNetPnl(userId: string, now = Date.now()): bigint {
+    const utc = new Date(now);
+    const dayStart = Date.UTC(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate());
+    const closedRows = this.ctx.storage.sql.exec(
+      "SELECT close_json FROM positions WHERE user_id = ? AND status = 'closed' AND updated_at >= ?",
+      userId, dayStart,
+    ).toArray() as Array<{ close_json: string | null }>;
+    let pnl = 0n;
+    for (const row of closedRows) {
+      if (!row.close_json) continue;
+      const close = JSON.parse(row.close_json) as { totalNetPnlMicro?: string; netPnlMicro?: string };
+      const value = close.totalNetPnlMicro ?? close.netPnlMicro;
+      if (value !== undefined) pnl += BigInt(value);
+    }
+    for (const position of this.positions.values()) {
+      if (position.userId !== userId || position.status !== "open") continue;
+      const mark = this.freshQuote(position.symbol).price;
+      const gross = unrealizedPnl(position, mark);
+      const exitFee = feeMicro(notionalMicro(position.qtyUnits, mark), position.feePpm);
+      pnl += gross - position.entryFeeMicro - exitFee;
+    }
+    return pnl;
+  }
+
   private open(body: Record<string, unknown>): { ok: true; position: Position; balanceMicro: string } {
     if (body.mode !== "demo") throw new Error("LIVE отключён. Engine принимает только DEMO-сделки.");
     const userId = String(body.userId ?? "");
@@ -205,7 +230,9 @@ export class TradingEngine {
     // balance/position write. API-only checks are not sufficient under concurrency.
     const maxOrderBps = BigInt(String(body.maxOrderBps ?? ""));
     const maxTotalExposureBps = BigInt(String(body.maxTotalExposureBps ?? ""));
-    if (maxOrderBps <= 0n || maxOrderBps > 10_000n || maxTotalExposureBps <= 0n || maxTotalExposureBps > 10_000n)
+    const maxDailyLossBps = BigInt(String(body.maxDailyLossBps ?? ""));
+    if (maxOrderBps <= 0n || maxOrderBps > 10_000n || maxTotalExposureBps <= 0n || maxTotalExposureBps > 10_000n
+      || maxDailyLossBps <= 0n || maxDailyLossBps > 10_000n)
       throw new Error("Серверные лимиты риска не заданы или некорректны.");
     let openMargin = 0n;
     let unrealized = 0n;
@@ -221,6 +248,14 @@ export class TradingEngine {
     if ((openMargin + input.marginMicro) * 10_000n > equity * maxTotalExposureBps)
       throw new Error("Общая маржа превысит серверный лимит открытой экспозиции.");
     const opened = openPosition(input, before);
+    // Daily stop is anchored to the $1,000 demo seed and resets at 00:00 UTC.
+    // Include today's realized net PnL, open-position mark-to-market after both fees,
+    // and the entry fee of this proposed order. This check runs inside the DO,
+    // so concurrent opens cannot race past the loss threshold.
+    const dailyLossLimit = DEMO_SEED * maxDailyLossBps / 10_000n;
+    const dailyPnlAfterEntry = this.dailyNetPnl(userId) - opened.position.entryFeeMicro;
+    if (dailyPnlAfterEntry <= -dailyLossLimit)
+      throw new Error("Достигнут дневной лимит убытка демо-счёта. Новые сделки заблокированы до 00:00 UTC.");
     this.ctx.storage.transactionSync(() => {
       this.ctx.storage.sql.exec("UPDATE accounts SET balance_micro = ? WHERE user_id = ?", opened.balanceAfterMicro.toString(), userId);
       const openedAt = Date.now();
