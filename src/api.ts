@@ -114,6 +114,7 @@ async function previewDemoTrade(env: Env, userId: string, body: Json): Promise<R
   if (side !== "long" && side !== "short") return fail("Направление должно быть LONG или SHORT.");
   if (!Number.isSafeInteger(leverage) || leverage < 1 || leverage > limits.maxLeverage)
     return fail(`Максимальное плечо демо-счёта: ${limits.maxLeverage}×.`);
+  if (body.marginMicro != null && !/^\d{1,18}$/.test(String(body.marginMicro))) return fail("Некорректная сумма маржи.");
 
   const contracts = await publicContracts();
   const contract = contracts.find((item) => item.name.replace(/-USDC?$/i, "").toUpperCase() === symbol);
@@ -162,7 +163,6 @@ async function previewDemoTrade(env: Env, userId: string, body: Json): Promise<R
   const minMarginMicro = (minNotional + BigInt(leverage) - 1n) / BigInt(leverage);
   const maxMarginUsd = Number(maxMarginMicro > 0n ? maxMarginMicro : 0n) / Number(MONEY_SCALE);
   const minMarginUsd = Number(minMarginMicro) / Number(MONEY_SCALE);
-  if (body.marginMicro != null && !/^\d{1,18}$/.test(String(body.marginMicro))) return fail("Некорректная сумма маржи.");
   const requestedMargin = body.marginMicro == null ? minMarginMicro : BigInt(String(body.marginMicro));
   if (requestedMargin <= 0n) return fail("Маржа должна быть положительной.");
   const notionalMicro = requestedMargin * BigInt(leverage);
