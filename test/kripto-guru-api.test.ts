@@ -16,7 +16,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 
 describe("window.KriptoGuruAPI contract", () => {
   it("exposes a DOM-independent API and normalizes the DEMO wallet account", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       expect(String(input)).toBe("/api/demo");
       return json({ ok: true, balanceMicro: "1255000000", positions: [{
         id: "p1", symbol: "BTC", side: "long", status: "open", leverage: "3",
