@@ -93,9 +93,14 @@
   }
 
   async function getWallet() {
-    const [account, markets] = await Promise.all([getAccount(), getMarkets()]);
+    const account = await getAccount();
+    const rawPositions = Array.isArray(account.positions) ? account.positions : [];
+    let markets = [];
+    if (rawPositions.length) {
+      try { markets = await getMarkets(); } catch { /* Balance remains readable if quotes are temporarily unavailable. */ }
+    }
     const bySymbol = new Map(markets.map((m) => [m.symbol, m]));
-    const positions = (account.positions || []).map((p) => {
+    const positions = rawPositions.map((p) => {
       const symbol = String(p.symbol || "").toUpperCase();
       const mark = Number(bySymbol.get(symbol)?.priceUsd || 0);
       return {
@@ -107,7 +112,7 @@
         marginUsd: toUsd(p.marginMicro),
         entryPriceUsd: toPrice(p.entryPrice),
         quantity: toQty(p.qtyUnits),
-        unrealizedPnlUsd: pnlUsd(p, mark)
+        unrealizedPnlUsd: mark > 0 ? pnlUsd(p, mark) : Number.NaN
       };
     });
     const balanceUsd = toUsd(account.balanceMicro);
@@ -133,7 +138,7 @@
         markets: []
       };
     }
-    const markets = await getMarkets({ force: true });
+    const markets = await getMarkets();
     return { available: true, markets };
   }
 
