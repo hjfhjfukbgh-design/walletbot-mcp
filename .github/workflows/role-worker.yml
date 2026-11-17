@@ -189,8 +189,11 @@ jobs:
             console.log("Model declined to create a safe patch.");
             process.exit(0);
           }
+          patch = patch.replace(/^```(?:diff)?\\s*/, "").replace(/\\s*```$/, "").trim();
+          const diffStart = patch.indexOf("--- a/");
+          if (diffStart > 0) patch = patch.slice(diffStart).trim();
           if (patch.includes("```") || !patch.startsWith("--- a/") || !patch.includes("\n+++ b/")) {
-            throw new Error("Model output is not a clean unified diff.");
+            throw new Error("Model output is not a clean unified diff: " + patch.slice(0,200).replace(/\\s+/g," "));
           }
           fs.writeFileSync("/tmp/worker.patch", patch + "\n");
           fs.writeFileSync("/tmp/worker-mode.txt", "code");
