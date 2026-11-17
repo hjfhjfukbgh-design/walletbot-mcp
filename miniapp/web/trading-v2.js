@@ -33,7 +33,8 @@
     const grossMicro=qty*delta*1_000_000n/scale;
     const exitNotionalMicro=qty*current*1_000_000n/scale;
     const exitFeeMicro=exitNotionalMicro*BigInt(position.feePpm||"0")/1_000_000n;
-    const pnl=Number(grossMicro-exitFeeMicro)/1_000_000;
+    const entryFeeMicro=BigInt(position.entryFeeMicro||"0");
+    const pnl=Number(grossMicro-entryFeeMicro-exitFeeMicro)/1_000_000;
     const margin=fromMoneyUnits(position.marginMicro);
     const card=document.createElement("div");
     card.className="asset-existing-position";
