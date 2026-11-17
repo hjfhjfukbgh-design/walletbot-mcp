@@ -76,6 +76,7 @@ jobs:
 
           node --input-type=module <<'NODE'
           import fs from "node:fs";
+          import { randomUUID } from "node:crypto";
           import { execFileSync } from "node:child_process";
 
           const [issue] = JSON.parse(fs.readFileSync("/tmp/ready-issue.json", "utf8"));
@@ -157,9 +158,9 @@ jobs:
           fs.writeFileSync("team/dispatches/issue-" + issue.number + "-run-" + process.env.RUN_ID + ".md", output);
           const statusMatch = packet.match(/Статус\s*[:：]\s*(READY|BLOCKED)/i);
           const roleMatch = packet.match(/Назначенная роль\s*[:：]\s*(ARCHITECT|FRONTEND|BACKEND|QA|SECURITY|ANALYST)\b/i);
-          const status = statusMatch ? statusMatch[1].toUpperCase() : "BLOCKED";
+          const status = statusMatch && roleMatch ? statusMatch[1].toUpperCase() : "BLOCKED";
           const role = roleMatch ? roleMatch[1].toUpperCase() : "NONE";
-          const taskDelimiter = "TASK_" + process.env.RUN_ID;
+          const taskDelimiter = "TASK_" + randomUUID();
           fs.appendFileSync(process.env.GITHUB_OUTPUT, "status=" + status + "\n");
           fs.appendFileSync(process.env.GITHUB_OUTPUT, "role=" + role + "\n");
           fs.appendFileSync(process.env.GITHUB_OUTPUT, "issue_number=" + issue.number + "\n");
