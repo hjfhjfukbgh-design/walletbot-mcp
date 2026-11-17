@@ -437,3 +437,11 @@ button:disabled{cursor:not-allowed;opacity:.5}
   #kg-asset-screen .kg-chart{height:132px}
   #kg-asset-screen .kg-section-head{margin:13px 2px 7px}
 }
+
+/* Wallet first-viewport clearance: compact only the wallet's vertical rhythm
+   so the AI-agent section does not sit underneath the fixed bottom navigation. */
+#kg-wallet-screen .kg-section-head{margin-top:13px;margin-bottom:7px}
+#kg-wallet-screen .kg-favorite{min-height:110px}
+#kg-wallet-screen #kg-wallet-assets .kg-asset-row{min-height:54px;padding-top:7px;padding-bottom:7px}
+#kg-wallet-screen .kg-unavailable-row{min-height:70px;padding-top:9px;padding-bottom:9px}
+#kg-wallet-screen .kg-discover-card{min-height:56px}
