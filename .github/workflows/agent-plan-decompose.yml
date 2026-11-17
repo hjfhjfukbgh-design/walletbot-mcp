@@ -148,9 +148,9 @@ jobs:
             return task.depends_on.some(dep => dep === targetKey || dependsTransitively(dep, targetKey, seen));
           };
           const scopePrefix = (scope) => {
-            const normalized = String(scope).replaceAll(String.fromCharCode(92), "/");
+            const normalized = String(scope).replaceAll(String.fromCharCode(92), "/").trim();
             const wildcard = normalized.indexOf("*");
-            return (wildcard < 0 ? normalized : normalized.slice(0, wildcard)).trim();
+            return {prefix:(wildcard < 0 ? normalized : normalized.slice(0, wildcard)),hasWildcard:wildcard >= 0};
           };
           for (let i=0;i<plan.tasks.length;i++) {
             for (let j=i+1;j<plan.tasks.length;j++) {
@@ -161,9 +161,11 @@ jobs:
               for (const left of leftTask.write_scope) {
                 for (const right of rightTask.write_scope) {
                   const a = scopePrefix(left), b = scopePrefix(right);
-                  const overlaps = !a || !b || a === b ||
-                    a.startsWith(b.endsWith("/") ? b : b + "/") ||
-                    b.startsWith(a.endsWith("/") ? a : a + "/");
+                  const overlaps = !a.prefix || !b.prefix || a.prefix === b.prefix ||
+                    (a.hasWildcard || b.hasWildcard
+                      ? a.prefix.startsWith(b.prefix) || b.prefix.startsWith(a.prefix)
+                      : a.prefix.startsWith(b.prefix.endsWith("/") ? b.prefix : b.prefix + "/") ||
+                        b.prefix.startsWith(a.prefix.endsWith("/") ? a.prefix : a.prefix + "/"));
                   if (overlaps) {
                     throw new Error("Overlapping concurrent write scopes between "+leftTask.task_key+" ("+left+") and "+rightTask.task_key+" ("+right+"). Add a dependency to serialize these tasks or split their scopes.");
                   }
