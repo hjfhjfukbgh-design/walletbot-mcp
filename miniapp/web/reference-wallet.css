@@ -187,3 +187,15 @@ body.asset-open .bottom-nav{display:none!important}
 .asset-topline{display:flex!important;justify-content:flex-end!important;min-height:25px!important;margin:2px 0 5px!important}
 .asset-topline .asset-back{display:none!important}
 .asset-topline .asset-favorite{min-height:27px!important;padding:5px 9px!important;border:0!important;border-radius:9px!important;background:#edf3ff!important;color:#2874f0!important;font-size:10px!important;font-weight:650!important}
+
+
+/* Income history: compact transaction rows, not a blank equity chart or inert filter controls. */
+#tab-hist>.section-heading{margin-top:18px!important}
+.history-list-card{padding:0 10px!important}
+#trades{overflow-x:auto!important;font-size:11px!important;color:#777d89!important}
+#trades table{width:100%!important;border-collapse:collapse!important;table-layout:auto!important}
+#trades th{padding:10px 5px!important;text-align:left!important;font-size:9px!important;font-weight:650!important;color:#989ba4!important;white-space:nowrap!important}
+#trades td{padding:11px 5px!important;border-top:1px solid var(--kg-ref-line)!important;font-size:10px!important;vertical-align:middle!important}
+#trades td small{display:block!important;margin-top:3px!important;color:#a1a4ad!important;font-size:9px!important}
+#trades .ev{display:inline-flex!important;align-items:center!important;gap:4px!important;line-height:1.3!important;font-size:10px!important;color:#454a56!important}
+#trades .ev svg{width:13px!important;height:13px!important}
