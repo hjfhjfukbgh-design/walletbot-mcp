@@ -1,6 +1,9 @@
 name: Backend agent (manual, report-only)
 
 on:
+  push:
+    branches:
+      - team/backend-agent-mvp-20261117
   workflow_dispatch:
     inputs:
       task:
