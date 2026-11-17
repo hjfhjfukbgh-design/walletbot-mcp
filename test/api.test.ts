@@ -41,6 +41,24 @@ describe("API da Mini App", () => {
     expect((await call(e, "state", "chave-teste", {}, "")).status).toBe(401);
   });
 
+  it("routes demo history through the authenticated user-scoped Engine", async () => {
+    const e = env();
+    let requestedUrl = "";
+    e.ENGINE = {
+      idFromName: (name: string) => name,
+      get: () => ({
+        fetch: async (request: Request) => {
+          requestedUrl = request.url;
+          return Response.json({ ok: true, trades: [] });
+        },
+      }),
+    } as unknown as DurableObjectNamespace;
+    const response = await call(e, "demo/history", "chave-teste");
+    expect(response.status).toBe(200);
+    expect(requestedUrl).toContain("/history?userId=12345");
+    expect(await response.json()).toMatchObject({ ok: true, trades: [] });
+  });
+
   it("recusa tudo se o token do bot não estiver configurado", async () => {
     const e = { ...env(), TELEGRAM_BOT_TOKEN: "" };
     expect((await call(e, "state", "chave-teste")).status).toBe(401);
