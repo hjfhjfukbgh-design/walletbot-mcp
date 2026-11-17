@@ -182,9 +182,15 @@ try {
     await page.evaluate(()=>{window.scrollTo({top:0,behavior:"instant"});document.documentElement.scrollTop=0;document.body.scrollTop=0;});
     await page.waitForFunction(()=>window.Telegram?.WebApp?.BackButton?.isVisible===true);
     if(await page.locator("#asset-back").isVisible()) throw new Error("Telegram asset view should use native BackButton, not a duplicate in-page back control");
+    const assetDebug=await page.evaluate(()=>{
+      const el=document.querySelector("#pair-detail"),r=el?.getBoundingClientRect(),parent=el?.parentElement;
+      return {className:el?.className,display:el?getComputedStyle(el).display:null,visibility:el?getComputedStyle(el).visibility:null,rect:r?{top:r.top,bottom:r.bottom,width:r.width,height:r.height}:null,parent:parent?{id:parent.id,className:parent.className,display:getComputedStyle(parent).display}:null,text:(el?.innerText||"").slice(0,260),bodyClass:document.body.className,tab:document.querySelector("#tab-pares")?.className,scrollY:window.scrollY,scrollHeight:document.documentElement.scrollHeight};
+    });
+    if(!assetDebug.rect || assetDebug.display==="none" || assetDebug.rect.height<120 || !assetDebug.text.includes("Bitcoin")) throw new Error("Asset detail is not visibly rendered: "+JSON.stringify(assetDebug));
     if (await page.locator("[data-asset-product-type]").innerText() !== "Фьючерс") throw new Error("asset product type badge missing");
     if (!(await page.locator("[data-asset-max-leverage]").innerText()).includes("×")) throw new Error("asset leverage badge missing");
     await page.screenshot({path:`asset-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.screenshot({path:`asset-full-${width}x${height}-dsf3.png`,fullPage:true});
     await page.locator("#asset-trade-bar [data-asset-side=long]").click();
     await page.waitForTimeout(350);
     const ticketDebug=await page.evaluate(()=>{
