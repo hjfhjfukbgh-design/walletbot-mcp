@@ -89,9 +89,9 @@ try{
       const card=heading?.nextElementSibling?.getBoundingClientRect();
       const h=heading?.getBoundingClientRect();
       const nav=document.querySelector("#kg-nav").getBoundingClientRect();
-      return {headingTop:h?.top,headingBottom:h?.bottom,cardTop:card?.top,navTop:nav.top,viewportHeight:innerHeight,scrollY:scrollY};
+      return {headingTop:h?.top,headingBottom:h?.bottom,cardTop:card?.top,cardBottom:card?.bottom,navTop:nav.top,viewportHeight:innerHeight,scrollY:scrollY};
     });
-    if(agentLayout.scrollY<=0||agentLayout.headingTop<0||agentLayout.headingBottom>agentLayout.navTop-8||agentLayout.cardTop>=agentLayout.navTop)throw new Error("AI-agent wallet section must be reachable above fixed navigation: "+JSON.stringify(agentLayout));
+    if(agentLayout.scrollY<=0||agentLayout.headingTop<0||agentLayout.headingBottom>agentLayout.navTop-8||agentLayout.cardTop<agentLayout.headingBottom||agentLayout.cardBottom>agentLayout.navTop-8)throw new Error("AI-agent heading and full card must be reachable above fixed navigation: "+JSON.stringify(agentLayout));
     await page.screenshot({path:`clean-wallet-agent-${device.width}x${device.height}.png`,fullPage:false});
     await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
     const walletScrollCheck=await page.evaluate(()=>{
