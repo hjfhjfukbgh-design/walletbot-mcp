@@ -178,5 +178,5 @@ This is the first parallel execution path, but it is still an MVP: only one task
 
 Additional planner guardrails in the fan-out branch:
 
-- A plan is rejected if two parallel tasks declare overlapping write-scope prefixes. Wildcard scopes are handled conservatively; false-positive conflicts are preferred over concurrent edits to the same area.
+- A plan is rejected if two tasks that may run concurrently declare overlapping write-scope paths. An explicit dependency serializes a pair, so sequential tasks may intentionally touch the same files. Path comparisons respect directory boundaries (for example, `src/foo` does not conflict with `src/foobar`); wildcard scopes are handled conservatively.
 - Any task assigned the QA role must depend on every non-QA task in the same plan, preventing the QA worker from starting before implementation handoffs complete.
