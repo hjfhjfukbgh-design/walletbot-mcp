@@ -87,6 +87,21 @@ export class TradingEngine {
   async fetch(request: Request): Promise<Response> {
     try {
       const url = new URL(request.url);
+      if (request.method === "GET" && url.pathname === "/risk") {
+        const userId = url.searchParams.get("userId") ?? "";
+        const maxDailyLossBps = BigInt(url.searchParams.get("maxDailyLossBps") ?? "");
+        if (!/^\\d{1,20}$/.test(userId) || maxDailyLossBps <= 0n || maxDailyLossBps > 10_000n)
+          throw new Error("Некорректные параметры дневного лимита риска.");
+        this.ensureAccount(userId);
+        const dailyNetPnlMicro = this.dailyNetPnl(userId);
+        const dailyLossLimitMicro = DEMO_SEED * maxDailyLossBps / 10_000n;
+        return jsonResponse({
+          ok: true, dailyNetPnlMicro: dailyNetPnlMicro.toString(),
+          dailyLossLimitMicro: dailyLossLimitMicro.toString(),
+          blocked: dailyNetPnlMicro <= -dailyLossLimitMicro,
+          resetAt: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()) + 86_400_000).toISOString(),
+        });
+      }
       if (request.method === "GET" && url.pathname === "/account") {
         const userId = url.searchParams.get("userId") ?? "";
         if (!/^\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
