@@ -412,3 +412,13 @@ button:disabled{cursor:not-allowed;opacity:.5}
   .kg-ticket-amount{margin-top:58px!important}
   .kg-ticket-settings{margin-top:34px}
 }
+
+
+/* Asset detail proportions: reserve more of the first viewport for metadata. */
+.kg-chart{height:172px}
+.kg-chart-card{padding:10px}
+.kg-timeframes{margin-top:5px}
+.kg-market-details .kg-detail-row{min-height:45px;padding:10px 12px}
+@media(max-height:700px){
+  .kg-chart{height:145px}
+}
