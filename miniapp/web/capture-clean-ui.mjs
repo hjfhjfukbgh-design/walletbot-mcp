@@ -121,6 +121,17 @@ try{
     await page.waitForSelector("#kg-chart svg");
     if(!(await page.locator("#kg-asset-name").innerText()).includes("Bitcoin"))throw new Error("asset detail title missing");
     await page.screenshot({path:`clean-asset-${device.width}x${device.height}.png`,fullPage:false});
+    const assetScreen=page.locator("#kg-asset-screen");
+    await assetScreen.evaluate(el=>{el.scrollTop=el.scrollHeight;});
+    const aboutLayout=await page.evaluate(()=>{
+      const about=document.querySelector("#kg-asset-screen .kg-asset-about");
+      const actions=document.querySelector("#kg-asset-screen .kg-asset-actions");
+      const a=about.getBoundingClientRect();
+      const b=actions.getBoundingClientRect();
+      return {aboutTop:a.top,aboutBottom:a.bottom,actionsTop:b.top,viewportBottom:innerHeight,scrollTop:document.querySelector("#kg-asset-screen").scrollTop};
+    });
+    if(aboutLayout.scrollTop<=0||aboutLayout.aboutTop<0||aboutLayout.aboutBottom>aboutLayout.actionsTop+1)throw new Error("asset about section must be fully reachable above fixed trade actions: "+JSON.stringify(aboutLayout));
+    await page.screenshot({path:`clean-asset-about-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-long").click();
     await page.waitForSelector("#kg-ticket-screen:not([hidden])");
     if(!(await page.evaluate(()=>document.activeElement?.id==="kg-ticket-margin")))throw new Error("ticket amount input should autofocus during the user gesture");
