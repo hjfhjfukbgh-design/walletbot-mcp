@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  issues:
+    types: [labeled]
   schedule:
     - cron: "27 * * * *"
 
@@ -18,6 +20,7 @@ concurrency:
 
 jobs:
   claim-team-tasks:
+    if: github.event_name != 'issues' || github.event.label.name == 'agent-ready'
     name: Claim up to one ready task per team
     runs-on: ubuntu-latest
     timeout-minutes: 6
