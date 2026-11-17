@@ -348,7 +348,7 @@
       const open=event.target.closest("[data-open-market]");
       if(open){const symbol=open.dataset.openMarket;if(symbol)openAsset(symbol);return;}
       const fav=event.target.closest("[data-toggle-favorite]");
-      if(fav){const symbol=fav.dataset.toggleFavorite;state.favorites.has(symbol)?state.favorites.delete(symbol):state.favorites.add(symbol);try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}renderFavorites();renderMarketList(state.category==="futures"?state.futures:state.markets);}
+      if(fav){const symbol=fav.dataset.toggleFavorite;state.favorites.has(symbol)?state.favorites.delete(symbol):state.favorites.add(symbol);try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}renderFavorites();renderMarketList(currentMarkets());}
       const close=event.target.closest("[data-close-position]");
       if(close)closePosition(close.dataset.closePosition);
     });
