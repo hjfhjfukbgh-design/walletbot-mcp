@@ -185,7 +185,7 @@ body.asset-open .bottom-nav{display:none!important}
 
 /* Telegram's native back control is already visible; avoid duplicating it inside the asset page. */
 .asset-topline{display:flex!important;justify-content:flex-end!important;min-height:25px!important;margin:2px 0 5px!important}
-.asset-topline .asset-back{display:none!important}
+html.telegram-native-back .asset-topline .asset-back{display:none!important}
 .asset-topline .asset-favorite{min-height:27px!important;padding:5px 9px!important;border:0!important;border-radius:9px!important;background:#edf3ff!important;color:#2874f0!important;font-size:10px!important;font-weight:650!important}
 
 
