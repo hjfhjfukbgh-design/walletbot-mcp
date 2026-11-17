@@ -4,7 +4,7 @@
   const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
   const tg = window.Telegram?.WebApp || null;
   const state = {
-    screen:"wallet", category:"crypto", markets:[], futures:[], favorites:new Set(["BTC","ETH","SOL"]),
+    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], favorites:new Set(["BTC","ETH","SOL"]),
     recent:[], selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
     autoclose:false, busy:false
@@ -199,6 +199,7 @@
     $("#kg-chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Свечной график">${grid}${marks}</svg>`;
   }
   async function openAsset(symbol){
+    state.previousScreen=state.screen;
     try{
       const detail=unwrap(await invoke("market.get",symbol),"market");
       if(detail.tradeable===false){notify("Этот актив недоступен для DEMO-торговли.");return;}
@@ -240,7 +241,7 @@
       drawCandles(candles);$("#kg-chart-state").textContent="Рыночные данные";
     }catch(error){$("#kg-chart").innerHTML=`<div class="kg-empty-inline">${esc(normalizeError(error).message)}</div>`;$("#kg-chart-state").textContent="Нет данных";}
   }
-  function closeAsset(){state.selected=null;state.selectedMarket=null;$("#kg-asset-screen").hidden=true;$("#kg-nav").hidden=false;setScreen("trading");}
+  function closeAsset(){const returnTo=state.previousScreen||"trading";state.selected=null;state.selectedMarket=null;$("#kg-asset-screen").hidden=true;$("#kg-nav").hidden=false;setScreen(returnTo);}
   function openTicket(side){
     if(!state.selected)return;
     state.side=side;state.leverage=1;state.maxLeverage=Math.max(1,Number(state.selected.maxLeverage||1));state.margin=0;state.preview=null;state.autoclose=false;
