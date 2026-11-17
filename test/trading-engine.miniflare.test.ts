@@ -169,6 +169,12 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(history.trades.filter((item) => item.event === "open")).toHaveLength(2);
     expect(history.trades.filter((item) => item.event === "close")).toHaveLength(2);
     expect(history.trades.filter((item) => item.event === "close").map((item) => item.side).sort()).toEqual(["long", "short"]);
+    const closeEvents = history.trades.filter((item) => item.event === "close");
+    expect(closeEvents).toHaveLength(2);
+    const longHistoryClose = closeEvents.find((item) => item.side === "long");
+    const shortHistoryClose = closeEvents.find((item) => item.side === "short");
+    expect(longHistoryClose?.pnl).toBe(Number(BigInt(longClose.body.result.totalNetPnlMicro)) / 1_000_000);
+    expect(shortHistoryClose?.pnl).toBe(Number(BigInt(shortClose.body.result.totalNetPnlMicro)) / 1_000_000);
     expect(history.equity.length).toBeGreaterThanOrEqual(5);
     expect(history.equity.every(([at, balance]) => Number.isFinite(at) && Number.isFinite(balance))).toBe(true);
     expect(history.equity[0][1]).toBe(1000);
