@@ -295,3 +295,18 @@ button:disabled{cursor:not-allowed;opacity:.5}
   margin-top:12px;
   margin-bottom:0;
 }
+
+
+/* Keep fixed controls visually above scrolling content without ghosting it.
+   Preserve enough scroll runway for the last wallet and asset sections. */
+.kg-nav{
+  background:#fff;
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+#kg-asset-screen{
+  padding-bottom:calc(156px + var(--kg-safe-bottom));
+}
+.kg-asset-actions{
+  background:#fff;
+}
