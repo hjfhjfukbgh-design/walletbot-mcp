@@ -153,6 +153,12 @@ async function previewDemoTrade(env: Env, userId: string, body: Json): Promise<R
     return fail(`Максимальное плечо демо-счёта: ${limits.maxLeverage}×.`);
   if (body.marginMicro != null && !/^\d{1,18}$/.test(String(body.marginMicro))) return fail("Некорректная сумма маржи.");
 
+  const dailyRisk = await engineRequest(env, "/risk?userId=" + encodeURIComponent(userId)
+    + "&maxDailyLossBps=" + Math.round(limits.maxDailyLossPct * 100));
+  if (!dailyRisk.ok) return dailyRisk;
+  const dailyRiskState = await dailyRisk.json() as { blocked?: boolean };
+  if (dailyRiskState.blocked) return fail("Достигнут дневной лимит убытка демо-счёта. Новые сделки заблокированы до 00:00 UTC.", 403);
+
   const contracts = await publicContracts();
   const contract = contracts.find((item) => item.name.replace(/-USDC?$/i, "").toUpperCase() === symbol);
   if (!contract) return fail("Этот актив сейчас недоступен для демо-торговли.");
