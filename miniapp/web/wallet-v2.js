@@ -39,7 +39,11 @@
     const entry = BigInt(position.entryPrice);
     const current = toPriceUnits(marketPrice);
     const delta = position.side === "long" ? current - entry : entry - current;
-    return Number(qty * delta * 1_000_000n / 10_000_000_000_000_000n) / 1_000_000;
+    const scale = 10_000_000_000_000_000n;
+    const grossMicro = qty * delta * 1_000_000n / scale;
+    const exitNotionalMicro = qty * current * 1_000_000n / scale;
+    const exitFeeMicro = exitNotionalMicro * BigInt(position.feePpm || "0") / 1_000_000n;
+    return Number(grossMicro - exitFeeMicro) / 1_000_000;
   }
   function fmtPnl(value) {
     const n = Number(value || 0);
