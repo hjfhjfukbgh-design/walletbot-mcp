@@ -46,15 +46,15 @@
   }
   function setScreen(name){
     state.screen=name;
-    $$$(".kg-screen").forEach(node=>node.classList.toggle("is-active",node.id==="kg-"+name+"-screen"));
-    $$$("#kg-nav button").forEach(node=>node.classList.toggle("is-active",node.dataset.screen===name));
+    $$(".kg-screen").forEach(node=>node.classList.toggle("is-active",node.id==="kg-"+name+"-screen"));
+    $$("#kg-nav button").forEach(node=>node.classList.toggle("is-active",node.dataset.screen===name));
     $("#kg-nav").hidden=false;
     $("#kg-asset-screen").hidden=true;
     $("#kg-ticket-screen").hidden=true;
     if(tg?.BackButton){tg.BackButton.hide();tg.BackButton.offClick?.(handleNativeBack);}
   }
   function showSubscreen(name){
-    $$$(".kg-screen").forEach(node=>node.classList.remove("is-active"));
+    $$(".kg-screen").forEach(node=>node.classList.remove("is-active"));
     $("#kg-nav").hidden=true;
     $("#kg-asset-screen").hidden=name!=="asset";
     $("#kg-ticket-screen").hidden=name!=="ticket";
@@ -116,7 +116,7 @@
     state.category=category;
     $$(".kg-category").forEach(b=>b.classList.toggle("is-selected",b.dataset.category===category));
     $$("#kg-search-filters button").forEach(b=>b.classList.toggle("is-selected",b.dataset.searchFilter===category));
-    $$$(".kg-category").forEach(b=>b.classList.toggle("is-selected",b.dataset.category===category));
+    $$(".kg-category").forEach(b=>b.classList.toggle("is-selected",b.dataset.category===category));
     const live=$("#kg-market-live"), unavailable=$("#kg-market-unavailable");
     if(category==="stocks"||category==="funds"){
       live.hidden=true;unavailable.hidden=false;
@@ -259,7 +259,7 @@
   }
   async function loadCandles(interval){
     state.interval=interval;
-    $$$("#kg-timeframes button").forEach(b=>b.classList.toggle("is-selected",b.dataset.interval===interval));
+    $$("#kg-timeframes button").forEach(b=>b.classList.toggle("is-selected",b.dataset.interval===interval));
     $("#kg-chart-state").textContent="Загрузка…";
     try{
       const result=unwrap(await invoke("market.candles",state.selectedMarket,interval),"candles");
@@ -305,7 +305,7 @@
   }
   function closeTicket(){state.previewSeq++;$("#kg-ticket-screen").hidden=true;$("#kg-asset-screen").hidden=false;if(tg?.BackButton){tg.BackButton.show();tg.BackButton.offClick?.(handleNativeBack);tg.BackButton.onClick(handleNativeBack);}}
   function showModal(id){$(id).hidden=false;}
-  function closeModals(){$$$(".kg-modal").forEach(m=>m.hidden=true);}
+  function closeModals(){$$(".kg-modal").forEach(m=>m.hidden=true);}
   async function confirmTrade(){
     if(!state.preview||state.busy)return;
     state.busy=true;$("#kg-trade-confirm").disabled=true;
@@ -325,23 +325,23 @@
     finally{state.busy=false;}
   }
   function bind(){
-    $$$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
+    $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
       setScreen(button.dataset.screen);
       if(state.screen==="wallet")await loadWallet();
       if(state.screen==="trading")await (state.category==="all"?setSearchFilter("all"):loadCategory(state.category));
       if(state.screen==="income"){await loadWallet();await loadHistory();}
       if(state.screen==="bonuses")await loadCapabilities();
     }));
-    $$$("[data-open-trading]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("crypto");}));
-    $$$("[data-open-futures]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("futures");}));
-    $$$(".kg-category").forEach(b=>b.addEventListener("click",()=>loadCategory(b.dataset.category)));
+    $$("[data-open-trading]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("crypto");}));
+    $$("[data-open-futures]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("futures");}));
+    $$(".kg-category").forEach(b=>b.addEventListener("click",()=>loadCategory(b.dataset.category)));
     $("#kg-search-open").addEventListener("click",()=>{$("#kg-trading-screen").classList.add("kg-search-mode");$("#kg-search-open").hidden=true;$("#kg-market-search").hidden=false;$("#kg-search-close").hidden=false;$("#kg-search-filters").hidden=false;setSearchFilter("all");$("#kg-market-search").focus();});
     $("#kg-search-close").addEventListener("click",()=>{$("#kg-market-search").value="";$("#kg-trading-screen").classList.remove("kg-search-mode");$("#kg-search-filters").hidden=true;$("#kg-market-search").hidden=true;$("#kg-search-close").hidden=true;$("#kg-search-open").hidden=false;loadCategory("crypto");});
     $("#kg-market-search").addEventListener("input",()=>renderMarketList(currentMarkets()));
     $$("#kg-search-filters button").forEach(b=>b.addEventListener("click",()=>setSearchFilter(b.dataset.searchFilter)));
     $("#kg-market-search").addEventListener("keydown",e=>{if(e.key==="Escape")$("#kg-search-close").click();});
     $("#kg-recent-clear").addEventListener("click",()=>{state.recent=[];try{localStorage.removeItem("kg:recent:v1");}catch{}renderRecent();});
-    $$$("[data-sort]").forEach(b=>b.addEventListener("click",()=>{state.sort=b.dataset.sort;$$$("[data-sort]").forEach(x=>x.classList.toggle("is-selected",x===b));renderTopDay(currentMarkets());}));
+    $$("[data-sort]").forEach(b=>b.addEventListener("click",()=>{state.sort=b.dataset.sort;$$("[data-sort]").forEach(x=>x.classList.toggle("is-selected",x===b));renderTopDay(currentMarkets());}));
     document.addEventListener("click",event=>{
       const remove=event.target.closest("[data-remove-favorite]");
       if(remove){event.preventDefault();event.stopPropagation();state.favorites.delete(remove.dataset.removeFavorite);try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}renderFavorites();return;}
@@ -355,7 +355,7 @@
     $("#kg-edit-favorites").addEventListener("click",()=>{state.editFavorites=!state.editFavorites;$("#kg-edit-favorites").textContent=state.editFavorites?"Готово":"Изменить";renderFavorites();});
     $("#kg-asset-back").addEventListener("click",closeAsset);
     $("#kg-asset-favorite").addEventListener("click",()=>{const s=state.selectedMarket;if(!s)return;state.favorites.has(s)?state.favorites.delete(s):state.favorites.add(s);renderFavorites();try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}$("#kg-asset-favorite").textContent=state.favorites.has(s)?"★ В избранном":"☆ В избранное";});
-    $$$("#kg-timeframes button").forEach(b=>b.addEventListener("click",()=>loadCandles(b.dataset.interval)));
+    $$("#kg-timeframes button").forEach(b=>b.addEventListener("click",()=>loadCandles(b.dataset.interval)));
     $("#kg-long").addEventListener("click",()=>openTicket("long"));
     $("#kg-short").addEventListener("click",()=>openTicket("short"));
     $("#kg-ticket-close").addEventListener("click",closeTicket);
@@ -367,7 +367,7 @@
     $("#kg-lev-min").addEventListener("click",()=>{$("#kg-lev-slider").value="1";$("#kg-lev-value").textContent="1×";});
     $("#kg-lev-max").addEventListener("click",()=>{$("#kg-lev-slider").value=String(state.maxLeverage);$("#kg-lev-value").textContent=state.maxLeverage+"×";});
     $("#kg-lev-apply").addEventListener("click",()=>{state.leverage=Number($("#kg-lev-slider").value);$("#kg-ticket-leverage").textContent=state.leverage+"×";closeModals();refreshPreview();});
-    $$$("[data-close-modal]").forEach(b=>b.addEventListener("click",closeModals));
+    $$("[data-close-modal]").forEach(b=>b.addEventListener("click",closeModals));
     $("#kg-asset-history-all").addEventListener("click",()=>{setScreen("income");loadWallet();loadHistory();});
     $("#kg-ticket-check").addEventListener("click",()=>{
       if(!state.preview)return;
