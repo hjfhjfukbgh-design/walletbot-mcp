@@ -172,10 +172,10 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(history.equity.length).toBeGreaterThanOrEqual(5);
     expect(history.equity.every(([at, balance]) => Number.isFinite(at) && Number.isFinite(balance))).toBe(true);
     expect(history.equity[0][1]).toBe(1000);
-    expect(history.equity[history.equity.length - 1][1]).toBe(Number(BigInt(balanceBeforeRestart)) / 1_000_000);
     const balance = await stub.fetch("https://engine.test/account?userId=" + userId);
     const closedAccount = await balance.json() as { balanceMicro: string; positions: Array<{ id: string }> };
     const balanceBeforeRestart = closedAccount.balanceMicro;
+    expect(history.equity[history.equity.length - 1][1]).toBe(Number(BigInt(balanceBeforeRestart)) / 1_000_000);
     expect(closedAccount.positions).toHaveLength(0);
     const expectedBalance = BigInt(initialBalance)
       + BigInt(longClose.body.result.totalNetPnlMicro)
