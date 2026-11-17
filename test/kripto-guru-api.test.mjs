@@ -30,7 +30,7 @@ describe("window.KriptoGuruAPI contract", () => {
     const api = loadApi(fetchMock);
     const account = await api.wallet.get();
     expect(api.version).toBe("1.0.0");
-    expect(account).toMatchObject({ mode: "demo", balanceUsd: 1255.5, balanceMicro: "1255000000" });
+    expect(account).toMatchObject({ mode: "demo", balanceUsd: 1255.5, balanceMicro: "1255500000" });
     expect(account.positions[0]).toMatchObject({
       id: "p1", side: "long", marginUsd: 100, notionalUsd: 300,
       entryPriceUsd: 50000, entryFeeUsd: 0.105, liquidationPriceUsd: 34000,
