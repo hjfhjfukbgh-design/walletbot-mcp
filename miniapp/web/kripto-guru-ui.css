@@ -220,3 +220,63 @@ button:disabled{cursor:not-allowed;opacity:.5}
   .kg-ticket-amount{margin-top:30px}
   .kg-ticket-actions{padding-top:12px;padding-bottom:9px}
 }
+
+/* QA correction: unavailable wallet cards must use the same horizontal row
+   geometry as the reference list; reserve real scroll space above fixed nav. */
+.kg-unavailable-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  box-sizing:border-box;
+  min-height:78px;
+  padding:12px 14px;
+  overflow:hidden;
+}
+.kg-unavailable-row>.kg-asset-icon{
+  display:grid;
+  place-items:center;
+  flex:0 0 38px;
+  width:38px;
+  height:38px;
+  border-radius:50%;
+  background:#f0f2f7;
+}
+.kg-unavailable-row>.kg-row-copy{
+  display:flex;
+  flex:1 1 auto;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+}
+.kg-unavailable-row>.kg-row-copy b,
+.kg-unavailable-row>.kg-row-copy small{
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.kg-unavailable-row>strong{flex:0 0 auto}
+#kg-main{padding-bottom:calc(176px + var(--kg-safe-bottom))}
+.kg-ticket-amount{margin-top:clamp(38px,6vh,58px)}
+.kg-ticket-actions{
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-top:28px;
+  padding:12px 0 0;
+  border-top:1px solid #eef0f4;
+}
+.kg-ticket-actions .kg-badge{
+  min-height:32px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:7px 11px;
+  border-radius:10px;
+  background:#f4f5f8;
+}
+.kg-ticket-preview{margin-top:12px;line-height:1.4}
+.kg-ticket-check{margin-top:12px;min-height:52px}
+@media(max-height:700px){
+  .kg-ticket-amount{margin-top:25px}
+  .kg-ticket-actions{margin-top:18px}
+}
