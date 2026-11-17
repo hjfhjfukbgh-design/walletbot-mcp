@@ -148,8 +148,8 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     await quote(stub, 51_000n * P);
     const longClose = await post(stub, "/close", { userId, positionId: long.body.position.id, manual: true });
     const shortClose = await post(stub, "/close", { userId, positionId: short.body.position.id, manual: true });
-    expect(longClose.body.result.netPnlMicro).toBeGreaterThan(0);
-    expect(shortClose.body.result.netPnlMicro).toBeLessThan(0);
+    expect(BigInt(longClose.body.result.netPnlMicro)).toBeGreaterThan(0n);
+    expect(BigInt(shortClose.body.result.netPnlMicro)).toBeLessThan(0n);
 
     const first = await stub.fetch("https://engine.test/history?userId=" + userId);
     const history = await first.json() as { trades: Array<{ position: { side: string }; close: { netPnlMicro: string } }> };
@@ -167,8 +167,6 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const accountAfterRestart = await stub.fetch("https://engine.test/account?userId=" + userId);
     expect((await accountAfterRestart.json() as { balanceMicro: string }).balanceMicro).toBe(balanceBeforeRestart);
   });
-
-
 
   it("closes once under Promise.all and duplicate ticks do not duplicate ledger credits", async () => {
     const stub = await boot();
