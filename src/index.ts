@@ -63,7 +63,8 @@ export default {
         commands: COMMANDS.map(([command, description]) => ({ command, description })),
       }));
       const menu = env.MINIAPP_URL
-        ? requireTelegramOk("setChatMenuButton", await tg(env, "setChatMenuButton", {
+        ? requireTelegramOk("setChatMenuButton(default)", await tg(env, "setChatMenuButton", {
+            scope: { type: "default" },
             menu_button: { type: "web_app", text: "Панель", web_app: { url: env.MINIAPP_URL } },
           }))
         : "MINIAPP_URL не задан";
@@ -75,7 +76,7 @@ export default {
             menu_button: { type: "web_app", text: "Панель", web_app: { url: env.MINIAPP_URL } },
           }))
         : "OWNER_CHAT_ID не задан";
-      const readDefaultMenu = requireTelegramOk("getChatMenuButton(default)", await tg(env, "getChatMenuButton", {}));
+      const readDefaultMenu = requireTelegramOk("getChatMenuButton(default)", await tg(env, "getChatMenuButton", { scope: { type: "default" } }));
       const readOwnerMenu = env.OWNER_CHAT_ID
         ? requireTelegramOk("getChatMenuButton(owner)", await tg(env, "getChatMenuButton", { chat_id: Number(env.OWNER_CHAT_ID) }))
         : "OWNER_CHAT_ID не задан";
