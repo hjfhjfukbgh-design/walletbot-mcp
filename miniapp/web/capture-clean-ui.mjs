@@ -82,6 +82,17 @@ try{
     const walletOrder=await page.locator("#kg-wallet-screen").evaluate(el=>[...el.children].filter(x=>["kg-wallet-hero","kg-wallet-quick-actions","kg-wallet-currency"].some(id=>x.id===id||x.classList.contains(id))).slice(0,3).map(x=>x.className||x.id).join(","));
     if(!walletOrder.includes("kg-wallet-hero,kg-wallet-quick-actions,kg-wallet-currency"))throw new Error("wallet first-screen order is incorrect: "+walletOrder);
     await page.screenshot({path:`clean-wallet-${device.width}x${device.height}.png`,fullPage:false});
+    const agentHeading=page.locator("#kg-wallet-screen .kg-section-head").filter({hasText:"Аккаунты ИИ-агента"});
+    await agentHeading.scrollIntoViewIfNeeded();
+    const agentLayout=await page.evaluate(()=>{
+      const heading=[...document.querySelectorAll("#kg-wallet-screen .kg-section-head")].find(el=>el.innerText.includes("Аккаунты ИИ-агента"));
+      const card=heading?.nextElementSibling?.getBoundingClientRect();
+      const h=heading?.getBoundingClientRect();
+      const nav=document.querySelector("#kg-nav").getBoundingClientRect();
+      return {headingTop:h?.top,headingBottom:h?.bottom,cardTop:card?.top,navTop:nav.top,viewportHeight:innerHeight,scrollY:scrollY};
+    });
+    if(agentLayout.scrollY<=0||agentLayout.headingTop<0||agentLayout.headingBottom>agentLayout.navTop-8||agentLayout.cardTop>=agentLayout.navTop)throw new Error("AI-agent wallet section must be reachable above fixed navigation: "+JSON.stringify(agentLayout));
+    await page.screenshot({path:`clean-wallet-agent-${device.width}x${device.height}.png`,fullPage:false});
     await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
     const walletScrollCheck=await page.evaluate(()=>{
       const nav=document.querySelector("#kg-nav").getBoundingClientRect();
