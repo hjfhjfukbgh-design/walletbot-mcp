@@ -191,7 +191,7 @@ jobs:
             if (patch) break;
           }
           if (!patch) throw new Error("Patch generation failed: " + lastError);
-          patch = patch.replace(/^\x60\x60\x60(?:css|diff)?\\s*/, "").replace(/\\s*\x60\x60\x60$/, "").trim();
+          patch = patch.replace(/^\x60\x60\x60(?:css|diff)?\s*/, "").replace(/\s*\x60\x60\x60$/, "").trim();
           if (patch === "NO_SAFE_PATCH") {
             fs.writeFileSync("/tmp/worker-mode.txt", "no-safe-patch");
             fs.writeFileSync("/tmp/worker-report.md", "# Исполнитель остановлен безопасно\\n\\nМодель не смогла сформировать безопасный patch. Исходники не изменены.\\n");
@@ -212,7 +212,7 @@ jobs:
           const diffStart = patch.indexOf("--- a/");
           if (diffStart > 0) patch = patch.slice(diffStart).trim();
           if (patch.includes("\x60\x60\x60") || !patch.startsWith("--- a/") || !patch.includes("\n+++ b/")) {
-            throw new Error("Model output is not a clean unified diff: " + patch.slice(0,200).replace(/\\s+/g," "));
+            throw new Error("Model output is not a clean unified diff: " + patch.slice(0,200).replace(/\s+/g," "));
           }
           fs.writeFileSync("/tmp/worker.patch", patch + "\n");
           fs.writeFileSync("/tmp/worker-mode.txt", "code");
