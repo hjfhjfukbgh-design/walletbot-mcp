@@ -46,6 +46,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
     switch (route) {
       case "GET demo":
         return engineRequest(env, "/account?userId=" + encodeURIComponent(telegramUserId));
+      case "GET demo/history":
+        return engineRequest(env, "/history?userId=" + encodeURIComponent(telegramUserId));
       case "POST demo/open":
         return openDemoTrade(env, telegramUserId, body);
       case "POST demo/close":
