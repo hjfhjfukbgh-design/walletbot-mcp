@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="/style.css?v=20261116-2215" />
   <link rel="stylesheet" href="/design-system.css?v=20261116-2215" />
   <link rel="stylesheet" href="/visual-pass.css?v=20261116-visual-2" />
-  <link rel="stylesheet" href="/reference-wallet.css?v=20261117-reference-3" />
+  <link rel="stylesheet" href="/reference-wallet.css?v=20261117-reference-4" />
 </head>
 <body>
   <header class="topbar">
@@ -87,7 +87,19 @@
       <div id="equities-market-content" class="hidden">
         <div class="section-heading"><h2 id="equities-title">Рынок США · Акции</h2><span class="section-muted">Информация</span></div>
         <div class="equities-switch"><button class="selected" data-equity-kind="stocks" type="button">Акции</button><button data-equity-kind="funds" type="button">Фонды</button></div>
-        <div class="equities-empty"><span class="equities-empty-icon">◫</span><b>Котировки пока не подключены</b><p>Мы не показываем вымышленные цены. Раздел станет доступен после подключения проверенного источника данных.</p><small>Торговля акциями и фондами в DEMO пока недоступна.</small></div>
+        <div class="equities-empty"><span class="equities-empty-icon">◫</span><div><b>Котировки пока не подключены</b><p>Карточки ниже — только список инструментов. Цены и торговля появятся после подключения проверенного источника данных.</p></div></div>
+        <div class="equities-grid" data-equity-list="stocks">
+          <div class="equity-tile"><span class="equity-symbol">A</span><span class="equity-copy"><b>Apple</b><small>AAPL · Нет котировки</small></span><strong>—</strong></div>
+          <div class="equity-tile"><span class="equity-symbol">M</span><span class="equity-copy"><b>Microsoft</b><small>MSFT · Нет котировки</small></span><strong>—</strong></div>
+          <div class="equity-tile"><span class="equity-symbol">N</span><span class="equity-copy"><b>NVIDIA</b><small>NVDA · Нет котировки</small></span><strong>—</strong></div>
+          <div class="equity-tile"><span class="equity-symbol">A</span><span class="equity-copy"><b>Amazon</b><small>AMZN · Нет котировки</small></span><strong>—</strong></div>
+        </div>
+        <div class="equities-grid hidden" data-equity-list="funds">
+          <div class="equity-tile"><span class="equity-symbol">S</span><span class="equity-copy"><b>SPDR S&P 500</b><small>SPY · Нет котировки</small></span><strong>—</strong></div>
+          <div class="equity-tile"><span class="equity-symbol">Q</span><span class="equity-copy"><b>Invesco QQQ</b><small>QQQ · Нет котировки</small></span><strong>—</strong></div>
+          <div class="equity-tile"><span class="equity-copy"><b>Vanguard S&P 500</b><small>VOO · Нет котировки</small></span><strong>—</strong></div>
+          <div class="equity-tile"><span class="equity-symbol">I</span><span class="equity-copy"><b>iShares Russell 2000</b><small>IWM · Нет котировки</small></span><strong>—</strong></div>
+        </div>
       </div>
     </section>
 
@@ -167,6 +179,6 @@
     <button data-tab="ctrl"><i data-icon="gift"></i><span>Бонусы</span></button>
   </nav>
 
-  <script src="/icons.js?v=20261116-2215"></script><script src="/app.js?v=20261117-search-1"></script><script src="/wallet-v2.js?v=20261116-2215"></script><script src="/trading-v2.js?v=20261116-2215"></script>
+  <script src="/icons.js?v=20261116-2215"></script><script src="/app.js?v=20261117-search-2"></script><script src="/wallet-v2.js?v=20261116-2215"></script><script src="/trading-v2.js?v=20261116-2215"></script>
 </body>
 </html>
