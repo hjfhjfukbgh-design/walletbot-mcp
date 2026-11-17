@@ -39,10 +39,16 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
     if (!/^\d{1,20}$/.test(telegramUserId)) return fail("Требуется открыть приложение через Telegram.", 401);
   }
   const scopedEnv = telegramUserId ? tenantEnv(env, telegramUserId) : env;
-  if (telegramUserId) {
-    await env.STATE.put("tenant:user:" + telegramUserId, JSON.stringify({ chatId: telegramUserId, createdAt: new Date().toISOString() }));
-  }
   try {
+    if (telegramUserId) {
+      // Tenant discovery is auxiliary: a transient KV outage must not take down
+      // authenticated wallet, market, history, or DEMO trading API requests.
+      try {
+        await env.STATE.put("tenant:user:" + telegramUserId, JSON.stringify({ chatId: telegramUserId, createdAt: new Date().toISOString() }));
+      } catch (error) {
+        console.error("[miniapp-api] tenant registry write failed; continuing request", error);
+      }
+    }
     switch (route) {
       case "GET demo":
         return demoAccountView(env, telegramUserId);
