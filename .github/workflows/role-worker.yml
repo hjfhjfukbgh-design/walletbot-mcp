@@ -453,10 +453,11 @@ jobs:
           set -euo pipefail
           gh label create agent-done --repo "$GITHUB_REPOSITORY" --color "0E8A16" --description "Исполнение завершено; требуется человеческая проверка" 2>/dev/null || true
           gh label create agent-blocked --repo "$GITHUB_REPOSITORY" --color "B60205" --description "Задача заблокирована и требует разбора" 2>/dev/null || true
-          if [ "$JOB_STATUS" = "success" ]; then
+          mode="$(cat /tmp/worker-mode.txt 2>/dev/null || echo unknown)"
+          if [ "$JOB_STATUS" = "success" ] && [ "$mode" != "no-safe-patch" ]; then
             gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label agent-dispatched --add-label agent-done
-            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Исполнитель завершил workflow успешно. Результат опубликован в Draft PR/отчёте; требуется человеческая проверка.\n\n<!-- kg-complete:run=$RUN_ID;status=success -->"
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Исполнитель завершил workflow. Результат опубликован в Draft PR/отчёте; требуется человеческая проверка. Режим: $mode.\n\n<!-- kg-complete:run=$RUN_ID;status=success;mode=$mode -->"
           else
             gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label agent-dispatched --add-label agent-blocked
-            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Исполнение завершилось со статусом $JOB_STATUS. Задача переведена в blocked; требуется разбор причины. Автоматический повтор не запускается.\n\n<!-- kg-complete:run=$RUN_ID;status=$JOB_STATUS -->"
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Исполнение не завершило задачу: status=$JOB_STATUS, mode=$mode. Задача переведена в blocked; требуется разбор причины. Автоматический повтор не запускается.\n\n<!-- kg-complete:run=$RUN_ID;status=blocked;mode=$mode -->"
           fi
