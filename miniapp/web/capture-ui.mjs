@@ -140,6 +140,19 @@ try {
     await page.locator('nav button[data-tab="painel"]').click();
     await page.locator('nav button[data-tab="pares"]').click();
     await page.waitForTimeout(900);
+    if(await page.locator('[data-market-category]').count()!==4) throw new Error("catalog: expected four product categories");
+    await assertViewport(page,"market-catalog");
+    await page.screenshot({path:`market-catalog-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.locator("#category-stocks").click();
+    await page.locator("#equities-market-content").waitFor({state:"visible"});
+    if(!(await page.locator(".equities-empty").innerText()).includes("Котировки пока не подключены")) throw new Error("stocks category must show honest unavailable state");
+    await page.screenshot({path:`market-stocks-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.locator("#category-funds").click();
+    if(!(await page.locator("#equities-title").innerText()).includes("Фонды")) throw new Error("funds category did not switch");
+    await page.screenshot({path:`market-funds-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.locator("#category-futures").click();
+    await page.locator("#pairs .market-row").first().waitFor({state:"visible"});
+    await page.locator("#category-crypto").click();
     await page.locator("#pairs .market-row").first().waitFor({state:"visible"});
     await assertViewport(page,"trade");
     await page.screenshot({path:`trade-${width}x${height}-dsf3.png`,fullPage:false});
@@ -211,11 +224,13 @@ try {
     await page.screenshot({path:`history-maxscroll-${width}x${height}-dsf3.png`,fullPage:false});
     await page.locator('nav button[data-tab="ctrl"]').click();
     await page.waitForTimeout(250);
-    await assertViewport(page,"settings");
+    await assertViewport(page,"bonuses");
+    await page.locator(".bonus-card").waitFor({state:"visible"});
+    if(!(await page.locator("#tab-ctrl h1").innerText()).includes("Бонусы")) throw new Error("bottom navigation fourth tab is not Bonuses");
     if(pageErrors.length) throw new Error("JavaScript errors: "+pageErrors.join(" | "));
-    await page.screenshot({path:`settings-${width}x${height}-dsf3.png`,fullPage:false});
-    await assertBottomAccessible(page,".disclaimer","settings scroll end");
-    await page.screenshot({path:`settings-maxscroll-${width}x${height}-dsf3.png`,fullPage:false});
+    await page.screenshot({path:`bonuses-${width}x${height}-dsf3.png`,fullPage:false});
+    await assertBottomAccessible(page,".disclaimer","bonuses settings scroll end");
+    await page.screenshot({path:`bonuses-maxscroll-${width}x${height}-dsf3.png`,fullPage:false});
     await page.close();
   }
 } finally {
