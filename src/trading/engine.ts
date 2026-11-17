@@ -119,7 +119,17 @@ export class TradingEngine {
           }
           return events;
         }).sort((a, b) => Number(b.at) - Number(a.at));
-        return jsonResponse({ ok: true, trades, equity: [] });
+        const ledgerRows = this.ctx.storage.sql.exec(
+          "SELECT id, created_at, balance_before_micro, balance_after_micro FROM ledger WHERE user_id = ? ORDER BY id",
+          userId,
+        ).toArray() as Array<{ id: number; created_at: number; balance_before_micro: string; balance_after_micro: string }>;
+        const equity = ledgerRows.flatMap((row) => [
+          [Number(row.created_at), Number(row.balance_before_micro) / 1_000_000, Number(row.id) * 2],
+          [Number(row.created_at), Number(row.balance_after_micro) / 1_000_000, Number(row.id) * 2 + 1],
+        ] as Array<[number, number, number]>)
+          .sort((a, b) => a[0] - b[0] || a[2] - b[2])
+          .map(([at, balance]) => [at, balance] as [number, number]);
+        return jsonResponse({ ok: true, trades, equity });
       }
       if (request.method === "GET" && url.pathname === "/health") {
         return Response.json({ ok: true, openPositions: this.positions.size, socketOpen: this.socket?.readyState === WebSocket.OPEN, quoteCount: this.quotes.size, staleSymbols: [...this.staleSymbols] });
