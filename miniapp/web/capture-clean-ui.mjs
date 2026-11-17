@@ -34,6 +34,7 @@ try{
     const page=await browser.newPage({viewport:device,deviceScaleFactor:3,isMobile:true,hasTouch:true});
     const pageErrors=[];
     page.on("pageerror",error=>pageErrors.push(error.message));
+    await page.route("https://telegram.org/js/telegram-web-app.js",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.addInitScript(()=>{
       const mockPositions=[];
       const mockHistory=[];
