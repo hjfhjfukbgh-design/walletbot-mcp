@@ -296,29 +296,33 @@ async function priceView(env: Env, market: string, leverage: number) {
 }
 
 /** Public candles from Hyperliquid, with selectable interval. */
-async function chartView(env: Env, market: string, requestedInterval: string) {
-  const m = market.toUpperCase();
+async function chartView(_env: Env, market: string, requestedInterval: string) {
+  const m = market.trim().toUpperCase();
+  if (!/^[A-Z0-9:_-]{2,32}$/.test(m)) throw new Error("Некорректный торговый актив для графика.");
   const allowedIntervals = ["1m", "5m", "15m", "1h", "4h", "1d"];
   const interval = allowedIntervals.includes(requestedInterval) ? requestedInterval : "15m";
   const durations: Record<string, number> = { "1m": 6 * 60 * 60_000, "5m": 24 * 60 * 60_000, "15m": 2 * 86_400_000, "1h": 14 * 86_400_000, "4h": 60 * 86_400_000, "1d": 365 * 86_400_000 };
   const end = Date.now();
+  let response: Response;
   try {
-    const res = await fetch("https://api.hyperliquid.xyz/info", {
+    response = await fetch("https://api.hyperliquid.xyz/info", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "candleSnapshot", req: { coin: m, interval, startTime: end - durations[interval], endTime: end } }),
+      signal: AbortSignal.timeout(8_000),
     });
-    if (res.ok) {
-      const rows = (await res.json()) as Array<{ t: number; o: string; h: string; l: string; c: string }>;
-      if (Array.isArray(rows) && rows.length)
-        return { source: "hyperliquid", interval, candles: rows.map((r) => [r.t, +r.o, +r.h, +r.l, +r.c]) };
-    }
-  } catch {
-    // cai para os ticks gravados
+  } catch (error) {
+    throw new Error(`Свечи ${m} (${interval}) временно недоступны: ${error instanceof Error ? error.message : "ошибка сети"}`);
   }
-  const s = await loadState(env);
-  const points = s.prices?.market === m ? s.prices.points : [];
-  return { source: "ticks", interval, candles: points.map(([t, p]) => [t, p, p, p, p]) };
+  if (!response.ok) throw new Error(`Поставщик свечей вернул HTTP ${response.status} для ${m} (${interval}).`);
+  let rows: Array<{ t: number; o: string; h: string; l: string; c: string }>;
+  try { rows = await response.json() as Array<{ t: number; o: string; h: string; l: string; c: string }>; }
+  catch { throw new Error("Поставщик свечей вернул некорректный JSON."); }
+  const candles = Array.isArray(rows) ? rows
+    .filter((row) => Number.isFinite(row.t) && [row.o, row.h, row.l, row.c].every((value) => Number.isFinite(Number(value)) && Number(value) > 0))
+    .map((row) => [row.t, Number(row.o), Number(row.h), Number(row.l), Number(row.c)]) : [];
+  if (!candles.length) throw new Error(`Для ${m} нет свечных данных на таймфрейме ${interval}.`);
+  return { source: "hyperliquid", interval, candles };
 }
 
 /** Validate Telegram Mini App initData and return the signed Telegram user ID. */
