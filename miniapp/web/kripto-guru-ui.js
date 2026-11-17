@@ -169,7 +169,8 @@
     try{
       state.wallet=unwrap(await invoke("wallet.get"),"wallet");
       $("#kg-wallet-balance").textContent=money(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
-      $("#kg-wallet-currency-value").textContent=money(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));\n      renderWalletAssets();
+      $("#kg-wallet-currency-value").textContent=money(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
+      renderWalletAssets();
       const pos=listOf(state.wallet,["positions"]);
       $("#kg-position-count").textContent=String(pos.length);
       renderPositions(pos);
