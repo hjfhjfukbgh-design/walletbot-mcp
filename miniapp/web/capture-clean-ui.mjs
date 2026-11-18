@@ -77,9 +77,11 @@ try{
     }
     await page.waitForFunction(()=>document.querySelectorAll("#kg-favorites .kg-favorite").length===3);
     if(await page.locator("#kg-favorites .kg-favorite").count()!==3)throw new Error("wallet should show three favorite markets");
-    if(await page.locator("#kg-nav button").count()!==4)throw new Error("bottom navigation should have four tabs without bonuses");
+    if(await page.locator("#kg-nav button").count()!==3)throw new Error("bottom navigation should have three tabs");
     const navOrder=await page.locator("#kg-nav button").evaluateAll(nodes=>nodes.map(node=>node.dataset.screen).join(","));
-    if(navOrder!=="wallet,trading,income,companion")throw new Error("bottom navigation order should end with AI Companion");
+    if(navOrder!=="wallet,trading,companion")throw new Error("bottom navigation should contain wallet, trading, and AI Companion in that order");
+    const navLabels=await page.locator("#kg-nav button small").allTextContents();
+    if(navLabels.includes("Доход")||navLabels.includes("Бонусы"))throw new Error("Income and Bonuses must not appear in bottom navigation");
     if(!(await page.locator(".kg-wallet-hero").isVisible()))throw new Error("wallet balance hero must be visible on the first screen");
     if(!(await page.locator("#kg-wallet-quick-actions").isVisible()))throw new Error("wallet quick actions must be visible on the first screen");
     if(await page.locator("#kg-wallet-quick-actions button").count()!==4)throw new Error("wallet should show four reference quick actions");
@@ -168,17 +170,13 @@ try{
     await page.screenshot({path:`clean-confirm-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-trade-confirm").click();
     await page.waitForSelector("#kg-asset-screen:not([hidden])");
-    await page.locator("#kg-asset-back").click();
-    await page.locator('#kg-nav button[data-screen="income"]').click();
+    await page.locator("#kg-asset-history-all").click();
     await page.waitForSelector("#kg-income-screen.is-active");
     await page.waitForSelector(".kg-position");
     const missingPnl=page.locator(".kg-position-pnl").first();
     if((await missingPnl.innerText()).trim()!=="—")throw new Error("missing position PnL must render as an em dash");
     if(!(await missingPnl.evaluate(el=>el.classList.contains("kg-muted"))))throw new Error("missing position PnL must use neutral styling");
-    await page.screenshot({path:`clean-income-${device.width}x${device.height}.png`,fullPage:false});
-    await page.locator('#kg-nav button[data-screen="bonuses"]').click();
-    await page.waitForSelector("#kg-bonuses-screen.is-active");
-    await page.screenshot({path:`clean-bonuses-${device.width}x${device.height}.png`,fullPage:false});
+    await page.screenshot({path:`clean-income-history-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator('#kg-nav button[data-screen="companion"]').click();
     await page.waitForSelector("#kg-companion-screen.is-active");
     await page.locator("#kg-ai-input").fill("Проверь связь");
