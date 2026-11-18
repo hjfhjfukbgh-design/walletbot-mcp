@@ -377,3 +377,14 @@
 - **Артефакты:** branch `feat/companion-atomic-quotas-2026-11-19`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/284.
 - **Ограничение:** research quota по-прежнему списывается при неуспешном Gemini call; это безопасное консервативное поведение для бюджета, но может лишать пользователя попытки. Не решалось этим PR.
 - **Безопасность:** Gemini/Walt не вызывались; ордера, позиции, аккаунты, secrets, merge и deploy не затрагивались.
+
+### 2026-11-19 — контрольная точка текущего инженерного цикла
+
+- **Время:** 2026-11-19T01:11:10.503+05:00
+- **Событие:** зафиксировано актуальное состояние PR и очереди после серии правок.
+- **Статус:** контрольная точка записана
+- **Draft PRs:** #281 agent queue/acceptance hardening; #282 legacy Walt fail-closed + explicit account confirmation + LIVE confirm tests; #283 valid contractId 0 in LIVE; #284 atomic Companion quotas; #280 corrected SECURITY report artifact.
+- **Статус проверки:** для новых PR combined status/workflow runs пока пусты; ни один не объявлен CI PASS и ни один не слит.
+- **Queue:** #278 оставлена в `agent-review`; ранее #275 Team B и #277 Team A оставались `orchestrator-ready` без подтверждённого dispatch. Фактическое выполнение остальных агентов не заявляется.
+- **Production:** merge/deploy не выполнялись; Cloudflare quota DO migration требует проверки zero-cost allowance перед rollout.
+- **Financial safety:** никаких реальных Walt calls, ордеров, изменений/закрытий позиций или переводов не выполнялось.
