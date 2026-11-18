@@ -24,6 +24,14 @@
         <strong id="kg-wallet-balance">—</strong>
         
       </section>
+      <div class="kg-product-mode-wrap">
+        <div id="kg-product-mode" class="kg-product-mode" role="group" aria-label="Режим продукта">
+          <button type="button" data-product-mode="demo" class="is-active" aria-pressed="true"><b>DEMO</b><small>Счёт</small></button>
+          <button type="button" data-product-mode="ai" aria-pressed="false"><b>AI Trading</b><small>PAPER</small></button>
+          <button type="button" data-product-mode="live" aria-pressed="false" disabled aria-disabled="true" title="LIVE заблокирован до проверки полного торгового контракта"><b>LIVE</b><small>Заблокирован</small></button>
+        </div>
+        <p id="kg-product-mode-status" class="kg-product-mode-status" aria-live="polite">DEMO · Виртуальный счёт. Реальные средства не используются.</p>
+      </div>
       <div id="kg-wallet-quick-actions" class="kg-wallet-quick-actions" aria-label="Быстрые действия">
         <button type="button" data-wallet-action="transfer"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 8 4-4 4 4M8 4v11M20 16l-4 4-4-4m4 4V9"/></svg></span><small>Перевести</small></button>
         <button type="button" data-wallet-action="deposit"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg></span><small>Пополнить</small></button>
