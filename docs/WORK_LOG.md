@@ -806,3 +806,8 @@
 - **Issue #347:** Team Lead takes the chart QA slice: candle ordering/deduplication, all timeframe switching, horizontal history scroll preservation and touch viewport regression.
 - **Planned changes:** sort valid candles ascending, deduplicate timestamps, expose safe candle timestamp markers for test, extend Playwright clean UI harness with timeframe and scroll-preservation assertions.
 - **No trading execution, Walt calls, external API spend or deploy.
+### 2026-11-19 — candlestick QA caught near-end scroll snap
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:29:16.500+05:00
+- **PR #351 screenshot run:** `44411847400` failed the new scroll regression: user scrollLeft 30px snapped to 40px because the chart treated positions within 12px of the right edge as live-follow.
+- **Correction:** branch commit `c42bcdfc1067d37682f8dcf05092e20b2dca0a93` reduces follow-end tolerance to 2px; the chart now follows new candles only when truly at the end. A fresh screenshot run is required.
