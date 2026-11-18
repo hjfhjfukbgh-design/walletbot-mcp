@@ -101,6 +101,56 @@ describe("AI Companion API", () => {
     expect(await otherHistory.json()).toMatchObject({ conversations: [] });
   });
 
+  it("uses real Google Search grounding and persists verified source links in research mode", async () => {
+    const e = isolatedEnv();
+    let sentBody: any;
+    vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      sentBody = JSON.parse(String(init?.body));
+      return Response.json({ candidates: [{
+        content: { parts: [{ text: "Подтверждённый обзор." }] },
+        groundingMetadata: {
+          webSearchQueries: ["проверка источников"],
+          groundingChunks: [{ web: { uri: "https://example.com/report", title: "Первичный отчёт" } }],
+        },
+      }] });
+    });
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Сделай исследование", mode: "research" }),
+    });
+    expect(response.status).toBe(200);
+    expect(sentBody.tools).toEqual([{ googleSearch: {} }]);
+    const result = await response.json() as { sources: Array<{ title: string; url: string }>; conversation: { mode: string; messages: Array<{ sources?: Array<{ title: string; url: string }> }> } };
+    expect(result.sources).toEqual([{ title: "Первичный отчёт", url: "https://example.com/report" }]);
+    expect(result.conversation.mode).toBe("research");
+    expect(result.conversation.messages[1].sources).toEqual(result.sources);
+  });
+
+  it("does not fabricate sources when Google Search grounding returns none", async () => {
+    const e = isolatedEnv();
+    const fetchMock = vi.fn(async () => Response.json({ candidates: [{ content: { parts: [{ text: "Неподтверждённый текст." }] }, groundingMetadata: { groundingChunks: [] } }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Исследуй", mode: "research" }),
+    });
+    expect(response.status).toBe(502);
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining("не вернёт") });
+  });
+
+  it("blocks research when the free-tier monthly budget guard is exhausted", async () => {
+    const month = new Date().toISOString().slice(0, 7);
+    const e = isolatedEnv({ ["companion:research:global:" + month]: "1000" });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Исследуй", mode: "research" }),
+    });
+    expect(response.status).toBe(429);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("sends image and audio attachments to Gemini as inline media", async () => {
     const e = isolatedEnv();
     let sentBody: any;
