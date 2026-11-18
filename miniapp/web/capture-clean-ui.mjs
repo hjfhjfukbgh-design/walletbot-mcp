@@ -33,7 +33,9 @@ try{
   for(const device of [{width:390,height:844},{width:430,height:932}]){
     const page=await browser.newPage({viewport:device,deviceScaleFactor:3,isMobile:true,hasTouch:true});
     const pageErrors=[];
+    const consoleErrors=[];
     page.on("pageerror",error=>pageErrors.push(error.message));
+    page.on("console",message=>{if(message.type()==="warning"||message.type()==="error")consoleErrors.push(message.text());});
     await page.route("https://telegram.org/js/telegram-web-app.js",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.route("**/kripto-guru-api.js*",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.addInitScript(()=>{
@@ -129,7 +131,8 @@ try{
     await page.locator('[data-category="futures"]').click();
     await page.waitForSelector('#kg-market-list [data-open-market="BTC"]');
     await page.locator('#kg-market-list [data-open-market="BTC"]').first().click();
-    await page.waitForSelector("#kg-asset-screen:not([hidden])");
+    try{await page.waitForSelector("#kg-asset-screen:not([hidden])",{timeout:10000});}
+    catch(error){const debug=await page.evaluate(()=>({toast:document.querySelector("#kg-toast")?.textContent,assetHidden:document.querySelector("#kg-asset-screen")?.hidden,selected:window.KriptoGuruUI?.state?.selectedMarket,screen:window.KriptoGuruUI?.state?.screen}));throw new Error("Asset open failed: "+JSON.stringify({debug,consoleErrors,pageErrors})+" "+error.message);}
     await page.waitForSelector("#kg-chart svg");
     if(!(await page.locator("#kg-asset-name").innerText()).includes("Bitcoin"))throw new Error("asset detail title missing");
     await page.screenshot({path:`clean-asset-${device.width}x${device.height}.png`,fullPage:false});
