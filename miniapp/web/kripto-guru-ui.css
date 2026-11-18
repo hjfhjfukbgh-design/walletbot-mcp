@@ -889,3 +889,59 @@ body{padding-bottom:calc(94px + var(--kg-safe-bottom))}
  #kg-wallet-screen .kg-wallet-quick-actions small{font-size:11px}
  #kg-wallet-screen .kg-favorite{flex-basis:142px;min-width:142px}
 }
+
+/* Walt parity pass 4 — consistent light surfaces across wallet, market and AI. */
+:root{--kg-bg:#f0eff5;--kg-card:#fff;--kg-ink:#111216;--kg-muted:#8d8d96;--kg-line:#dedee5;--kg-blue:#2788ef;--kg-green:#32ad70;--kg-red:#ed5149;--kg-shadow:0 2px 12px rgba(24,28,44,.045)}
+html,body{width:100%;overflow-x:hidden;background:var(--kg-bg);color:var(--kg-ink)}
+button{ -webkit-tap-highlight-color:transparent }
+#kg-main{width:100%;max-width:560px;padding:10px 16px calc(150px + var(--kg-safe-bottom))}
+.kg-page-title{margin:10px 3px 18px}
+.kg-page-title h1{font-size:24px;font-weight:720;letter-spacing:-.7px}
+.kg-page-title p{font-size:13px;line-height:1.4}
+.kg-section-head{margin:25px 2px 10px;min-height:22px}
+.kg-section-head h2{font-size:16px;font-weight:650;letter-spacing:-.35px}
+.kg-muted{font-size:12px}
+.kg-link{font-size:14px}
+.kg-search-row{gap:8px;margin:10px 0 14px}
+.kg-search-toggle,.kg-search-close,#kg-market-search{min-height:42px;border:1px solid var(--kg-line);border-radius:14px;background:#fff;color:var(--kg-ink);font-size:14px}
+#kg-market-search{padding:0 14px}
+.kg-category{min-height:38px;padding:8px 14px;border:1px solid var(--kg-line);border-radius:999px;background:#fff;color:#5d6069;font-size:13px;font-weight:600}
+.kg-category.is-selected{border-color:#d9e9ff;background:#eaf3ff;color:var(--kg-blue)}
+.kg-market-list,.kg-market-group{overflow:hidden;border:0;border-radius:22px;background:#fff;box-shadow:var(--kg-shadow)}
+.kg-market-row{min-height:66px;gap:12px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--kg-line)}
+.kg-market-copy b{font-size:15px;font-weight:600}
+.kg-market-copy small{font-size:12px}
+.kg-market-price{font-size:15px;font-weight:550}
+.kg-market-price small{font-size:12px}
+.kg-asset-large-icon{width:48px;height:48px;border-radius:50%}
+.kg-chart-card{overflow:hidden;border:1px solid var(--kg-line);border-radius:22px;background:#fff;box-shadow:var(--kg-shadow)}
+.kg-timeframes{display:flex;gap:5px;padding:6px;border-radius:999px;background:#fff}
+.kg-timeframes button{min-width:36px;min-height:32px;border-radius:999px;background:transparent;color:#777b85;font-size:12px}
+.kg-timeframes button.is-selected{background:#eaf3ff;color:var(--kg-blue)}
+.kg-asset-actions{gap:8px}
+.kg-asset-actions button{min-height:42px;border-radius:14px;font-size:13px;font-weight:650}
+.kg-modal-card{border:1px solid var(--kg-line);border-radius:25px;background:#fff;box-shadow:0 16px 50px rgba(16,22,36,.18)}
+.kg-ticket{background:#f0eff5;color:var(--kg-ink)}
+.kg-ticket-close,.kg-ticket-heading,.kg-ticket-actions .kg-badge,.kg-leverage-value button{background:#fff;color:var(--kg-ink)}
+.kg-ticket-amount input{color:var(--kg-ink)}
+.kg-position,.kg-history-row,.kg-bonus-card,.kg-settings-note{border:1px solid var(--kg-line);border-radius:19px;background:#fff;box-shadow:var(--kg-shadow)}
+.kg-ai-head{background:transparent}
+.kg-ai-messages{border:1px solid var(--kg-line);border-radius:22px;background:#fff;box-shadow:var(--kg-shadow)}
+.kg-ai-message.is-user>div{background:#2788ef;color:#fff}
+.kg-ai-message.is-assistant>div{background:#f1f2f6;color:var(--kg-ink)}
+.kg-ai-form{border:1px solid var(--kg-line);border-radius:24px;background:rgba(255,255,255,.94);box-shadow:0 5px 22px rgba(24,28,44,.07)}
+.kg-ai-form textarea{color:var(--kg-ink)}
+.kg-ai-menu,.kg-ai-history-item,.kg-ai-limits,.kg-ai-welcome,.kg-gemini-icon-button,.kg-gemini-tools button{border-color:var(--kg-line);background:#fff;color:var(--kg-ink)}
+.kg-gemini-home{background:radial-gradient(ellipse 72% 35% at 50% 43%,rgba(39,136,239,.09),transparent 72%),var(--kg-bg)}
+.kg-nav{width:min(270px,calc(100vw - 40px));padding:5px;border:1px solid rgba(255,255,255,.94);background:rgba(255,255,255,.91);box-shadow:0 8px 28px rgba(25,30,48,.13);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4)}
+.kg-nav button{min-height:47px;color:#33343a}
+.kg-nav button small{font-size:11px;font-weight:550}
+.kg-nav button.is-active{background:#e8e9ee;color:#2788ef;box-shadow:none}
+.kg-nav button.is-active svg{stroke:#2788ef}
+.kg-toast{border:1px solid rgba(0,0,0,.05);border-radius:16px;background:#22242a;color:#fff;box-shadow:0 8px 26px rgba(0,0,0,.18)}
+@media(max-width:380px){
+ #kg-main{padding-left:13px;padding-right:13px}
+ .kg-market-row{min-height:61px;padding:9px 11px}
+ .kg-page-title h1{font-size:22px}
+ .kg-nav{width:min(258px,calc(100vw - 42px))}
+}
