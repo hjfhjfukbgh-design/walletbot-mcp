@@ -329,7 +329,7 @@ async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<R
   );
   if (!contract) return fail("Этот актив недоступен в Walt.");
   if (!marketAllowed(limits, symbol)) return fail("Рынок не входит в список разрешённых для LIVE.");
-  if (!Number.isSafeInteger(contract.contractId) || contract.contractId <= 0 ||
+  if (!Number.isSafeInteger(contract.contractId) || contract.contractId < 0 ||
       !Number.isSafeInteger(contract.priceDecimals) || contract.priceDecimals < 0 || contract.priceDecimals > 18 ||
       !Number.isFinite(contract.maxLeverage) || contract.maxLeverage < 1 ||
       !Number.isFinite(contract.minSizeQuote) || contract.minSizeQuote <= 0 ||
