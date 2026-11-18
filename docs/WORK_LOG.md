@@ -811,3 +811,12 @@
 - **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:29:16.500+05:00
 - **PR #351 screenshot run:** `44411847400` failed the new scroll regression: user scrollLeft 30px snapped to 40px because the chart treated positions within 12px of the right edge as live-follow.
 - **Correction:** branch commit `c42bcdfc1067d37682f8dcf05092e20b2dca0a93` reduces follow-end tolerance to 2px; the chart now follows new candles only when truly at the end. A fresh screenshot run is required.
+### 2026-11-19 — candlestick history/scroll regression fixed and merged
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:30:57.389+05:00
+- **PR #351:** merged squash commit `15c0462782471e27dc6ede6026de2dbd4c4cc80a`.
+- **Code:** candle data normalized, deduplicated by normalized timestamp (seconds/milliseconds) and sorted ascending; malformed OHLC candles filtered; SVG candle bodies expose safe data-time markers.
+- **Playwright:** fixture deliberately reverses candles, duplicates one timestamp and includes malformed OHLC; verifies 30 unique ascending candles, all six intervals 1m/5m/15m/1h/4h/1d, horizontal history scroll and scroll preservation after realtime refresh.
+- **Visual defect found:** first screenshot run `44411847400` caught auto-follow snapping a 30px historical offset to 40px because the tolerance was 12px. Changed to 2px in commit `c42bcdfc1067d37682f8dcf05092e20b2dca0a93`.
+- **CI:** deploy run `44412024215` success (npm ci, syntax, typecheck, npm test); screenshot run `44412024026` success; artifact `14478285271` reviewed at 390×844 and 430×932.
+- **Issue #347:** closed completed with agent-done.
