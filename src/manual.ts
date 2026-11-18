@@ -69,7 +69,8 @@ export async function openManualTrade(
   const marginUsd = Number(input.marginUsd);
   const limits = riskLimits(env);
   if (!Number.isFinite(marginUsd) || marginUsd < 1) throw new Error("Маржа должна быть не меньше $1.");
-  if (!Number.isInteger(leverage) || leverage < 1 || leverage > Math.min(limits.maxLeverage, contract.maxLeverage)) throw new Error(`Плечо должно быть от 1x до ${Math.min(limits.maxLeverage, contract.maxLeverage)}x.`);
+  if (!Number.isFinite(contract.maxLeverage) || contract.maxLeverage < 1) throw new Error("Для контракта не получен допустимый лимит плеча.");
+  if (!Number.isInteger(leverage) || leverage < 1 || leverage > contract.maxLeverage) throw new Error(`Плечо должно быть от 1x до ${contract.maxLeverage}x.`);
   const notionalUsd = marginUsd * leverage;
   if (notionalUsd < contract.minSizeQuote || notionalUsd > contract.maxSizeQuote) throw new Error(`Объём позиции должен быть от ${contract.minSizeQuote} до ${contract.maxSizeQuote} USDC.`);
   const qty = notionalUsd / price;
