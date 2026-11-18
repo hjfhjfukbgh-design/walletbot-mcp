@@ -141,7 +141,7 @@ describe("AI Companion API", () => {
 
   it("blocks research when the free-tier monthly budget guard is exhausted", async () => {
     const day = new Date().toISOString().slice(0, 10);
-    const e = isolatedEnv({ ["companion:research:global:" + day]: "100" });
+    const e = isolatedEnv({ ["companion:research:global:" + day]: "20" });
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const response = await call(e, "111", "/api/companion/chat", {
