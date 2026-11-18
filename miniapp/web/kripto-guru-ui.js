@@ -4,7 +4,7 @@
   const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
   const tg = window.Telegram?.WebApp || null;
   const state = {
-    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, currencyMode:"RUB", sparklineCache:{},
+    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, currencyMode:"RUB", productMode:"demo", sparklineCache:{},
     favorites:(()=>{try{return new Set(JSON.parse(localStorage.getItem("kg:favorites:v1")||'["BTC","ETH","SOL"]'));}catch{return new Set(["BTC","ETH","SOL"]);}})(),
     equities:(()=>{try{const saved=JSON.parse(localStorage.getItem("kg:equities:v1"));return Array.isArray(saved)?saved.filter(x=>x&&typeof x.symbol==="string"&&typeof x.name==="string"):[{symbol:"AAPL",name:"Apple",kind:"Акция"}];}catch{return[{symbol:"AAPL",name:"Apple",kind:"Акция"}];}})(),
     editEquities:false,
@@ -762,11 +762,51 @@
     $("#kg-wallet-profile").setAttribute("aria-expanded","false");
     $("#kg-wallet-profile").focus();
   }
+  function renderProductMode(){
+    const descriptions={
+      demo:"DEMO · Виртуальный счёт. Реальные средства не используются.",
+      ai:"AI Trading · PAPER-контекст. Автоматические сделки пока отключены.",
+      live:"LIVE заблокирован до проверки полного торгового и close-контракта.",
+    };
+    $$("#kg-product-mode [data-product-mode]").forEach(button=>{
+      const selected=button.dataset.productMode===state.productMode;
+      button.classList.toggle("is-active",selected);
+      button.setAttribute("aria-pressed",String(selected));
+    });
+    $("#kg-product-mode-status").textContent=descriptions[state.productMode]||descriptions.demo;
+  }
+  async function loadProductMode(){
+    try{
+      const mode=await invoke("productMode.get");
+      state.productMode=mode==="ai"?"ai":"demo";
+    }catch(error){
+      console.warn("[Kripto Guru] Product mode unavailable",normalizeError(error).code);
+      state.productMode="demo";
+    }
+    renderProductMode();
+  }
+  async function selectProductMode(mode,button){
+    if(mode==="live")return notify("LIVE пока заблокирован: не подтверждён полный торговый и close-контракт.");
+    if(mode!=="demo"&&mode!=="ai")return;
+    if(mode===state.productMode)return;
+    button.disabled=true;
+    try{
+      const result=await invoke("productMode.set",mode);
+      state.productMode=result?.productMode==="ai"?"ai":"demo";
+      renderProductMode();
+    }catch(error){notify(normalizeError(error).message);}
+    finally{button.disabled=false;}
+  }
   function bind(){
     $("#kg-wallet-profile").addEventListener("click",openProfile);
     $("#kg-profile-close").addEventListener("click",closeProfile);
     $("#kg-profile-backdrop").addEventListener("click",closeProfile);
     $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
+    $("#kg-product-mode").addEventListener("click",event=>{
+      const button=event.target.closest("[data-product-mode]");
+      if(!button||button.disabled)return;
+      void selectProductMode(button.dataset.productMode,button);
+    });
     $("#kg-wallet-ai").addEventListener("click",async()=>{setScreen("companion");await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);state.companionInitialized=true;newCompanionConversation(false);});
     $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
       setScreen(button.dataset.screen);
@@ -930,7 +970,7 @@
     const marketTask=loadCategory("crypto").catch(error=>{
       console.warn("[Kripto Guru] Initial market load failed",normalizeError(error).code);
     }).finally(()=>syncMarketPolling());
-    await Promise.all([loadFxRate(),loadCapabilities(),loadHistory()]);
+    await Promise.all([loadFxRate(),loadCapabilities(),loadHistory(),loadProductMode()]);
     await Promise.all([loadWallet(),marketTask]);
 
   }

@@ -1244,3 +1244,16 @@ html,body{background:#0b1018!important;color:#eef3fa}
 #kg-ticket-screen .kg-ticket-actions{border-top-color:rgba(173,190,211,.14)}
 #kg-ticket-screen .kg-ticket-actions .kg-badge{background:#1b2634;color:#eef3fa}
 #kg-ticket-screen .kg-ticket-heading{background:#141c27;color:#eef3fa}
+
+/* Persistent DEMO / AI paper / locked LIVE product-mode selector. */
+.kg-product-mode-wrap{margin:14px 0 16px}
+.kg-product-mode{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:5px;border:1px solid rgba(173,190,211,.14);border-radius:18px;background:#141c27;box-shadow:0 5px 18px rgba(0,0,0,.16)}
+.kg-product-mode button{display:flex;min-width:0;min-height:48px;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:7px 4px;border:1px solid transparent;border-radius:13px;background:transparent;color:#94a3b8;font:inherit;cursor:pointer;transition:background .16s ease,color .16s ease,border-color .16s ease}
+.kg-product-mode button b{font-size:12px;font-weight:750;letter-spacing:.1px;white-space:nowrap}
+.kg-product-mode button small{font-size:9px;font-weight:600;white-space:nowrap;color:inherit;opacity:.78}
+.kg-product-mode button.is-active{background:rgba(57,137,244,.18);border-color:rgba(57,137,244,.3);color:#eef3fa}
+.kg-product-mode button.is-active b{color:#58a0ff}
+.kg-product-mode button:disabled{cursor:not-allowed;opacity:.45}
+.kg-product-mode-status{margin:7px 3px 0;color:#94a3b8;font-size:10px;line-height:1.45;text-align:center}
+.kg-product-mode button:focus-visible{outline:2px solid #3989f4;outline-offset:2px}
+@media(max-width:360px){.kg-product-mode button b{font-size:11px}.kg-product-mode button small{font-size:8px}}
