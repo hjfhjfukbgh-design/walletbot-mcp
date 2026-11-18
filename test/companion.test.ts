@@ -217,7 +217,7 @@ describe("AI Companion API", () => {
     });
     expect(response.status).toBe(429);
     const body = await response.text();
-    expect(body).toContain("Лимит Gemini");
+    expect(body).toContain("Лимит запросов Gemini");
     expect(body).not.toContain("private provider detail");
   });
 });
