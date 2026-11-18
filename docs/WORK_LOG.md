@@ -353,3 +353,13 @@
 - **Артефакт:** branch `agent/security-handoff-278-44385734444`; report commit `f158039c64c5f998d89701c0748d5e470aa7f5c1`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/280.
 - **Ограничение:** статический анализ; тесты/динамический E2E не запускались; report не является Security QA PASS.
 - **Безопасность:** application source не менялся в этой report correction; реальные Walt calls/операции не выполнялись.
+
+### 2026-11-19 — старт атомарного Companion quota counter
+
+- **Время:** 2026-11-19T01:07:20.808+05:00
+- **Событие:** начата реализация атомарных лимитов AI Companion вместо KV read-modify-write.
+- **Статус:** начато
+- **Причина:** текущие per-user rate limit и global/user research daily caps используют KV get→put, что допускает гонки при параллельных запросах; research quota также списывается до успешного ответа Gemini.
+- **Цель:** добавить отдельный SQLite Durable Object quota coordinator, который атомарно резервирует все применимые лимиты в одной транзакции и только после успешного резервирования пропускает запрос. Никаких новых платных сервисов.
+- **Scope:** новый DO class + binding/migration + Companion integration + Miniflare concurrency tests. Только branch/PR; без production deploy.
+- **Безопасность:** не вызывать Gemini или Walt в тестах; не менять реальные аккаунты/позиции/средства.
