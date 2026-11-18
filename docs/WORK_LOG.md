@@ -294,3 +294,13 @@
 - **PR #282 теперь:** 3 файла (`src/walt.ts`, `test/walt.test.ts`, `test/api.test.ts`), 42 additions / 24 deletions. Проверен полный diff; `combined status` и PR workflow runs пусты, тесты не объявляются пройденными.
 - **Артефакт:** head commit `a407d24efc4a402eb636e668c22ea864801933b9`; https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/282.
 - **Безопасность:** только локальные тестовые mock calls; реальные Walt calls/ордера/позиции/аккаунты не затрагивались; merge/deploy не выполнялись.
+
+### 2026-11-19 — старт explicit guard для Walt account creation
+
+- **Время:** 2026-11-19T01:04:05.178+05:00
+- **Событие:** начата дополнительная защита account-creation метода от будущего случайного вызова.
+- **Статус:** начато
+- **Основание:** единственный текущий caller `src/commands.ts` вызывает createAccount только после `/conta CONFIRMO`, но сам метод `Walt.createAccount()` не требует подтверждения на уровне adapter.
+- **Цель:** потребовать явный boolean confirmation в самом adapter, передать `true` только из уже подтверждённой команды и добавить тест, что `false` не вызывает MCP.
+- **Scope:** src/walt.ts, src/commands.ts, test/walt.test.ts на существующей ветке PR #282.
+- **Запрет:** не выполнять реальное создание Perps account или любые Walt writes.
