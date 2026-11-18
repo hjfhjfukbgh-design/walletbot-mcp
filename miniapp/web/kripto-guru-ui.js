@@ -526,7 +526,7 @@
       const status=unwrap(await invoke("live.status"),"live status");
       state.liveStatus=status;
       const balance=Number(status.balance?.usd);
-      const ready=status.connected===true&&status.readiness?.available===true&&status.readiness?.ok===true&&status.balance?.available===true&&Number.isFinite(balance)&&balance>0;
+      const ready=status.connected===true&&status.readiness?.available===true&&status.readiness?.ok===true&&status.contracts?.available===true&&status.balance?.available===true&&Number.isFinite(balance)&&balance>0;
       if(!ready){
         state.tradeMode="demo";
         renderTicketMode();
