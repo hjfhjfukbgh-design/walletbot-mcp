@@ -216,7 +216,7 @@ try{
       document.body.appendChild(keyboard);
     });
     if(await page.locator(".kg-gemini-tools").evaluate(el=>getComputedStyle(el).display)!=="none")throw new Error("Gemini tool shortcuts must hide while the keyboard is open");
-    if(await page.locator("#kg-nav").evaluate(el=>getComputedStyle(el).display)!=="none")throw new Error("bottom navigation must stay hidden while the keyboard is open");
+    if(await page.locator("#kg-nav").evaluate(el=>getComputedStyle(el).display)==="none")throw new Error("bottom navigation must remain visible while the keyboard is open");
     const composerAboveKeyboard=await page.evaluate(()=>{
       const composer=document.querySelector("#kg-ai-form").getBoundingClientRect();
       const keyboard=document.querySelector("#kg-test-keyboard").getBoundingClientRect();
