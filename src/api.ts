@@ -492,6 +492,8 @@ async function executeLiveTrade(env: Env, scopedEnv: Env, userId: string, body: 
 
   try {
     const result = await client.call("perps_execute_operation", { confirmationToken: preview.confirmationToken });
+    if (result && typeof result === "object" && !Array.isArray(result) && (result as Record<string, unknown>).ok === false)
+      throw new Error("Walt вернул отказ при исполнении операции.");
     const summary = safeLiveResult(result);
     const finished = await engineRequest(env, "/live/finish", { userId, handle, status: "completed", result: summary });
     if (!finished.ok) console.error("[live] execution completed but status persistence failed", await finished.text());
@@ -535,7 +537,7 @@ async function liveOperationView(env: Env, scopedEnv: Env, userId: string, handl
           const expectedSide = String(operation.side ?? "");
           const sideMatches = rawSide === expectedSide || (expectedSide === "long" && rawSide === "buy") || (expectedSide === "short" && rawSide === "sell");
           const rawTime = raw.updated_at ?? raw.created_at ?? raw.opened_at ?? raw.updatedAt ?? raw.createdAt;
-          let positionAt = typeof rawTime === "string" && !/^[0-9]+(\\.[0-9]+)?$/.test(rawTime) ? Date.parse(rawTime) : Number(rawTime);
+          let positionAt = typeof rawTime === "string" && !/^[0-9]+([.][0-9]+)?$/.test(rawTime) ? Date.parse(rawTime) : Number(rawTime);
           if (Number.isFinite(positionAt) && positionAt < 1_000_000_000_000) positionAt *= 1_000;
           const timeMatches = Number.isFinite(positionAt) && positionAt >= Number(operation.previewAt ?? 0) - 5_000;
           const summary = {
