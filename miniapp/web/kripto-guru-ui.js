@@ -597,6 +597,8 @@
     $("#kg-recent-clear").addEventListener("click",()=>{state.recent=[];try{localStorage.removeItem("kg:recent:v1");}catch{}renderRecent();});
     $$("[data-sort]").forEach(b=>b.addEventListener("click",()=>{state.sort=b.dataset.sort;$$("[data-sort]").forEach(x=>x.classList.toggle("is-selected",x===b));renderTopDay(currentMarkets());}));
     document.addEventListener("click",event=>{
+      const historyOpen=event.target.closest("[data-open-history]");
+      if(historyOpen){setScreen("income");loadHistory();return;}
       const remove=event.target.closest("[data-remove-favorite]");
       if(remove){event.preventDefault();event.stopPropagation();state.favorites.delete(remove.dataset.removeFavorite);try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}renderFavorites();return;}
       const open=event.target.closest("[data-open-market]");
