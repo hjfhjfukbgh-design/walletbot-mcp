@@ -185,13 +185,43 @@ try{
     if(!(await page.locator("#kg-companion-screen .kg-ai-welcome").isVisible()))throw new Error("AI Companion welcome must be visible on the home screen");
     await page.screenshot({path:`clean-companion-home-${device.width}x${device.height}.png`,fullPage:false});
 
-    // Playwright cannot display the native iOS keyboard; emulate its reduced visual viewport state
-    // so the focused-composer layout and keyboard-specific CSS can still be regression-tested.
+    // Playwright cannot open the native iOS keyboard. Emulate the reduced app viewport
+    // and draw a test-only iOS-style keyboard so the screenshot represents both states.
     await page.locator("#kg-ai-input").focus();
     await page.waitForFunction(()=>document.querySelector("#kg-companion-screen").classList.contains("kg-composer-expanded"));
-    await page.evaluate(()=>document.querySelector("#kg-companion-screen").classList.add("kg-keyboard-open"));
+    await page.evaluate(()=>{
+      document.querySelector("#kg-companion-screen").classList.add("kg-keyboard-open");
+      const style=document.createElement("style");
+      style.textContent=`
+        #kg-companion-screen.kg-keyboard-open{height:calc(100dvh - 280px)!important;min-height:calc(100dvh - 280px)!important}
+        #kg-test-keyboard{position:fixed;z-index:1000;right:0;bottom:0;left:0;height:280px;box-sizing:border-box;padding:8px 5px 20px;background:#d5d8df;border-top:1px solid #c5c9d1;color:#252a33;font:13px -apple-system,BlinkMacSystemFont,sans-serif}
+        #kg-test-keyboard .kg-test-kb-toolbar{display:flex;justify-content:space-between;align-items:center;height:26px;padding:0 8px;color:#606775;font-size:11px}
+        #kg-test-keyboard .kg-test-kb-row{display:flex;justify-content:center;gap:4px;margin:7px 0}
+        #kg-test-keyboard .kg-test-kb-key{display:grid;place-items:center;flex:1;min-width:0;height:39px;border-radius:5px;background:#fff;box-shadow:0 1px 0 #aeb3bc;font-size:16px}
+        #kg-test-keyboard .kg-test-kb-key.kg-test-kb-wide{flex:1.45;background:#b9bec8;font-size:13px}
+        #kg-test-keyboard .kg-test-kb-key.kg-test-kb-space{flex:5}
+      `;
+      document.head.appendChild(style);
+      const keyboard=document.createElement("div");
+      keyboard.id="kg-test-keyboard";
+      keyboard.setAttribute("aria-hidden","true");
+      const row=(keys,wide=[])=>'<div class="kg-test-kb-row">'+keys.map(key=>'<span class="kg-test-kb-key '+(wide.includes(key)?"kg-test-kb-wide":"")+'">'+key+'</span>').join("")+'</div>';
+      keyboard.innerHTML='<div class="kg-test-kb-toolbar"><span>◉</span><span>Русский</span><span>🎙</span></div>'+
+        row(["Й","Ц","У","К","Е","Н","Г","Ш","Щ","З","Х"])+
+        row(["Ф","Ы","В","А","П","Р","О","Л","Д","Ж","Э"])+
+        row(["⇧","Я","Ч","С","М","И","Т","Ь","Б","Ю","⌫"],["⇧","⌫"])+
+        row(["123","😊","Пробел","↵"],["123","😊","↵"]);
+      keyboard.querySelector(".kg-test-kb-row:last-child .kg-test-kb-key:nth-child(3)").classList.add("kg-test-kb-space");
+      document.body.appendChild(keyboard);
+    });
     if(await page.locator(".kg-gemini-tools").evaluate(el=>getComputedStyle(el).display)!=="none")throw new Error("Gemini tool shortcuts must hide while the keyboard is open");
     if(await page.locator("#kg-nav").evaluate(el=>getComputedStyle(el).display)!=="none")throw new Error("bottom navigation must stay hidden while the keyboard is open");
+    const composerAboveKeyboard=await page.evaluate(()=>{
+      const composer=document.querySelector("#kg-ai-form").getBoundingClientRect();
+      const keyboard=document.querySelector("#kg-test-keyboard").getBoundingClientRect();
+      return composer.bottom<=keyboard.top+1;
+    });
+    if(!composerAboveKeyboard)throw new Error("AI composer must remain above the on-screen keyboard");
     await page.screenshot({path:`clean-companion-keyboard-${device.width}x${device.height}.png`,fullPage:false});
     await page.evaluate(()=>{document.querySelector("#kg-companion-screen").classList.remove("kg-keyboard-open");document.querySelector("#kg-ai-input").blur();});
     await page.locator("#kg-ai-input").fill("Проверь связь");
