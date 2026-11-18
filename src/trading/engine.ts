@@ -286,7 +286,7 @@ export class TradingEngine {
   }
 
   private aiPaperStatus(userId: string): Record<string, unknown> {
-    if (!/^\\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
+    if (!/^\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
     const demoBalance = this.ensureAccount(userId);
     const account = this.ctx.storage.sql.exec(
       "SELECT balance_micro, status, strategy_id, strategy_version FROM ai_paper_accounts WHERE user_id = ?",
@@ -311,7 +311,7 @@ export class TradingEngine {
     const userId = String(body.userId ?? "");
     const rawAmount = String(body.amountMicro ?? "");
     const idempotencyKey = String(body.idempotencyKey ?? "");
-    if (!/^\\d{1,20}$/.test(userId) || !/^\\d{1,20}$/.test(rawAmount) ||
+    if (!/^\d{1,20}$/.test(userId) || !/^\d{1,20}$/.test(rawAmount) ||
         !/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey))
       return Response.json({ ok: false, error: "Некорректные параметры виртуального пополнения AI-счёта." }, { status: 400 });
     const amount = BigInt(rawAmount);
