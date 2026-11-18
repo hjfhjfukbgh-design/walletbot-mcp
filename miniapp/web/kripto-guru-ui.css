@@ -562,3 +562,55 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .kg-ai-welcome>b{font-size:16px;letter-spacing:-.3px}
 .kg-ai-welcome>p{max-width:270px;margin:9px 0;color:#727987;font-size:12px;line-height:1.6}
 .kg-ai-welcome>small{margin-top:3px;color:#2677f2;font-size:11px;font-weight:650}
+
+
+/* Visually merge the message area and composer into one continuous chat card. */
+#kg-companion-screen .kg-ai-messages{
+  min-height:36vh;
+  max-height:55vh;
+  margin:0;
+  padding:16px 12px 20px;
+  border:1px solid #e8edf5;
+  border-bottom:0;
+  border-radius:20px 20px 0 0;
+  background:#fff;
+  box-shadow:0 8px 24px rgba(39,91,160,.055);
+}
+#kg-companion-screen .kg-ai-form{
+  align-items:flex-end;
+  gap:9px;
+  margin:0;
+  padding:11px 12px calc(12px + env(safe-area-inset-bottom,0px));
+  border:1px solid #e8edf5;
+  border-top:1px solid rgba(177,204,240,.38);
+  border-radius:0 0 20px 20px;
+  background:linear-gradient(180deg,#f3f8ff 0%,#eaf3ff 48%,#deecff 100%);
+  box-shadow:0 9px 24px rgba(39,91,160,.07),inset 0 10px 24px rgba(164,197,238,.10);
+}
+#kg-companion-screen .kg-ai-form textarea{
+  min-height:40px;
+  max-height:120px;
+  padding:9px 10px;
+  border:0;
+  border-radius:13px;
+  background:rgba(255,255,255,.84);
+  font-size:16px!important;
+}
+#kg-companion-screen .kg-ai-form button{
+  display:grid;
+  place-items:center;
+  flex:0 0 42px;
+  width:42px;
+  height:42px;
+  border:0;
+  border-radius:50%;
+  background:#2878ed;
+  color:#fff;
+  box-shadow:0 4px 12px rgba(40,120,237,.25);
+  font-size:23px;
+  line-height:1;
+  transition:transform .15s ease,opacity .15s ease;
+}
+#kg-companion-screen .kg-ai-form button:active{transform:scale(.94)}
+#kg-companion-screen .kg-ai-form button:disabled{opacity:.48}
+#kg-companion-screen .kg-ai-disclaimer{margin:7px 3px 0}
