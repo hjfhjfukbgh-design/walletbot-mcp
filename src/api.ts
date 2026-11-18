@@ -50,6 +50,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
       }
     }
     switch (route) {
+      case "GET ai/paper/status":
+        return engineRequest(env, "/ai/paper/status?userId=" + encodeURIComponent(telegramUserId));
       case "GET demo":
         return demoAccountView(env, telegramUserId);
       case "GET demo/history":
@@ -72,6 +74,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         return livePositionView(scopedEnv, url.searchParams.get("symbol") ?? "");
       case "POST product-mode":
         return updateProductMode(scopedEnv, body);
+      case "POST ai/paper/fund":
+        return fundAiPaper(scopedEnv, telegramUserId, body);
       case "GET state":
         // Read-only polling must not run the legacy KV position monitor:
         // scheduled processing is the single monitor for that compatibility path.
@@ -764,6 +768,27 @@ async function updateProductMode(env: Env, body: Json): Promise<Response> {
   state.productMode = normalizeProductMode(requested);
   await saveState(env, state);
   return json({ ok: true, productMode: state.productMode, executionMode: state.mode });
+}
+
+async function fundAiPaper(env: Env, userId: string, body: Json): Promise<Response> {
+  const state = await loadState(env);
+  if (normalizeProductMode(state.productMode) !== "ai")
+    return fail("Выберите режим AI Trading перед виртуальным пополнением.", 409);
+  const amountText = String(body.amountUsd ?? "").trim();
+  if (!/^\\d+(?:\\.\\d{1,2})?$/.test(amountText))
+    return fail("Сумма должна быть положительным числом с точностью до двух знаков.");
+  let amountMicro: bigint;
+  try { amountMicro = parseFixed(amountText, MONEY_SCALE, 6); }
+  catch { return fail("Некорректная сумма виртуального пополнения."); }
+  if (amountMicro <= 0n) return fail("Сумма пополнения должна быть больше нуля.");
+  const idempotencyKey = String(body.idempotencyKey ?? "");
+  if (!/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey))
+    return fail("Не задан корректный ключ идемпотентности.");
+  return engineRequest(env, "/ai/paper/fund", {
+    userId,
+    amountMicro: amountMicro.toString(),
+    idempotencyKey,
+  });
 }
 
 async function stateView(env: Env) {
