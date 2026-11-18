@@ -20,6 +20,8 @@ describe("adaptador Walt", () => {
     await expect(walt.closePosition(contract.contractId))
       .rejects.toThrow("legacy closePosition отключено");
 
+    await expect(walt.createAccount(false))
+      .rejects.toThrow("отдельного явного подтверждения");
     expect(callTool).not.toHaveBeenCalled();
   });
 
