@@ -77,7 +77,7 @@ describe("AI Companion API", () => {
     let sentHeaders: Headers | undefined;
     let sentBody: Record<string, unknown> | undefined;
     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
-      expect(String(input)).toContain("/v1beta/models/gemini-3.8-flash:generateContent");
+      expect(String(input)).toContain("/v1beta/models/gemini-3.5-flash-lite:generateContent");
       sentHeaders = new Headers(init?.headers);
       sentBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
       return Response.json({ candidates: [{ content: { parts: [{ text: "Привет! Я на связи." }] } }] });
