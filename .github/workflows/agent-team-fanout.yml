@@ -94,6 +94,8 @@ jobs:
               "--limit","100","--json","number,title,body,url,createdAt,labels"
             ]) || "[]");
             const eligible = issues.filter(item => {
+              const labels=(item.labels||[]).map(label=>typeof label==="string"?label:label.name);
+              if(labels.includes("agent-dispatched")||labels.includes("agent-done"))return false;
               const m = String(item.body||"").match(childPattern);
               if (!m || m[3]!==team || !roles.has(m[4])) return false;
               const deps = m[5] && m[5] !== "none" ? m[5].split(",") : [];
