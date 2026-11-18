@@ -135,7 +135,7 @@ describe("AI Companion API", () => {
       body: JSON.stringify({ message: "Исследуй", mode: "research" }),
     });
     expect(response.status).toBe(502);
-    expect(await response.json()).toMatchObject({ error: expect.stringContaining("не вернёт") });
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining("проверяемых источников") });
   });
 
   it("blocks research when the free-tier monthly budget guard is exhausted", async () => {
