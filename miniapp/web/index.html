@@ -7,7 +7,7 @@
   <meta name="color-scheme" content="light">
   <title>Kripto Guru</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="/kripto-guru-ui.css?v=20261118-ai-companion-6">
+  <link rel="stylesheet" href="/kripto-guru-ui.css?v=20261118-ai-companion-7">
 </head>
 <body>
   <main id="kg-main">
@@ -69,8 +69,17 @@
       <div class="kg-page-title"><h1>Доход</h1><p>Открытые позиции и история демо-сделок.</p></div><div class="kg-section-head"><h2>Открытые позиции</h2><span id="kg-position-count" class="kg-muted">0</span></div><div id="kg-positions" class="kg-position-list"><div class="kg-empty-card">Загрузка позиций…</div></div><div class="kg-section-head"><h2>История транзакций</h2></div><div id="kg-history" class="kg-list"><div class="kg-empty-card">Загрузка истории…</div></div>
     </section>
     <section id="kg-companion-screen" class="kg-screen" aria-label="ИИ-собеседник">
-      <div class="kg-ai-head"><div><h1>AI Companion</h1><p>Универсальный помощник Kripto Guru</p></div><button id="kg-ai-new" type="button">＋ Новый чат</button></div>
-      <div id="kg-ai-history" class="kg-ai-history" aria-label="История диалогов"></div>
+      <div class="kg-ai-head">
+        <button id="kg-ai-menu-open" class="kg-ai-menu-trigger" type="button" aria-label="Открыть меню ИИ" aria-expanded="false"><span></span><span></span><span></span></button>
+        <div><h1>Kripto Guru AI</h1><p>Универсальный помощник</p></div>
+      </div>
+      <div id="kg-ai-menu-backdrop" class="kg-ai-menu-backdrop" hidden></div>
+      <aside id="kg-ai-menu" class="kg-ai-menu" aria-label="Меню ИИ" aria-hidden="true" inert>
+        <div class="kg-ai-menu-head"><div><b>Ваши диалоги</b><small>История и настройки ИИ</small></div><button id="kg-ai-menu-close" type="button" aria-label="Закрыть меню">×</button></div>
+        <button id="kg-ai-new" class="kg-ai-new-chat" type="button"><span>＋</span> Новый чат</button>
+        <div id="kg-ai-history" class="kg-ai-history" aria-label="История диалогов"></div>
+        <div class="kg-ai-limits"><b>Лимиты ИИ</b><div id="kg-ai-limits-content"><span>Загрузка лимитов…</span></div></div>
+      </aside>
       <div id="kg-ai-messages" class="kg-ai-messages" aria-live="polite"><div class="kg-ai-empty">Привет! Я AI Companion. Могу помочь с вопросами, обучением, технологиями и планированием.</div></div>
       <form id="kg-ai-form" class="kg-ai-form">
         <textarea id="kg-ai-input" rows="1" maxlength="4000" placeholder="Напишите сообщение…" aria-label="Сообщение ИИ"></textarea>
@@ -107,6 +116,6 @@
   </nav>
   <div id="kg-toast" class="kg-toast" role="status" aria-live="polite"></div>
   <script src="/kripto-guru-api.js?v=20261118-ai-companion-2"></script>
-  <script src="/kripto-guru-ui.js?v=20261118-ai-companion-2"></script>
+  <script src="/kripto-guru-ui.js?v=20261118-ai-companion-3"></script>
 </body>
 </html>
