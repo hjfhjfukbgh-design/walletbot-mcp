@@ -48,6 +48,7 @@ try{
       const mockPositions=[];
       const mockHistory=[];
       const companionHistory=[];
+      window.__candleCalls=0;
       const markets=[
         {symbol:"BTC",name:"Bitcoin",priceUsd:91240.5,change24hPct:2.42,volume24hUsd:8900000000,openInterestUsd:198750000,fundingRateHourlyPct:0.001,maxLeverage:50,takerFeePct:0.035,tradeable:true},
         {symbol:"ETH",name:"Ethereum",priceUsd:3120.2,change24hPct:-0.83,volume24hUsd:5200000000,openInterestUsd:92000000,fundingRateHourlyPct:-0.002,maxLeverage:30,takerFeePct:0.035,tradeable:true},
@@ -58,7 +59,7 @@ try{
       window.KriptoGuruAPI={
         wallet:{async get(){return {mode:"demo",balanceUsd:1000,assets:[{symbol:"BTC",name:"Bitcoin",valueUsd:0},{symbol:"ETH",name:"Ethereum",valueUsd:0},{symbol:"SOL",name:"Solana",valueUsd:0}],positions:mockPositions.map(x=>({...x}))};}},
         markets:{async list({category}){if(category==="stocks"||category==="funds")return {available:false,reason:"Проверенный источник котировок пока не подключён."};return {available:true,markets:markets.map(x=>({...x}))};}},
-        market:{async get(symbol){const item=markets.find(x=>x.symbol===symbol);if(!item)throw {code:"NOT_FOUND",message:"Инструмент не найден"};return {...item,productType:"Фьючерс"};},async candles(symbol,interval){return {candles:interval==="1m"?candles:candles};}},
+        market:{async get(symbol){const item=markets.find(x=>x.symbol===symbol);if(!item)throw {code:"NOT_FOUND",message:"Инструмент не найден"};return {...item,productType:"Фьючерс"};},async candles(symbol,interval){window.__candleCalls++;return {candles};}},
         trade:{
           async preview({marginUsd,leverage}){return {valid:marginUsd>=10&&marginUsd<=50,available:marginUsd>=10&&marginUsd<=50,maxMarginUsd:50,minMarginUsd:10,volumeUsd:marginUsd*leverage,entryFeeUsd:marginUsd*leverage*.00035,exitFeeUsd:marginUsd*leverage*.00035};},
           async open(payload){const p={id:"preview-position-1",symbol:payload.symbol,side:payload.side,marginUsd:payload.marginUsd,leverage:payload.leverage};mockPositions.push(p);mockHistory.unshift({event:"Открытие",symbol:p.symbol,side:p.side,timestamp:"Сейчас"});return {position:p};},
@@ -130,10 +131,15 @@ try{
     if(await page.locator('[data-category="stocks"]:visible,[data-category="funds"]:visible').count())throw new Error("stocks and funds categories must be removed from product navigation");
     await page.locator('[data-category="futures"]').click();
     await page.waitForSelector('#kg-market-list [data-open-market="BTC"]');
+    await page.evaluate(()=>{const native=window.setInterval.bind(window);window.setInterval=(callback,delay,...args)=>native(callback,delay===15000?100:delay,...args);});
     await page.locator('#kg-market-list [data-open-market="BTC"]').first().click();
     try{await page.waitForSelector("#kg-asset-screen:not([hidden])",{timeout:10000});}
     catch(error){const debug=await page.evaluate(()=>({toast:document.querySelector("#kg-toast")?.textContent,assetHidden:document.querySelector("#kg-asset-screen")?.hidden,selected:window.KriptoGuruUI?.state?.selectedMarket,screen:window.KriptoGuruUI?.state?.screen}));throw new Error("Asset open failed: "+JSON.stringify({debug,consoleErrors,pageErrors})+" "+error.message);}
     await page.waitForSelector("#kg-chart svg");
+    const candleChart=await page.locator("#kg-chart").evaluate(el=>({scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,svgWidth:el.querySelector("svg")?.getBoundingClientRect().width,candles:el.querySelectorAll("rect").length}));
+    if(!(candleChart.svgWidth>candleChart.clientWidth&&candleChart.scrollWidth>candleChart.clientWidth))throw new Error("candlestick history must scroll horizontally: "+JSON.stringify(candleChart));
+    const initialCandleCalls=await page.evaluate(()=>window.__candleCalls);
+    await page.waitForFunction(previous=>window.__candleCalls>previous,initialCandleCalls,{timeout:3000});
     if(!(await page.locator("#kg-asset-name").innerText()).includes("Bitcoin"))throw new Error("asset detail title missing");
     await page.screenshot({path:`clean-asset-${device.width}x${device.height}.png`,fullPage:false});
     const assetScreen=page.locator("#kg-asset-screen");
@@ -149,6 +155,10 @@ try{
     await page.screenshot({path:`clean-asset-about-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-long").click();
     await page.waitForSelector("#kg-ticket-screen:not([hidden])");
+    await page.waitForTimeout(250);
+    const pausedCandleCalls=await page.evaluate(()=>window.__candleCalls);
+    await page.waitForTimeout(250);
+    if(await page.evaluate(()=>window.__candleCalls)!==pausedCandleCalls)throw new Error("candlestick polling must pause while the ticket screen is open");
     if(!(await page.evaluate(()=>document.activeElement?.id==="kg-ticket-margin")))throw new Error("ticket amount input should autofocus during the user gesture");
     await page.locator("#kg-ticket-max").click();
     await page.waitForFunction(()=>document.querySelector("#kg-ticket-margin")?.value==="50");
@@ -167,6 +177,8 @@ try{
     await page.screenshot({path:`clean-confirm-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-trade-confirm").click();
     await page.waitForSelector("#kg-asset-screen:not([hidden])");
+    const candleCallsBeforeResume=await page.evaluate(()=>window.__candleCalls);
+    await page.waitForFunction(previous=>window.__candleCalls>previous,candleCallsBeforeResume,{timeout:3000});
     await page.locator("#kg-asset-history-all").click();
     await page.waitForSelector("#kg-income-screen.is-active");
     await page.waitForSelector(".kg-position");

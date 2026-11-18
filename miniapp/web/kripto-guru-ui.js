@@ -72,6 +72,7 @@
     $("#kg-asset-screen").hidden=true;
     $("#kg-ticket-screen").hidden=true;
     syncMarketPolling(returningFromSubscreen||name==="wallet");
+    syncCandlePolling();
     if(tg?.BackButton){tg.BackButton.hide();tg.BackButton.offClick?.(handleNativeBack);}
   }
   function showSubscreen(name){
@@ -81,6 +82,7 @@
     $("#kg-asset-screen").hidden=name!=="asset";
     $("#kg-ticket-screen").hidden=name!=="ticket";
     syncMarketPolling();
+    if(name==="ticket")syncCandlePolling();
     if(tg?.BackButton){tg.BackButton.show();tg.BackButton.offClick?.(handleNativeBack);tg.BackButton.onClick(handleNativeBack);}
   }
   function handleNativeBack(){
@@ -364,12 +366,17 @@
       .map(normalizeCandle)
       .filter(Boolean);
 
+    const chart = $("#kg-chart");
+    const wasAtEnd = chart.scrollWidth <= chart.clientWidth || chart.scrollLeft + chart.clientWidth >= chart.scrollWidth - 12;
+    const previousScrollLeft = chart.scrollLeft;
     if (!data.length) {
-      $("#kg-chart").innerHTML = '<div class="kg-empty-inline">Свечи для этого интервала недоступны.</div>';
+      chart.innerHTML = '<div class="kg-empty-inline">Свечи для этого интервала недоступны.</div>';
       return;
     }
 
-    const W = 340, H = 200, top = 12, bottom = 172, rightMargin = 60, chartWidth = W - rightMargin;
+    const H = 200, top = 12, bottom = 172, rightMargin = 60;
+    const chartWidth = Math.max(280, data.length * 12);
+    const W = chartWidth + rightMargin;
     const lows = data.map(c => c.low);
     const highs = data.map(c => c.high);
     let min = Math.min(...lows);
@@ -413,7 +420,8 @@
       return `<text x="${xPos}" y="${H - 4}" fill="#8e919b" font-size="9" font-family="sans-serif" text-anchor="middle">${esc(timeStr)}</text>`;
     }).join("");
 
-    $("#kg-chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Свечной график">${grid}${marks}${timeLabels}</svg>`;
+    chart.innerHTML = `<svg width="${W}" height="${H}" style="width:${W}px;min-width:${W}px;max-width:none" viewBox="0 0 ${W} ${H}" role="img" aria-label="Свечной график">${grid}${marks}${timeLabels}</svg>`;
+    chart.scrollLeft = wasAtEnd ? chart.scrollWidth : Math.min(previousScrollLeft, Math.max(0, chart.scrollWidth - chart.clientWidth));
   }
   async function openAsset(symbol){
     state.previousScreen=state.screen;
@@ -446,18 +454,50 @@
       renderAssetHistory(symbol);
       showSubscreen("asset");
       await loadCandles(state.interval);
+      syncCandlePolling();
     }catch(error){console.warn("[Kripto Guru] Asset open failed",error);notify(normalizeError(error).message);}
+  }
+  function syncCandlePolling(refreshOnStart=false){
+    const active=document.visibilityState==="visible"&&!$("#kg-asset-screen").hidden&&$("#kg-ticket-screen").hidden&&Boolean(state.selectedMarket);
+    if(active){
+      if(!candleRefreshTimer)candleRefreshTimer=setInterval(refreshCandles,15000);
+      if(refreshOnStart)void refreshCandles();
+    }else{
+      if(candleRefreshTimer){clearInterval(candleRefreshTimer);candleRefreshTimer=null;}
+      candleLoadEpoch++;
+    }
+  }
+  async function refreshCandles(){
+    if(document.visibilityState!=="visible"||$("#kg-asset-screen").hidden||!$("#kg-ticket-screen").hidden||!state.selectedMarket||candleRefreshInFlight)return;
+    const symbol=state.selectedMarket,interval=state.interval,requestId=++candleLoadEpoch;
+    candleRefreshInFlight=true;
+    try{
+      const result=unwrap(await invoke("market.candles",symbol,interval),"candles");
+      const candles=listOf(result,["candles","items"]);
+      if(!candles.length)throw {message:"Свечи для выбранного интервала пока недоступны.",retryable:true};
+      if(requestId!==candleLoadEpoch||symbol!==state.selectedMarket||interval!==state.interval||document.visibilityState!=="visible"||$("#kg-asset-screen").hidden||!$("#kg-ticket-screen").hidden)return;
+      drawCandles(candles);
+      const updated=new Date();
+      $("#kg-chart-state").textContent="Обновлено "+updated.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    }catch(error){
+      if(requestId===candleLoadEpoch&&!$("#kg-asset-screen").hidden)$("#kg-chart-state").textContent="Ожидаем обновление";
+    }finally{candleRefreshInFlight=false;}
   }
   async function loadCandles(interval){
     state.interval=interval;
-    $$("#kg-timeframes button").forEach(b=>b.classList.toggle("is-selected",b.dataset.interval===interval));
+    const requestId=++candleLoadEpoch,symbol=state.selectedMarket;
+    document.querySelectorAll("#kg-timeframes button").forEach(b=>b.classList.toggle("is-selected",b.dataset.interval===interval));
     $("#kg-chart-state").textContent="Загрузка…";
     try{
-      const result=unwrap(await invoke("market.candles",state.selectedMarket,interval),"candles");
+      const result=unwrap(await invoke("market.candles",symbol,interval),"candles");
       const candles=listOf(result,["candles","items"]);
       if(!candles.length) throw {message:"Свечи для выбранного интервала пока недоступны.",retryable:true};
+      if(requestId!==candleLoadEpoch||symbol!==state.selectedMarket||interval!==state.interval)return;
       drawCandles(candles);$("#kg-chart-state").textContent="Рыночные данные";
-    }catch(error){$("#kg-chart").innerHTML=`<div class="kg-empty-inline">${esc(normalizeError(error).message)}</div>`;$("#kg-chart-state").textContent="Нет данных";}
+    }catch(error){
+      if(requestId!==candleLoadEpoch)return;
+      $("#kg-chart").innerHTML=`<div class="kg-empty-inline">${esc(normalizeError(error).message)}</div>`;$("#kg-chart-state").textContent="Нет данных";
+    }
   }
   function closeAsset(){const returnTo=state.previousScreen||"trading";state.selected=null;state.selectedMarket=null;$("#kg-asset-screen").hidden=true;$("#kg-nav").hidden=false;setScreen(returnTo);}
   function openTicket(side){
@@ -494,7 +534,7 @@
       $("#kg-ticket-check").disabled=!(result.valid!==false && result.available!==false);
     }catch(error){if(seq!==state.previewSeq)return;$("#kg-ticket-preview").textContent=normalizeError(error).message;}
   }
-  function closeTicket(){state.previewSeq++;$("#kg-ticket-screen").hidden=true;$("#kg-asset-screen").hidden=false;if(tg?.BackButton){tg.BackButton.show();tg.BackButton.offClick?.(handleNativeBack);tg.BackButton.onClick(handleNativeBack);}}
+  function closeTicket(){state.previewSeq++;$("#kg-ticket-screen").hidden=true;$("#kg-asset-screen").hidden=false;syncCandlePolling(true);if(tg?.BackButton){tg.BackButton.show();tg.BackButton.offClick?.(handleNativeBack);tg.BackButton.onClick(handleNativeBack);}}
   function showModal(id){$(id).hidden=false;}
   function closeModals(){$$(".kg-modal").forEach(m=>m.hidden=true);}
   async function confirmTrade(){
@@ -767,7 +807,7 @@
       if(event.key==="Escape"){event.currentTarget.value="";clearTimeout(marketSearchTimer);renderMarketList(currentMarkets());}
     });
     if(!marketVisibilityListenerInstalled){
-      document.addEventListener("visibilitychange",()=>syncMarketPolling(true));
+      document.addEventListener("visibilitychange",()=>{syncMarketPolling(true);syncCandlePolling(true);});
       marketVisibilityListenerInstalled=true;
     }
     $$("#kg-search-filters button").forEach(b=>b.addEventListener("click",()=>setSearchFilter(b.dataset.searchFilter)));
@@ -842,6 +882,9 @@
   }
   let started=false;
   let marketRefreshTimer=null;
+  let candleRefreshTimer=null;
+  let candleRefreshInFlight=false;
+  let candleLoadEpoch=0;
   async function start(){
     if(started)return;
     started=true;
