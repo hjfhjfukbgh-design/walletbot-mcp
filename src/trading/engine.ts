@@ -69,6 +69,8 @@ export class TradingEngine {
     sql.exec("CREATE INDEX IF NOT EXISTS positions_user_status ON positions(user_id, status)");
     sql.exec("CREATE TABLE IF NOT EXISTS ledger (id INTEGER PRIMARY KEY AUTOINCREMENT, operation_id TEXT NOT NULL UNIQUE, user_id TEXT NOT NULL, position_id TEXT, kind TEXT NOT NULL, amount_micro TEXT NOT NULL, balance_before_micro TEXT NOT NULL, balance_after_micro TEXT NOT NULL, created_at INTEGER NOT NULL)");
     sql.exec("CREATE TABLE IF NOT EXISTS engine_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+    sql.exec("CREATE TABLE IF NOT EXISTS live_operations (handle TEXT PRIMARY KEY, user_id TEXT NOT NULL, contract_id INTEGER NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL, leverage INTEGER NOT NULL, margin_usd REAL NOT NULL, notional_usd REAL NOT NULL, preview_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, result_json TEXT)");
+    sql.exec("CREATE INDEX IF NOT EXISTS live_operations_user_status ON live_operations(user_id, status, updated_at)");
     this.restorePositions();
     const snapshot = sql.exec("SELECT value FROM engine_meta WHERE key = 'snapshot'").toArray()[0] as { value?: string } | undefined;
     if (snapshot?.value) {
@@ -87,6 +89,25 @@ export class TradingEngine {
   async fetch(request: Request): Promise<Response> {
     try {
       const url = new URL(request.url);
+      if (request.method === "GET" && url.pathname === "/live/status") {
+        const userId = url.searchParams.get("userId") ?? "";
+        const handle = url.searchParams.get("handle") ?? "";
+        if (!/^\d{1,20}$/.test(userId) || !/^[a-f0-9]{32}$/.test(handle))
+          return Response.json({ ok: false, error: "Некорректный идентификатор LIVE-операции." }, { status: 400 });
+        const row = this.ctx.storage.sql.exec(
+          "SELECT handle, user_id, contract_id, symbol, side, leverage, margin_usd, notional_usd, preview_at, expires_at, status, created_at, updated_at, result_json FROM live_operations WHERE handle = ? AND user_id = ?",
+          handle, userId,
+        ).toArray()[0] as Record<string, unknown> | undefined;
+        if (!row) return Response.json({ ok: false, error: "LIVE-операция не найдена." }, { status: 404 });
+        let result: unknown = null;
+        try { result = row.result_json ? JSON.parse(String(row.result_json)) : null; } catch {}
+        return jsonResponse({ ok: true, operation: {
+          handle: row.handle, userId: row.user_id, contractId: row.contract_id, symbol: row.symbol,
+          side: row.side, leverage: row.leverage, marginUsd: row.margin_usd, notionalUsd: row.notional_usd,
+          previewAt: row.preview_at, expiresAt: row.expires_at, status: row.status,
+          createdAt: row.created_at, updatedAt: row.updated_at, result,
+        } });
+      }
       if (request.method === "GET" && url.pathname === "/risk") {
         const userId = url.searchParams.get("userId") ?? "";
         const maxDailyLossBps = BigInt(url.searchParams.get("maxDailyLossBps") ?? "");
@@ -149,6 +170,8 @@ export class TradingEngine {
       }
       if (request.method !== "POST") return Response.json({ ok: false, error: "Метод не поддерживается." }, { status: 405 });
       const body = await request.json() as Record<string, unknown>;
+      if (url.pathname === "/live/claim") return this.claimLive(body);
+      if (url.pathname === "/live/finish") return this.finishLive(body);
       if (url.pathname === "/open") return jsonResponse(this.open(body));
       if (url.pathname === "/close") return jsonResponse(this.close(body));
       if (url.pathname === "/quote") return Response.json(await this.acceptQuote(body));
@@ -157,6 +180,81 @@ export class TradingEngine {
     } catch (error) {
       return Response.json({ ok: false, error: error instanceof Error ? error.message : "Ошибка Engine." }, { status: 400 });
     }
+  }
+
+  private claimLive(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    const handle = String(body.handle ?? "");
+    const contractId = Number(body.contractId);
+    const symbol = safeSymbol(body.symbol);
+    const side = String(body.side ?? "");
+    const leverage = Number(body.leverage);
+    const marginUsd = Number(body.marginUsd);
+    const notionalUsd = Number(body.notionalUsd);
+    const previewAt = Number(body.previewAt);
+    const expiresAt = Number(body.expiresAt);
+    const now = Date.now();
+    if (!/^\d{1,20}$/.test(userId) || !/^[a-f0-9]{32}$/.test(handle) ||
+        !Number.isSafeInteger(contractId) || contractId <= 0 ||
+        (side !== "long" && side !== "short") ||
+        !Number.isSafeInteger(leverage) || leverage < 1 ||
+        !Number.isFinite(marginUsd) || marginUsd <= 0 ||
+        !Number.isFinite(notionalUsd) || notionalUsd <= 0 ||
+        !Number.isSafeInteger(previewAt) || previewAt <= 0 ||
+        !Number.isSafeInteger(expiresAt) || expiresAt <= now || expiresAt > now + 120_000) {
+      return Response.json({ ok: false, error: "Некорректные или истёкшие параметры LIVE-операции." }, { status: 400 });
+    }
+
+    let existing: Record<string, unknown> | undefined;
+    let claimed = false;
+    this.ctx.storage.transactionSync(() => {
+      existing = this.ctx.storage.sql.exec(
+        "SELECT user_id, status FROM live_operations WHERE handle = ?", handle,
+      ).toArray()[0] as Record<string, unknown> | undefined;
+      if (existing) return;
+      this.ctx.storage.sql.exec(
+        "INSERT INTO live_operations(handle,user_id,contract_id,symbol,side,leverage,margin_usd,notional_usd,preview_at,expires_at,status,created_at,updated_at,result_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)",
+        handle, userId, contractId, symbol, side, leverage, marginUsd, notionalUsd, previewAt, expiresAt, "executing", now, now,
+      );
+      claimed = true;
+    });
+    if (!claimed) {
+      if (String(existing?.user_id ?? "") !== userId)
+        return Response.json({ ok: false, error: "LIVE-операция не найдена." }, { status: 404 });
+      return Response.json({ ok: false, claimed: false, status: String(existing?.status ?? "unknown") }, { status: 409 });
+    }
+    return Response.json({ ok: true, claimed: true, status: "executing" });
+  }
+
+  private finishLive(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    const handle = String(body.handle ?? "");
+    const requestedStatus = String(body.status ?? "");
+    if (!/^\d{1,20}$/.test(userId) || !/^[a-f0-9]{32}$/.test(handle) ||
+        !["completed", "unknown", "reconciled"].includes(requestedStatus)) {
+      return Response.json({ ok: false, error: "Некорректный статус LIVE-операции." }, { status: 400 });
+    }
+    const resultJson = JSON.stringify(body.result ?? null).slice(0, 4_000);
+    let row: Record<string, unknown> | undefined;
+    this.ctx.storage.transactionSync(() => {
+      row = this.ctx.storage.sql.exec(
+        "SELECT user_id, status FROM live_operations WHERE handle = ?", handle,
+      ).toArray()[0] as Record<string, unknown> | undefined;
+      if (!row || String(row.user_id) !== userId) return;
+      const current = String(row.status);
+      if (current === "completed" || current === "reconciled") return;
+      if (requestedStatus === "unknown" && current !== "executing") return;
+      if (requestedStatus === "completed" && current !== "executing" && current !== "unknown") return;
+      if (requestedStatus === "reconciled" && current !== "executing" && current !== "unknown") return;
+      this.ctx.storage.sql.exec(
+        "UPDATE live_operations SET status = ?, updated_at = ?, result_json = ? WHERE handle = ? AND user_id = ?",
+        requestedStatus, Date.now(), resultJson, handle, userId,
+      );
+      row.status = requestedStatus;
+    });
+    if (!row || String(row.user_id) !== userId)
+      return Response.json({ ok: false, error: "LIVE-операция не найдена." }, { status: 404 });
+    return Response.json({ ok: true, status: String(row.status) });
   }
 
   private restorePositions(): void {

@@ -219,6 +219,62 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const after = await post(stub, "/reconcile", {});
     expect(after.body.openPositions).toBe(0);
   });
+
+  it("atomically claims each LIVE handle once and persists final status", async () => {
+    const stub = await boot();
+    const handle = "a".repeat(32);
+    const now = Date.now();
+    const claimBody = {
+      userId, handle, contractId: 7, symbol: "BTC", side: "long",
+      leverage: 20, marginUsd: 25, notionalUsd: 500,
+      previewAt: now, expiresAt: now + 120_000,
+    };
+    const claims = await Promise.all([
+      post(stub, "/live/claim", claimBody),
+      post(stub, "/live/claim", claimBody),
+    ]);
+    expect(claims.filter((r) => r.status === 200 && r.body.claimed === true)).toHaveLength(1);
+    expect(claims.filter((r) => r.status === 409 && r.body.claimed === false)).toHaveLength(1);
+
+    const finished = await post(stub, "/live/finish", {
+      userId, handle, status: "completed", result: { orderId: "mock-order-1" },
+    });
+    expect(finished.body).toMatchObject({ ok: true, status: "completed" });
+
+    const duplicate = await post(stub, "/live/claim", claimBody);
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body.status).toBe("completed");
+
+    const status = await stub.fetch("https://engine.test/live/status?userId=" + userId + "&handle=" + handle);
+    expect(status.status).toBe(200);
+    expect(await status.json()).toMatchObject({
+      ok: true,
+      operation: { handle, status: "completed", result: { orderId: "mock-order-1" } },
+    });
+  });
+
+  it("isolates LIVE operation handles by user and rejects expired claims", async () => {
+    const stub = await boot();
+    const handle = "b".repeat(32);
+    const now = Date.now();
+    const body = {
+      userId, handle, contractId: 7, symbol: "BTC", side: "short",
+      leverage: 10, marginUsd: 10, notionalUsd: 100,
+      previewAt: now, expiresAt: now + 120_000,
+    };
+    const claim = await post(stub, "/live/claim", body);
+    expect(claim.body).toMatchObject({ ok: true, claimed: true });
+
+    const otherUser = await stub.fetch("https://engine.test/live/status?userId=987654321&handle=" + handle);
+    expect(otherUser.status).toBe(404);
+
+    const expired = await post(stub, "/live/claim", {
+      ...body, handle: "c".repeat(32), expiresAt: Date.now() - 1,
+    });
+    expect(expired.status).toBe(400);
+  });
+
+
 });
 
 
@@ -235,4 +291,5 @@ describe("DEMO execution price modelling", () => {
     expect(applyAdverseSlippage(mid, "long", slip)).toBe(49_950n * P);
     expect(applyAdverseSlippage(mid, "short", slip)).toBe(50_050n * P);
   });
+
 });

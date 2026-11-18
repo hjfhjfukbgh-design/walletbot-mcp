@@ -56,6 +56,10 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         return engineRequest(env, "/history?userId=" + encodeURIComponent(telegramUserId));
       case "POST live/preview":
         return previewLiveTrade(scopedEnv, telegramUserId, body);
+      case "POST live/execute":
+        return executeLiveTrade(env, scopedEnv, telegramUserId, body);
+      case "GET live/operation":
+        return liveOperationView(env, scopedEnv, telegramUserId, url.searchParams.get("handle") ?? "");
       case "POST demo/preview":
         return previewDemoTrade(env, telegramUserId, body);
       case "POST demo/open":
@@ -339,6 +343,14 @@ async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<R
     return fail(`Плечо превышает допустимый лимит (${maxAllowedLeverage}×).`);
   }
 
+  let existingPosition;
+  try {
+    existingPosition = await client.openPosition(contract.contractId);
+  } catch {
+    return fail("Не удалось проверить открытые позиции в Walt.", 503);
+  }
+  if (existingPosition) return fail("По этому контракту уже есть открытая позиция. Для безопасной сверки сначала закройте её вручную.", 409);
+
   let currentPriceVal;
   try {
     currentPriceVal = await client.rate(contract);
@@ -391,10 +403,11 @@ async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<R
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
   const opaqueHandle = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-  const expiresAt = Date.now() + 120_000;
+  const previewAt = Date.now();
+  const expiresAt = previewAt + 120_000;
   await env.STATE.put(
     `live:preview:${userId}:${opaqueHandle}`,
-    JSON.stringify({ confirmationToken: previewResult.confirmationToken, expiresAt, symbol, side, leverage, marginUsd }),
+    JSON.stringify({ confirmationToken: previewResult.confirmationToken, expiresAt, previewAt, contractId: contract.contractId, symbol, side, leverage, marginUsd, notionalUsd, priceUsd: currentPriceVal }),
     { expirationTtl: 120 }
   );
 
@@ -410,6 +423,162 @@ async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<R
     warnings: previewResult.warnings ?? [],
     expiresInSeconds: 120,
     handle: opaqueHandle,
+  });
+}
+
+type LivePreviewRecord = {
+  confirmationToken: string;
+  expiresAt: number;
+  previewAt: number;
+  contractId: number;
+  symbol: string;
+  side: "long" | "short";
+  leverage: number;
+  marginUsd: number;
+  notionalUsd: number;
+  priceUsd: number;
+};
+
+function safeLiveResult(value: unknown): Json {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { message: typeof value === "string" ? value.slice(0, 240) : "Walt подтвердил вызов." };
+  }
+  const source = value as Record<string, unknown>;
+  const result: Json = {};
+  for (const key of ["status", "orderId", "order_id", "id", "message", "filledAmount", "filled_amount", "averagePrice", "avgPrice", "avg_price"]) {
+    const item = source[key];
+    if (typeof item === "string" || typeof item === "number" || typeof item === "boolean")
+      result[key] = typeof item === "string" ? item.slice(0, 240) : item;
+  }
+  return result;
+}
+
+async function executeLiveTrade(env: Env, scopedEnv: Env, userId: string, body: Json): Promise<Response> {
+  if (body.confirm !== true) return fail("Требуется отдельное явное подтверждение LIVE-ордера.", 400);
+  const handle = String(body.handle ?? "").trim();
+  if (!/^[a-f0-9]{32}$/.test(handle)) return fail("Некорректный идентификатор подготовки ордера.");
+
+  const key = "live:preview:" + userId + ":" + handle;
+  const preview = await scopedEnv.STATE.get<LivePreviewRecord>(key, "json");
+  if (!preview) {
+    const prior = await engineRequest(env, "/live/status?userId=" + encodeURIComponent(userId) + "&handle=" + encodeURIComponent(handle));
+    if (prior.ok) {
+      const data = await prior.json() as { operation?: Json };
+      const priorOperation = data.operation ?? {};
+      return json({
+        ok: true, alreadyProcessed: true,
+        operation: {
+          handle: priorOperation.handle, market: priorOperation.symbol, side: priorOperation.side,
+          leverage: priorOperation.leverage, marginUsd: priorOperation.marginUsd,
+          status: priorOperation.status, result: priorOperation.result ?? null,
+        },
+      });
+    }
+    return fail("Подготовка ордера не найдена или срок подтверждения истёк.", 410);
+  }
+  if (!preview.confirmationToken || !Number.isSafeInteger(preview.contractId) ||
+      !Number.isFinite(preview.expiresAt) || preview.expiresAt <= Date.now()) {
+    await scopedEnv.STATE.delete(key);
+    return fail("Подготовка ордера истекла или повреждена. Создайте новый preview.", 410);
+  }
+
+  const client = await connectWalt(scopedEnv).catch(() => null);
+  if (!client) return fail("Walt не подключён. Подготовка остаётся доступной до истечения TTL.", 503);
+
+  const claim = await engineRequest(env, "/live/claim", {
+    userId, handle, contractId: preview.contractId, symbol: preview.symbol,
+    side: preview.side, leverage: preview.leverage, marginUsd: preview.marginUsd,
+    notionalUsd: preview.notionalUsd, previewAt: preview.previewAt, expiresAt: preview.expiresAt,
+  });
+  const claimBody = await claim.json().catch(() => ({})) as Json;
+  if (!claim.ok || claimBody.claimed !== true) {
+    return json({ ok: false, status: String(claimBody.status ?? "already_processed"), error: "Эта LIVE-подготовка уже использована. Повторное исполнение запрещено." }, 409);
+  }
+
+  // Durable Object claim is the atomic replay guard; KV deletion is cleanup only.
+  try { await scopedEnv.STATE.delete(key); } catch (error) { console.error("[live] preview token cleanup failed", error); }
+
+  try {
+    const result = await client.call("perps_execute_operation", { confirmationToken: preview.confirmationToken });
+    if (result && typeof result === "object" && !Array.isArray(result) && (result as Record<string, unknown>).ok === false)
+      throw new Error("Walt вернул отказ при исполнении операции.");
+    const summary = safeLiveResult(result);
+    const finished = await engineRequest(env, "/live/finish", { userId, handle, status: "completed", result: summary });
+    if (!finished.ok) console.error("[live] execution completed but status persistence failed", await finished.text());
+    return json({ ok: true, status: "completed", result: summary });
+  } catch (error) {
+    const message = "Walt не подтвердил результат. Операция помечена UNKNOWN; не отправляйте этот ордер повторно.";
+    const summary = { message, detail: String((error as Error)?.message ?? "неизвестная ошибка").slice(0, 240) };
+    const finished = await engineRequest(env, "/live/finish", { userId, handle, status: "unknown", result: summary });
+    if (!finished.ok) console.error("[live] unknown execution status persistence failed", await finished.text());
+    return json({ ok: false, status: "unknown", error: message }, 202);
+  }
+}
+
+async function liveOperationView(env: Env, scopedEnv: Env, userId: string, handle: string): Promise<Response> {
+  if (!/^[a-f0-9]{32}$/.test(handle)) return fail("Некорректный идентификатор LIVE-операции.");
+  const response = await engineRequest(env, "/live/status?userId=" + encodeURIComponent(userId) + "&handle=" + encodeURIComponent(handle));
+  if (!response.ok) return fail("LIVE-операция не найдена.", response.status);
+  const data = await response.json() as { operation?: Json };
+  const operation = data.operation;
+  if (!operation) return fail("LIVE-операция не найдена.", 404);
+
+  let status = String(operation.status ?? "unknown");
+  let reconciliation: Json | null = null;
+  const staleExecuting = status === "executing" && Date.now() - Number(operation.updatedAt ?? Date.now()) > 60_000;
+  if (staleExecuting) {
+    await engineRequest(env, "/live/finish", { userId, handle, status: "unknown", result: { message: "Execution response timed out; read-only reconciliation required." } });
+    status = "unknown";
+  }
+  if (status === "unknown") {
+    const client = await connectWalt(scopedEnv).catch(() => null);
+    if (!client) {
+      reconciliation = { positionDetected: false, message: "Walt недоступен для read-only сверки. Не повторяйте ордер." };
+    } else {
+      try {
+        const position = await client.openPosition(Number(operation.contractId));
+        if (!position) {
+          reconciliation = { positionDetected: false, message: "Открытая позиция не обнаружена. Результат остаётся UNKNOWN; повторно не исполняйте ордер." };
+        } else {
+          const raw = position.raw ?? {};
+          const rawSide = String(raw.side ?? raw.position_side ?? raw.direction ?? "").toLowerCase();
+          const expectedSide = String(operation.side ?? "");
+          const sideMatches = rawSide === expectedSide || (expectedSide === "long" && rawSide === "buy") || (expectedSide === "short" && rawSide === "sell");
+          const rawTime = raw.updated_at ?? raw.created_at ?? raw.opened_at ?? raw.updatedAt ?? raw.createdAt;
+          let positionAt = typeof rawTime === "string" && !/^[0-9]+([.][0-9]+)?$/.test(rawTime) ? Date.parse(rawTime) : Number(rawTime);
+          if (Number.isFinite(positionAt) && positionAt < 1_000_000_000_000) positionAt *= 1_000;
+          const timeMatches = Number.isFinite(positionAt) && positionAt >= Number(operation.previewAt ?? 0) - 5_000;
+          const summary = {
+            positionDetected: true, sideMatches, timeMatches,
+            contractId: position.contractId, avgEntryPrice: position.avgEntryPrice ?? null,
+            valueBase: position.valueBase ?? null, marginQuote: position.marginQuote ?? null,
+            liquidationPrice: position.liquidationPrice ?? null,
+          };
+          if (sideMatches && timeMatches) {
+            const finished = await engineRequest(env, "/live/finish", { userId, handle, status: "reconciled", result: summary });
+            if (finished.ok) status = "reconciled";
+          }
+          reconciliation = {
+            ...summary,
+            message: sideMatches && timeMatches
+              ? "Позиция совпала по контракту, стороне и времени после preview."
+              : "Позиция обнаружена, но её нельзя однозначно связать с этой операцией. Требуется ручная проверка; повторное исполнение запрещено.",
+          };
+        }
+      } catch {
+        reconciliation = { positionDetected: false, message: "Не удалось сверить позицию через Walt. Статус остаётся UNKNOWN; не повторяйте ордер." };
+      }
+    }
+  }
+
+  return json({
+    ok: true,
+    operation: {
+      handle, market: operation.symbol, side: operation.side, leverage: operation.leverage,
+      marginUsd: operation.marginUsd, notionalUsd: operation.notionalUsd,
+      status, createdAt: operation.createdAt, updatedAt: operation.updatedAt, result: operation.result ?? null,
+    },
+    reconciliation,
   });
 }
 
