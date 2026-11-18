@@ -719,3 +719,11 @@
 - **CI:** PR #343 deploy test `44409118147` passed all steps including `npm test`; screenshot run `44409118258` passed and artifact `14475343603` uploaded.
 - **Finding:** 390×844 `clean-wallet` artifact displays AI Trading as selected while status text still says DEMO. This is contradictory account context. Team Lead left review comment #6993149285 requiring same-state DEMO/AI copy assertions and a dedicated AI screenshot artifact. PR #343 remains unmerged pending correction; LIVE remains safely locked.
 - **Independent market code review:** `kripto-guru-ui.js` contains 15s visible-screen polling, a single in-flight refresh guard, request-epoch protection against stale category overwrite, stale-data marker on refresh failure, visibility pause/resume, and 120ms search debounce. Static review only; no runtime test claimed here.
+
+### 2026-11-19 — исправлена устаревшая документация по плечу
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:13:53.300+05:00
+- **PR #344:** merged squash commit `f69e669a1f22a575cebf2041d57de77e6cfb0b08`.
+- **Изменение:** README больше не утверждает искусственный глобальный лимит 3x; описано ограничение максимумом конкретного контракта и отдельные лимиты маржи, общей экспозиции и дневного убытка.
+- **CI run:** `44409321739` success — npm ci, JS syntax checks, typecheck, npm test.
+- **Runtime code не менялся.**
