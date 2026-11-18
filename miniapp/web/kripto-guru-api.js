@@ -273,7 +273,7 @@
 
   const live = {
     async status() {
-      return request("/api/live/status");
+      return request("/api/live/status", { timeoutMs: 5_000 });
     },
     async position(symbol) {
       const normalized = String(symbol || "").trim().toUpperCase();
