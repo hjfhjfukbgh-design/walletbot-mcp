@@ -147,6 +147,11 @@ describe("API da Mini App", () => {
     }, "111");
     expect(locked.status).toBe(409);
     expect(calls).toHaveLength(0);
+    const lockedWithdrawal = await call(e, "ai/paper/withdraw", "chave-teste", {
+      method: "POST", body: JSON.stringify({ amountUsd: "20.00", idempotencyKey: "api-ai-withdraw-01", userId: "999" }),
+    }, "111");
+    expect(lockedWithdrawal.status).toBe(409);
+    expect(calls).toHaveLength(0);
 
     const mode = await call(e, "product-mode", "chave-teste", {
       method: "POST", body: JSON.stringify({ productMode: "ai" }),
@@ -160,6 +165,13 @@ describe("API da Mini App", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toContain("/ai/paper/fund");
     expect(calls[0].body).toMatchObject({ userId: "111", amountMicro: "50000000", idempotencyKey: "api-ai-fund-001" });
+    const withdrawn = await call(e, "ai/paper/withdraw", "chave-teste", {
+      method: "POST", body: JSON.stringify({ amountUsd: "20.00", idempotencyKey: "api-ai-withdraw-01", userId: "999" }),
+    }, "111");
+    expect(withdrawn.status).toBe(200);
+    expect(calls).toHaveLength(2);
+    expect(calls[1].url).toContain("/ai/paper/withdraw");
+    expect(calls[1].body).toMatchObject({ userId: "111", amountMicro: "20000000", idempotencyKey: "api-ai-withdraw-01" });
   });
 
   it("returns a safe disconnected LIVE status without contacting Walt", async () => {

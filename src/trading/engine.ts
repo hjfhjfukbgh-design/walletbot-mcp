@@ -183,6 +183,7 @@ export class TradingEngine {
       if (request.method !== "POST") return Response.json({ ok: false, error: "Метод не поддерживается." }, { status: 405 });
       const body = await request.json() as Record<string, unknown>;
       if (url.pathname === "/ai/paper/fund") return this.fundAiPaper(body);
+      if (url.pathname === "/ai/paper/withdraw") return this.withdrawAiPaper(body);
       if (url.pathname === "/live/claim") return this.claimLive(body);
       if (url.pathname === "/live/finish") return this.finishLive(body);
       if (url.pathname === "/open") return jsonResponse(this.open(body));
@@ -386,6 +387,84 @@ export class TradingEngine {
     }
     const status = this.aiPaperStatus(userId);
     return Response.json({ ...status, duplicate: false, transferredMicro: amount.toString() });
+  }
+
+  private withdrawAiPaper(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    const rawAmount = String(body.amountMicro ?? "");
+    const idempotencyKey = String(body.idempotencyKey ?? "");
+    if (!/^\d{1,20}$/.test(userId) || !/^\d{1,20}$/.test(rawAmount) ||
+        !/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey))
+      return Response.json({ ok: false, error: "Некорректные параметры возврата AI paper средств." }, { status: 400 });
+    const amount = BigInt(rawAmount);
+    if (amount <= 0n) return Response.json({ ok: false, error: "Сумма возврата должна быть больше нуля." }, { status: 400 });
+
+    this.ensureAccount(userId);
+    const now = Date.now();
+    const operationId = "ai-withdraw:" + userId + ":" + idempotencyKey;
+    let duplicate = false;
+    let conflict = false;
+    let insufficient = false;
+    let openPositions = false;
+
+    this.ctx.storage.transactionSync(() => {
+      const existing = this.ctx.storage.sql.exec(
+        "SELECT kind, amount_micro FROM ai_paper_ledger WHERE user_id = ? AND idempotency_key = ?",
+        userId, idempotencyKey,
+      ).toArray()[0] as { kind: string; amount_micro: string } | undefined;
+      if (existing) {
+        if (existing.kind !== "withdraw_to_demo" || BigInt(existing.amount_micro) !== -amount) conflict = true;
+        else duplicate = true;
+        return;
+      }
+
+      const openCount = this.ctx.storage.sql.exec(
+        "SELECT COUNT(*) AS count FROM ai_paper_positions WHERE user_id = ? AND status = 'open'",
+        userId,
+      ).toArray()[0] as { count: number } | undefined;
+      if (Number(openCount?.count ?? 0) > 0) {
+        openPositions = true;
+        return;
+      }
+
+      const aiRow = this.ctx.storage.sql.exec(
+        "SELECT balance_micro FROM ai_paper_accounts WHERE user_id = ?", userId,
+      ).toArray()[0] as { balance_micro: string } | undefined;
+      const demoRow = this.ctx.storage.sql.exec(
+        "SELECT balance_micro FROM accounts WHERE user_id = ?", userId,
+      ).toArray()[0] as { balance_micro: string } | undefined;
+      const aiBefore = BigInt(aiRow?.balance_micro ?? "0");
+      const demoBefore = BigInt(demoRow?.balance_micro ?? "0");
+      if (aiBefore < amount) {
+        insufficient = true;
+        return;
+      }
+
+      const aiAfter = aiBefore - amount;
+      const demoAfter = demoBefore + amount;
+      this.ctx.storage.sql.exec(
+        "UPDATE ai_paper_accounts SET balance_micro = ?, updated_at = ? WHERE user_id = ?",
+        aiAfter.toString(), now, userId,
+      );
+      this.ctx.storage.sql.exec(
+        "UPDATE accounts SET balance_micro = ? WHERE user_id = ?",
+        demoAfter.toString(), userId,
+      );
+      this.ctx.storage.sql.exec(
+        "INSERT INTO ledger(operation_id,user_id,kind,amount_micro,balance_before_micro,balance_after_micro,created_at) VALUES(?,?,?,?,?,?,?)",
+        operationId, userId, "ai_withdraw", amount.toString(), demoBefore.toString(), demoAfter.toString(), now,
+      );
+      this.ctx.storage.sql.exec(
+        "INSERT INTO ai_paper_ledger(user_id,idempotency_key,kind,amount_micro,balance_before_micro,balance_after_micro,reference_id,created_at) VALUES(?,?,?,?,?,?,?,?)",
+        userId, idempotencyKey, "withdraw_to_demo", (-amount).toString(), aiBefore.toString(), aiAfter.toString(), operationId, now,
+      );
+    });
+
+    if (conflict) return Response.json({ ok: false, error: "Idempotency key уже использован с другой операцией или суммой." }, { status: 409 });
+    if (openPositions) return Response.json({ ok: false, error: "Закройте открытые AI paper позиции перед возвратом средств." }, { status: 409 });
+    if (insufficient) return Response.json({ ok: false, error: "Недостаточно средств на AI paper счёте." }, { status: 409 });
+    const status = this.aiPaperStatus(userId);
+    return Response.json({ ...status, duplicate, transferredMicro: amount.toString() });
   }
 
   private ensureAccount(userId: string): bigint {
