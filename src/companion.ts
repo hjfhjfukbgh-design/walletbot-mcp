@@ -142,14 +142,14 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     if (current >= RATE_LIMIT) return json({ ok: false, error: "Слишком много сообщений. Подождите минуту." }, 429);
     await scoped.STATE.put(rateKey, JSON.stringify(current + 1), { expirationTtl: RATE_WINDOW_SECONDS + 5 });
 
-    // Conservative free-tier guard for Google Search grounding (Gemini 3+).
-    // Reserve 40 search-query units per research prompt; hard cap: 1,000/month globally, 200/user.
-    const researchMonth = new Date().toISOString().slice(0, 7);
-    const researchGlobalKey = "companion:research:global:" + researchMonth;
-    const researchUserKey = "companion:research:user:" + researchMonth;
-    const researchGlobalUsed = (await env.STATE.get<number>(researchGlobalKey, "json")) ?? 0;
-    const researchUserUsed = (await scoped.STATE.get<number>(researchUserKey, "json")) ?? 0;
     if (mode === "research") {
+      // Conservative free-tier guard for Google Search grounding (Gemini 3+).
+      // Reserve 40 search-query units per prompt; hard cap: 1,000/month globally, 200/user.
+      const researchMonth = new Date().toISOString().slice(0, 7);
+      const researchGlobalKey = "companion:research:global:" + researchMonth;
+      const researchUserKey = "companion:research:user:" + researchMonth;
+      const researchGlobalUsed = (await env.STATE.get<number>(researchGlobalKey, "json")) ?? 0;
+      const researchUserUsed = (await scoped.STATE.get<number>(researchUserKey, "json")) ?? 0;
       if (researchGlobalUsed + 40 > 1_000 || researchUserUsed + 40 > 200)
         return json({ ok: false, error: "Месячный бесплатный лимит веб-исследований исчерпан. Попробуйте в следующем месяце." }, 429);
       await env.STATE.put(researchGlobalKey, JSON.stringify(researchGlobalUsed + 40), { expirationTtl: 45 * 24 * 60 * 60 });
