@@ -701,3 +701,13 @@
 - **PR #343 initial screenshot run:** `44408863557` failed. Root cause: single-element `$()` helper was incorrectly used as a collection before `.forEach`, aborting UI startup.
 - **Correction:** branch commit `b2f5ee07e867af1879c50d2e56fa5026568158e` changes the selector iteration to `$$()`; PR comment records the failure. A fresh screenshot run is required before merge.
 - **No merge/deploy.
+
+### 2026-11-19 — UI release QA, paper signal and LIVE close contract review (completed)
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:04:00+05:00
+- **PR #337:** merged `e6bee1cac71501b873ebd66cafe6812d4923e195`; current-main dark wallet/Companion surface patch. Final screenshot run `44407250126` success; artifact `14475745907` inspected across 390×844 and 430×932 captures. Chat bubbles/composer and keyboard viewport are dark and visually coherent. Wallet capture reveals bottom navigation overlays the beginning of the lower "Аккаунты" section at initial viewport; content remains scrollable, but safe-area/scroll-bottom spacing deserves another targeted pass. Screenshot evidence is synthetic Playwright UI, not physical iPhone Telegram validation.
+- **PR #338:** merged `3963a602f2b173234c583ddc01cde3817b4d76e7`; pure DEMO/paper moving-average signal primitive. CI run `44407090659` passed npm ci, JS syntax, typecheck and all tests. This is an explainable baseline only, not a profitability claim or autonomous trading strategy.
+- **PR #343 / Issue #203:** Team B product-mode selector implementation inspected. DEMO default; AI selection persists through tenant-scoped API; LIVE disabled; API rejects LIVE with 409 pending close contract. Deploy test run `44409118147` reached npm test (in progress at checkpoint); screenshot run `44409118258` passed capture step and was uploading artifact. Prior screenshot run `44408863557` failed capture; current retry is progressing. No merge performed by Team Lead.
+- **Issue #332:** independent source audit comment #6993130467 published. S1 adapter and S2 API confirm close is fail-closed/absent; S3 official schema/docs unavailable; overall NOT VERIFIED. No Walt calls or live financial actions.
+- **Orchestration:** fan-out run `44408839251` completed but team worker matrix was skipped; do not claim A/B/C are actively coding. Issues #332/#326/#270 remain blocked by genuine dependency/contract gaps; #263/#266/#254/#277/#278 remain review states pending acceptance.
+- **Safety:** no merge/deploy by Team Lead in this cycle; no real Walt/Gemini calls, orders, closes, transfers, account/position writes, secrets, or paid services.
