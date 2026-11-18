@@ -167,7 +167,8 @@
       const markets = (Array.isArray(data.contracts) ? data.contracts : []).map((item) => ({
         symbol: item.market || String(item.name || "").replace(/-USDC?$/i, ""),
         name: item.name || item.market,
-        priceUsd: finite(item.price),
+        priceUsd: finite(item.markPrice) ?? finite(item.price),
+        markPriceUsd: finite(item.markPrice),
         change24hPct: finite(item.change24hPct),
         volume24hUsd: finite(item.volume24hUsd),
         productType: "future",
@@ -202,8 +203,9 @@
       if (!item) throw new KriptoGuruApiError({ code: "MARKET_UNAVAILABLE", message: "Актив сейчас недоступен." });
       return {
         ...item,
-        priceUsd: finite(quote.price),
-        maxLeverage: Math.min(Number(item.maxLeverage || 1), Number(quote.maxDemoLeverage || item.maxLeverage || 1)),
+        priceUsd: finite(quote.markPrice) ?? finite(quote.price) ?? item.markPriceUsd ?? item.priceUsd,
+        markPriceUsd: finite(quote.markPrice) ?? item.markPriceUsd ?? null,
+        maxLeverage: Number(item.maxLeverage || 1),
         minMarginUsd: finite(quote.minMargin),
         fundingRateHourlyPct: finite(item.fundingRateHourlyPct),
         takerFeePct: finite(item.takerFeePct),
@@ -271,6 +273,57 @@
     },
   };
 
+  const live = {
+    async status() {
+      const data = await request("/api/live/status");
+      return {
+        connected: data.connected === true,
+        readiness: data.readiness || { available: false, ok: false },
+        balance: data.balance || { available: false, usd: null },
+        issues: Array.isArray(data.issues) ? data.issues : [],
+        observedAt: Number(data.observedAt || Date.now()),
+        raw: data,
+      };
+    },
+    async preview({ symbol, market, side, marginUsd, leverage = 1 } = {}) {
+      if (!["long", "short"].includes(side)) throw new KriptoGuruApiError({ code: "VALIDATION_ERROR", message: "Направление должно быть LONG или SHORT." });
+      const data = await request("/api/live/preview", {
+        method: "POST",
+        body: { market: String(market || symbol || "").toUpperCase(), side, marginUsd: Number(marginUsd), leverage: Number(leverage) },
+      });
+      return {
+        handle: String(data.handle || ""),
+        symbol: String(data.market || market || symbol || "").toUpperCase(),
+        side: data.side,
+        priceUsd: finite(data.priceUsd),
+        leverage: Number(data.leverage),
+        marginUsd: finite(data.marginUsd),
+        notionalUsd: finite(data.notionalUsd),
+        risk: data.risk ?? null,
+        warnings: Array.isArray(data.warnings) ? data.warnings : [],
+        expiresInSeconds: Number(data.expiresInSeconds || 0),
+        valid: Boolean(data.handle),
+        available: Boolean(data.handle),
+        raw: data,
+      };
+    },
+    async execute({ handle, confirm } = {}) {
+      try {
+        return await request("/api/live/execute", {
+          method: "POST",
+          body: { handle: String(handle || ""), confirm: confirm === true },
+        });
+      } catch (error) {
+        if (error?.status === 202) return { ok: false, status: "unknown", error: error.message };
+        throw error;
+      }
+    },
+    async operation(handle) {
+      const data = await request("/api/live/operation?handle=" + encodeURIComponent(String(handle || "")));
+      return data;
+    },
+  };
+
   const history = {
     async list() {
       const data = await request("/api/demo/history");
@@ -322,7 +375,7 @@
   const capabilities = {
     async get() {
       return {
-        live: { available: false, reason: "Реальная торговля отключена." },
+        live: { available: true, reason: "LIVE доступен при подключённом Walt и успешной проверке готовности." },
         stocks: { available: false, reason: "Нет подтверждённого источника котировок акций." },
         funds: { available: false, reason: "Нет подтверждённого источника котировок фондов." },
         ipo: { available: false, reason: "Данные IPO пока не подключены." },
@@ -338,6 +391,7 @@
     markets,
     market,
     trade,
+    live,
     history,
     companion,
     capabilities,
