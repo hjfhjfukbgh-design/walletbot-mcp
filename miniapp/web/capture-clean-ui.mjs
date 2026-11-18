@@ -48,7 +48,7 @@ try{
       const mockPositions=[];
       const mockHistory=[];
       const companionHistory=[];
-      window.__candleCalls=0;window.__marketListCalls=0;
+      window.__candleCalls=0;window.__candleIntervals=[];window.__marketListCalls=0;
       window.__productMode="demo";
       window.__lastTradeOpen=null;
       const markets=[
@@ -56,12 +56,12 @@ try{
         {symbol:"ETH",name:"Ethereum",priceUsd:3120.2,change24hPct:-0.83,volume24hUsd:5200000000,openInterestUsd:92000000,fundingRateHourlyPct:-0.002,maxLeverage:30,takerFeePct:0.035,tradeable:true},
         {symbol:"SOL",name:"Solana",priceUsd:142.8,change24hPct:4.16,volume24hUsd:1900000000,openInterestUsd:61000000,fundingRateHourlyPct:0.001,maxLeverage:20,takerFeePct:0.04,tradeable:true}
       ];
-      const candles=Array.from({length:30},(_,i)=>{const base=91200+Math.sin(i*.55)*125+i*2.3;return {time:1700000000+i*900,open:base,high:base+38,low:base-31,close:base+(i%2?18:-12)};});
+      const orderedCandles=Array.from({length:30},(_,i)=>{const base=91200+Math.sin(i*.55)*125+i*2.3;return {time:1700000000+i*900,open:base,high:base+38,low:base-31,close:base+(i%2?18:-12)};});const candles=[...orderedCandles].reverse();candles.push({...orderedCandles[10]});candles.push({...orderedCandles[5],high:0});
       window.Telegram={WebApp:{initData:"preview-only-init-data",ready(){},expand(){},setHeaderColor(){},setBackgroundColor(){},BackButton:{isVisible:false,handler:null,show(){this.isVisible=true;},hide(){this.isVisible=false;},onClick(fn){this.handler=fn;},offClick(fn){if(this.handler===fn)this.handler=null;},__trigger(){this.handler?.();}},HapticFeedback:{selectionChanged(){},impactOccurred(){},notificationOccurred(){}}}};
       window.KriptoGuruAPI={
         wallet:{async get(){return {mode:"demo",balanceUsd:1000,assets:[{symbol:"BTC",name:"Bitcoin",valueUsd:0},{symbol:"ETH",name:"Ethereum",valueUsd:0},{symbol:"SOL",name:"Solana",valueUsd:0}],positions:mockPositions.map(x=>({...x}))};}},
         markets:{async list({category}){window.__marketListCalls++;if(category==="stocks"||category==="funds")return {available:false,reason:"Проверенный источник котировок пока не подключён."};return {available:true,markets:markets.map(x=>({...x}))};}},
-        market:{async get(symbol){const item=markets.find(x=>x.symbol===symbol);if(!item)throw {code:"NOT_FOUND",message:"Инструмент не найден"};return {...item,productType:"Фьючерс"};},async candles(symbol,interval){window.__candleCalls++;return {candles};}},
+        market:{async get(symbol){const item=markets.find(x=>x.symbol===symbol);if(!item)throw {code:"NOT_FOUND",message:"Инструмент не найден"};return {...item,productType:"Фьючерс"};},async candles(symbol,interval){window.__candleCalls++;window.__candleIntervals.push(interval);return {candles};}},
         trade:{
           async preview({marginUsd,leverage}){return {valid:marginUsd>=10&&marginUsd<=50,available:marginUsd>=10&&marginUsd<=50,maxMarginUsd:50,minMarginUsd:10,priceUsd:91240.5,volumeUsd:marginUsd*leverage,entryFeeUsd:marginUsd*leverage*.00035,exitFeeUsd:marginUsd*leverage*.00035};},
           async open(payload){window.__lastTradeOpen={...payload};const p={id:"preview-position-1",symbol:payload.symbol,side:payload.side,marginUsd:payload.marginUsd,leverage:payload.leverage};mockPositions.push(p);mockHistory.unshift({event:"Открытие",symbol:p.symbol,side:p.side,timestamp:"Сейчас"});return {position:p};},
@@ -152,10 +152,20 @@ try{
     try{await page.waitForSelector("#kg-asset-screen:not([hidden])",{timeout:10000});}
     catch(error){const debug=await page.evaluate(()=>({toast:document.querySelector("#kg-toast")?.textContent,assetHidden:document.querySelector("#kg-asset-screen")?.hidden,selected:window.KriptoGuruUI?.state?.selectedMarket,screen:window.KriptoGuruUI?.state?.screen}));throw new Error("Asset open failed: "+JSON.stringify({debug,consoleErrors,pageErrors})+" "+error.message);}
     await page.waitForSelector("#kg-chart svg");
-    const candleChart=await page.locator("#kg-chart").evaluate(el=>({scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,svgWidth:el.querySelector("svg")?.getBoundingClientRect().width,candles:el.querySelectorAll("rect").length}));
+    const candleChart=await page.locator("#kg-chart").evaluate(el=>({scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,svgWidth:el.querySelector("svg")?.getBoundingClientRect().width,times:[...el.querySelectorAll("rect[data-time]")].map(node=>Number(node.dataset.time))}));
     if(!(candleChart.svgWidth>candleChart.clientWidth&&candleChart.scrollWidth>candleChart.clientWidth))throw new Error("candlestick history must scroll horizontally: "+JSON.stringify(candleChart));
+    if(candleChart.times.length!==30||candleChart.times.some((time,index)=>index>0&&time<=candleChart.times[index-1]))throw new Error("candles must be valid, unique and sorted ascending: "+JSON.stringify(candleChart.times));
+    for(const interval of ["1m","5m","15m","1h","4h","1d"]){
+      await page.locator('#kg-timeframes [data-interval="'+interval+'"]').click();
+      await page.waitForFunction(target=>window.__candleIntervals.at(-1)===target,interval,{timeout:3000});
+    }
+    await page.locator("#kg-chart").evaluate(el=>{el.scrollLeft=30;});
+    const scrollBeforeRefresh=await page.locator("#kg-chart").evaluate(el=>el.scrollLeft);
     const initialCandleCalls=await page.evaluate(()=>window.__candleCalls);
+    await page.evaluate(()=>document.dispatchEvent(new Event("visibilitychange")));
     await page.waitForFunction(previous=>window.__candleCalls>previous,initialCandleCalls,{timeout:3000});
+    const scrollAfterRefresh=await page.locator("#kg-chart").evaluate(el=>el.scrollLeft);
+    if(Math.abs(scrollAfterRefresh-scrollBeforeRefresh)>1)throw new Error("realtime candle refresh must preserve historical scroll position: "+JSON.stringify({scrollBeforeRefresh,scrollAfterRefresh}));
     if(!(await page.locator("#kg-asset-name").innerText()).includes("Bitcoin"))throw new Error("asset detail title missing");
     await page.screenshot({path:`clean-asset-${device.width}x${device.height}.png`,fullPage:false});
     const assetScreen=page.locator("#kg-asset-screen");

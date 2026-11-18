@@ -362,12 +362,17 @@
     return { time, open, high, low, close };
   }
   function drawCandles(candles){
-    const data = (Array.isArray(candles) ? candles : [])
-      .map(normalizeCandle)
-      .filter(Boolean);
+    const byTimestamp = new Map();
+    for (const raw of (Array.isArray(candles) ? candles : [])) {
+      const candle = normalizeCandle(raw);
+      if (!candle) continue;
+      const timeMs = candle.time > 1e12 ? candle.time : candle.time * 1000;
+      byTimestamp.set(timeMs, { ...candle, timeMs });
+    }
+    const data = [...byTimestamp.values()].sort((a, b) => a.timeMs - b.timeMs);
 
     const chart = $("#kg-chart");
-    const wasAtEnd = chart.scrollWidth <= chart.clientWidth || chart.scrollLeft + chart.clientWidth >= chart.scrollWidth - 12;
+    const wasAtEnd = chart.scrollWidth <= chart.clientWidth || chart.scrollLeft + chart.clientWidth >= chart.scrollWidth - 2;
     const previousScrollLeft = chart.scrollLeft;
     if (!data.length) {
       chart.innerHTML = '<div class="kg-empty-inline">Свечи для этого интервала недоступны.</div>';
@@ -400,7 +405,7 @@
       const yt = y(Math.max(c.open, c.close));
       const yb = y(Math.min(c.open, c.close));
       const bodyHeight = Math.max(1, yb - yt);
-      return `<line x1="${x}" y1="${y(c.high)}" x2="${x}" y2="${y(c.low)}" stroke="${color}" stroke-width="1.2"/><rect x="${x - body / 2}" y="${yt}" width="${body}" height="${bodyHeight}" rx=".7" fill="${color}"/>`;
+      return `<line x1="${x}" y1="${y(c.high)}" x2="${x}" y2="${y(c.low)}" stroke="${color}" stroke-width="1.2"/><rect data-time="${c.timeMs}" x="${x - body / 2}" y="${yt}" width="${body}" height="${bodyHeight}" rx=".7" fill="${color}"/>`;
     }).join("");
 
     const grid = [0, 0.25, 0.5, 0.75, 1].map(p => {
