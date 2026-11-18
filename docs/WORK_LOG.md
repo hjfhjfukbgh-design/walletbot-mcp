@@ -800,3 +800,9 @@
 - **New tests:** expired preview returns 410 before connectWalt; cross-tenant preview handle returns 410 and no execute; owner can still execute.
 - **CI:** run `44411453079` success — npm ci, JS syntax, typecheck, npm test.
 - **Issue #346:** closed completed with agent-done. All Walt interactions mocked; no real financial actions.
+### 2026-11-19 — Team Lead started candlestick chart QA
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:26:49.097+05:00
+- **Issue #347:** Team Lead takes the chart QA slice: candle ordering/deduplication, all timeframe switching, horizontal history scroll preservation and touch viewport regression.
+- **Planned changes:** sort valid candles ascending, deduplicate timestamps, expose safe candle timestamp markers for test, extend Playwright clean UI harness with timeframe and scroll-preservation assertions.
+- **No trading execution, Walt calls, external API spend or deploy.
