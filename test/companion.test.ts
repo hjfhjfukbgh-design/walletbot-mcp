@@ -26,9 +26,9 @@ function isolatedEnv(): Env {
   return e;
 }
 
-async function signedInitData(botToken: string, userId: string): Promise<string> {
+async function signedInitData(botToken: string, userId: string, authDate = Math.floor(Date.now() / 1000)): Promise<string> {
   const params = new URLSearchParams({
-    auth_date: String(Math.floor(Date.now() / 1000)),
+    auth_date: String(authDate),
     user: JSON.stringify({ id: Number(userId), first_name: "Test" }),
   });
   const encoder = new TextEncoder();
@@ -59,6 +59,15 @@ describe("AI Companion API", () => {
   it("rejects requests without valid Telegram initData", async () => {
     const e = isolatedEnv();
     const response = await handleCompanionApi(new Request("https://worker.test/api/companion/conversations"), e);
+    expect(response.status).toBe(401);
+  });
+
+  it("rejects correctly signed but expired Telegram initData", async () => {
+    const e = isolatedEnv();
+    const expired = await signedInitData(e.TELEGRAM_BOT_TOKEN, "111", Math.floor(Date.now() / 1000) - 86_401);
+    const response = await handleCompanionApi(new Request("https://worker.test/api/companion/conversations", {
+      headers: { Authorization: `tma ${expired}` },
+    }), e);
     expect(response.status).toBe(401);
   });
 
