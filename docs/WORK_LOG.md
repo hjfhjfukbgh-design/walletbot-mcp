@@ -836,3 +836,9 @@
 - **Test limitation:** direct open-position guard fixture deferred until paper position-open API exists; Miniflare storage inspection RPC unsupported by this DO class. Static guard is present.
 - **Earlier CI failures:** duplicate comparison sign bug corrected; experimental Miniflare storage RPC fixture removed. Final successful head is `26a124ecd9316960857633eb7e469fdce08ed350`.
 - **Issue #352:** closed completed with agent-done. No real transfer, Walt/LLM call or production deploy.
+### 2026-11-19 — Team Lead started AI paper funding UI
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:38:36.684+05:00
+- **Issue #354:** add AI paper balance panel and explicit virtual DEMO↔AI funding controls using existing status/fund/withdraw APIs.
+- **Disclosure:** AI account remains stopped; transfers are virtual only and do not start a strategy or touch LIVE.
+- **No agent dispatch; issue remains without agent-ready.**
