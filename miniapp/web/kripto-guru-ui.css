@@ -489,3 +489,8 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .kg-ai-form button:disabled{opacity:.45}
 .kg-ai-disclaimer{margin:8px 3px;color:var(--kg-muted);font-size:9px;text-align:center}
 .kg-nav{grid-template-columns:repeat(5,minmax(0,1fr))}
+
+.kg-ai-history-entry{display:flex;align-items:center;gap:4px;flex:0 0 auto;max-width:220px}
+.kg-ai-history-entry .kg-ai-history-item{min-width:0;max-width:180px}
+.kg-ai-history-delete{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;border:1px solid var(--kg-line);border-radius:9px;background:#fff;color:#9aa2af;font-size:17px;line-height:1}
+.kg-ai-history-delete:active{background:#fff0f0;color:#d64545}
