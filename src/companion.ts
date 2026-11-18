@@ -100,7 +100,8 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     if (!answer) return json({ ok: false, error: "ИИ вернул пустой ответ. Попробуйте переформулировать вопрос." }, 502);
 
     const now = new Date().toISOString();
-    conversation.messages = [...conversation.messages, { role: "user", content: message, createdAt: now }, { role: "assistant", content: answer, createdAt: now }].slice(-MAX_STORED_MESSAGES);
+    const updatedMessages: ChatMessage[] = [...conversation.messages, { role: "user", content: message, createdAt: now }, { role: "assistant", content: answer, createdAt: now }];
+    conversation.messages = updatedMessages.slice(-MAX_STORED_MESSAGES);
     conversation.updatedAt = now;
     await scoped.STATE.put(PREFIX + conversation.id, JSON.stringify(conversation));
     return json({ ok: true, conversationId: conversation.id, answer, conversation });
