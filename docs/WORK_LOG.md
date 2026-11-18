@@ -254,3 +254,24 @@
 - **Цель:** fail-closed отключить автоматическое исполнение через legacy open/close methods; сохранить отдельный API confirmation flow и явно подтверждаемый create-account flow. Добавить unit tests, доказывающие отсутствие любых MCP calls из legacy open/close methods.
 - **Scope:** src/walt.ts, test/walt.test.ts.
 - **Запрет:** никаких реальных Walt calls, ордеров, закрытий позиций, account writes, secrets, merge или deploy.
+
+### 2026-11-19 — legacy LIVE write methods fail-closed patch опубликован в Draft PR #282
+
+- **Время:** 2026-11-19T01:02:53.462+05:00
+- **Событие:** завершена defense-in-depth правка legacy Walt adapter.
+- **Статус:** код опубликован; CI пока не вернул статусы
+- **Изменения:** `Walt.openLong()` и `Walt.closePosition()` теперь завершаются контролируемой ошибкой и не вызывают MCP tools. `Walt.createAccount()` сохранён, поскольку текущий вызов в `src/commands.ts` расположен после явного `/conta CONFIRMO`. Отдельный Mini App API preview/confirm/atomic-claim/execute/reconcile не менялся.
+- **Тест:** добавлен unit test, который вызывает оба legacy метода и требует, чтобы `callTool` не был вызван ни разу.
+- **Diff:** `src/walt.ts`, `test/walt.test.ts`; 26 additions / 24 deletions. Проверен diff; test run ещё не получен.
+- **Артефакты:** branch `fix/disable-legacy-walt-auto-execute-2026-11-19`; head commit `e148592ba40bbb898c274a81260ddfb1023fa9de`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/282.
+- **Безопасность:** реальные Walt/MCP вызовы не выполнялись; ордера, закрытия, переводы, account writes, secrets, merge и deploy не затрагивались.
+
+### 2026-11-19 — исправлена фактическая оценка SECURITY handoff #278/#280
+
+- **Время:** 2026-11-19T01:02:53.462+05:00
+- **Событие:** изучены реальные Actions job logs run `44385734444`, worker steps и security report PR #280.
+- **Статус:** замечания опубликованы; требуется переработка отчёта
+- **Подтверждено логами:** SECURITY worker был `analysis-only`; `npm ci`, `typecheck` и tests для SECURITY role не запускались; report-only PR #280 создан успешно. Это не QA PASS.
+- **Коррекция report:** `src/bot.ts` `runTick` возвращается сразу при LIVE mode до `openLong`; `src/api.ts` требует отдельный `confirm`, tenant-scoped preview token и atomic DO claim, выполняет execute один раз и фиксирует `unknown` без blind retry; тест Miniflare проверяет единственный успешный параллельный claim; `src/commands.ts` вызывает createAccount после `/conta CONFIRMO`.
+- **Реальный риск:** legacy `Walt.openLong`/`closePosition` оставались потенциально опасными при будущих call sites; устранение опубликовано в PR #282.
+- **Доказательства:** Actions job logs `135089983067`; report PR #280; комментарии-корректировки в PR #280 и Issue #278; Issue #278 оставлена в `agent-review`.
