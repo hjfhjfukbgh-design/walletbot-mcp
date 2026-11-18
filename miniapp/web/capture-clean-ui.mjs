@@ -201,7 +201,7 @@ try{
     await page.waitForSelector("#kg-ai-menu.is-open");
     await page.locator("#kg-ai-history [data-ai-delete]").first().click();
     await page.waitForFunction(()=>document.querySelectorAll("#kg-ai-history [data-ai-conversation]").length===0);
-    if(!(await page.locator("#kg-ai-messages").innerText()).includes("Привет! Я AI Companion"))throw new Error("deleting the active AI conversation should reset the chat view");
+    if(!(await page.locator("#kg-ai-messages").innerText()).includes("Привет! Я Kripto Guru AI."))throw new Error("deleting the active AI conversation should reset the chat view");
     if(pageErrors.length)throw new Error("browser errors: "+pageErrors.join("; "));
     await page.close();
   }
