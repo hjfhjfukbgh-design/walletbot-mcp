@@ -70,6 +70,14 @@ export class TradingEngine {
     sql.exec("CREATE TABLE IF NOT EXISTS ledger (id INTEGER PRIMARY KEY AUTOINCREMENT, operation_id TEXT NOT NULL UNIQUE, user_id TEXT NOT NULL, position_id TEXT, kind TEXT NOT NULL, amount_micro TEXT NOT NULL, balance_before_micro TEXT NOT NULL, balance_after_micro TEXT NOT NULL, created_at INTEGER NOT NULL)");
     sql.exec("CREATE TABLE IF NOT EXISTS engine_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
     sql.exec("CREATE TABLE IF NOT EXISTS live_operations (handle TEXT PRIMARY KEY, user_id TEXT NOT NULL, contract_id INTEGER NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL, leverage INTEGER NOT NULL, margin_usd REAL NOT NULL, notional_usd REAL NOT NULL, preview_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, result_json TEXT)");
+    // AI paper storage is isolated from the user's manual DEMO tables.
+    sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_accounts (user_id TEXT PRIMARY KEY, balance_micro TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'stopped', strategy_id TEXT NOT NULL DEFAULT 'ma-crossover', strategy_version TEXT NOT NULL DEFAULT '1', risk_config_json TEXT NOT NULL DEFAULT '{}', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)");
+    sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_ledger (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, idempotency_key TEXT NOT NULL, kind TEXT NOT NULL, amount_micro TEXT NOT NULL, balance_before_micro TEXT NOT NULL, balance_after_micro TEXT NOT NULL, reference_id TEXT, created_at INTEGER NOT NULL, UNIQUE(user_id, idempotency_key))");
+    sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_ledger_user_created ON ai_paper_ledger(user_id, created_at)");
+    sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_positions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL, qty_units TEXT NOT NULL, entry_price TEXT NOT NULL, margin_micro TEXT NOT NULL, leverage TEXT NOT NULL, fees_micro TEXT NOT NULL, slippage_micro TEXT NOT NULL, stop_loss_price TEXT, take_profit_price TEXT, status TEXT NOT NULL, opened_at INTEGER NOT NULL, closed_at INTEGER, close_json TEXT)");
+    sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_positions_user_status ON ai_paper_positions(user_id, status)");
+    sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decisions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tick_id TEXT NOT NULL, strategy_id TEXT NOT NULL, strategy_version TEXT NOT NULL, market_snapshot_hash TEXT NOT NULL, symbol TEXT NOT NULL, signal TEXT NOT NULL, rationale TEXT NOT NULL, confidence REAL, observed_price TEXT NOT NULL, risk_pass INTEGER NOT NULL, rejection_reason TEXT, position_id TEXT, created_at INTEGER NOT NULL, UNIQUE(user_id, tick_id, symbol))");
+    sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decisions_user_created ON ai_paper_decisions(user_id, created_at)");
     sql.exec("CREATE INDEX IF NOT EXISTS live_operations_user_status ON live_operations(user_id, status, updated_at)");
     this.restorePositions();
     const snapshot = sql.exec("SELECT value FROM engine_meta WHERE key = 'snapshot'").toArray()[0] as { value?: string } | undefined;
@@ -123,6 +131,10 @@ export class TradingEngine {
           resetAt: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()) + 86_400_000).toISOString(),
         });
       }
+      if (request.method === "GET" && url.pathname === "/ai/paper/status") {
+        const userId = url.searchParams.get("userId") ?? "";
+        return jsonResponse(this.aiPaperStatus(userId));
+      }
       if (request.method === "GET" && url.pathname === "/account") {
         const userId = url.searchParams.get("userId") ?? "";
         if (!/^\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
@@ -170,6 +182,7 @@ export class TradingEngine {
       }
       if (request.method !== "POST") return Response.json({ ok: false, error: "Метод не поддерживается." }, { status: 405 });
       const body = await request.json() as Record<string, unknown>;
+      if (url.pathname === "/ai/paper/fund") return this.fundAiPaper(body);
       if (url.pathname === "/live/claim") return this.claimLive(body);
       if (url.pathname === "/live/finish") return this.finishLive(body);
       if (url.pathname === "/open") return jsonResponse(this.open(body));
@@ -270,6 +283,109 @@ export class TradingEngine {
     const ids = this.bySymbol.get(position.symbol) ?? new Set<string>();
     ids.add(position.id);
     this.bySymbol.set(position.symbol, ids);
+  }
+
+  private aiPaperStatus(userId: string): Record<string, unknown> {
+    if (!/^\\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
+    const demoBalance = this.ensureAccount(userId);
+    const account = this.ctx.storage.sql.exec(
+      "SELECT balance_micro, status, strategy_id, strategy_version FROM ai_paper_accounts WHERE user_id = ?",
+      userId,
+    ).toArray()[0] as { balance_micro: string; status: string; strategy_id: string; strategy_version: string } | undefined;
+    const openPositions = this.ctx.storage.sql.exec(
+      "SELECT COUNT(*) AS count FROM ai_paper_positions WHERE user_id = ? AND status = 'open'",
+      userId,
+    ).toArray()[0] as { count: number } | undefined;
+    return {
+      ok: true,
+      demoBalanceMicro: demoBalance.toString(),
+      aiBalanceMicro: String(account?.balance_micro ?? "0"),
+      status: account?.status ?? "stopped",
+      strategyId: account?.strategy_id ?? "ma-crossover",
+      strategyVersion: account?.strategy_version ?? "1",
+      openPositions: Number(openPositions?.count ?? 0),
+    };
+  }
+
+  private fundAiPaper(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    const rawAmount = String(body.amountMicro ?? "");
+    const idempotencyKey = String(body.idempotencyKey ?? "");
+    if (!/^\\d{1,20}$/.test(userId) || !/^\\d{1,20}$/.test(rawAmount) ||
+        !/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey))
+      return Response.json({ ok: false, error: "Некорректные параметры виртуального пополнения AI-счёта." }, { status: 400 });
+    const amount = BigInt(rawAmount);
+    if (amount <= 0n) return Response.json({ ok: false, error: "Сумма пополнения должна быть больше нуля." }, { status: 400 });
+
+    // Ensure the legacy DEMO account exists before entering the atomic transfer.
+    this.ensureAccount(userId);
+    const now = Date.now();
+    const operationId = "ai-fund:" + userId + ":" + idempotencyKey;
+    let duplicate = false;
+    let conflict = false;
+    let insufficient = false;
+    let demoAfter = 0n;
+    let aiAfter = 0n;
+
+    this.ctx.storage.transactionSync(() => {
+      const existing = this.ctx.storage.sql.exec(
+        "SELECT amount_micro FROM ai_paper_ledger WHERE user_id = ? AND idempotency_key = ?",
+        userId, idempotencyKey,
+      ).toArray()[0] as { amount_micro: string } | undefined;
+      if (existing) {
+        if (BigInt(existing.amount_micro) !== amount) conflict = true;
+        else duplicate = true;
+        return;
+      }
+
+      const demoRow = this.ctx.storage.sql.exec(
+        "SELECT balance_micro FROM accounts WHERE user_id = ?", userId,
+      ).toArray()[0] as { balance_micro: string } | undefined;
+      const aiRow = this.ctx.storage.sql.exec(
+        "SELECT balance_micro FROM ai_paper_accounts WHERE user_id = ?", userId,
+      ).toArray()[0] as { balance_micro: string } | undefined;
+      const demoBefore = BigInt(demoRow?.balance_micro ?? "0");
+      const aiBefore = BigInt(aiRow?.balance_micro ?? "0");
+      if (demoBefore < amount) {
+        insufficient = true;
+        return;
+      }
+
+      demoAfter = demoBefore - amount;
+      aiAfter = aiBefore + amount;
+      this.ctx.storage.sql.exec(
+        "UPDATE accounts SET balance_micro = ? WHERE user_id = ?",
+        demoAfter.toString(), userId,
+      );
+      if (aiRow) {
+        this.ctx.storage.sql.exec(
+          "UPDATE ai_paper_accounts SET balance_micro = ?, updated_at = ? WHERE user_id = ?",
+          aiAfter.toString(), now, userId,
+        );
+      } else {
+        this.ctx.storage.sql.exec(
+          "INSERT INTO ai_paper_accounts(user_id,balance_micro,status,strategy_id,strategy_version,risk_config_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+          userId, aiAfter.toString(), "stopped", "ma-crossover", "1", "{}", now, now,
+        );
+      }
+      this.ctx.storage.sql.exec(
+        "INSERT INTO ledger(operation_id,user_id,kind,amount_micro,balance_before_micro,balance_after_micro,created_at) VALUES(?,?,?,?,?,?,?)",
+        operationId, userId, "ai_fund", (-amount).toString(), demoBefore.toString(), demoAfter.toString(), now,
+      );
+      this.ctx.storage.sql.exec(
+        "INSERT INTO ai_paper_ledger(user_id,idempotency_key,kind,amount_micro,balance_before_micro,balance_after_micro,reference_id,created_at) VALUES(?,?,?,?,?,?,?,?)",
+        userId, idempotencyKey, "fund_from_demo", amount.toString(), aiBefore.toString(), aiAfter.toString(), operationId, now,
+      );
+    });
+
+    if (conflict) return Response.json({ ok: false, error: "Idempotency key уже использован с другой суммой." }, { status: 409 });
+    if (insufficient) return Response.json({ ok: false, error: "Недостаточно средств на DEMO-счёте для виртуального пополнения." }, { status: 409 });
+    if (duplicate) {
+      const status = this.aiPaperStatus(userId);
+      return Response.json({ ...status, duplicate: true, transferredMicro: amount.toString() });
+    }
+    const status = this.aiPaperStatus(userId);
+    return Response.json({ ...status, duplicate: false, transferredMicro: amount.toString() });
   }
 
   private ensureAccount(userId: string): bigint {
