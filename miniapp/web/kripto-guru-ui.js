@@ -182,17 +182,6 @@
     $$(".kg-category").forEach(b=>b.classList.toggle("is-selected",b.dataset.category===category));
     $$("#kg-search-filters button").forEach(b=>b.classList.toggle("is-selected",b.dataset.searchFilter===category));
     const live=$("#kg-market-live"),unavailable=$("#kg-market-unavailable");
-    if(category==="stocks"||category==="funds"){
-      live.hidden=true;unavailable.hidden=false;
-      $("#kg-unavailable-title").textContent=category==="stocks"?"Акции США":"Фонды";
-      try{
-        const res=unwrap(await invoke("markets.list",{category}),"markets");
-        if(requestId!==marketLoadEpoch||state.category!==category)return;
-        if(res.available===false) $("#kg-unavailable-reason").textContent=res.reason||"Проверенный источник котировок пока не подключён.";
-        else $("#kg-unavailable-reason").textContent="Торговля этими инструментами пока недоступна.";
-      }catch(error){if(requestId===marketLoadEpoch)$("#kg-unavailable-reason").textContent=normalizeError(error).message;}
-      return;
-    }
     live.hidden=false;unavailable.hidden=true;
     try{
       const result=unwrap(await invoke("markets.list",{category}),"markets");
@@ -254,7 +243,6 @@
   async function refreshMarketData(){
     if(document.visibilityState!=="visible"||!(state.screen==="wallet"||state.screen==="trading")||$("#kg-market-live").hidden||marketRefreshInFlight)return;
     const category=state.category;
-    if(category==="stocks"||category==="funds")return;
     const requestId=marketLoadEpoch;
     marketRefreshInFlight=true;
     try{
@@ -331,7 +319,6 @@
     try{
       state.capabilities=unwrap(await invoke("capabilities.get"),"capabilities");
       const c=state.capabilities;
-      if(c.ipo?.available===true) $("#kg-ipo-reason").textContent="Проверенные размещения доступны.";
       if(c.bonuses?.available===true) $("#kg-bonus-reason").textContent="Программа бонусов доступна.";
       if(c.live?.available!==true) $(".kg-settings-note").textContent="Режим: ДЕМО. LIVE заблокирован.";
     }catch(error){console.warn("[Kripto Guru] capabilities unavailable",normalizeError(error));}
