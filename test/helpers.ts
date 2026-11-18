@@ -12,8 +12,32 @@ export function memoryKV(): KVNamespace {
   } as unknown as KVNamespace;
 }
 
+export function memoryQuota(seed: Record<string, number> = {}): DurableObjectNamespace {
+  const counters = new Map<string, { count: number; expiresAt: number }>();
+  for (const [key, count] of Object.entries(seed)) counters.set(key, { count, expiresAt: Date.now() + 48 * 60 * 60 * 1000 });
+  const stub = { fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = input instanceof Request ? input : new Request(input, init);
+    const body = await request.json() as { quotas: Array<{ key: string; limit: number; windowSeconds: number }> };
+    const now = Date.now();
+    for (const quota of body.quotas) {
+      const current = counters.get(quota.key);
+      if (current && current.expiresAt > now && current.count >= quota.limit)
+        return Response.json({ ok: false, exhausted: { key: quota.key } }, { status: 429 });
+    }
+    for (const quota of body.quotas) {
+      const current = counters.get(quota.key);
+      counters.set(quota.key, current && current.expiresAt > now
+        ? { count: current.count + 1, expiresAt: current.expiresAt }
+        : { count: 1, expiresAt: now + quota.windowSeconds * 1000 });
+    }
+    return Response.json({ ok: true, allowed: true });
+  } };
+  return { idFromName: (name: string) => name, get: () => stub } as unknown as DurableObjectNamespace;
+}
+
 export const env = (): Env => ({
   ENGINE: {} as DurableObjectNamespace,
+  COMPANION_QUOTA: memoryQuota(),
   STATE: memoryKV(),
   TELEGRAM_BOT_TOKEN: "123456:TEST_TOKEN",
   TELEGRAM_WEBHOOK_SECRET: "",

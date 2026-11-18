@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { handleCompanionApi } from "../src/companion";
 import type { Env } from "../src/env";
-import { env as baseEnv } from "./helpers";
+import { env as baseEnv, memoryQuota } from "./helpers";
 
-function isolatedEnv(seed: Record<string, string> = {}): Env {
+function isolatedEnv(seed: Record<string, string> = {}, quotaSeed: Record<string, number> = {}): Env {
   const e = baseEnv();
+  e.COMPANION_QUOTA = memoryQuota(quotaSeed);
   const values = new Map<string, string>(Object.entries(seed));
   e.STATE = {
     get: async (key: string, type?: string) => {
@@ -195,9 +196,9 @@ describe("AI Companion API", () => {
     expect(await response.json()).toMatchObject({ error: expect.stringContaining("проверяемых источников") });
   });
 
-  it("blocks research when the free-tier monthly budget guard is exhausted", async () => {
+  it("blocks research when the free-tier daily budget guard is exhausted", async () => {
     const day = new Date().toISOString().slice(0, 10);
-    const e = isolatedEnv({ ["companion:research:global:" + day]: "20" });
+    const e = isolatedEnv({}, { ["research:global:" + day]: 20 });
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const response = await call(e, "111", "/api/companion/chat", {
