@@ -541,3 +541,11 @@
 - **PR #322** DEMO auto-close UI controls: draft, current head `0472511a4101ea4b10fed3155f91c28f9807e7c3`; adds a live toggle, TP/SL percent inputs, side-aware target prices based on preview entry price, and mocked UI assertions. Initial checks passed; updated screenshot run 44399286561 is still in progress.
 - **Team dispatch:** issues #312/#313/#314 were narrowed and requeued after the worker context/allowlist fixes. Team A run 44399400520 is active; Team B and C runs are queued/pending. Do not count handoff-only PRs as completed work.
 - **No live financial operations:** no Walt execute/close, no account or position mutations, no real Gemini calls. No secrets or paid services changed.
+
+
+### 2026-11-19 — DEMO auto-close UI shipped to main (code only)
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:15:25.502+05:00
+- **Merged PR #322** as `0b8d6aaf55d236cc61ca5d4975cbab75d20e089d`. Enabled the previously disabled auto-close control in the DEMO ticket; added TP/SL percentage inputs, side-aware target price calculation based on the preview entry price, preview/confirmation rows, and `trade.open` payload wiring.
+- **Validation:** CI run 44399286544 passed npm ci, syntax checks, typecheck and npm test; clean UI screenshot run 44399286561 passed. Mocked assertion verifies a LONG at $91,240.50 sends TP $95,802.525 and SL $89,415.69; no real provider calls.
+- **Deploy:** the deploy job in run 44399286544 was `skipped`; this merge did not deploy production.
