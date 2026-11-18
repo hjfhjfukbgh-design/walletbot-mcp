@@ -164,26 +164,29 @@
         return { available: false, reason: "Для акций и фондов пока нет подтверждённого источника котировок.", markets: [] };
       }
       const data = await request("/api/contracts");
-      return {
-        available: true,
-        category,
-        markets: (data.contracts || []).map((item) => ({
-          symbol: item.market || String(item.name || "").replace(/-USDC?$/i, ""),
-          name: item.name || item.market,
-          priceUsd: finite(item.price),
-          change24hPct: finite(item.change24hPct),
-          volume24hUsd: finite(item.volume24hUsd),
-          productType: "future",
-          maxLeverage: Number(item.maxLeverage || 1),
-          takerFeePct: finite(item.takerFeePct) == null ? null : Number((Number(item.takerFeePct) * 100).toFixed(6)),
-          fundingRateHourlyPct: finite(item.fundingRateHourly) == null ? null : Number((Number(item.fundingRateHourly) * 100).toFixed(8)),
-          minSizeUsd: finite(item.minSizeQuote),
-          tradeable: item.allowed === true,
-          source: item.source || "Hyperliquid",
-          raw: item,
-        })),
-        raw: data,
-      };
+      const markets = (Array.isArray(data.contracts) ? data.contracts : []).map((item) => ({
+        symbol: item.market || String(item.name || "").replace(/-USDC?$/i, ""),
+        name: item.name || item.market,
+        priceUsd: finite(item.price),
+        change24hPct: finite(item.change24hPct),
+        volume24hUsd: finite(item.volume24hUsd),
+        productType: "future",
+        maxLeverage: Number(item.maxLeverage || 1),
+        takerFeePct: finite(item.takerFeePct) == null ? null : Number((Number(item.takerFeePct) * 100).toFixed(6)),
+        fundingRateHourlyPct: finite(item.fundingRateHourly) == null ? null : Number((Number(item.fundingRateHourly) * 100).toFixed(8)),
+        minSizeUsd: finite(item.minSizeQuote),
+        tradeable: item.allowed === true,
+        source: item.source || "Hyperliquid",
+        raw: item,
+      })).filter((item) => item.symbol && Number.isFinite(item.priceUsd) && item.priceUsd > 0);
+      if (!markets.length) {
+        throw new KriptoGuruApiError({
+          code: "MARKET_DATA_UNAVAILABLE",
+          message: "Поставщик не вернул актуальные котировки. Повторяем загрузку рынка.",
+          retryable: true,
+        });
+      }
+      return { available: true, category, markets, raw: data };
     },
   };
 

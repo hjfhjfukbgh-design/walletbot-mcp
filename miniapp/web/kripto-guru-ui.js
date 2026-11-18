@@ -706,13 +706,26 @@
     document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("#kg-confirm-screen").hidden||!$("#kg-leverage-screen").hidden)closeModals();else if(!$("#kg-ticket-screen").hidden)closeTicket();else if(!$("#kg-asset-screen").hidden)closeAsset();else if($("#kg-ai-menu").classList.contains("is-open"))setCompanionMenu(false);}});
   }
   let started=false;
+  let marketRefreshTimer=null;
   async function start(){
     if(started)return;
     started=true;
     try{tg?.ready?.();tg?.expand?.();tg?.setHeaderColor?.("#ffffff");tg?.setBackgroundColor?.("#f0f0f6");}catch{}
     bind();
-    await Promise.all([loadFxRate(),loadCapabilities(),loadHistory()]);await loadWallet();
-    try{await loadCategory("crypto");}catch{}
+    // Market quotes are the first screen's primary content. Start this request
+    // immediately instead of waiting for FX, capabilities, history or wallet.
+    const marketTask=loadCategory("crypto").catch(error=>{
+      console.warn("[Kripto Guru] Initial market load failed",normalizeError(error).code);
+    });
+    await Promise.all([loadFxRate(),loadCapabilities(),loadHistory()]);
+    await Promise.all([loadWallet(),marketTask]);
+    if(!marketRefreshTimer){
+      marketRefreshTimer=setInterval(()=>{
+        if(state.category==="crypto"&&(state.screen==="wallet"||state.screen==="trading")){
+          loadCategory("crypto").catch(error=>console.warn("[Kripto Guru] Market refresh failed",normalizeError(error).code));
+        }
+      },15000);
+    }
   }
   window.addEventListener("kripto-guru-api-ready",()=>start());
   if(api()) start();
