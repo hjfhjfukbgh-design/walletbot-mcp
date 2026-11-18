@@ -133,7 +133,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
 
     const userContent = message || "Проанализируй приложенные файлы.";
     const history = [...conversation.messages, { role: "user" as const, content: userContent, createdAt: new Date().toISOString() }].slice(-MAX_CONTEXT_MESSAGES);
-    const model = (env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim();
+    const model = (mode === "research" ? "gemini-2.5-flash-lite" : env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim();
     if (!/^[a-zA-Z0-9._-]{1,80}$/.test(model)) return json({ ok: false, error: "Некорректная настройка модели Gemini." }, 500);
 
     // Invalid requests must not consume the user's Gemini message quota.
@@ -143,17 +143,16 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     await scoped.STATE.put(rateKey, JSON.stringify(current + 1), { expirationTtl: RATE_WINDOW_SECONDS + 5 });
 
     if (mode === "research") {
-      // Conservative free-tier guard for Google Search grounding (Gemini 3+).
-      // Reserve 40 search-query units per prompt; hard cap: 1,000/month globally, 200/user.
-      const researchMonth = new Date().toISOString().slice(0, 7);
-      const researchGlobalKey = "companion:research:global:" + researchMonth;
-      const researchUserKey = "companion:research:user:" + researchMonth;
+      // Gemini 2.5 grounding is billed per prompt. Stay well below its 500 RPD free allowance.
+      const researchDay = new Date().toISOString().slice(0, 10);
+      const researchGlobalKey = "companion:research:global:" + researchDay;
+      const researchUserKey = "companion:research:user:" + researchDay;
       const researchGlobalUsed = (await env.STATE.get<number>(researchGlobalKey, "json")) ?? 0;
       const researchUserUsed = (await scoped.STATE.get<number>(researchUserKey, "json")) ?? 0;
-      if (researchGlobalUsed + 40 > 1_000 || researchUserUsed + 40 > 200)
-        return json({ ok: false, error: "Месячный бесплатный лимит веб-исследований исчерпан. Попробуйте в следующем месяце." }, 429);
-      await env.STATE.put(researchGlobalKey, JSON.stringify(researchGlobalUsed + 40), { expirationTtl: 45 * 24 * 60 * 60 });
-      await scoped.STATE.put(researchUserKey, JSON.stringify(researchUserUsed + 40), { expirationTtl: 45 * 24 * 60 * 60 });
+      if (researchGlobalUsed >= 100 || researchUserUsed >= 20)
+        return json({ ok: false, error: "Дневной бесплатный лимит веб-исследований исчерпан. Попробуйте завтра." }, 429);
+      await env.STATE.put(researchGlobalKey, JSON.stringify(researchGlobalUsed + 1), { expirationTtl: 48 * 60 * 60 });
+      await scoped.STATE.put(researchUserKey, JSON.stringify(researchUserUsed + 1), { expirationTtl: 48 * 60 * 60 });
     }
 
     let response: Response;
@@ -170,7 +169,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
               ...(index === history.length - 1 ? attachments.map(file => ({ inlineData: { mimeType: file.mimeType, data: file.dataBase64 } })) : []),
             ],
           })),
-          ...(mode === "research" ? { tools: [{ googleSearch: {} }] } : {}),
+          ...(mode === "research" ? { tools: [{ googleSearchRetrieval: {} }] } : {}),
           generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, temperature: 0.7 },
         }),
         signal: AbortSignal.timeout(25_000),
@@ -186,6 +185,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       console.error("[companion] Gemini API rejected request:", response.status, providerMessage.slice(0, 300));
       if (response.status === 429) return json({ ok: false, error: "Лимит запросов Gemini исчерпан. Попробуйте через минуту." }, 429);
       if (response.status === 401 || response.status === 403) return json({ ok: false, error: "Gemini отклонил API-ключ. Нужно проверить ключ в настройках сервера." }, 503);
+      if (response.status === 404 && mode === "research") return json({ ok: false, error: "Модель Gemini 2.5 Flash-Lite недоступна для этого API-ключа. Веб-поиск не будет переключён на платный режим." }, 503);
       if (response.status === 404) return json({ ok: false, error: "Выбранная модель Gemini недоступна. Проверьте настройку GEMINI_MODEL." }, 503);
       if (response.status === 400 && mode === "research") return json({ ok: false, error: "Google Search grounding недоступен для текущей модели или API-ключа. Источники не подменялись." }, 503);
       if (response.status === 400) return json({ ok: false, error: "Gemini отклонил формат запроса. Проверьте настройки модели." }, 502);
