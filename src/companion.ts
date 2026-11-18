@@ -139,7 +139,8 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     // Reserve all applicable quotas atomically; KV read-modify-write is race-prone.
     const quotaNow = Date.now();
     const quotaLimits = [{
-      key: "rate:" + userId + ":" + Math.floor(quotaNow / (RATE_WINDOW_SECONDS * 1000)),
+      key: "rate:" + userId,
+      sliding: true,
       limit: RATE_LIMIT,
       windowSeconds: RATE_WINDOW_SECONDS + 5,
     }];
