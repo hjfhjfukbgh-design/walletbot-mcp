@@ -275,3 +275,12 @@
 - **Коррекция report:** `src/bot.ts` `runTick` возвращается сразу при LIVE mode до `openLong`; `src/api.ts` требует отдельный `confirm`, tenant-scoped preview token и atomic DO claim, выполняет execute один раз и фиксирует `unknown` без blind retry; тест Miniflare проверяет единственный успешный параллельный claim; `src/commands.ts` вызывает createAccount после `/conta CONFIRMO`.
 - **Реальный риск:** legacy `Walt.openLong`/`closePosition` оставались потенциально опасными при будущих call sites; устранение опубликовано в PR #282.
 - **Доказательства:** Actions job logs `135089983067`; report PR #280; комментарии-корректировки в PR #280 и Issue #278; Issue #278 оставлена в `agent-review`.
+
+### 2026-11-19 — старт regression test для LIVE execute confirmation gate
+
+- **Время:** 2026-11-19T01:03:11.768+05:00
+- **Событие:** начато усиление автоматизированного покрытия API LIVE confirmation.
+- **Статус:** начато
+- **Цель:** добавить тест, который отправляет POST live/execute без confirm:true и доказывает HTTP 400 + ноль внешних fetch/Walt вызовов. Это дополнит проверку fail-closed legacy Walt methods в PR #282.
+- **Scope:** только test/api.test.ts на той же ветке PR #282; исходный API не менять.
+- **Запрет:** никакие реальные Walt calls, ордера, изменения позиций/аккаунтов, merge или deploy.
