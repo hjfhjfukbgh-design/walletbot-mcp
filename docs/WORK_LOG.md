@@ -614,3 +614,14 @@
 - **Аудит Issue #275:** PR #228 находится на 46 commits позади актуального main; PR #222/#223 — на 48 commits позади. Их прежние CI runs #228 успешны только для старого SHA `b29a5e0`; runs #222/#223 завершились `action_required`. Нельзя вливать эти ветки напрямую.
 - **Текущее состояние UI main:** `app.js` уже выставляет Telegram chrome в тёмный `#0B1018`, но `index.html` по-прежнему объявляет светлую тему (`#f0f0f6`, `color-scheme: light`), а базовые CSS surfaces — светлые. Свежая свечная отрисовка и горизонтальная прокрутка уже присутствуют в main.
 - **Собственная задача Team Lead (начата):** безопасно перенести актуальные dark-surface и mobile leverage modal improvements из устаревшего release PR в свежую ветку от current main, обновить theme metadata, проверить CSS/JS и screenshot CI. Не cherry-pick старой ветки целиком.
+
+
+### 2026-11-19 — дополнительный AI quota audit и визуальная QA dark theme
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:58:00+05:00
+- **AI Companion quotas:** PR #284 уже был merged ранее в `main` (merge SHA `031e6e81ab9145df6edb45d0a56fe2e5366b2a45`). Повторно проверены текущие `src/companion-quota.ts`, `src/companion.ts`, `wrangler.toml` и Miniflare tests. Атомарная транзакция/rolling rate quota подтверждены; issue #290 получил post-merge review. Риски: один global DO сериализует все chat requests; quota списывается до provider response; Cloudflare allowance/billing не проверены, поэтому production migration остаётся budget-gated.
+- **PR #337 visual QA iteration 1:** screenshot artifact `14474414239`, run `44406270372` success. Ручной просмотр обнаружил реальные дефекты dark theme: белые wallet action cards и nav, чёрный balance text, светлый AI home. Это не было скрыто как success.
+- **PR #337 corrective patch:** добавлены dark CSS variables и более специфичные правила для wallet hero/actions/currency, `#kg-nav`, `#kg-companion-screen`; cache key bump до `20261119-premium-dark-2`.
+- **PR #337 CI for corrective SHA `59fa4164c09c6e419984dd7ffe32f0b360a64227`:** deploy workflow test run `44406607441` — success (npm ci, JS syntax, typecheck, npm test). Screenshot run `44406605825` ещё выполняет capture; до проверки второго screenshot artifact PR не сливать.
+- **Team orchestration:** fan-out run `44405703107` claimed successfully but worker matrix was skipped; only ready issue #203 lacks required child-task metadata/team label. New A/B/C Gemini worker dispatches not started pending verification that existing API key/account is restricted to a zero-cost free tier; no paid usage authorized.
+- **PR #335 CI discrepancy:** worker checks run `44403857370` passed, but associated PR deploy workflow run `44404049083` concluded failure and exposed no jobs via connector. This discrepancy should remain visible in audit trail; the PR itself only changed tests and did not change production behavior.
