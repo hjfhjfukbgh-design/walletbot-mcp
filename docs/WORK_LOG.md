@@ -595,3 +595,14 @@
 - **Проверки PR #335:** worker run `44403857370` — project checks завершились success, включая `npm run typecheck` и `npm test`; second-model review success. Diff затрагивал только `test/companion.test.ts` (+74 строки): 5 attachments, >5 MB/file, >8 MB total, malformed base64; unsupported MIME already covered by existing test. Provider fetch не вызывается на invalid payload.
 - **Issue #330:** закрыта как completed, labels `team-c`, `agent-done`.
 - **Следующая задача Team Lead (начата):** независимый read-only security review LIVE order safety/reconciliation по Issue #277; никаких Walt network/write calls, реальных ордеров, merge/deploy или secret changes.
+
+
+### 2026-11-19 — LIVE reconciliation hardening merged
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:54:00+05:00
+- **Завершено:** независимый read-only аудит Issue #277 опубликован в комментарии. Verdict: основные confirmation/replay/tenant guards подтверждены; полный security PASS не выдан.
+- **Finding MEDIUM устранён:** PR #336 ограничил reconciliation стабильными `opened_at`/`created_at` timestamps, убрал автоматическое использование одного `updated_at` и добавил верхнюю временную границу `operation.updatedAt + 5s`.
+- **PR #336:** merged squash commit `895c8006535733d0fb61d2c011fc5617589e1402`.
+- **CI run:** `44405975138` success — npm ci, JS syntax checks, npm run typecheck, npm test.
+- **Issue #277:** переведена из `agent-blocked` в `agent-review`; не закрыта, так как точный LIVE close contract и полная API-to-Walt integration coverage остаются неподтверждёнными.
+- **Ограничения:** реальных Walt calls, ордеров, переводов, account writes, secret changes и production deploy не было.
