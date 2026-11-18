@@ -363,3 +363,17 @@
 - **Цель:** добавить отдельный SQLite Durable Object quota coordinator, который атомарно резервирует все применимые лимиты в одной транзакции и только после успешного резервирования пропускает запрос. Никаких новых платных сервисов.
 - **Scope:** новый DO class + binding/migration + Companion integration + Miniflare concurrency tests. Только branch/PR; без production deploy.
 - **Безопасность:** не вызывать Gemini или Walt в тестах; не менять реальные аккаунты/позиции/средства.
+
+### 2026-11-19 — атомарные Companion quotas опубликованы в Draft PR #284
+
+- **Время:** 2026-11-19T01:10:54.805+05:00
+- **Событие:** завершена реализация SQLite Durable Object quota coordinator и тестов конкурентности.
+- **Статус:** код опубликован; CI ещё не вернул статусы
+- **Изменения:** новый `src/companion-quota.ts` проверяет до трёх квот и увеличивает их в одной SQLite `transactionSync`; все лимиты сначала проверяются, поэтому отказ по research quota не расходует rate slot. Добавлены binding `COMPANION_QUOTA`, export class и migration `companion_quota_v1`; Companion переведён с KV counters на atomic DO; при недоступности координатора запрос fail-closed с 503.
+- **Тесты добавлены:** Miniflare concurrency — 24 параллельных запроса при limit 8 должны дать ровно 8 успешных и 16 отказов; multi-quota test проверяет all-or-nothing reservation; malformed quota tests. Companion API test seed обновлён под DO mock.
+- **Статические проверки:** проверены все 8 файлов, binding/migration/export, отсутствие старых KV rate/research keys и наличие atomic transaction. Полный diff PR прочитан.
+- **CI:** head `97850d923f29a870b53faa96e474ceca936aac1a`; combined status и PR workflow runs пустые; тесты не заявляются пройденными.
+- **Стоимость:** новый vendor/API не добавлен; используется существующий Cloudflare Durable Objects service, но увеличивается DO usage/storage. Production rollout запрещён до проверки, что текущая Cloudflare allowance сохраняет бюджет 0.
+- **Артефакты:** branch `feat/companion-atomic-quotas-2026-11-19`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/284.
+- **Ограничение:** research quota по-прежнему списывается при неуспешном Gemini call; это безопасное консервативное поведение для бюджета, но может лишать пользователя попытки. Не решалось этим PR.
+- **Безопасность:** Gemini/Walt не вызывались; ордера, позиции, аккаунты, secrets, merge и deploy не затрагивались.
