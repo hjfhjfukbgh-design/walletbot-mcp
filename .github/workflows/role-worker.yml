@@ -160,7 +160,7 @@ jobs:
             if (!report) throw new Error("Role analysis failed: " + lastError);
             const missingScopeRows = scopeItems.map((_,index) => "S" + (index+1)).filter(id => !new RegExp("\\|\\s*\\[" + id + "\\]\\s*\\|").test(report));
             if (missingScopeRows.length) throw new Error("Analysis report omitted mandatory scope rows: " + missingScopeRows.join(", "));
-            if (/NOT VERIFIED|NOT RUN|НЕ ПРОВЕРЕНО|НЕ ЗАПУСКАЛ/i.test(report) && /Вердикт[\\s\\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report))
+            if (/NOT VERIFIED|NOT RUN|НЕ ПРОВЕРЕНО|НЕ ЗАПУСКАЛ/i.test(report) && /Вердикт[\s\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report))
               throw new Error("Analysis report overstates verdict despite unverified scope items.");
             fs.writeFileSync("/tmp/worker-mode.txt", "analysis-only");
             fs.writeFileSync("/tmp/worker-report.md", "# " + role + " — анализ задачи #" + process.env.ISSUE_NUMBER + "\n\n- Режим: анализ, исходники не изменялись\n- Задача: " + task + "\n\n" + report);
