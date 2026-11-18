@@ -7,8 +7,8 @@ type Conversation = { id: string; title: string; createdAt: string; updatedAt: s
 const PREFIX = "companion:conversation:";
 const MAX_MESSAGE_CHARS = 4_000;
 const MAX_STORED_MESSAGES = 20;
-const MAX_CONTEXT_MESSAGES = 12;
-const MAX_OUTPUT_TOKENS = 700;
+const MAX_CONTEXT_MESSAGES = 8;
+const MAX_OUTPUT_TOKENS = 450;
 const RATE_LIMIT = 8;
 const RATE_WINDOW_SECONDS = 60;
 const MAX_CONVERSATIONS = 50;
@@ -108,7 +108,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
 
     const userContent = message || "Проанализируй приложенные файлы.";
     const history = [...conversation.messages, { role: "user" as const, content: userContent, createdAt: new Date().toISOString() }].slice(-MAX_CONTEXT_MESSAGES);
-    const model = (env.GEMINI_MODEL || "gemini-3.8-flash").trim();
+    const model = (env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim();
     if (!/^[a-zA-Z0-9._-]{1,80}$/.test(model)) return json({ ok: false, error: "Некорректная настройка модели Gemini." }, 500);
 
     // Invalid requests must not consume the user's Gemini message quota.
@@ -133,7 +133,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
           })),
           generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, temperature: 0.7 },
         }),
-        signal: AbortSignal.timeout(55_000),
+        signal: AbortSignal.timeout(25_000),
       });
     } catch (error) {
       console.error("[companion] Gemini request failed:", error instanceof Error ? error.name : "unknown");
@@ -141,9 +141,15 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     }
 
     const payload = await response.json().catch(() => null) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>; error?: { message?: string } } | null;
-    if (!response.ok) return json({ ok: false, error: response.status === 429
-      ? "Лимит Gemini временно исчерпан. Попробуйте позже."
-      : "Не удалось получить ответ от ИИ. Попробуйте позже." }, response.status === 429 ? 429 : response.status >= 500 ? 503 : 502);
+    if (!response.ok) {
+      const providerMessage = payload?.error?.message ?? "unknown provider error";
+      console.error("[companion] Gemini API rejected request:", response.status, providerMessage.slice(0, 300));
+      if (response.status === 429) return json({ ok: false, error: "Лимит запросов Gemini исчерпан. Попробуйте через минуту." }, 429);
+      if (response.status === 401 || response.status === 403) return json({ ok: false, error: "Gemini отклонил API-ключ. Нужно проверить ключ в настройках сервера." }, 503);
+      if (response.status === 404) return json({ ok: false, error: "Выбранная модель Gemini недоступна. Проверьте настройку GEMINI_MODEL." }, 503);
+      if (response.status === 400) return json({ ok: false, error: "Gemini отклонил формат запроса. Проверьте настройки модели." }, 502);
+      return json({ ok: false, error: "Сервис Gemini временно недоступен. Попробуйте ещё раз." }, response.status >= 500 ? 503 : 502);
+    }
     const answer = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
     if (!answer) return json({ ok: false, error: "ИИ вернул пустой ответ. Попробуйте переформулировать вопрос." }, 502);
 
