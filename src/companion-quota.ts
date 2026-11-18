@@ -43,8 +43,7 @@ export class CompanionQuota {
     }
 
     const now = Date.now();
-    let exhausted: { key: string; limit: number; count: number } | null = null;
-    this.ctx.storage.transactionSync(() => {
+    const exhausted = this.ctx.storage.transactionSync(() => {
       this.ctx.storage.sql.exec("DELETE FROM quota_counters WHERE expires_at <= ?", now);
       for (const quota of quotas) {
         const row = this.ctx.storage.sql.exec(
@@ -52,10 +51,7 @@ export class CompanionQuota {
           quota.key,
         ).toArray()[0] as CounterRow | undefined;
         const count = row && row.expires_at > now ? row.count : 0;
-        if (count >= quota.limit) {
-          exhausted = { key: quota.key, limit: quota.limit, count };
-          return;
-        }
+        if (count >= quota.limit) return { key: quota.key, limit: quota.limit, count };
       }
 
       for (const quota of quotas) {
@@ -71,6 +67,7 @@ export class CompanionQuota {
           quota.key, count, expiresAt,
         );
       }
+      return null;
     });
 
     if (exhausted) {
