@@ -119,7 +119,7 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
  */
 export function normalizeLivePosition(
   contract: { contractId: number; name: string },
-  position: { contractId: number; valueBase: number; avgEntryPrice: number; marginQuote: number; liquidationPrice: number; raw: Json } | null,
+  position: { contractId: number; valueBase?: number; avgEntryPrice?: number; marginQuote?: number; liquidationPrice?: number; raw: Json } | null,
 ): Json | null {
   if (!position) return null;
   const rawSide = position.raw && typeof position.raw === "object" ? position.raw.side : null;
@@ -130,22 +130,18 @@ export function normalizeLivePosition(
     contractId: contract.contractId,
     symbol: contract.name,
     side,
-    valueBase: Number.isFinite(position.valueBase) ? position.valueBase : null,
-    avgEntryPrice: Number.isFinite(position.avgEntryPrice) ? position.avgEntryPrice : null,
-    marginQuote: Number.isFinite(position.marginQuote) ? position.marginQuote : null,
-    liquidationPrice: Number.isFinite(position.liquidationPrice) ? position.liquidationPrice : null,
+    valueBase: typeof position.valueBase === "number" && Number.isFinite(position.valueBase) ? position.valueBase : null,
+    avgEntryPrice: typeof position.avgEntryPrice === "number" && Number.isFinite(position.avgEntryPrice) ? position.avgEntryPrice : null,
+    marginQuote: typeof position.marginQuote === "number" && Number.isFinite(position.marginQuote) ? position.marginQuote : null,
+    liquidationPrice: typeof position.liquidationPrice === "number" && Number.isFinite(position.liquidationPrice) ? position.liquidationPrice : null,
   };
 }
 
 async function livePositionView(scopedEnv: Env, requestedSymbol: string): Promise<Response> {
   const symbol = String(requestedSymbol || "").trim().toUpperCase().replace(/[\/-](?:USDC|USDT|USD)$/, "");
   if (!/^[A-Z0-9_]{1,32}$/.test(symbol)) return fail("Укажите корректный торговый символ.");
-  let client: Awaited<ReturnType<typeof connectWalt>>;
-  try {
-    client = await connectWalt(scopedEnv);
-  } catch {
-    return fail("Walt недоступен для чтения позиции.", 503);
-  }
+  const client = await connectWalt(scopedEnv).catch(() => null);
+  if (!client) return fail("Walt недоступен для чтения позиции.", 503);
   let contracts;
   try {
     contracts = await client.contracts();
