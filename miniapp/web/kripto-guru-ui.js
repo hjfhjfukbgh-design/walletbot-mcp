@@ -923,7 +923,7 @@
   async function start(){
     if(started)return;
     started=true;
-    try{tg?.ready?.();tg?.expand?.();tg?.setHeaderColor?.("#ffffff");tg?.setBackgroundColor?.("#f0f0f6");}catch{}
+    try{tg?.ready?.();tg?.expand?.();tg?.setHeaderColor?.("#0b1018");tg?.setBackgroundColor?.("#0b1018");}catch{}
     bind();
     // Market quotes are the first screen's primary content. Start this request
     // immediately instead of waiting for FX, capabilities, history or wallet.
