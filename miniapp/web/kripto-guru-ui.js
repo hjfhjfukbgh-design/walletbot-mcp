@@ -219,17 +219,79 @@
     }catch(error){console.warn("[Kripto Guru] capabilities unavailable",normalizeError(error));}
   }
   function normalizeCandle(c){
-    if(Array.isArray(c)) return {time:Number(c[0]),open:Number(c[1]),high:Number(c[2]),low:Number(c[3]),close:Number(c[4])};
-    return {time:Number(c.time??c.timestamp),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)};
+    const time = Number(Array.isArray(c) ? c[0] : (c?.time ?? c?.timestamp));
+    const open = Number(Array.isArray(c) ? c[1] : c?.open);
+    const high = Number(Array.isArray(c) ? c[2] : c?.high);
+    const low = Number(Array.isArray(c) ? c[3] : c?.low);
+    const close = Number(Array.isArray(c) ? c[4] : c?.close);
+    return {time, open, high, low, close};
   }
   function drawCandles(candles){
-    const data=candles.map(normalizeCandle).filter(c=>[c.open,c.high,c.low,c.close].every(Number.isFinite));
-    if(!data.length){$("#kg-chart").innerHTML='<div class="kg-empty-inline">Свечи для этого интервала недоступны.</div>';return;}
-    const W=340,H=200,top=8,bottom=188,min=Math.min(...data.map(c=>c.low)),max=Math.max(...data.map(c=>c.high)),range=max-min||1;
-    const y=v=>bottom-(v-min)/range*(bottom-top),step=W/data.length,body=Math.max(2,step*.48);
-    const marks=data.map((c,i)=>{const x=i*step+step/2,up=c.close>=c.open,color=up?"#20a96f":"#e35562",yt=y(Math.max(c.open,c.close)),yb=y(Math.min(c.open,c.close));return `<line x1="${x}" y1="${y(c.high)}" x2="${x}" y2="${y(c.low)}" stroke="${color}" stroke-width="1.2"/><rect x="${x-body/2}" y="${yt}" width="${body}" height="${Math.max(1,yb-yt)}" rx=".7" fill="${color}"/>`;}).join("");
-    const grid=[.25,.5,.75].map(p=>`<line x1="0" y1="${top+(bottom-top)*p}" x2="${W}" y2="${top+(bottom-top)*p}" stroke="#eceef3" stroke-dasharray="3 4"/>`).join("");
-    $("#kg-chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Свечной график">${grid}${marks}</svg>`;
+    const validRaw = Array.isArray(candles) ? candles.map(normalizeCandle) : [];
+    const data = validRaw.filter(c => {
+      if (![c.time, c.open, c.high, c.low, c.close].every(Number.isFinite)) return false;
+      if (c.open <= 0 || c.high <= 0 || c.low <= 0 || c.close <= 0) return false;
+      if (c.high < c.open || c.high < c.close || c.high < c.low) return false;
+      if (c.low > c.open || c.low > c.close || c.low > c.high) return false;
+      return true;
+    });
+    if(!data.length){$("#kg-chart").innerHTML='<div class="kg-empty-inline">Свечи для этого интервала недоступны или некорректны.</div>';return;}
+    
+    const W = 600, H = 260, padTop = 14, padBottom = 26, padRight = 72, padLeft = 10;
+    const chartW = W - padRight - padLeft, chartH = H - padTop - padBottom;
+    
+    let min = Math.min(...data.map(c => c.low));
+    let max = Math.max(...data.map(c => c.high));
+    if (min === max) { min -= 1; max += 1; }
+    const range = max - min;
+    
+    const y = v => padTop + chartH - ((v - min) / range) * chartH;
+    const step = chartW / data.length;
+    const bodyW = Math.max(1.5, Math.min(step * 0.72, 14));
+    
+    const levels = 5;
+    const gridLines = [];
+    const priceLabels = [];
+    for (let i = 0; i < levels; i++) {
+      const val = min + (range / (levels - 1)) * i;
+      const posY = y(val);
+      gridLines.push(`<line x1="${padLeft}" y1="${posY}" x2="${W - padRight}" y2="${posY}" stroke="#2a2e39" stroke-dasharray="3 3" stroke-width="1"/>`);
+      priceLabels.push(`<text x="${W - padRight + 8}" y="${posY + 4}" fill="#787b86" font-size="10" font-family="sans-serif">${val >= 100 ? val.toFixed(0) : val.toFixed(2)}</text>`);
+    }
+    
+    const timeLabels = [];
+    const timeStep = Math.max(1, Math.floor(data.length / 4));
+    data.forEach((c, i) => {
+      if (i % timeStep === 0 || i === data.length - 1) {
+        const x = padLeft + i * step + step / 2;
+        let timeStr = "";
+        if (Number.isFinite(c.time) && c.time > 0) {
+          const d = new Date(c.time > 10000000000 ? c.time : c.time * 1000);
+          const hours = String(d.getHours()).padStart(2, '0');
+          const mins = String(d.getMinutes()).padStart(2, '0');
+          timeStr = `${hours}:${mins}`;
+        }
+        if (timeStr) {
+          timeLabels.push(`<text x="${x}" y="${H - 8}" fill="#787b86" font-size="9" text-anchor="middle" font-family="sans-serif">${timeStr}</text>`);
+        }
+      }
+    });
+    
+    const candlesSvg = data.map((c, i) => {
+      const x = padLeft + i * step + step / 2;
+      const up = c.close >= c.open;
+      const color = up ? "#22ad78" : "#e45a65";
+      const yt = y(Math.max(c.open, c.close));
+      const yb = y(Math.min(c.open, c.close));
+      return `<line x1="${x}" y1="${y(c.high)}" x2="${x}" y2="${y(c.low)}" stroke="${color}" stroke-width="1.2"/><rect x="${x - bodyW / 2}" y="${yt}" width="${bodyW}" height="${Math.max(1, yb - yt)}" rx="0.5" fill="${color}"/>`;
+    }).join("");
+    
+    const last = data[data.length - 1];
+    const lastY = y(last.close);
+    const lastPriceStr = last.close >= 100 ? last.close.toFixed(0) : last.close.toFixed(2);
+    const lastPriceLine = `<line x1="${padLeft}" y1="${lastY}" x2="${W - padRight}" y2="${lastY}" stroke="#22ad78" stroke-width="0.8" stroke-dasharray="2 2"/><rect x="${W - padRight}" y="${lastY - 8}" width="${padRight}" height="16" fill="#1e222d" rx="2"/><text x="${W - padRight + 6}" y="${lastY + 3.5}" fill="#ffffff" font-size="10" font-weight="bold" font-family="sans-serif">${lastPriceStr}</text>`;
+    
+    $("#kg-chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Профессиональный свечной график" style="width:100%;height:100%;background:#131722;border-radius:8px;display:block;">${gridLines.join("")}${candlesSvg}${priceLabels.join("")}${timeLabels.join("")}${lastPriceLine}</svg>`;
   }
   async function openAsset(symbol){
     state.previousScreen=state.screen;
