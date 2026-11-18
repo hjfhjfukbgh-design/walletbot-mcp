@@ -464,3 +464,11 @@
 - **Superseded PR #287** closed; it was based on pre-#273 main and is not part of the release.
 - **Worker QA quality:** report-only PRs #291/#292/#293 were reviewed and closed as invalid: they did not inspect assigned PR/CI evidence and contained inaccurate or irrelevant claims. The corresponding issues were requeued after PR #295 merged. Current fan-out claim run 44393805449 is in progress; the competing issue event was cancelled by concurrency. Do not claim A/B/C have delivered accepted QA until the new run and reports are inspected.
 - **No real financial operations:** no Walt execute/write calls, no orders, position changes, transfers, account mutations or secret changes. No new paid services or spend.
+
+
+### 2026-11-19 — start: provide GH_TOKEN to evidence-based QA workers
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T01:43:57.875+05:00
+- **Причина:** PR #295 added read-only `gh pr view/diff` and `gh api` evidence retrieval, but the reusable worker step did not export GH_TOKEN. Team B report #297 confirmed `GH_TOKEN missing`; PR evidence retrieval therefore failed despite the workflow change.
+- **Scope:** expose the existing workflow GITHUB_TOKEN as GH_TOKEN only to the worker analysis step; no new permissions beyond current workflow permissions. Requeue QA tasks after CI verification.
+- **Безопасность:** token remains masked by GitHub Actions; no token value is written to files or report; no production operations.
