@@ -219,22 +219,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const after = await post(stub, "/reconcile", {});
     expect(after.body.openPositions).toBe(0);
   });
-});
 
-
-describe("DEMO execution price modelling", () => {
-  const mid = 50_000n * P;
-  const slip = 1_000n; // 0.1%
-
-  it("applies adverse entry slippage in the direction of the opening order", () => {
-    expect(applyEntrySlippage(mid, "long", slip)).toBe(50_050n * P);
-    expect(applyEntrySlippage(mid, "short", slip)).toBe(49_950n * P);
-  });
-
-  it("applies adverse exit slippage in the direction of the closing order", () => {
-    expect(applyAdverseSlippage(mid, "long", slip)).toBe(49_950n * P);
-    expect(applyAdverseSlippage(mid, "short", slip)).toBe(50_050n * P);
-  });
   it("atomically claims each LIVE handle once and persists final status", async () => {
     const stub = await boot();
     const handle = "a".repeat(32);
@@ -289,5 +274,22 @@ describe("DEMO execution price modelling", () => {
     expect(expired.status).toBe(400);
   });
 
+
+});
+
+
+describe("DEMO execution price modelling", () => {
+  const mid = 50_000n * P;
+  const slip = 1_000n; // 0.1%
+
+  it("applies adverse entry slippage in the direction of the opening order", () => {
+    expect(applyEntrySlippage(mid, "long", slip)).toBe(50_050n * P);
+    expect(applyEntrySlippage(mid, "short", slip)).toBe(49_950n * P);
+  });
+
+  it("applies adverse exit slippage in the direction of the closing order", () => {
+    expect(applyAdverseSlippage(mid, "long", slip)).toBe(49_950n * P);
+    expect(applyAdverseSlippage(mid, "short", slip)).toBe(50_050n * P);
+  });
 
 });
