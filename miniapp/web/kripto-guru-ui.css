@@ -684,7 +684,7 @@ button:disabled{cursor:not-allowed;opacity:.5}
 
 /* Companion media attachments and recording feedback. */
 #kg-companion-screen .kg-ai-attachments{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
-#kg-companion-screen .kg-ai-attachments[hidden]{display:none}
+#kg-companion-screen .kg-ai-attachments[hidden]{display:none!important}
 #kg-companion-screen .kg-ai-attachment-chip{display:flex;align-items:center;gap:8px;max-width:100%;padding:6px 9px;border:1px solid rgba(125,145,180,.22);border-radius:12px;background:rgba(255,255,255,.82);color:#43506a;font-size:11px}
 #kg-companion-screen .kg-ai-attachment-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #kg-companion-screen .kg-ai-attachment-chip button{border:0;background:transparent;color:#7c8799;font-size:16px}
