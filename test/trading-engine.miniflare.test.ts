@@ -158,7 +158,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(await secondStatus.json()).toMatchObject({ demoBalanceMicro: (800n * U).toString(), aiBalanceMicro: (200n * U).toString() });
   });
 
-  it("returns AI paper funds to DEMO atomically and idempotently", async () => {
+  it("returns AI paper funds to DEMO atomically and idempotently with signed ledger retries", async () => {
     const stub = await boot();
     const funded = await post(stub, "/ai/paper/fund", {
       userId, amountMicro: (100n * U).toString(), idempotencyKey: "fund-for-withdraw",
