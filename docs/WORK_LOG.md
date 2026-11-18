@@ -304,3 +304,13 @@
 - **Цель:** потребовать явный boolean confirmation в самом adapter, передать `true` только из уже подтверждённой команды и добавить тест, что `false` не вызывает MCP.
 - **Scope:** src/walt.ts, src/commands.ts, test/walt.test.ts на существующей ветке PR #282.
 - **Запрет:** не выполнять реальное создание Perps account или любые Walt writes.
+
+### 2026-11-19 — Walt account creation также защищён явным подтверждением
+
+- **Время:** 2026-11-19T01:04:36.896+05:00
+- **Событие:** завершена дополнительная проверка на уровне Walt adapter.
+- **Статус:** код опубликован в обновлённом Draft PR #282; CI не предоставил статусы
+- **Изменения:** `Walt.createAccount(confirmed)` теперь отказывает при любом значении, кроме `true`; единственный caller `src/commands.ts` передаёт confirm только из ветки после команды `/conta CONFIRMO`. Тест `test/walt.test.ts` проверяет, что `createAccount(false)` не вызывает MCP.
+- **PR #282 итог:** 4 файла (`src/walt.ts`, `src/commands.ts`, `test/walt.test.ts`, `test/api.test.ts`), 47 additions / 26 deletions; head `b08a679cb9450ac43806bc1aaf0e306f2d96e7d4`.
+- **Проверка:** полный diff прочитан; combined status и PR workflow runs пустые. Typecheck/tests ещё не подтверждены.
+- **Безопасность:** никаких реальных Walt tools, ордеров, позиций или account creation; merge/deploy не выполнялись.
