@@ -231,6 +231,42 @@ describe("AI Companion API", () => {
     expect(result.conversation.messages[0].content).toContain("voice.webm");
   });
 
+  it("accepts validated MP4 and WebM video attachments as Gemini inline media", async () => {
+    const e = isolatedEnv();
+    let sentBody: any;
+    vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      sentBody = JSON.parse(String(init?.body));
+      return Response.json({ candidates: [{ content: { parts: [{ text: "Видео получено." }] } }] });
+    });
+    const mp4 = "AAAAEGZ0eXBpc29tAAACAA==";
+    const webm = "GkXfo5NCgog=";
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Проанализируй видео", attachments: [
+        { name: "clip.mp4", mimeType: "video/mp4", dataBase64: mp4 },
+        { name: "clip.webm", mimeType: "video/webm", dataBase64: webm },
+      ] }),
+    });
+    expect(response.status).toBe(200);
+    const parts = sentBody.contents.at(-1).parts;
+    expect(parts).toContainEqual({ inlineData: { mimeType: "video/mp4", data: mp4 } });
+    expect(parts).toContainEqual({ inlineData: { mimeType: "video/webm", data: webm } });
+  });
+
+  it("rejects a video whose container signature does not match its MIME type", async () => {
+    const e = isolatedEnv();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Видео", attachments: [
+        { name: "clip.mp4", mimeType: "video/mp4", dataBase64: "aGVsbG8=" },
+      ] }),
+    });
+    expect(response.status).toBe(415);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("rejects unsupported attachment types before calling Gemini", async () => {
     const e = isolatedEnv();
     const fetchMock = vi.fn();
