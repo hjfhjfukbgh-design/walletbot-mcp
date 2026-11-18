@@ -668,7 +668,6 @@ button:disabled{cursor:not-allowed;opacity:.5}
 #kg-companion-screen.kg-keyboard-open .kg-ai-welcome>b{font-size:20px}
 #kg-companion-screen.kg-keyboard-open .kg-ai-welcome>p{font-size:13px}
 #kg-companion-screen.kg-keyboard-open .kg-ai-form{margin-bottom:4px}
-#kg-main:has(#kg-companion-screen.is-active)~#kg-nav{display:none!important}
 #kg-main:has(#kg-companion-screen.is-active)~#kg-toast{display:none!important}
 #kg-companion-screen .kg-ai-menu{z-index:91}
 #kg-companion-screen .kg-ai-menu-backdrop{z-index:90}
@@ -682,3 +681,12 @@ button:disabled{cursor:not-allowed;opacity:.5}
  @keyframes kg-gemini-glow{0%,100%{transform:scale(1);filter:drop-shadow(0 4px 12px rgba(115,145,255,.16))}50%{transform:scale(1.045);filter:drop-shadow(0 7px 19px rgba(115,145,255,.32))}}
 }
 
+
+/* Companion media attachments and recording feedback. */
+#kg-companion-screen .kg-ai-attachments{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+#kg-companion-screen .kg-ai-attachments[hidden]{display:none}
+#kg-companion-screen .kg-ai-attachment-chip{display:flex;align-items:center;gap:8px;max-width:100%;padding:6px 9px;border:1px solid rgba(125,145,180,.22);border-radius:12px;background:rgba(255,255,255,.82);color:#43506a;font-size:11px}
+#kg-companion-screen .kg-ai-attachment-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#kg-companion-screen .kg-ai-attachment-chip button{border:0;background:transparent;color:#7c8799;font-size:16px}
+#kg-companion-screen #kg-ai-voice.is-recording{background:#ffe5e8;color:#d33b4b;animation:kg-record-pulse 1s ease-in-out infinite}
+@keyframes kg-record-pulse{50%{box-shadow:0 0 0 5px rgba(211,59,75,.12)}}
