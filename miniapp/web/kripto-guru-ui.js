@@ -184,6 +184,13 @@
       state.wallet=unwrap(await invoke("wallet.get"),"wallet");
       $("#kg-wallet-balance").textContent=money(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
       $("#kg-wallet-currency-value").textContent=money(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
+      const walletAssets=listOf(state.wallet,["assets","balances"]);
+      const cryptoTotal=walletAssets.reduce((sum,asset)=>{
+        const value=Number(asset.valueUsd ?? asset.balanceUsd ?? asset.usdValue);
+        return sum+(Number.isFinite(value)?value:0);
+      },0);
+      const totalNode=$("#kg-wallet-crypto-total");
+      if(totalNode)totalNode.textContent=fmt(cryptoTotal)+" $";
       renderWalletAssets();
       const pos=listOf(state.wallet,["positions"]);
       $("#kg-position-count").textContent=String(pos.length);
