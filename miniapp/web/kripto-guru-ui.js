@@ -372,7 +372,7 @@
     const data = [...byTimestamp.values()].sort((a, b) => a.timeMs - b.timeMs);
 
     const chart = $("#kg-chart");
-    const wasAtEnd = chart.scrollWidth <= chart.clientWidth || chart.scrollLeft + chart.clientWidth >= chart.scrollWidth - 12;
+    const wasAtEnd = chart.scrollWidth <= chart.clientWidth || chart.scrollLeft + chart.clientWidth >= chart.scrollWidth - 2;
     const previousScrollLeft = chart.scrollLeft;
     if (!data.length) {
       chart.innerHTML = '<div class="kg-empty-inline">Свечи для этого интервала недоступны.</div>';
