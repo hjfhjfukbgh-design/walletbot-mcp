@@ -13,6 +13,7 @@
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
     autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[]
   };
+  let marketLoadEpoch=0,marketRefreshInFlight=false,marketRefreshTimer=0,marketLastUpdatedAt=0,marketSearchTimer=0,marketVisibilityListenerInstalled=false;
   const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
   const priceDigits = (value, metadata) => {
     const candidates = [metadata?.priceDecimals, metadata?.raw?.priceDecimals, metadata?.raw?.contract?.priceDecimals];
@@ -176,54 +177,106 @@
     }).join(""):'<div class="kg-empty-inline">По запросу ничего не найдено.</div>';
   }
   async function loadCategory(category){
+    const requestId=++marketLoadEpoch;
     state.category=category;
     $$(".kg-category").forEach(b=>b.classList.toggle("is-selected",b.dataset.category===category));
     $$("#kg-search-filters button").forEach(b=>b.classList.toggle("is-selected",b.dataset.searchFilter===category));
-    $$(".kg-category").forEach(b=>b.classList.toggle("is-selected",b.dataset.category===category));
-    const live=$("#kg-market-live"), unavailable=$("#kg-market-unavailable");
+    const live=$("#kg-market-live"),unavailable=$("#kg-market-unavailable");
     if(category==="stocks"||category==="funds"){
       live.hidden=true;unavailable.hidden=false;
       $("#kg-unavailable-title").textContent=category==="stocks"?"Акции США":"Фонды";
       try{
         const res=unwrap(await invoke("markets.list",{category}),"markets");
+        if(requestId!==marketLoadEpoch||state.category!==category)return;
         if(res.available===false) $("#kg-unavailable-reason").textContent=res.reason||"Проверенный источник котировок пока не подключён.";
         else $("#kg-unavailable-reason").textContent="Торговля этими инструментами пока недоступна.";
-      }catch(error){$("#kg-unavailable-reason").textContent=normalizeError(error).message;}
+      }catch(error){if(requestId===marketLoadEpoch)$("#kg-unavailable-reason").textContent=normalizeError(error).message;}
       return;
     }
     live.hidden=false;unavailable.hidden=true;
     try{
       const result=unwrap(await invoke("markets.list",{category}),"markets");
+      if(requestId!==marketLoadEpoch||state.category!==category)return;
       const items=listOf(result,["markets","items"]);
       if(category==="futures") state.futures=items; else state.markets=items;
       const current=category==="futures"?state.futures:state.markets;
       $("#kg-market-title").textContent=category==="futures"?"Фьючерсы":"Все активы";
-      $("#kg-market-updated").textContent="Обновлено";
+      markMarketFresh();
       renderMarketList(current);renderHeatmap(current);renderTopDay(current);renderFavorites();renderRecent();if(category==="crypto")loadFavoriteSparklines();
     }catch(error){
-      $("#kg-market-list").innerHTML=`<div class="kg-empty-inline">${esc(normalizeError(error).message)}</div>`;
-      $("#kg-heatmap").innerHTML='<div class="kg-empty-inline">Нет данных рынка.</div>';
-      $("#kg-top-day").innerHTML="";
+      if(requestId!==marketLoadEpoch||state.category!==category)return;
+      const current=category==="futures"?state.futures:state.markets;
+      if(current.length){markMarketStale();renderMarketList(current);renderHeatmap(current);renderTopDay(current);renderFavorites();renderRecent();}
+      else{
+        $("#kg-market-list").innerHTML='<div class="kg-empty-inline">'+esc(normalizeError(error).message)+'</div>';
+        $("#kg-heatmap").innerHTML='<div class="kg-empty-inline">Нет данных рынка.</div>';
+        $("#kg-top-day").innerHTML="";
+        markMarketStale();
+      }
     }
   }
   async function setSearchFilter(category){
+    const requestId=++marketLoadEpoch;
     state.category=category;
     $$("#kg-search-filters button").forEach(b=>b.classList.toggle("is-selected",b.dataset.searchFilter===category));
     if(category==="all"){
       $("#kg-market-live").hidden=false;$("#kg-market-unavailable").hidden=true;
       try{
         const [cryptoResult,futuresResult]=await Promise.all([invoke("markets.list",{category:"crypto"}),invoke("markets.list",{category:"futures"})]);
+        if(requestId!==marketLoadEpoch||state.category!==category)return;
         state.markets=listOf(unwrap(cryptoResult,"markets"),["markets","items"]);
         state.futures=listOf(unwrap(futuresResult,"markets"),["markets","items"]);
         const unique=new Map([...state.markets,...state.futures].map(m=>[m.symbol||m.market,m]));
         const all=[...unique.values()];
         $("#kg-market-title").textContent="Все активы";
-        $("#kg-market-updated").textContent="Обновлено";
-        renderMarketList(all);renderHeatmap(all);renderTopDay(all);renderFavorites();
-      }catch(error){$("#kg-market-list").innerHTML=`<div class="kg-empty-inline">${esc(normalizeError(error).message)}</div>`;}
+        markMarketFresh();
+        renderMarketList(all);renderHeatmap(all);renderTopDay(all);renderFavorites();renderRecent();
+      }catch(error){
+        if(requestId!==marketLoadEpoch||state.category!==category)return;
+        const unique=new Map([...state.markets,...state.futures].map(m=>[m.symbol||m.market,m]));
+        const all=[...unique.values()];
+        if(all.length){markMarketStale();renderMarketList(all);renderHeatmap(all);renderTopDay(all);renderFavorites();renderRecent();}
+        else{$("#kg-market-list").innerHTML='<div class="kg-empty-inline">'+esc(normalizeError(error).message)+'</div>';markMarketStale();}
+      }
       return;
     }
     await loadCategory(category);
+  }
+  function markMarketFresh(){
+    marketLastUpdatedAt=Date.now();
+    const label=$("#kg-market-updated");
+    if(label){label.textContent="Обновлено · "+new Date(marketLastUpdatedAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});label.classList.remove("is-stale");}
+  }
+  function markMarketStale(){
+    const label=$("#kg-market-updated");
+    if(label){label.textContent=marketLastUpdatedAt?"Данные устарели · "+new Date(marketLastUpdatedAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"Нет свежих котировок";label.classList.add("is-stale");}
+  }
+  async function refreshMarketData(){
+    if(document.visibilityState!=="visible"||$("#kg-market-live").hidden||marketRefreshInFlight)return;
+    const category=state.category;
+    if(category==="stocks"||category==="funds")return;
+    const requestId=++marketLoadEpoch;
+    marketRefreshInFlight=true;
+    try{
+      if(category==="all"){
+        const [cryptoResult,futuresResult]=await Promise.all([invoke("markets.list",{category:"crypto"}),invoke("markets.list",{category:"futures"})]);
+        if(requestId!==marketLoadEpoch||state.category!==category)return;
+        state.markets=listOf(unwrap(cryptoResult,"markets"),["markets","items"]);
+        state.futures=listOf(unwrap(futuresResult,"markets"),["markets","items"]);
+        const unique=new Map([...state.markets,...state.futures].map(m=>[m.symbol||m.market,m]));
+        const all=[...unique.values()];
+        renderMarketList(all);renderHeatmap(all);renderTopDay(all);renderFavorites();renderRecent();
+      }else{
+        const result=unwrap(await invoke("markets.list",{category}),"markets");
+        if(requestId!==marketLoadEpoch||state.category!==category)return;
+        const items=listOf(result,["markets","items"]);
+        if(category==="futures")state.futures=items;else state.markets=items;
+        renderMarketList(items);renderHeatmap(items);renderTopDay(items);renderFavorites();renderRecent();
+      }
+      markMarketFresh();
+    }catch{
+      if(requestId===marketLoadEpoch&&state.category===category)markMarketStale();
+    }finally{marketRefreshInFlight=false;}
   }
   async function loadWallet(){
     try{
@@ -703,7 +756,19 @@
     $$(".kg-category").forEach(b=>b.addEventListener("click",()=>loadCategory(b.dataset.category)));
     $("#kg-search-open").addEventListener("click",()=>{$("#kg-trading-screen").classList.add("kg-search-mode");$("#kg-search-open").hidden=true;$("#kg-market-search").hidden=false;$("#kg-search-close").hidden=false;$("#kg-search-filters").hidden=false;setSearchFilter("all");$("#kg-market-search").focus();});
     $("#kg-search-close").addEventListener("click",()=>{$("#kg-market-search").value="";$("#kg-trading-screen").classList.remove("kg-search-mode");$("#kg-search-filters").hidden=true;$("#kg-market-search").hidden=true;$("#kg-search-close").hidden=true;$("#kg-search-open").hidden=false;loadCategory("crypto");});
-    $("#kg-market-search").addEventListener("input",()=>renderMarketList(currentMarkets()));
+    $("#kg-market-search").addEventListener("input",()=>{
+      clearTimeout(marketSearchTimer);
+      marketSearchTimer=setTimeout(()=>renderMarketList(currentMarkets()),120);
+    });
+    $("#kg-market-search").addEventListener("keydown",event=>{
+      if(event.key==="Enter"){clearTimeout(marketSearchTimer);renderMarketList(currentMarkets());}
+      if(event.key==="Escape"){event.currentTarget.value="";clearTimeout(marketSearchTimer);renderMarketList(currentMarkets());}
+    });
+    if(!marketRefreshTimer)marketRefreshTimer=setInterval(refreshMarketData,15000);
+    if(!marketVisibilityListenerInstalled){
+      document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")refreshMarketData();});
+      marketVisibilityListenerInstalled=true;
+    }
     $$("#kg-search-filters button").forEach(b=>b.addEventListener("click",()=>setSearchFilter(b.dataset.searchFilter)));
     $("#kg-market-search").addEventListener("keydown",e=>{if(e.key==="Escape")$("#kg-search-close").click();});
     $("#kg-recent-clear").addEventListener("click",()=>{state.recent=[];try{localStorage.removeItem("kg:recent:v1");}catch{}renderRecent();});
