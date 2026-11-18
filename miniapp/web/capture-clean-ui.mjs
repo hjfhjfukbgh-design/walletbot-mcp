@@ -32,6 +32,7 @@ const candles=Array.from({length:30},(_,i)=>{
 try{
   for(const device of [{width:390,height:844},{width:430,height:932}]){
     const page=await browser.newPage({viewport:device,deviceScaleFactor:3,isMobile:true,hasTouch:true});
+    page.on("dialog",dialog=>dialog.accept());
     const pageErrors=[];
     const consoleErrors=[];
     page.on("pageerror",error=>pageErrors.push(error.message));
@@ -49,7 +50,7 @@ try{
       const mockHistory=[];
       const companionHistory=[];
       window.__candleCalls=0;window.__candleIntervals=[];window.__marketListCalls=0;
-      window.__productMode="demo";
+      window.__productMode="demo";window.__aiPaperState={demoBalanceMicro:"1000000000",aiBalanceMicro:"0",status:"stopped",openPositions:0};window.__aiPaperCalls=0;
       window.__lastTradeOpen=null;
       const markets=[
         {symbol:"BTC",name:"Bitcoin",priceUsd:91240.5,change24hPct:2.42,volume24hUsd:8900000000,openInterestUsd:198750000,fundingRateHourlyPct:0.001,maxLeverage:50,takerFeePct:0.035,tradeable:true},
@@ -69,7 +70,11 @@ try{
         },
         history:{async list(){return {events:mockHistory.map(x=>({...x}))};}},
         capabilities:{async get(){return {ipo:{available:false,reason:"Нет источника IPO"},stocks:{available:false},funds:{available:false},bonuses:{available:false},live:{available:false}};}},
-        productMode:{async get(){return window.__productMode||"demo";},async set(mode){if(mode!=="demo"&&mode!=="ai")throw {code:"MODE_LOCKED",message:"LIVE заблокирован"};window.__productMode=mode;return {ok:true,productMode:mode};}},
+        productMode:{async get(){return window.__productMode||"demo";},async set(mode){if(mode!=="demo"&&mode!=="ai")throw {code:"MODE_LOCKED",message:"LIVE заблокирован"};window.__productMode=mode;return {ok:true,productMode:mode};}},aiPaper:{
+          async status(){window.__aiPaperCalls++;return {...window.__aiPaperState};},
+          async fund(amountUsd,idempotencyKey){window.__aiPaperCalls++;const amount=BigInt(Math.round(Number(amountUsd)*1000000));window.__aiPaperState.demoBalanceMicro=(BigInt(window.__aiPaperState.demoBalanceMicro)-amount).toString();window.__aiPaperState.aiBalanceMicro=(BigInt(window.__aiPaperState.aiBalanceMicro)+amount).toString();return {...window.__aiPaperState,ok:true,duplicate:false,transferredMicro:amount.toString()};},
+          async withdraw(amountUsd,idempotencyKey){window.__aiPaperCalls++;const amount=BigInt(Math.round(Number(amountUsd)*1000000));window.__aiPaperState.aiBalanceMicro=(BigInt(window.__aiPaperState.aiBalanceMicro)-amount).toString();window.__aiPaperState.demoBalanceMicro=(BigInt(window.__aiPaperState.demoBalanceMicro)+amount).toString();return {...window.__aiPaperState,ok:true,duplicate:false,transferredMicro:amount.toString()};}
+        },
         companion:{async list(){return companionHistory.map(x=>({...x}));},async get(id){return {id,messages:[{role:"user",content:"Привет"},{role:"assistant",content:"Здравствуйте!"}]};},async send(message,id){const conversationId=id||"preview-conversation-1";companionHistory.unshift({id:conversationId,title:message.slice(0,32),messageCount:2});return {conversationId,answer:"Тестовый ответ ИИ",conversation:{id:conversationId,messages:[{role:"user",content:message},{role:"assistant",content:"Тестовый ответ ИИ"}]}};},async remove(id){const index=companionHistory.findIndex(x=>x.id===id);if(index>=0)companionHistory.splice(index,1);return {ok:true};}},
       };
     });
@@ -98,7 +103,19 @@ try{
     await page.locator('[data-product-mode="ai"]').click();
     await page.waitForFunction(()=>document.querySelector('[data-product-mode="ai"]')?.classList.contains("is-active"));
     if(!(await page.locator("#kg-product-mode-status").innerText()).includes("Автоматические сделки пока отключены"))throw new Error("AI Trading selector must disclose paper-only/no-auto-execution status");
+    await page.waitForFunction(()=>window.__aiPaperCalls>0&&document.querySelector("#kg-ai-paper-panel")&&!document.querySelector("#kg-ai-paper-panel").hidden);
+    if((await page.locator("#kg-ai-paper-balance").innerText())!=="$0.00")throw new Error("new AI paper account must start with zero balance");
+    if((await page.locator("#kg-ai-paper-demo").innerText())!=="$1,000.00")throw new Error("AI panel must show available DEMO balance");
+    if((await page.locator("#kg-ai-paper-state").innerText())!=="Остановлен")throw new Error("AI paper account must not claim a strategy is running");
+    await page.locator("#kg-ai-paper-amount").fill("50.00");
+    await page.locator("#kg-ai-paper-fund").click();
+    await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-balance")?.textContent==="$50.00");
+    if((await page.locator("#kg-ai-paper-demo").innerText())!=="$950.00")throw new Error("funding must debit only virtual DEMO balance");
     await page.screenshot({path:`clean-product-mode-ai-${device.width}x${device.height}.png`,fullPage:false});
+    await page.locator("#kg-ai-paper-amount").fill("20.00");
+    await page.locator("#kg-ai-paper-withdraw").click();
+    await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-balance")?.textContent==="$30.00");
+    if((await page.locator("#kg-ai-paper-demo").innerText())!=="$970.00")throw new Error("withdrawal must return virtual funds to DEMO");
     await page.locator('[data-product-mode="demo"]').click();
     await page.waitForFunction(()=>document.querySelector('[data-product-mode="demo"]')?.classList.contains("is-active"));
 
