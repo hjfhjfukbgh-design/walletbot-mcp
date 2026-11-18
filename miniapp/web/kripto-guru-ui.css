@@ -1057,3 +1057,28 @@ button{ -webkit-tap-highlight-color:transparent }
 .kg-equities-custom-form{margin-top:18px}.kg-equities-custom-form label{display:block;margin-bottom:8px;color:#858894;font-size:13px}
 .kg-equities-custom-form>div{display:flex;gap:8px}.kg-equities-custom-form input{flex:1;min-width:0;height:46px;padding:0 12px;border:1px solid #e0e1e7;border-radius:12px;background:#fff;font:inherit;text-transform:uppercase}
 .kg-equities-custom-form button{padding:0 15px;border:0;border-radius:12px;background:#2487f5;color:#fff;font-family:inherit;font-size:14px;font-weight:600}
+
+
+/* Kripto Guru AI home: Gemini-like composition, native brand identity. */
+#kg-companion-screen .kg-brand-mark{
+  display:grid;place-items:center;width:74px;height:74px;margin:0 0 22px;
+  filter:drop-shadow(0 7px 16px rgba(44,117,220,.20));
+}
+#kg-companion-screen .kg-brand-mark svg{display:block;width:100%;height:100%;overflow:visible}
+#kg-companion-screen .kg-mark-halo{fill:#a9cfff;opacity:.72;filter:url(#kg-mark-shadow)}
+#kg-companion-screen .kg-mark-shape{fill:url(#kg-mark-glow);stroke:rgba(255,255,255,.92);stroke-width:2}
+#kg-companion-screen .kg-mark-chip{fill:rgba(29,91,168,.88);stroke:#fff;stroke-width:2}
+#kg-companion-screen .kg-mark-circuit{fill:none;stroke:#eaf6ff;stroke-width:2;stroke-linecap:round}
+#kg-companion-screen .kg-mark-ai{fill:#fff;font:700 12px system-ui,sans-serif}
+#kg-companion-screen .kg-mark-kg{fill:#fff;font:800 17px system-ui,sans-serif;letter-spacing:-1px}
+#kg-companion-screen .kg-ai-welcome .kg-brand-mark{flex:0 0 auto}
+#kg-companion-screen.kg-keyboard-open .kg-brand-mark{width:40px;height:40px;margin-bottom:10px}
+#kg-companion-screen .kg-ai-welcome{padding-top:24px;padding-bottom:36px}
+#kg-companion-screen .kg-gemini-tools{margin-bottom:12px}
+#kg-companion-screen .kg-ai-form{margin-bottom:0}
+#kg-companion-screen .kg-ai-disclaimer{margin-top:8px}
+#kg-companion-screen .kg-ai-messages{overscroll-behavior:contain}
+@media(max-height:760px){
+ #kg-companion-screen .kg-ai-welcome{padding-top:12px;padding-bottom:18px}
+ #kg-companion-screen .kg-brand-mark{width:58px;height:58px;margin-bottom:15px}
+}
