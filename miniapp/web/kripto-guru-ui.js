@@ -486,7 +486,7 @@
   async function loadCandles(interval){
     state.interval=interval;
     const requestId=++candleLoadEpoch,symbol=state.selectedMarket;
-    $("#kg-timeframes button").forEach(b=>b.classList.toggle("is-selected",b.dataset.interval===interval));
+    document.querySelectorAll("#kg-timeframes button").forEach(b=>b.classList.toggle("is-selected",b.dataset.interval===interval));
     $("#kg-chart-state").textContent="Загрузка…";
     try{
       const result=unwrap(await invoke("market.candles",symbol,interval),"candles");
