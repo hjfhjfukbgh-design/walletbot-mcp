@@ -762,3 +762,11 @@
 - **A/B/C fan-out:** run `44409697475` successfully bootstrapped queue but worker matrix was skipped; only parent #203 has agent-ready and it lacks required child-task metadata/team labels. No eligible child tasks for A/B/C.
 - **Cost gate:** dispatcher/worker call Gemini 3.5 Flash-Lite / 3.1 Flash-Lite. Official pricing lists free-tier no-charge, but paid-tier token prices apply if API key project is billed; project tier for existing secrets cannot be verified from GitHub. No new agent dispatch until free-tier-only/billing-disabled configuration is confirmed.
 - **No production deploy or real financial actions.**
+### 2026-11-19 — подготовлены три независимые задачи A/B/C
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:20:26.920+05:00
+- **Team A:** Issue #346 — mocked LIVE API-to-Walt end-to-end tests (preview/confirm/single execute/concurrency/unknown/reconciliation/tenant isolation).
+- **Team B:** Issue #347 — candlestick timeframe/history scroll/autozoom/touch regression QA at 390px and 430px.
+- **Team C:** Issue #348 — isolated AI paper ledger + atomic virtual DEMO→AI funding, no new DO class, no real transfers.
+- **Dispatch status:** issues have team/priority labels and required child-task metadata, but intentionally do not have agent-ready. They will not trigger Gemini workers until free-tier-only/billing-disabled status is confirmed.
+- **No worker dispatch or Gemini API request triggered by creating these issues.**
