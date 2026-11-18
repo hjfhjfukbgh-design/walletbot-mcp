@@ -26,8 +26,8 @@ jobs:
 
   deploy:
     needs: test
-    # Production deployment is disabled until the owner explicitly re-authorizes it.
-    if: false
+    # Deploy only after a successful push to main; PR checks never touch production.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: TELEGRAM_BOT_TOKEN
     steps:
@@ -39,6 +39,24 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Validate production secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          OWNER_CHAT_ID: ${{ secrets.OWNER_CHAT_ID }}
+          API_SECRET: ${{ secrets.API_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID TELEGRAM_BOT_TOKEN TELEGRAM_WEBHOOK_SECRET OWNER_CHAT_ID API_SECRET GEMINI_API_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing production secret: $name"
+              exit 1
+            fi
+          done
 
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
@@ -52,6 +70,7 @@ jobs:
           printf '%s' "$TELEGRAM_WEBHOOK_SECRET" | npx --yes wrangler@3 secret put TELEGRAM_WEBHOOK_SECRET --name walletbot-mcp
           printf '%s' "$OWNER_CHAT_ID" | npx --yes wrangler@3 secret put OWNER_CHAT_ID --name walletbot-mcp
           printf '%s' "$API_SECRET" | npx --yes wrangler@3 secret put API_SECRET --name walletbot-mcp
+          printf '%s' "$GEMINI_API_KEY" | npx --yes wrangler@3 secret put GEMINI_API_KEY --name walletbot-mcp
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
