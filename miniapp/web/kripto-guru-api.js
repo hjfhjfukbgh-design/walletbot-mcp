@@ -39,7 +39,7 @@
 
   const fromMicro = (value) => Number(BigInt(value ?? "0")) / Number(MICRO);
   const fromPrice = (value) => Number(BigInt(value ?? "0")) / Number(PRICE_SCALE);
-  const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
+  const finite = (value) => value == null || value === "" ? null : (Number.isFinite(Number(value)) ? Number(value) : null);
 
   function telegramInitData() {
     const fromSdk = window.Telegram?.WebApp?.initData;
