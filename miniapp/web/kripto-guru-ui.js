@@ -4,7 +4,7 @@
   const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
   const tg = window.Telegram?.WebApp || null;
   const state = {
-    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[],
+    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null,
     favorites:(()=>{try{return new Set(JSON.parse(localStorage.getItem("kg:favorites:v1")||'["BTC","ETH","SOL"]'));}catch{return new Set(["BTC","ETH","SOL"]);}})(),
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
@@ -26,7 +26,9 @@
       : { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: true }).format(number);
   };
   const money = (v,d=2) => Number.isFinite(Number(v)) ? "$"+fmt(v,d) : "—";
+  const moneyRub = (v,d=2) => Number.isFinite(Number(v)) && Number.isFinite(state.fxRateRub) ? fmt(Number(v)*state.fxRateRub,d)+" ₽" : "—";
   const priceMoney = (v, metadata) => Number.isFinite(Number(v)) ? "$"+formatPrice(v, metadata) : "—";
+  async function loadFxRate(){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),5000);try{const response=await fetch("https://open.er-api.com/v6/latest/USD",{signal:controller.signal,cache:"no-store"});if(!response.ok)throw new Error("FX HTTP "+response.status);const data=await response.json();const rate=Number(data?.rates?.RUB);if(data?.result!=="success"||!Number.isFinite(rate)||rate<=0)throw new Error("Invalid USD/RUB rate");state.fxRateRub=rate;return rate;}catch(error){console.warn("[Kripto Guru] USD/RUB rate unavailable",error);state.fxRateRub=null;return null;}finally{clearTimeout(timer);}}
   const pct = (v) => Number.isFinite(Number(v)) ? (Number(v)>=0?"+":"")+fmt(v,2)+"%" : "—";
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const symbolName = (m) => ({BTC:"Bitcoin",ETH:"Ethereum",SOL:"Solana",GRAM:"Gram",XAUT:"Золото",BNB:"BNB",DOGE:"Dogecoin",XRP:"XRP"}[m] || m);
@@ -99,7 +101,7 @@
     $("#kg-wallet-assets").innerHTML=assets.length?assets.map(a=>{
       const s=a.symbol||a.asset||"";
       const balance=Number(a.valueUsd ?? a.balanceUsd ?? a.usdValue);
-      return `<div class="kg-asset-row" ${s?`data-open-market="${esc(s)}"`:""}><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-row-copy"><b>${esc(a.name||symbolName(s))}</b><small>${esc(s)}</small></span><strong class="kg-wallet-row-value">${Number.isFinite(balance)?money(balance):"—"}</strong></div>`;
+      return `<div class="kg-asset-row" ${s?`data-open-market="${esc(s)}"`:""}><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-row-copy"><b>${esc(a.name||symbolName(s))}</b><small>${esc(s)}</small></span><strong class="kg-wallet-row-value">${moneyRub(balance)}</strong></div>`;
     }).join(""):'<div class="kg-empty-inline">Активы появятся здесь после зачисления на счёт.</div>';
   }
   function renderRecent(){
@@ -186,12 +188,12 @@
   async function loadWallet(){
     try{
       state.wallet=unwrap(await invoke("wallet.get"),"wallet");
-      $("#kg-wallet-balance").textContent=money(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
-      $("#kg-wallet-currency-value").textContent=money(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
+      $("#kg-wallet-balance").textContent=moneyRub(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
+      $("#kg-wallet-currency-value").textContent=moneyRub(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));const currencySubtitle=$("#kg-wallet-currency .kg-card-copy small");if(currencySubtitle)currencySubtitle.textContent=Number.isFinite(state.fxRateRub)?"USDT · 1 $ = "+fmt(state.fxRateRub,2)+" ₽":"USDT · курс недоступен";
       const walletAssets=listOf(state.wallet,["assets","balances"]);
       const cryptoValues=walletAssets.map(asset=>Number(asset.valueUsd ?? asset.balanceUsd ?? asset.usdValue)).filter(Number.isFinite);
       const totalNode=$("#kg-wallet-crypto-total");
-      if(totalNode)totalNode.textContent=cryptoValues.length?fmt(cryptoValues.reduce((sum,value)=>sum+value,0))+" $":"—";
+      if(totalNode)totalNode.textContent=cryptoValues.length?moneyRub(cryptoValues.reduce((sum,value)=>sum+value,0)):"—";
       renderWalletAssets();
       const pos=listOf(state.wallet,["positions"]);
       $("#kg-position-count").textContent=String(pos.length);
@@ -661,7 +663,7 @@
     started=true;
     try{tg?.ready?.();tg?.expand?.();tg?.setHeaderColor?.("#ffffff");tg?.setBackgroundColor?.("#f0f0f6");}catch{}
     bind();
-    await Promise.all([loadWallet(),loadCapabilities(),loadHistory()]);
+    await Promise.all([loadFxRate(),loadCapabilities(),loadHistory()]);await loadWallet();
     try{await loadCategory("crypto");}catch{}
   }
   window.addEventListener("kripto-guru-api-ready",()=>start());
