@@ -31,7 +31,7 @@ Sem o Serverless ligado, o Worker também funciona sozinho com webhook direto (`
   do preço (padrão −6% / +2%), mantém degraus, margem e alavancagem, avisa no canal ("Grid recentrado") e já entra
   no degrau do preço no mesmo tick. Com posição aberta nunca recentra. Com `AUTO_RECENTER = "false"` só manda
   um alerta "preço fora da faixa".
-- **Risco** (`src/risk.ts`, valores em `wrangler.toml`): alavancagem ≤ 3x (inteira e ≤ máx do contrato),
+- **Risco** (`src/risk.ts`, valores em `wrangler.toml`): alavancagem inteira ≥ 1 e ≤ máximo informado para o contrato (sem teto global artificial de 3x),
   margem ≤ `MAX_ORDER_PCT` do saldo por trade (hoje **25%**, para operar com ~$10), perda diária ≥ 5% pausa
   o bot, stop-loss 5% abaixo do `low`, whitelist BTC/ETH/SOL, tamanho mínimo do contrato validado no `/grid`.
 - **Pares**: `ALLOWED_MARKETS = "*"` libera todos os contratos ativos do Walt com volume 24h ≥
