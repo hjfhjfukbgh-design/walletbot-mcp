@@ -1226,3 +1226,10 @@ html,body{background:#0b1018!important;color:#eef3fa}
 #kg-companion-screen .kg-ai-disclaimer{color:#94a3b8}
 #kg-companion-screen .kg-gemini-model{color:#eef3fa}
 #kg-companion-screen .kg-gemini-icon-button{background:#141c27;color:#eef3fa}
+
+/* Companion chat QA: override expanded composer and message bubble selectors. */
+#kg-companion-screen .kg-ai-message>div{background:#1b2634;color:#eef3fa;box-shadow:0 2px 12px rgba(0,0,0,.18)}
+#kg-companion-screen .kg-ai-message.is-user>div{background:rgba(57,137,244,.25);color:#eef3fa}
+#kg-companion-screen .kg-ai-form textarea{color:#eef3fa}
+#kg-companion-screen .kg-ai-form textarea::placeholder{color:#94a3b8}
+#kg-companion-screen.kg-composer-expanded .kg-ai-form{background:rgba(20,28,39,.96);border-color:rgba(173,190,211,.18);box-shadow:0 8px 30px rgba(0,0,0,.28),inset 0 1px 0 rgba(173,190,211,.08)}
