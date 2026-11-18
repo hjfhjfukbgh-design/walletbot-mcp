@@ -158,6 +158,65 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(await secondStatus.json()).toMatchObject({ demoBalanceMicro: (800n * U).toString(), aiBalanceMicro: (200n * U).toString() });
   });
 
+  it("returns AI paper funds to DEMO atomically and idempotently", async () => {
+    const stub = await boot();
+    const funded = await post(stub, "/ai/paper/fund", {
+      userId, amountMicro: (100n * U).toString(), idempotencyKey: "fund-for-withdraw",
+    });
+    expect(funded.status).toBe(200);
+    const withdrawn = await post(stub, "/ai/paper/withdraw", {
+      userId, amountMicro: (40n * U).toString(), idempotencyKey: "withdraw-ai-001",
+    });
+    expect(withdrawn.status).toBe(200);
+    expect(withdrawn.body).toMatchObject({
+      ok: true, duplicate: false,
+      demoBalanceMicro: (940n * U).toString(),
+      aiBalanceMicro: (60n * U).toString(),
+    });
+    const duplicate = await post(stub, "/ai/paper/withdraw", {
+      userId, amountMicro: (40n * U).toString(), idempotencyKey: "withdraw-ai-001",
+    });
+    expect(duplicate.status).toBe(200);
+    expect(duplicate.body.duplicate).toBe(true);
+    expect(duplicate.body.demoBalanceMicro).toBe((940n * U).toString());
+    expect(duplicate.body.aiBalanceMicro).toBe((60n * U).toString());
+    const conflict = await post(stub, "/ai/paper/withdraw", {
+      userId, amountMicro: (50n * U).toString(), idempotencyKey: "withdraw-ai-001",
+    });
+    expect(conflict.status).toBe(409);
+  });
+
+  it("rejects AI withdrawal beyond available AI paper balance", async () => {
+    const stub = await boot();
+    await post(stub, "/ai/paper/fund", {
+      userId, amountMicro: (25n * U).toString(), idempotencyKey: "fund-small-ai",
+    });
+    const withdrawn = await post(stub, "/ai/paper/withdraw", {
+      userId, amountMicro: (26n * U).toString(), idempotencyKey: "withdraw-too-much",
+    });
+    expect(withdrawn.status).toBe(409);
+    expect(withdrawn.body.ok).toBe(false);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
+    expect(await status.json()).toMatchObject({
+      demoBalanceMicro: (975n * U).toString(), aiBalanceMicro: (25n * U).toString(),
+    });
+  });
+
+  it("does not allow a funding idempotency key to be replayed as a withdrawal", async () => {
+    const stub = await boot();
+    await post(stub, "/ai/paper/fund", {
+      userId, amountMicro: (100n * U).toString(), idempotencyKey: "same-ai-operation-key",
+    });
+    const withdrawn = await post(stub, "/ai/paper/withdraw", {
+      userId, amountMicro: (100n * U).toString(), idempotencyKey: "same-ai-operation-key",
+    });
+    expect(withdrawn.status).toBe(409);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
+    expect(await status.json()).toMatchObject({
+      demoBalanceMicro: (900n * U).toString(), aiBalanceMicro: (100n * U).toString(),
+    });
+  });
+
   it("rejects stale quotes for both market updates and trade entry", async () => {
     const stub = await boot();
     const stale = await post(stub, "/quote", { symbol: "BTC", price: (50_000n * P).toString(), observedAt: Date.now() - 20_000 });
