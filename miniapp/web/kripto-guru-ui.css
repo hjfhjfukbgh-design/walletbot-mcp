@@ -554,3 +554,11 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .kg-ai-limit-row{display:flex;justify-content:space-between;gap:12px;font-size:10px;color:var(--kg-muted)}
 .kg-ai-limit-row strong{color:var(--kg-ink);font-weight:650;text-align:right}
 @media(prefers-reduced-motion:reduce){.kg-ai-menu{transition:none}}
+
+
+/* Welcome state for a fresh AI conversation. */
+.kg-ai-welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:42vh;padding:24px 22px;border:1px solid #eceef3;border-radius:18px;background:#fff;box-shadow:var(--kg-shadow);text-align:center}
+.kg-ai-welcome-mark{display:grid;place-items:center;width:46px;height:46px;margin-bottom:14px;border-radius:15px;background:#edf3ff;color:#2677f2;font-size:25px}
+.kg-ai-welcome>b{font-size:16px;letter-spacing:-.3px}
+.kg-ai-welcome>p{max-width:270px;margin:9px 0;color:#727987;font-size:12px;line-height:1.6}
+.kg-ai-welcome>small{margin-top:3px;color:#2677f2;font-size:11px;font-weight:650}
