@@ -437,3 +437,13 @@
 - **Scope:** только miniapp/web/kripto-guru-ui.js, отдельная ветка от main; без изменения API/источников котировок.
 - **Проверки:** syntax check, npm typecheck/tests через PR CI; физический Telegram WebView не заявлять.
 - **Безопасность:** без внешних платных источников, Walt writes, сделок, merge и production deploy.
+
+
+### 2026-11-19 — merged legacy Walt fail-closed guard
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T01:31:26.820+05:00
+- **Событие:** PR #282 прошёл CI run 44387127484 (npm ci, typecheck, npm test — success), diff проверен; PR переведён из Draft в Ready и squash-merged.
+- **Merge commit:** ff72895805f08d1dca52fdd30c4073b6f9cb2b8e.
+- **Изменения:** legacy Walt openLong/closePosition fail-closed; account creation требует явного confirmed=true; добавлены mock tests для отсутствия внешних write calls без подтверждения.
+- **Deployment:** merge-triggered workflow ещё подлежит проверке; не заявлять production deploy до подтверждения Actions run.
+- **Безопасность:** реальных Walt writes, ордеров, закрытий позиций, account creation, переводов и secrets не было.
