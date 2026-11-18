@@ -68,6 +68,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         return engineRequest(env, "/close", { ...body, userId: telegramUserId, manual: true });
       case "GET live/status":
         return liveStatusView(scopedEnv);
+      case "GET live/position":
+        return livePositionView(scopedEnv, url.searchParams.get("symbol") ?? "");
       case "GET state":
         // Read-only polling must not run the legacy KV position monitor:
         // scheduled processing is the single monitor for that compatibility path.
@@ -115,6 +117,48 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
  * Read-only LIVE connection status. This route never prepares or executes orders.
  * Each Walt read is isolated so a partial outage is represented explicitly.
  */
+export function normalizeLivePosition(
+  contract: { contractId: number; name: string },
+  position: { contractId: number; valueBase?: number; avgEntryPrice?: number; marginQuote?: number; liquidationPrice?: number; raw: Json } | null,
+): Json | null {
+  if (!position) return null;
+  const rawSide = position.raw && typeof position.raw === "object" ? position.raw.side : null;
+  const side = typeof rawSide === "string" && ["long", "short"].includes(rawSide.toLowerCase())
+    ? rawSide.toLowerCase()
+    : null;
+  return {
+    contractId: contract.contractId,
+    symbol: contract.name,
+    side,
+    valueBase: typeof position.valueBase === "number" && Number.isFinite(position.valueBase) ? position.valueBase : null,
+    avgEntryPrice: typeof position.avgEntryPrice === "number" && Number.isFinite(position.avgEntryPrice) ? position.avgEntryPrice : null,
+    marginQuote: typeof position.marginQuote === "number" && Number.isFinite(position.marginQuote) ? position.marginQuote : null,
+    liquidationPrice: typeof position.liquidationPrice === "number" && Number.isFinite(position.liquidationPrice) ? position.liquidationPrice : null,
+  };
+}
+
+async function livePositionView(scopedEnv: Env, requestedSymbol: string): Promise<Response> {
+  const symbol = String(requestedSymbol || "").trim().toUpperCase().replace(/[\/-](?:USDC|USDT|USD)$/, "");
+  if (!/^[A-Z0-9_]{1,32}$/.test(symbol)) return fail("Укажите корректный торговый символ.");
+  const client = await connectWalt(scopedEnv).catch(() => null);
+  if (!client) return fail("Walt недоступен для чтения позиции.", 503);
+  let contracts;
+  try {
+    contracts = await client.contracts();
+  } catch {
+    return fail("Не удалось получить список контрактов Walt.", 503);
+  }
+  const contract = findContract(contracts, symbol);
+  if (!contract) return fail("Контракт не найден.", 404);
+  let position;
+  try {
+    position = await client.openPosition(contract.contractId);
+  } catch {
+    return fail("Не удалось получить LIVE-позицию из Walt.", 503);
+  }
+  return json({ ok: true, position: normalizeLivePosition(contract, position), observedAt: Date.now() });
+}
+
 async function liveStatusView(env: Env): Promise<Response> {
   const observedAt = Date.now();
   const client = await connectWalt(env).catch(() => null);
