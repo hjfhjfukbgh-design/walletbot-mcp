@@ -49,10 +49,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label orchestrator-ready --limit 1 --json number,title,body,url,labels)"
+          find_ready() {
+            local label="$1"
+            gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$label" --limit 100 --json number,title,body,url,labels |
+              node -e '
+                let input="";
+                process.stdin.on("data",chunk=>input+=chunk);
+                process.stdin.on("end",()=>{
+                  const excluded=new Set(["agent-dispatched","agent-blocked","agent-review","agent-done"]);
+                  const issues=JSON.parse(input);
+                  const eligible=issues.filter(issue=>{
+                    const labels=(issue.labels||[]).map(label=>typeof label==="string"?label:label.name);
+                    return !labels.some(label=>excluded.has(label));
+                  });
+                  process.stdout.write(JSON.stringify(eligible.slice(0,1)));
+                });
+              '
+          }
+          issue="$(find_ready orchestrator-ready)"
           echo "$issue" > /tmp/ready-issue.json
           if [ "$(node -e 'const x=require("/tmp/ready-issue.json"); process.stdout.write(String(x.length))')" = "0" ]; then
-            issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label agent-ready --limit 1 --json number,title,body,url,labels)"
+            issue="$(find_ready agent-ready)"
             echo "$issue" > /tmp/ready-issue.json
           fi
           if [ "$(node -e 'const x=require("/tmp/ready-issue.json"); process.stdout.write(String(x.length))')" = "0" ]; then
@@ -204,7 +221,7 @@ jobs:
           if [ "$status" = "READY" ]; then
             lease_expires_at="$(date -u -d '+45 minutes' '+%Y-%m-%dT%H:%M:%SZ')"
             gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "Диспетчер подготовил пакет: $pr_url. Исполнитель запускается. Lease до: $lease_expires_at.\n\n<!-- kg-lease:run=$RUN_ID;expires=$lease_expires_at -->"
-            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label orchestrator-ready --add-label agent-dispatched
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label orchestrator-ready --remove-label agent-ready --add-label agent-dispatched
           else
             gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label orchestrator-ready --add-label agent-blocked
             gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "Диспетчер заблокировал задачу. Пакет: $pr_url. Требуется уточнение и ручная проверка."
