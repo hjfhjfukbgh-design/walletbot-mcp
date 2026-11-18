@@ -61,7 +61,7 @@ try{
           async close(id){const i=mockPositions.findIndex(x=>x.id===id);if(i>=0){const p=mockPositions.splice(i,1)[0];mockHistory.unshift({event:"Закрытие",symbol:p.symbol,side:p.side,netPnlUsd:.37,timestamp:"Сейчас"});}return {closed:true};}
         },
         history:{async list(){return {events:mockHistory.map(x=>({...x}))};}},
-        capabilities:{async get(){return {ipo:{available:false,reason:"Нет источника IPO"},stocks:{available:false},funds:{available:false},bonuses:{available:false},live:{available:false}};}}
+        capabilities:{async get(){return {ipo:{available:false,reason:"Нет источника IPO"},stocks:{available:false},funds:{available:false},bonuses:{available:false},live:{available:false}};}},
         companion:{async list(){return history.map(x=>({...x}));},async get(id){return {id,messages:[{role:"user",content:"Привет"},{role:"assistant",content:"Здравствуйте!"}]};},async send(message,id){const conversationId=id||"preview-conversation-1";history.unshift({id:conversationId,title:message.slice(0,32),messageCount:2});return {conversationId,answer:"Тестовый ответ ИИ",conversation:{id:conversationId,messages:[{role:"user",content:message},{role:"assistant",content:"Тестовый ответ ИИ"}]}};},async remove(){return {ok:true};}},
       };
     });
