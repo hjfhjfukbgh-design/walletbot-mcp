@@ -54,8 +54,6 @@ button:disabled{cursor:not-allowed;opacity:.5}
 [hidden]{display:none!important}
 .kg-recent{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}
 .kg-recent-chip{display:flex;align-items:center;gap:6px;flex:0 0 auto;padding:8px 10px;border-radius:999px;background:#fff;font-size:10px;font-weight:650;box-shadow:var(--kg-shadow)}
-.kg-ipo-card{display:flex;align-items:center;gap:10px;margin-top:12px;padding:11px 12px;border-radius:16px;background:#fff;box-shadow:var(--kg-shadow)}
-.kg-ipo-icon{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:#f0f2f7;color:#606979;font-size:10px;font-weight:800}
 .kg-categories{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .kg-category{display:flex;align-items:center;flex-direction:column;gap:7px;min-width:0;padding:10px 3px;border:1px solid transparent;border-radius:15px;background:#fff;box-shadow:var(--kg-shadow);color:var(--kg-ink)}
 .kg-category.is-selected{border-color:var(--kg-blue);background:#f8fbff}
