@@ -247,6 +247,7 @@
 
     if (!Number.isFinite(time) || time <= 0) return null;
     if (![open, high, low, close].every(Number.isFinite)) return null;
+    if ([open, high, low, close].some(value => value <= 0)) return null;
     if (high < Math.max(open, close) || low > Math.min(open, close)) return null;
     if (high < low) return null;
 
@@ -292,8 +293,8 @@
     const grid = [0, 0.25, 0.5, 0.75, 1].map(p => {
       const val = max - p * range;
       const yPos = top + (bottom - top) * p;
-      const labelText = fmt(val, val >= 100 ? 2 : 4);
-      return `<line x1="0" y1="${yPos}" x2="${chartWidth}" y2="${yPos}" stroke="#eceef3" stroke-dasharray="3 4"/><text x="${chartWidth + 6}" y="${yPos + 3.5}" fill="#8e919b" font-size="9" font-family="sans-serif">${esc(labelText)}</text>`;
+      const labelText = new Intl.NumberFormat("ru-RU", { maximumSignificantDigits: 7, useGrouping: true }).format(val);
+      return `<line x1="0" y1="${yPos}" x2="${chartWidth}" y2="${yPos}" stroke="rgba(148,163,184,.24)" stroke-dasharray="3 4"/><text x="${chartWidth + 6}" y="${yPos + 3.5}" fill="#94a3b8" font-size="9" font-family="sans-serif">${esc(labelText)}</text>`;
     }).join("");
 
     const timeLabelsCount = Math.min(data.length, 4);
