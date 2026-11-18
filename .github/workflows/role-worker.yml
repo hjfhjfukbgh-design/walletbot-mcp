@@ -168,10 +168,10 @@ jobs:
             process.exit(0);
           }
           const explicitPaths = [...new Set(task.match(/\b(?:src|miniapp\/web|test|tests)\/[A-Za-z0-9_./-]+\.(?:ts|tsx|js|mjs|css|html|json|toml|md)\b/g) || [])];
-          const forbiddenExplicitPaths = explicitPaths.filter(path => !allowed[role](path));
-          if (forbiddenExplicitPaths.length) throw new Error("Explicit task files outside role allowlist: " + forbiddenExplicitPaths.join(", "));
-          const selected = tracked.filter(path => allowed[role](path) && (!explicitPaths.length || explicitPaths.includes(path))).slice(0, 35);
-          if (explicitPaths.length && selected.length !== explicitPaths.length) throw new Error("Explicit task files are missing from checkout or outside role scope: " + explicitPaths.filter(path => !selected.includes(path)).join(", "));
+          const explicitAllowedPaths = explicitPaths.filter(path => allowed[role](path));
+          if (explicitPaths.length && !explicitAllowedPaths.length) throw new Error("No explicit task paths match the role allowlist: " + explicitPaths.join(", "));
+          const selected = tracked.filter(path => allowed[role](path) && (!explicitAllowedPaths.length || explicitAllowedPaths.includes(path))).slice(0, 35);
+          if (explicitAllowedPaths.length && selected.length !== explicitAllowedPaths.length) throw new Error("Explicit task files are missing from checkout: " + explicitAllowedPaths.filter(path => !selected.includes(path)).join(", "));
           if (!selected.length) throw new Error("No source files available for role " + role);
           const context = selected.map(path => {
             const body = fs.readFileSync(path, "utf8").slice(0, explicitPaths.includes(path) ? 50000 : 10000);
