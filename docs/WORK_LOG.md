@@ -126,3 +126,12 @@
 - **Ограничение проверки:** CI workflow runs и combined status для head commit пока не возвращены; браузерный screenshot и физический Telegram WebView не выполнялись. Прохождение runtime не заявляется.
 - **Артефакты:** branch `fix/remove-placeholder-markets-2026-11-19`; последний CSS commit `97c69b846b56330cfc62f6c28412b9ffcf980ced`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/273.
 - **Безопасность:** Draft PR; merge/deploy и финансовые операции не выполнялись.
+
+### 2026-11-19 — старт устранения блокировки очереди AI-агентов
+
+- **Время:** 2026-11-19T00:52:56.576+05:00
+- **Событие:** аудит активной очереди выявил, что центральный orchestrator ищет только `orchestrator-ready`, при этом единственная открытая задача с готовым статусом имеет `agent-ready` (#203); открытых задач `orchestrator-ready` нет. Кроме того, dispatcher передаёт reusable worker исходное широкое Issue body, а не сформированный и ограниченный dispatch packet.
+- **Статус:** начато
+- **Цель:** обеспечить совместимость с обоими queue labels без потери приоритета orchestrator-ready и передавать worker именно сформированный ролевой пакет, чтобы агент исполнял конкретный scope, а не весь родительский backlog.
+- **Безопасность:** задача не должна автоматически выполнять merge/deploy или реальные финансовые операции; dispatcher по-прежнему запускает максимум одну задачу за workflow run.
+- **Доказательства:** `.github/workflows/kripto-guru-orchestrator.yml` main blob `de82ed712edb8ce18c169c858b48c54c91817f91`; Issue #203 открыт с label `agent-ready`; поиск открытых Issues с `orchestrator-ready` вернул 0.
