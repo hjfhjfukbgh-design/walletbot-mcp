@@ -284,3 +284,13 @@
 - **Цель:** добавить тест, который отправляет POST live/execute без confirm:true и доказывает HTTP 400 + ноль внешних fetch/Walt вызовов. Это дополнит проверку fail-closed legacy Walt methods в PR #282.
 - **Scope:** только test/api.test.ts на той же ветке PR #282; исходный API не менять.
 - **Запрет:** никакие реальные Walt calls, ордера, изменения позиций/аккаунтов, merge или deploy.
+
+### 2026-11-19 — LIVE confirmation regression test добавлен в PR #282
+
+- **Время:** 2026-11-19T01:03:41.571+05:00
+- **Событие:** завершено расширение regression coverage LIVE confirmation gate.
+- **Статус:** код обновлён; CI ещё не вернул статусы
+- **Новый тест:** `test/api.test.ts` отправляет POST `live/execute` без `confirm: true`; ожидает HTTP 400, ошибку об отдельном явном подтверждении и отсутствие любых внешних fetch/Walt calls.
+- **PR #282 теперь:** 3 файла (`src/walt.ts`, `test/walt.test.ts`, `test/api.test.ts`), 42 additions / 24 deletions. Проверен полный diff; `combined status` и PR workflow runs пусты, тесты не объявляются пройденными.
+- **Артефакт:** head commit `a407d24efc4a402eb636e668c22ea864801933b9`; https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/282.
+- **Безопасность:** только локальные тестовые mock calls; реальные Walt calls/ордера/позиции/аккаунты не затрагивались; merge/deploy не выполнялись.
