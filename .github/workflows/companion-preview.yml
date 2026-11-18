@@ -1,6 +1,8 @@
 name: AI Companion isolated Gemini preview
 
 on:
+  push:
+    branches: [feature/gemini-companion-backend]
   workflow_dispatch:
 
 permissions:
