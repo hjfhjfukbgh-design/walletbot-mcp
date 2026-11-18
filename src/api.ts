@@ -138,8 +138,8 @@ export function normalizeLivePosition(
 }
 
 async function livePositionView(scopedEnv: Env, requestedSymbol: string): Promise<Response> {
-  const symbol = String(requestedSymbol || "").trim().toUpperCase();
-  if (!/^[A-Z0-9_-]{1,32}$/.test(symbol)) return fail("Укажите корректный торговый символ.");
+  const symbol = String(requestedSymbol || "").trim().toUpperCase().replace(/[\/-](?:USDC|USDT|USD)$/, "");
+  if (!/^[A-Z0-9_]{1,32}$/.test(symbol)) return fail("Укажите корректный торговый символ.");
   let client: Awaited<ReturnType<typeof connectWalt>>;
   try {
     client = await connectWalt(scopedEnv);
