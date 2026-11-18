@@ -980,7 +980,8 @@
     $("#kg-live-acknowledge").addEventListener("click",()=>{
       if(window.confirm("Подтверждаете, что вручную проверили позиции и историю Walt и понимаете, что повторный ордер может создать дополнительную позицию?")){
         clearLiveOperation();state.liveExecuteStarted=false;state.preview=null;state.previewSeq++;$("#kg-ticket-check").disabled=true;
-        notify("Ручная проверка отмечена. Перед новой сделкой создайте новый preview.");
+        notify("Ручная проверка отмечена. Создаём новый preview.");
+        if(state.tradeMode==="live"&&Number($("#kg-ticket-margin").value)>0)refreshPreview();
       }
     });
     $("#kg-ticket-max").addEventListener("click",async()=>{
