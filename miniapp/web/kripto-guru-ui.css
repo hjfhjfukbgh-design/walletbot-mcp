@@ -1032,3 +1032,40 @@ button{ -webkit-tap-highlight-color:transparent }
  #kg-wallet-screen .kg-wallet-hero{margin-bottom:34px}
  #kg-wallet-screen .kg-favorite{flex-basis:142px;min-width:142px}
 }
+
+/* Wallet equities manager — compact Telegram-style edit action and native-feeling sheet. */
+#kg-wallet-screen .kg-equities-heading{margin-top:23px;margin-bottom:9px}
+#kg-wallet-screen .kg-equities-heading .kg-link{padding:5px 2px;color:#2788ef;font-size:14px;font-weight:550;letter-spacing:-.15px}
+#kg-wallet-screen .kg-wallet-equities{border-radius:24px}
+#kg-wallet-screen .kg-equity-row{min-height:68px;padding-right:10px}
+#kg-wallet-screen .kg-equity-token{background:#eef1f6;color:#626b7a;font-size:15px;font-weight:750}
+#kg-wallet-screen .kg-equity-remove{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:#f2f3f6;color:#858b96;font-size:19px;font-weight:400;line-height:1}
+#kg-wallet-screen .kg-equities-hidden{display:flex;align-items:center;justify-content:space-between;margin:23px 2px 9px;padding:12px 14px;border-radius:16px;background:#fff;color:#888d96;font-size:12px}
+.kg-equities-modal{z-index:60;align-items:flex-end;padding:0;background:transparent}
+.kg-equities-modal .kg-modal-backdrop{position:absolute;inset:0;background:rgba(18,22,32,.34);backdrop-filter:blur(3px)}
+.kg-equities-card{position:relative;width:100%;max-width:560px;max-height:min(82dvh,720px);margin:0 auto;padding:20px 18px calc(18px + var(--kg-safe-bottom));border-radius:25px 25px 0 0;background:#f7f7fa;box-shadow:0 -8px 36px rgba(20,24,40,.12);overflow-y:auto;overscroll-behavior:contain}
+.kg-equities-card .kg-modal-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.kg-equities-card .kg-modal-head>div{display:flex;flex-direction:column;gap:4px}
+.kg-equities-card .kg-modal-head b{font-size:19px;font-weight:720;letter-spacing:-.45px}
+.kg-equities-card .kg-modal-head small{font-size:11px;color:#8b8f99}
+.kg-equities-card .kg-modal-head button{display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:50%;background:#eceef2;color:#5d626b;font-size:21px}
+.kg-equities-search{display:flex;align-items:center;gap:8px;height:43px;margin:0 0 17px;padding:0 13px;border-radius:13px;background:#fff;color:#8b909a}
+.kg-equities-search span{font-size:20px}
+.kg-equities-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#17191f;font-size:13px}
+.kg-equities-list-head{display:flex;flex-direction:column;gap:3px;margin:0 2px 9px}
+.kg-equities-list-head b{font-size:12px;font-weight:700}
+.kg-equities-list-head span{font-size:10px;color:#9296a0}
+.kg-equities-catalog{overflow:hidden;border-radius:17px;background:#fff}
+.kg-equity-option{display:flex;align-items:center;gap:10px;min-height:59px;padding:8px 11px;border-bottom:1px solid #eff0f3}
+.kg-equity-option:last-child{border-bottom:0}
+.kg-equity-option-icon{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:#f0f2f6;color:#606a79;font-size:12px;font-weight:750}
+.kg-equity-option .kg-row-copy b{font-size:12px}
+.kg-equity-option .kg-row-copy small{font-size:10px}
+.kg-equity-option>button{flex:0 0 auto;min-width:83px;padding:7px 10px;border:0;border-radius:999px;background:#eaf2ff;color:#2788ef;font-size:10px;font-weight:650}
+.kg-equity-option>button.is-added{background:#f0f1f4;color:#8b9099}
+.kg-equities-custom{display:flex;gap:8px;margin-top:12px}
+.kg-equities-custom input{flex:1;min-width:0;height:41px;padding:0 12px;border:0;border-radius:12px;background:#fff;color:#17191f;font-size:12px}
+.kg-equities-custom button{padding:0 14px;border:0;border-radius:12px;background:#2788ef;color:#fff;font-size:11px;font-weight:650}
+.kg-equities-hide{width:100%;margin-top:13px;padding:11px;border:0;border-radius:12px;background:transparent;color:#e0525c;font-size:11px;font-weight:600}
+body.kg-modal-open{overflow:hidden}
+@media(min-width:560px){.kg-equities-modal{align-items:center;padding:18px}.kg-equities-card{border-radius:24px;padding-bottom:20px}}
