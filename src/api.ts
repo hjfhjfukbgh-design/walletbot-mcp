@@ -480,7 +480,7 @@ async function validateTelegramInitData(initData: string, botToken: string): Pro
       const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
       return new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(data)));
     };
-    const secret = await hmac(encoder.encode("WebAppData"), botToken);
+    const secret = await hmac(encoder.encode(botToken), "WebAppData");
     const actual = [...await hmac(secret, checkString)].map((v) => v.toString(16).padStart(2, "0")).join("");
     if (actual.length !== hash.length) return null;
     let mismatch = 0;
