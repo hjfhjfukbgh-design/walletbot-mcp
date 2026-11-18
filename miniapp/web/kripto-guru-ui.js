@@ -670,7 +670,7 @@
     $("#kg-edit-equities").addEventListener("click",openEquitiesManager);
     $("#kg-show-equities").addEventListener("click",()=>{state.equitiesHidden=false;saveEquities();renderEquities();});
     $("#kg-equities-close").addEventListener("click",closeEquitiesManager);
-    $("#kg-equities-modal [data-equities-close]").forEach(node=>node.addEventListener("click",closeEquitiesManager));
+    document.querySelectorAll("#kg-equities-modal [data-equities-close]").forEach(node=>node.addEventListener("click",closeEquitiesManager));
     $("#kg-equities-search").addEventListener("input",renderEquitiesCatalog);
     $("#kg-equities-catalog").addEventListener("click",event=>{const button=event.target.closest("[data-equity-toggle]");if(!button)return;const symbol=button.dataset.equityToggle;state.equities.includes(symbol)?removeEquity(symbol):addEquity(symbol);});
     $("#kg-wallet-equities").addEventListener("click",event=>{const button=event.target.closest("[data-equity-remove]");if(button)removeEquity(button.dataset.equityRemove);});
