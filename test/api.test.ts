@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { handleApi } from "../src/api";
+import { handleApi, normalizeLivePosition } from "../src/api";
 import type { RiskLimits } from "../src/env";
 import { MAX_PRICES, pushEquity, pushPrice } from "../src/history";
 import { marketAllowed } from "../src/risk";
@@ -33,6 +33,37 @@ const call = async (e: ReturnType<typeof env>, path: string, key?: string, init:
   else if (key && key !== "chave-teste") headers.Authorization = `tma ${key}`;
   return handleApi(new Request(`https://w.dev/api/${path}`, { ...init, headers }), e, ctx);
 };
+
+describe("LIVE position normalization", () => {
+  it("returns null for no open position", () => {
+    expect(normalizeLivePosition({ contractId: 7, name: "BTC-USDC" }, null)).toBeNull();
+  });
+
+  it("returns only safe normalized fields and never leaks raw Walt payload", () => {
+    const position = normalizeLivePosition(
+      { contractId: 7, name: "BTC-USDC" },
+      {
+        contractId: 7,
+        valueBase: 0.25,
+        avgEntryPrice: 64000,
+        marginQuote: 125,
+        liquidationPrice: 59000,
+        raw: { side: "LONG", accessToken: "must-not-leak", internal: { account: "private" } },
+      },
+    );
+    expect(position).toEqual({
+      contractId: 7,
+      symbol: "BTC-USDC",
+      side: "long",
+      valueBase: 0.25,
+      avgEntryPrice: 64000,
+      marginQuote: 125,
+      liquidationPrice: 59000,
+    });
+    expect(position).not.toHaveProperty("raw");
+    expect(JSON.stringify(position)).not.toContain("must-not-leak");
+  });
+});
 
 describe("API da Mini App", () => {
   it("exige initData do Telegram assinada corretamente", async () => {
