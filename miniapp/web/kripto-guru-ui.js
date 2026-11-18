@@ -65,18 +65,22 @@
   }
   function setScreen(name){
     state.screen=name;
-    $$(".kg-screen").forEach(node=>node.classList.toggle("is-active",node.id==="kg-"+name+"-screen"));
-    $$("#kg-nav button").forEach(node=>node.classList.toggle("is-active",node.dataset.screen===name));
+    if(name!=="wallet"&&name!=="trading")marketLoadEpoch++;
+    $(".kg-screen").forEach(node=>node.classList.toggle("is-active",node.id==="kg-"+name+"-screen"));
+    $("#kg-nav button").forEach(node=>node.classList.toggle("is-active",node.dataset.screen===name));
     $("#kg-nav").hidden=false;
     $("#kg-asset-screen").hidden=true;
     $("#kg-ticket-screen").hidden=true;
+    syncMarketPolling();
     if(tg?.BackButton){tg.BackButton.hide();tg.BackButton.offClick?.(handleNativeBack);}
   }
   function showSubscreen(name){
-    $$(".kg-screen").forEach(node=>node.classList.remove("is-active"));
+    marketLoadEpoch++;
+    $(".kg-screen").forEach(node=>node.classList.remove("is-active"));
     $("#kg-nav").hidden=true;
     $("#kg-asset-screen").hidden=name!=="asset";
     $("#kg-ticket-screen").hidden=name!=="ticket";
+    syncMarketPolling();
     if(tg?.BackButton){tg.BackButton.show();tg.BackButton.offClick?.(handleNativeBack);tg.BackButton.onClick(handleNativeBack);}
   }
   function handleNativeBack(){
@@ -251,8 +255,21 @@
     const label=$("#kg-market-updated");
     if(label){label.textContent=marketLastUpdatedAt?"Данные устарели · "+new Date(marketLastUpdatedAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"Нет свежих котировок";label.classList.add("is-stale");}
   }
+  function syncMarketPolling(){
+    const marketScreenActive=(state.screen==="wallet"||state.screen==="trading")&&$("#kg-asset-screen").hidden&&$("#kg-ticket-screen").hidden;
+    const shouldPoll=document.visibilityState==="visible"&&marketScreenActive;
+    if(shouldPoll){
+      if(!marketRefreshTimer){
+        marketRefreshTimer=setInterval(refreshMarketData,15000);
+        void refreshMarketData();
+      }
+    }else if(marketRefreshTimer){
+      clearInterval(marketRefreshTimer);
+      marketRefreshTimer=null;
+    }
+  }
   async function refreshMarketData(){
-    if(document.visibilityState!=="visible"||!(state.screen==="wallet"||state.screen==="trading")||$("#kg-market-live").hidden||marketRefreshInFlight)return;
+    if(document.visibilityState!=="visible"||!(state.screen==="wallet"||state.screen==="trading")||!$("#kg-asset-screen").hidden||!$("#kg-ticket-screen").hidden||$("#kg-market-live").hidden||marketRefreshInFlight)return;
     const category=state.category;
     if(category==="stocks"||category==="funds")return;
     const requestId=marketLoadEpoch;
@@ -764,11 +781,11 @@
       if(event.key==="Enter"){clearTimeout(marketSearchTimer);renderMarketList(currentMarkets());}
       if(event.key==="Escape"){event.currentTarget.value="";clearTimeout(marketSearchTimer);renderMarketList(currentMarkets());}
     });
-    if(!marketRefreshTimer)marketRefreshTimer=setInterval(refreshMarketData,15000);
     if(!marketVisibilityListenerInstalled){
-      document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")refreshMarketData();});
+      document.addEventListener("visibilitychange",syncMarketPolling);
       marketVisibilityListenerInstalled=true;
     }
+    syncMarketPolling();
     $$("#kg-search-filters button").forEach(b=>b.addEventListener("click",()=>setSearchFilter(b.dataset.searchFilter)));
     $("#kg-market-search").addEventListener("keydown",e=>{if(e.key==="Escape")$("#kg-search-close").click();});
     $("#kg-recent-clear").addEventListener("click",()=>{state.recent=[];try{localStorage.removeItem("kg:recent:v1");}catch{}renderRecent();});
