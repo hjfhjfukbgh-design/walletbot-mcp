@@ -48,7 +48,7 @@ try{
       const mockPositions=[];
       const mockHistory=[];
       const companionHistory=[];
-      window.__candleCalls=0;
+      window.__candleCalls=0;window.__marketListCalls=0;
       window.__productMode="demo";
       window.__lastTradeOpen=null;
       const markets=[
@@ -60,7 +60,7 @@ try{
       window.Telegram={WebApp:{initData:"preview-only-init-data",ready(){},expand(){},setHeaderColor(){},setBackgroundColor(){},BackButton:{isVisible:false,handler:null,show(){this.isVisible=true;},hide(){this.isVisible=false;},onClick(fn){this.handler=fn;},offClick(fn){if(this.handler===fn)this.handler=null;},__trigger(){this.handler?.();}},HapticFeedback:{selectionChanged(){},impactOccurred(){},notificationOccurred(){}}}};
       window.KriptoGuruAPI={
         wallet:{async get(){return {mode:"demo",balanceUsd:1000,assets:[{symbol:"BTC",name:"Bitcoin",valueUsd:0},{symbol:"ETH",name:"Ethereum",valueUsd:0},{symbol:"SOL",name:"Solana",valueUsd:0}],positions:mockPositions.map(x=>({...x}))};}},
-        markets:{async list({category}){if(category==="stocks"||category==="funds")return {available:false,reason:"Проверенный источник котировок пока не подключён."};return {available:true,markets:markets.map(x=>({...x}))};}},
+        markets:{async list({category}){window.__marketListCalls++;if(category==="stocks"||category==="funds")return {available:false,reason:"Проверенный источник котировок пока не подключён."};return {available:true,markets:markets.map(x=>({...x}))};}},
         market:{async get(symbol){const item=markets.find(x=>x.symbol===symbol);if(!item)throw {code:"NOT_FOUND",message:"Инструмент не найден"};return {...item,productType:"Фьючерс"};},async candles(symbol,interval){window.__candleCalls++;return {candles};}},
         trade:{
           async preview({marginUsd,leverage}){return {valid:marginUsd>=10&&marginUsd<=50,available:marginUsd>=10&&marginUsd<=50,maxMarginUsd:50,minMarginUsd:10,priceUsd:91240.5,volumeUsd:marginUsd*leverage,entryFeeUsd:marginUsd*leverage*.00035,exitFeeUsd:marginUsd*leverage*.00035};},
@@ -89,6 +89,10 @@ try{
     const navLabels=await page.locator("#kg-nav button small").allTextContents();
     if(navLabels.includes("Доход")||navLabels.includes("Бонусы"))throw new Error("Income and Bonuses must not appear in bottom navigation");
     if(!(await page.locator(".kg-wallet-hero").isVisible()))throw new Error("wallet balance hero must be visible on the first screen");
+    const marketCallsBefore=await page.evaluate(()=>window.__marketListCalls);
+    await page.evaluate(()=>document.dispatchEvent(new Event("visibilitychange")));
+    await page.waitForFunction(before=>window.__marketListCalls>before,marketCallsBefore);
+
     if(!(await page.locator("#kg-product-mode").isVisible()))throw new Error("product mode selector must be visible on wallet home");
     if(!(await page.locator('[data-product-mode="live"]').isDisabled()))throw new Error("LIVE selector must remain disabled until full close contract is verified");
     await page.locator('[data-product-mode="ai"]').click();
