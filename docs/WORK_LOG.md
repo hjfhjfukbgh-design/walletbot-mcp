@@ -504,3 +504,11 @@
 - **QA tasks requeued:** #275 Team B, #277 Team A, #290 Team C are marked agent-ready (without orchestrator-ready) after the worker fixes. Fan-out push run 44396664533 is claiming up to one task per team; issue-specific duplicate runs are cancelled by concurrency. Acceptance remains pending until reports pass the new checklist validator and are manually reviewed.
 - **PR #284 remains Draft:** atomic quota implementation has passing CI but no merge/deploy due unresolved rate-window policy and unverified Cloudflare account plan/zero-cost allowance. Official pricing review was recorded in a PR comment.
 - **No production deploy:** deploy workflow is workflow_dispatch-only; merge-triggered tests do not deploy. No real Walt/Gemini calls, financial operations, paid API or secrets changes.
+
+
+### 2026-11-19 — start: verify DEMO automatic TP/SL closure
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:06:23.644+05:00
+- **Gap:** the UI's `Автозакрытие` button is disabled, while the backend already accepts TP/SL prices and the Durable Object engine checks triggers on quotes. Existing tests cover a long stop-loss path but not both sides/targets comprehensively.
+- **Scope:** add isolated Miniflare regression tests for long/short take-profit and short stop-loss triggers; no UI edits (Team B is working in the same UI files on LIVE mode).
+- **Safety:** simulated DEMO engine only; no real Walt/Gemini/provider calls, no orders, no deployment.
