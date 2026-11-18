@@ -45,6 +45,7 @@ try{
       }catch{}
       const mockPositions=[];
       const mockHistory=[];
+      const companionHistory=[];
       const markets=[
         {symbol:"BTC",name:"Bitcoin",priceUsd:91240.5,change24hPct:2.42,volume24hUsd:8900000000,openInterestUsd:198750000,fundingRateHourlyPct:0.001,maxLeverage:50,takerFeePct:0.035,tradeable:true},
         {symbol:"ETH",name:"Ethereum",priceUsd:3120.2,change24hPct:-0.83,volume24hUsd:5200000000,openInterestUsd:92000000,fundingRateHourlyPct:-0.002,maxLeverage:30,takerFeePct:0.035,tradeable:true},
@@ -63,7 +64,7 @@ try{
         },
         history:{async list(){return {events:mockHistory.map(x=>({...x}))};}},
         capabilities:{async get(){return {ipo:{available:false,reason:"Нет источника IPO"},stocks:{available:false},funds:{available:false},bonuses:{available:false},live:{available:false}};}},
-        companion:{async list(){return history.map(x=>({...x}));},async get(id){return {id,messages:[{role:"user",content:"Привет"},{role:"assistant",content:"Здравствуйте!"}]};},async send(message,id){const conversationId=id||"preview-conversation-1";history.unshift({id:conversationId,title:message.slice(0,32),messageCount:2});return {conversationId,answer:"Тестовый ответ ИИ",conversation:{id:conversationId,messages:[{role:"user",content:message},{role:"assistant",content:"Тестовый ответ ИИ"}]}};},async remove(id){const index=history.findIndex(x=>x.id===id);if(index>=0)history.splice(index,1);return {ok:true};}},
+        companion:{async list(){return companionHistory.map(x=>({...x}));},async get(id){return {id,messages:[{role:"user",content:"Привет"},{role:"assistant",content:"Здравствуйте!"}]};},async send(message,id){const conversationId=id||"preview-conversation-1";companionHistory.unshift({id:conversationId,title:message.slice(0,32),messageCount:2});return {conversationId,answer:"Тестовый ответ ИИ",conversation:{id:conversationId,messages:[{role:"user",content:message},{role:"assistant",content:"Тестовый ответ ИИ"}]}};},async remove(id){const index=companionHistory.findIndex(x=>x.id===id);if(index>=0)companionHistory.splice(index,1);return {ok:true};}},
       };
     });
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
