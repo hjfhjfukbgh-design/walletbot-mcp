@@ -482,3 +482,12 @@
 - **Scope:** miniapp/web/kripto-guru-ui.js, kripto-guru-ui.css, index.html, capture-clean-ui.mjs. No API or paid data source changes.
 - **Validation:** extend Playwright clean UI scenario to assert horizontal overflow and live refresh pause/resume with a shortened test-only interval; require CI typecheck/tests and screenshots.
 - **Safety:** mock-only screenshot API; no Walt/Gemini writes, no real trades, no merge/deploy until checks pass.
+
+
+### 2026-11-19 — start: prevent duplicate dispatch of review/dispatched issues
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T01:51:40.633+05:00
+- **Incident:** after the A/B/C fan-out claimed issue #290, the scheduled central orchestrator also selected #290 because the fan-out left its orchestrator-ready label in place. This launched a duplicate Team C worker.
+- **Fix scope:** central orchestrator must filter out agent-review/agent-dispatched/agent-blocked/agent-done tasks; fan-out claim must remove both ready labels and stale review/blocked state before adding agent-dispatched.
+- **Immediate containment:** remove orchestrator-ready from already claimed QA issues #275/#277/#290 to prevent another scheduled duplicate.
+- **Safety:** no financial or production operations.
