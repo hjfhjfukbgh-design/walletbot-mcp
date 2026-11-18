@@ -28,7 +28,7 @@ export function checkOpen(
 ): RiskDecision {
   if (!marketAllowed(limits, market))
     return { ok: false, reason: `рынок ${market} не входит в список разрешённых (${limits.allowedMarkets.join(", ")})` };
-  if (leverage > limits.maxLeverage) return { ok: false, reason: `плечо ${leverage}x превышает максимум ${limits.maxLeverage}x` };
+  if (Number.isFinite(contractMaxLeverage) && leverage > contractMaxLeverage) return { ok: false, reason: `плечо ${leverage}x превышает максимум контракта ${contractMaxLeverage}x` };
   if (!(ctx.equityUsd > 0)) return { ok: false, reason: "капитал равен нулю или неизвестен (пополните счёт агента в USDC)" };
   if (dailyLossExceeded(ctx, limits)) return { ok: false, reason: `достигнут лимит дневного убытка ${limits.maxDailyLossPct}%` };
   const maxMargin = (ctx.equityUsd * limits.maxOrderPct) / 100;
