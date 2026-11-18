@@ -776,3 +776,14 @@
 - **Issue #348:** Team Lead takes the first implementation slice: separate AI paper account + atomic, idempotent virtual funding from DEMO; no new DO class, no real funds, no LLM dependency.
 - **Planned files:** `src/trading/engine.ts`, `src/api.ts`, Miniflare and API tests.
 - **Dispatch:** issue #348 remains without agent-ready; no Gemini worker call triggered.
+### 2026-11-19 — AI paper account and atomic virtual funding merged
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:24:19.050+05:00
+- **PR #349:** merged squash commit `10f939d2891e590d24f18b4cd82393342bb81069`.
+- **Storage:** separate ai_paper_accounts, ai_paper_ledger, ai_paper_positions, ai_paper_decisions tables in existing TradingEngine DO; no new DO class.
+- **API:** tenant-scoped GET ai/paper/status and POST ai/paper/fund. Requires productMode=ai; userId comes from validated Telegram initData; amount parsed to integer micro-USD.
+- **Atomicity:** DEMO debit + AI paper credit + both ledger entries in one transactionSync. Per-user idempotency; same key/same amount returns duplicate; same key/different amount and insufficient funds return 409; concurrent funding serialized.
+- **Tests:** Miniflare account isolation, idempotency, conflict, insufficient balance, concurrency and cross-tenant tests; API mode gate/userId test. CI run `44411120401` success (npm ci, syntax, typecheck, npm test).
+- **Initial CI failure:** run `44411000577` failed due over-escaped numeric regexes; corrected before merge in commits `a86874e` and `b5ea7e6`. Failure and correction remain recorded in PR comment.
+- **Issue #348:** closed completed with agent-done.
+- **Limitations:** AI account remains stopped; no strategy tick/positions execution. No Walt/LLM calls or real funds. Production deploy blocked pending Cloudflare zero-cost allowance verification.
