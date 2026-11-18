@@ -76,6 +76,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         return updateProductMode(scopedEnv, body);
       case "POST ai/paper/fund":
         return fundAiPaper(scopedEnv, telegramUserId, body);
+      case "POST ai/paper/withdraw":
+        return withdrawAiPaper(scopedEnv, telegramUserId, body);
       case "GET state":
         // Read-only polling must not run the legacy KV position monitor:
         // scheduled processing is the single monitor for that compatibility path.
@@ -785,6 +787,27 @@ async function fundAiPaper(env: Env, userId: string, body: Json): Promise<Respon
   if (!/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey))
     return fail("Не задан корректный ключ идемпотентности.");
   return engineRequest(env, "/ai/paper/fund", {
+    userId,
+    amountMicro: amountMicro.toString(),
+    idempotencyKey,
+  });
+}
+
+async function withdrawAiPaper(env: Env, userId: string, body: Json): Promise<Response> {
+  const state = await loadState(env);
+  if (normalizeProductMode(state.productMode) !== "ai")
+    return fail("Выберите режим AI Trading перед возвратом виртуальных средств.", 409);
+  const amountText = String(body.amountUsd ?? "").trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(amountText))
+    return fail("Сумма должна быть положительным числом с точностью до двух знаков.");
+  let amountMicro: bigint;
+  try { amountMicro = parseFixed(amountText, MONEY_SCALE, 6); }
+  catch { return fail("Некорректная сумма возврата."); }
+  if (amountMicro <= 0n) return fail("Сумма возврата должна быть больше нуля.");
+  const idempotencyKey = String(body.idempotencyKey ?? "");
+  if (!/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey))
+    return fail("Не задан корректный ключ идемпотентности.");
+  return engineRequest(env, "/ai/paper/withdraw", {
     userId,
     amountMicro: amountMicro.toString(),
     idempotencyKey,
