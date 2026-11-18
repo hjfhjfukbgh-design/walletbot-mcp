@@ -323,6 +323,12 @@ async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<R
     (item) => item.name.replace(/-USDC?$/i, "").toUpperCase() === symbol
   );
   if (!contract) return fail("Этот актив недоступен в Walt.");
+  if (!marketAllowed(limits, symbol)) return fail("Рынок не входит в список разрешённых для LIVE.");
+  if (!Number.isFinite(contract.priceDecimals) || contract.priceDecimals < 0 ||
+      !Number.isFinite(contract.minSizeQuote) || contract.minSizeQuote <= 0 ||
+      !Number.isFinite(contract.maxSizeQuote) || contract.maxSizeQuote < contract.minSizeQuote) {
+    return fail("Walt не вернул корректные лимиты выбранного контракта.", 503);
+  }
 
   const maxAllowedLeverage = Math.min(limits.maxLeverage, contract.maxLeverage);
   if (leverage > maxAllowedLeverage) {
@@ -361,9 +367,10 @@ async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<R
   const args = {
     contractId: contract.contractId,
     side,
-    marginUsd,
+    type: "market",
     leverage,
-    priceUsd: currentPriceVal,
+    amount: marginUsd.toFixed(2),
+    price: currentPriceVal.toFixed(contract.priceDecimals),
   };
 
   let previewResult;
@@ -373,20 +380,19 @@ async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<R
     return fail(`Подготовка ордера в Walt отклонена: ${(e as Error).message}`);
   }
 
-  const confirmationToken = (previewResult as { confirmationToken?: string })?.confirmationToken;
-  let opaqueHandle: string | null = null;
-
-  if (confirmationToken) {
-    const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
-    opaqueHandle = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-    const expiresAt = Date.now() + 120_000;
-    await env.STATE.put(
-      `live:preview:${userId}:${opaqueHandle}`,
-      JSON.stringify({ confirmationToken, expiresAt }),
-      { expirationTtl: 120 }
-    );
+  if (!previewResult.ok || !previewResult.confirmationToken) {
+    return fail("Walt отклонил предварительную проверку ордера: " + JSON.stringify(previewResult.risk ?? {}).slice(0, 240), 409);
   }
+
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  const opaqueHandle = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const expiresAt = Date.now() + 120_000;
+  await env.STATE.put(
+    `live:preview:${userId}:${opaqueHandle}`,
+    JSON.stringify({ confirmationToken: previewResult.confirmationToken, expiresAt, symbol, side, leverage, marginUsd }),
+    { expirationTtl: 120 }
+  );
 
   return json({
     ok: true,
@@ -396,8 +402,8 @@ async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<R
     marginUsd,
     notionalUsd,
     priceUsd: currentPriceVal,
-    risks: (previewResult as { risks?: unknown })?.risks ?? [],
-    warnings: (previewResult as { warnings?: unknown })?.warnings ?? [],
+    risk: previewResult.risk ?? null,
+    warnings: previewResult.warnings ?? [],
     expiresInSeconds: 120,
     handle: opaqueHandle,
   });
