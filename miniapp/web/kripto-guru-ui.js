@@ -813,7 +813,7 @@
   async function transferAiPaper(direction){
     if(state.aiPaperBusy)return;
     const amount=String($("#kg-ai-paper-amount").value||"").trim();
-    if(!/^\\d+(?:\\.\\d{1,2})?$/.test(amount)||Number(amount)<=0){
+    if(!/^\d+(?:\.\d{1,2})?$/.test(amount)||Number(amount)<=0){
       notify("Введите сумму больше нуля, максимум два знака после запятой.");
       return;
     }
