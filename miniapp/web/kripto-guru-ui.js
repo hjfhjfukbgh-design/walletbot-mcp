@@ -1042,6 +1042,7 @@
     started=true;
     try{tg?.ready?.();tg?.expand?.();tg?.setHeaderColor?.("#ffffff");tg?.setBackgroundColor?.("#f0f0f6");}catch{}
     bind();
+    restoreLiveOperation();
     // Market quotes are the first screen's primary content. Start this request
     // immediately instead of waiting for FX, capabilities, history or wallet.
     const marketTask=loadCategory("crypto").catch(error=>{
