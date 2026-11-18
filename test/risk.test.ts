@@ -3,7 +3,6 @@ import type { RiskLimits } from "../src/env";
 import { checkOpen, dailyLossExceeded } from "../src/risk";
 
 const limits: RiskLimits = {
-  maxLeverage: 3,
   maxOrderPct: 5,
   maxTotalExposurePct: 50,
   maxDailyLossPct: 5,
@@ -24,7 +23,8 @@ describe("risk", () => {
 
   it("bloqueia whitelist, alavancagem e saldo zero", () => {
     expect(checkOpen("DOGE", 1, 1, ctx, limits).ok).toBe(false);
-    expect(checkOpen("BTC", 1, 5, ctx, limits).ok).toBe(false);
+    expect(checkOpen("BTC", 1, 5, ctx, limits, 4).ok).toBe(false);
+    expect(checkOpen("BTC", 1, 5, ctx, limits, 6).ok).toBe(true);
     expect(checkOpen("BTC", 1, 1, { ...ctx, equityUsd: 0 }, limits).ok).toBe(false);
   });
 

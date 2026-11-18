@@ -156,7 +156,7 @@ describe("API da Mini App", () => {
     });
     expect(res.status).toBe(400);
     const body = await res.json() as { error: string };
-    expect(body.error).toContain("Максимальное плечо демо-счёта");
+    expect(body.error).toContain("Для этого актива доступно плечо не выше 40×");
   });
 
   it("valida campos do grid", async () => {

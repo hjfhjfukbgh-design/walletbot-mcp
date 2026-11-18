@@ -212,8 +212,8 @@ async function previewDemoTrade(env: Env, userId: string, body: Json): Promise<R
   const limits = riskLimits(env);
   if (!/^[A-Z0-9:_-]{2,32}$/.test(symbol)) return fail("Некорректный торговый актив.");
   if (side !== "long" && side !== "short") return fail("Направление должно быть LONG или SHORT.");
-  if (!Number.isSafeInteger(leverage) || leverage < 1 || leverage > limits.maxLeverage)
-    return fail(`Максимальное плечо демо-счёта: ${limits.maxLeverage}×.`);
+  if (!Number.isSafeInteger(leverage) || leverage < 1)
+    return fail("Плечо должно быть целым числом не меньше 1.");
   if (body.marginMicro != null && !/^\d{1,18}$/.test(String(body.marginMicro))) return fail("Некорректная сумма маржи.");
 
   const dailyRisk = await engineRequest(env, "/risk?userId=" + encodeURIComponent(userId)
@@ -225,9 +225,10 @@ async function previewDemoTrade(env: Env, userId: string, body: Json): Promise<R
   const contracts = await publicContracts();
   const contract = contracts.find((item) => item.name.replace(/-USDC?$/i, "").toUpperCase() === symbol);
   if (!contract) return fail("Этот актив сейчас недоступен для демо-торговли.");
+  if (!Number.isFinite(contract.maxLeverage) || contract.maxLeverage < 1) return fail("Для этого контракта не получен допустимый лимит плеча.", 503);
   if (!marketAllowed(limits, symbol)) return fail("Этот рынок не входит в список разрешённых.", 403);
   if ((contract.volume24hUsd ?? 0) < limits.minVolume24hUsd) return fail("Недостаточная ликвидность рынка для демо-сделки.");
-  const allowedLeverage = Math.min(limits.maxLeverage, contract.maxLeverage);
+  const allowedLeverage = contract.maxLeverage;
   if (leverage > allowedLeverage) return fail(`Для этого актива доступно плечо не выше ${allowedLeverage}×.`);
 
   const mid = await publicMid(symbol);
@@ -419,8 +420,8 @@ async function openDemoTrade(env: Env, userId: string, body: Json): Promise<Resp
   const limits = riskLimits(env);
   if (!/^[A-Z0-9:_-]{2,32}$/.test(symbol)) return fail("Некорректный торговый актив.");
   if (side !== "long" && side !== "short") return fail("Направление должно быть LONG или SHORT.");
-  if (!Number.isSafeInteger(leverage) || leverage < 1 || leverage > limits.maxLeverage)
-    return fail(`Максимальное плечо демо-счёта: ${limits.maxLeverage}×.`);
+  if (!Number.isSafeInteger(leverage) || leverage < 1)
+    return fail("Плечо должно быть целым числом не меньше 1.");
 
   const rawMargin = String(body.marginMicro ?? "");
   if (!/^\d{1,18}$/.test(rawMargin)) return fail("Некорректная сумма маржи.");
@@ -430,10 +431,11 @@ async function openDemoTrade(env: Env, userId: string, body: Json): Promise<Resp
   const contracts = await publicContracts();
   const contract = contracts.find((item) => item.name.replace(/-USDC?$/i, "").toUpperCase() === symbol);
   if (!contract) return fail("Этот актив сейчас недоступен для демо-торговли.");
+  if (!Number.isFinite(contract.maxLeverage) || contract.maxLeverage < 1) return fail("Для этого контракта не получен допустимый лимит плеча.", 503);
   if (!marketAllowed(limits, symbol)) return fail("Этот рынок не входит в список разрешённых.", 403);
   if ((contract.volume24hUsd ?? 0) < limits.minVolume24hUsd)
     return fail("Недостаточная ликвидность рынка для демо-сделки.");
-  const allowedLeverage = Math.min(limits.maxLeverage, contract.maxLeverage);
+  const allowedLeverage = contract.maxLeverage;
   if (leverage > allowedLeverage) return fail(`Для этого актива доступно плечо не выше ${allowedLeverage}×.`);
 
   const notionalMicro = marginMicro * BigInt(leverage);
@@ -597,13 +599,14 @@ async function priceView(env: Env, market: string, leverage: number) {
   // The Mini App always displays the same verified public DEMO quote source.
   const contract = findContract(await publicContracts(), market);
   if (!contract) throw new Error(`рынок ${market} не найден`);
+  if (!Number.isFinite(contract.maxLeverage) || contract.maxLeverage < 1) throw new Error("Для контракта не получен допустимый лимит плеча.");
   const price = await publicMid(market);
-  const lev = Math.max(1, Math.min(Math.trunc(leverage) || 1, contract.maxLeverage, riskLimits(env).maxLeverage));
+  const lev = Math.max(1, Math.min(Math.trunc(leverage) || 1, contract.maxLeverage));
   return {
     market: market.toUpperCase(),
     price,
     leverage: lev,
-    maxDemoLeverage: riskLimits(env).maxLeverage,
+    maxDemoLeverage: contract.maxLeverage,
     minMargin: Number(minMargin(contract, price * 1.02, lev).toFixed(2)),
     suggestion: { low: Number((price * 0.94).toFixed(contract.priceDecimals)), high: Number((price * 1.02).toFixed(contract.priceDecimals)) },
   };

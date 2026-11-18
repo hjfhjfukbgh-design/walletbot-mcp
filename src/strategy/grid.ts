@@ -42,6 +42,7 @@ export interface GridPosition {
 export function validateConfig(cfg: GridConfig): string | null {
   if (!(cfg.low > 0) || !(cfg.high > cfg.low)) return "Некорректный диапазон: должно выполняться 0 < low < high";
   if (!Number.isInteger(cfg.levels) || cfg.levels < 2 || cfg.levels > 50) return "Число уровней должно быть целым от 2 до 50";
+  if (!Number.isFinite(cfg.contract.maxLeverage) || cfg.contract.maxLeverage < 1) return "Для контракта не получен допустимый лимит плеча";
   if (!Number.isInteger(cfg.leverage) || cfg.leverage < 1) return "Плечо должно быть целым числом не меньше 1";
   if (cfg.leverage > cfg.contract.maxLeverage) return `Максимальное плечо для контракта — ${cfg.contract.maxLeverage}x`;
   if (cfg.marginUsd < cfg.contract.minSizeQuote) return `Минимальная маржа на сделку — ${cfg.contract.minSizeQuote}`;

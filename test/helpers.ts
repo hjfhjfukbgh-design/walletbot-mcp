@@ -20,7 +20,6 @@ export const env = (): Env => ({
   OWNER_CHAT_ID: "",
   WALT_MCP_URL: "",
   WALT_AUTH_ISSUER: "",
-  MAX_LEVERAGE: "3",
   MAX_ORDER_PCT: "5",
   MAX_TOTAL_EXPOSURE_PCT: "50",
   MAX_DAILY_LOSS_PCT: "5",
