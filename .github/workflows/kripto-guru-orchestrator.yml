@@ -3,16 +3,12 @@ name: Kripto Guru — central orchestrator (MVP)
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
   pull-requests: write
   issues: write
-
-concurrency:
-  group: kripto-guru-queue-claim
-  cancel-in-progress: false
 
 jobs:
   dispatch-one-task:
@@ -25,6 +21,9 @@ jobs:
       team: ${{ steps.packet.outputs.team }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    concurrency:
+      group: kripto-guru-queue-claim
+      cancel-in-progress: false
     steps:
       - name: Checkout orchestration baseline
         uses: actions/checkout@v4
