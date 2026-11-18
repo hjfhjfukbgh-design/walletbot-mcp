@@ -665,8 +665,8 @@ button:disabled{cursor:not-allowed;opacity:.5}
 #kg-companion-screen.kg-keyboard-open .kg-ai-welcome>b{font-size:20px}
 #kg-companion-screen.kg-keyboard-open .kg-ai-welcome>p{font-size:13px}
 #kg-companion-screen.kg-keyboard-open .kg-ai-form{margin-bottom:4px}
-#kg-main:has(#kg-companion-screen.is-active)~#kg-nav{display:none}
-#kg-main:has(#kg-companion-screen.is-active)~#kg-toast{display:none}
+#kg-main:has(#kg-companion-screen.is-active)~#kg-nav{display:none!important}
+#kg-main:has(#kg-companion-screen.is-active)~#kg-toast{display:none!important}
 #kg-companion-screen .kg-ai-menu{z-index:91}
 #kg-companion-screen .kg-ai-menu-backdrop{z-index:90}
 @media(max-height:700px){
