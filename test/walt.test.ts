@@ -1,13 +1,29 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readResponse } from "../src/mcp";
 import { callbackParams } from "../src/oauth";
-import { findContract, findOpenPosition, parseContract, previewReason, usdcBalance } from "../src/walt";
+import { findContract, findOpenPosition, parseContract, previewReason, usdcBalance, Walt } from "../src/walt";
 
 describe("adaptador Walt", () => {
   const contracts = [
     parseContract({ contract_id: 0, contract_name: "ETH-USDC", price_decimals: 2, min_size_base: "0.0020", min_size_quote: "1.0", max_size_quote: "25000.0", max_leverage: 50, taker_fee_pct: "0.0009", price_slippage: "0.01" }),
     parseContract({ contract_id: 1, contract_name: "BTC-USDC", price_decimals: 1, min_size_base: "0.00007", min_size_quote: "1.0", max_size_quote: "25000.0", max_leverage: 50, taker_fee_pct: "0.0009", price_slippage: "0.01" }),
   ];
+
+  it("blocks legacy openLong and closePosition without making any Walt/MCP calls", async () => {
+    const callTool = vi.fn();
+    const client = { callTool } as any;
+    const walt = new Walt(client);
+    const contract = contracts[0];
+
+    await expect(walt.openLong(contract, 10, 2, 3000, 3300, 2800))
+      .rejects.toThrow("legacy openLong отключено");
+    await expect(walt.closePosition(contract.contractId))
+      .rejects.toThrow("legacy closePosition отключено");
+
+    await expect(walt.createAccount(false))
+      .rejects.toThrow("отдельного явного подтверждения");
+    expect(callTool).not.toHaveBeenCalled();
+  });
 
   it("resolve mercado → contrato (id 0 é válido)", () => {
     expect(findContract(contracts, "eth")?.contractId).toBe(0);
