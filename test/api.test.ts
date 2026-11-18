@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { handleApi, normalizeLivePosition } from "../src/api";
+import { handleApi, livePositionTimestampMatches, normalizeLivePosition } from "../src/api";
 import type { RiskLimits } from "../src/env";
 import { MAX_PRICES, pushEquity, pushPrice } from "../src/history";
 import { marketAllowed } from "../src/risk";
@@ -33,6 +33,30 @@ const call = async (e: ReturnType<typeof env>, path: string, key?: string, init:
   else if (key && key !== "chave-teste") headers.Authorization = `tma ${key}`;
   return handleApi(new Request(`https://w.dev/api/${path}`, { ...init, headers }), e, ctx);
 };
+
+describe("LIVE reconciliation timestamp correlation", () => {
+  const previewAt = 1_800_000_000_000;
+  const operationUpdatedAt = previewAt + 30_000;
+
+  it("prefers stable opened/created time over a later mutable updated_at", () => {
+    expect(livePositionTimestampMatches({
+      created_at: previewAt + 10_000,
+      updated_at: previewAt + 3_600_000,
+    }, previewAt, operationUpdatedAt)).toBe(true);
+  });
+
+  it("rejects positions created after the operation became unknown", () => {
+    expect(livePositionTimestampMatches({ created_at: operationUpdatedAt + 60_000 }, previewAt, operationUpdatedAt)).toBe(false);
+  });
+
+  it("does not auto-reconcile when only mutable updated_at is available", () => {
+    expect(livePositionTimestampMatches({ updated_at: previewAt + 10_000 }, previewAt, operationUpdatedAt)).toBe(false);
+  });
+
+  it("rejects positions opened before the preview window", () => {
+    expect(livePositionTimestampMatches({ opened_at: previewAt - 10_000 }, previewAt, operationUpdatedAt)).toBe(false);
+  });
+});
 
 describe("LIVE position normalization", () => {
   it("returns null for no open position", () => {
