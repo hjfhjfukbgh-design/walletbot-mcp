@@ -46,6 +46,8 @@ try{
       const mockPositions=[];
       const mockHistory=[];
       const companionHistory=[];
+      const liveCalls={execute:0,operation:0,demoOpen:0};
+      window.__kgLiveTestCalls=liveCalls;
       const markets=[
         {symbol:"BTC",name:"Bitcoin",priceUsd:91240.5,change24hPct:2.42,volume24hUsd:8900000000,openInterestUsd:198750000,fundingRateHourlyPct:0.001,maxLeverage:50,takerFeePct:0.035,tradeable:true},
         {symbol:"ETH",name:"Ethereum",priceUsd:3120.2,change24hPct:-0.83,volume24hUsd:5200000000,openInterestUsd:92000000,fundingRateHourlyPct:-0.002,maxLeverage:30,takerFeePct:0.035,tradeable:true},
@@ -59,11 +61,17 @@ try{
         market:{async get(symbol){const item=markets.find(x=>x.symbol===symbol);if(!item)throw {code:"NOT_FOUND",message:"Инструмент не найден"};return {...item,productType:"Фьючерс"};},async candles(symbol,interval){return {candles:interval==="1m"?candles:candles};}},
         trade:{
           async preview({marginUsd,leverage}){return {valid:marginUsd>=10&&marginUsd<=50,available:marginUsd>=10&&marginUsd<=50,maxMarginUsd:50,minMarginUsd:10,volumeUsd:marginUsd*leverage,entryFeeUsd:marginUsd*leverage*.00035,exitFeeUsd:marginUsd*leverage*.00035};},
-          async open(payload){const p={id:"preview-position-1",symbol:payload.symbol,side:payload.side,marginUsd:payload.marginUsd,leverage:payload.leverage};mockPositions.push(p);mockHistory.unshift({event:"Открытие",symbol:p.symbol,side:p.side,timestamp:"Сейчас"});return {position:p};},
+          async open(payload){liveCalls.demoOpen++;const p={id:"preview-position-1",symbol:payload.symbol,side:payload.side,marginUsd:payload.marginUsd,leverage:payload.leverage};mockPositions.push(p);mockHistory.unshift({event:"Открытие",symbol:p.symbol,side:p.side,timestamp:"Сейчас"});return {position:p};},
           async close(id){const i=mockPositions.findIndex(x=>x.id===id);if(i>=0){const p=mockPositions.splice(i,1)[0];mockHistory.unshift({event:"Закрытие",symbol:p.symbol,side:p.side,netPnlUsd:.37,timestamp:"Сейчас"});}return {closed:true};}
         },
+        live:{
+          async status(){return {connected:true,readiness:{available:true,ok:true},contracts:{available:true,count:3},balance:{available:true,usd:500},issues:[],observedAt:Date.now()};},
+          async preview({symbol,side,marginUsd,leverage}){return {handle:"f".repeat(32),symbol,side,priceUsd:91240.5,leverage,marginUsd,notionalUsd:marginUsd*leverage,risk:{checks:[]},warnings:[],expiresInSeconds:120,valid:true,available:true};},
+          async execute({handle,confirm}){liveCalls.execute++;if(confirm!==true||handle!=="f".repeat(32))throw new Error("Invalid LIVE execute payload");return {ok:true,status:"unknown"};},
+          async operation({handle}){liveCalls.operation++;return {ok:true,operation:{handle,status:"completed",market:"BTC",side:"long"},reconciliation:null};}
+        },
         history:{async list(){return {events:mockHistory.map(x=>({...x}))};}},
-        capabilities:{async get(){return {ipo:{available:false,reason:"Нет источника IPO"},stocks:{available:false},funds:{available:false},bonuses:{available:false},live:{available:false}};}},
+        capabilities:{async get(){return {ipo:{available:false,reason:"Нет источника IPO"},stocks:{available:false},funds:{available:false},bonuses:{available:false},live:{available:true}};}},
         companion:{async list(){return companionHistory.map(x=>({...x}));},async get(id){return {id,messages:[{role:"user",content:"Привет"},{role:"assistant",content:"Здравствуйте!"}]};},async send(message,id){const conversationId=id||"preview-conversation-1";companionHistory.unshift({id:conversationId,title:message.slice(0,32),messageCount:2});return {conversationId,answer:"Тестовый ответ ИИ",conversation:{id:conversationId,messages:[{role:"user",content:message},{role:"assistant",content:"Тестовый ответ ИИ"}]}};},async remove(id){const index=companionHistory.findIndex(x=>x.id===id);if(index>=0)companionHistory.splice(index,1);return {ok:true};}},
       };
     });
@@ -164,6 +172,19 @@ try{
     await page.screenshot({path:`clean-confirm-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-trade-confirm").click();
     await page.waitForSelector("#kg-asset-screen:not([hidden])");
+    await page.locator("#kg-long").click();
+    await page.waitForSelector("#kg-ticket-screen:not([hidden])");
+    await page.locator('[data-ticket-mode="live"]').click();
+    await page.waitForFunction(()=>document.querySelector("#kg-ticket-mode-status")?.textContent.includes("LIVE · Walt подключён"),null,{timeout:3000});
+    await page.locator("#kg-ticket-margin").fill("25");
+    await page.waitForFunction(()=>document.querySelector("#kg-ticket-check")?.disabled===false,null,{timeout:3000});
+    await page.locator("#kg-ticket-check").click();
+    await page.waitForSelector("#kg-confirm-screen:not([hidden])");
+    if(!(await page.locator("#kg-trade-confirm").innerText()).includes("LIVE"))throw new Error("LIVE confirmation button label is missing");
+    await page.locator("#kg-trade-confirm").click();
+    await page.waitForSelector("#kg-asset-screen:not([hidden])");
+    const liveCallsResult=await page.evaluate(()=>window.__kgLiveTestCalls);
+    if(liveCallsResult.execute!==1||liveCallsResult.operation!==1||liveCallsResult.demoOpen!==1)throw new Error("LIVE should execute once and reconcile via GET only: "+JSON.stringify(liveCallsResult));
     await page.locator("#kg-asset-history-all").click();
     await page.waitForSelector("#kg-income-screen.is-active");
     await page.waitForSelector(".kg-position");
