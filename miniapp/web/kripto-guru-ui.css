@@ -957,3 +957,12 @@ button{ -webkit-tap-highlight-color:transparent }
 #kg-wallet-screen .kg-wallet-currency{box-shadow:0 2px 10px rgba(20,24,40,.025)}
 #kg-wallet-screen .kg-favorite-static{cursor:default}
 #kg-wallet-screen .kg-asset-row[data-open-market]{cursor:pointer}
+
+/* Final wallet polish: no synthetic chart, native button reset for history row. */
+#kg-wallet-screen .kg-sparkline-empty{height:36px;margin-top:8px;border-bottom:1px solid #e8e8ed;opacity:.65}
+#kg-wallet-screen .kg-history-open{width:100%;font:inherit;color:inherit;text-align:left;cursor:pointer}
+#kg-wallet-screen .kg-history-open:active{background:#f7f8fb}
+#kg-wallet-screen .kg-wallet-equities .kg-asset-row,
+#kg-wallet-screen .kg-wallet-defi .kg-asset-row{min-height:68px}
+#kg-wallet-screen .kg-wallet-row-value{margin-left:auto;white-space:nowrap}
+#kg-wallet-screen .kg-discover-card:disabled{opacity:.65}
