@@ -75,12 +75,31 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       const mimeType = typeof file.mimeType === "string" ? file.mimeType.toLowerCase() : "";
       const name = typeof file.name === "string" ? file.name.slice(0, 120) : "Вложение";
       const dataBase64 = typeof file.dataBase64 === "string" ? file.dataBase64 : "";
-      if (!/^(image\/(jpeg|png|webp|gif)|audio\/(mpeg|mp3|wav|aac|ogg|flac|webm|mp4|m4a))$/.test(mimeType))
+      if (!/^(image\/(jpeg|png|webp|gif)|audio\/(mpeg|mp3|wav|aac|ogg|flac|webm|mp4|m4a)|video\/(mp4|webm))$/.test(mimeType))
         return json({ ok: false, error: "Формат файла не поддерживается." }, 415);
       if (!/^[A-Za-z0-9+/]+={0,2}$/.test(dataBase64) || dataBase64.length % 4 !== 0)
         return json({ ok: false, error: "Файл повреждён или имеет неверный формат." }, 400);
-      const size = Math.floor(dataBase64.length * 3 / 4);
+      const padding = dataBase64.endsWith("==") ? 2 : dataBase64.endsWith("=") ? 1 : 0;
+      const size = dataBase64.length / 4 * 3 - padding;
       if (!size || size > 5 * 1024 * 1024) return json({ ok: false, error: "Размер файла должен быть не больше 5 МБ." }, 413);
+      if (mimeType.startsWith("video/")) {
+        const expectedExtension = mimeType === "video/mp4" ? /\.mp4$/i : /\.webm$/i;
+        if (!expectedExtension.test(name)) return json({ ok: false, error: "Расширение видео не соответствует его MIME-типу." }, 415);
+        let decoded: string;
+        try {
+          decoded = atob(dataBase64);
+        } catch {
+          return json({ ok: false, error: "Видео повреждено или имеет неверное кодирование." }, 400);
+        }
+        if (decoded.length !== size) return json({ ok: false, error: "Размер видео не соответствует закодированным данным." }, 400);
+        if (mimeType === "video/mp4") {
+          if (decoded.length < 16 || decoded.slice(4, 8) !== "ftyp") return json({ ok: false, error: "Файл не прошёл проверку контейнера MP4." }, 415);
+          const boxSize = decoded.charCodeAt(0) * 0x1000000 + decoded.charCodeAt(1) * 0x10000 + decoded.charCodeAt(2) * 0x100 + decoded.charCodeAt(3);
+          if (boxSize < 16 || boxSize > decoded.length) return json({ ok: false, error: "Заголовок контейнера MP4 повреждён." }, 400);
+        } else if (decoded.length < 4 || decoded.charCodeAt(0) !== 0x1a || decoded.charCodeAt(1) !== 0x45 || decoded.charCodeAt(2) !== 0xdf || decoded.charCodeAt(3) !== 0xa3) {
+          return json({ ok: false, error: "Файл не прошёл проверку контейнера WebM." }, 415);
+        }
+      }
       totalBytes += size;
       if (totalBytes > 8 * 1024 * 1024) return json({ ok: false, error: "Общий размер вложений — максимум 8 МБ." }, 413);
       attachments.push({ name, mimeType, dataBase64 });
