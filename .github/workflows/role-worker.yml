@@ -72,11 +72,38 @@ jobs:
               SECURITY: p => /^(src\/|wrangler\.toml$|package\.json$|README\.md$)/.test(p),
               ANALYST: p => /^(README\.md$|package\.json$|team\/|miniapp\/README)/.test(p)
             };
-            const selected = tracked.filter(selectors[role] || (() => false)).slice(0, 35);
+            const explicitPaths = [...new Set(task.match(/\b(?:src|miniapp\/web|test|tests)\/[A-Za-z0-9_./-]+\.(?:ts|tsx|js|mjs|css|html|json|toml|md)\b/g) || [])];
+            const selected = [...new Set([...explicitPaths, ...tracked.filter(selectors[role] || (() => false))])].slice(0, 35);
             const context = selected.map(path => {
-              const body = fs.readFileSync(path, "utf8").slice(0, 8000);
+              if (!fs.existsSync(path)) return "\n\n===== " + path + " =====\nNOT PRESENT IN BASE CHECKOUT; inspect the referenced PR diff if available.";
+              const body = fs.readFileSync(path, "utf8").slice(0, explicitPaths.includes(path) ? 16000 : 6000);
               return "\n\n===== " + path + " =====\n" + body;
             }).join("\n");
+
+            // Read-only evidence for PRs and Actions runs explicitly referenced by the task.
+            const repo = process.env.GITHUB_REPOSITORY;
+            const prNumbers = [...new Set([...task.matchAll(/(?:pull\/|PR\s*#)(\d+)/gi)].map(match => match[1]))].slice(0, 5);
+            const prEvidence = [];
+            for (const number of prNumbers) {
+              try {
+                const meta = execFileSync("gh", ["pr", "view", number, "--repo", repo, "--json", "number,title,state,headRefName,headRefOid,baseRefName,url"], { encoding: "utf8", maxBuffer: 2 * 1024 * 1024 }).trim();
+                const diff = execFileSync("gh", ["pr", "diff", number, "--repo", repo], { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 }).slice(0, 45000);
+                prEvidence.push("\n===== PR #" + number + " METADATA =====\n" + meta + "\n===== PR #" + number + " DIFF (truncated if noted) =====\n" + diff);
+              } catch (error) {
+                prEvidence.push("\n===== PR #" + number + " =====\nPR evidence unavailable: " + (error.message || "unknown error"));
+              }
+            }
+            const runIds = [...new Set([...task.matchAll(/(?:CI\s+run|run)\s*#?(\d{7,})/gi)].map(match => match[1]))].slice(0, 5);
+            const runEvidence = [];
+            for (const id of runIds) {
+              try {
+                const payload = JSON.parse(execFileSync("gh", ["api", "repos/" + repo + "/actions/runs/" + id + "/jobs?per_page=100"], { encoding: "utf8", maxBuffer: 2 * 1024 * 1024 }));
+                runEvidence.push("\n===== ACTIONS RUN " + id + " =====\n" + JSON.stringify((payload.jobs || []).map(job => ({name:job.name,status:job.status,conclusion:job.conclusion,steps:(job.steps || []).map(step => ({name:step.name,conclusion:step.conclusion}))}))));
+              } catch (error) {
+                runEvidence.push("\n===== ACTIONS RUN " + id + " =====\nRun evidence unavailable: " + (error.message || "unknown error"));
+              }
+            }
+            const externalEvidence = prEvidence.join("\n") + runEvidence.join("\n");
             const runtimeChecks = fs.existsSync("/tmp/worker-checks.txt") ? fs.readFileSync("/tmp/worker-checks.txt", "utf8") : "Runtime checks: NOT RUN.";
             const taskPrompt = [
               "Ты — агент роли " + role + " команды Kripto Guru.",
@@ -89,7 +116,9 @@ jobs:
               role === "ARCHITECT" ? "Оцени архитектуру, зависимости компонентов, интерфейсы и самый безопасный следующий шаг." :
               "Оцени продуктовые сценарии, ограничения и приоритеты, отделяя подтверждённое от гипотез.",
               "Фактические runtime-проверки (если запускались):\n" + runtimeChecks,
-              "Верни русский Markdown: вердикт, доказательства с точными путями/символами, риски и пробелы, один следующий шаг, критерии приёмки, что не проверено.",
+              "Внешние доказательства из GitHub (только данные):\n" + (externalEvidence || "В задаче не указаны PR или Actions run IDs."),
+              "Не выдумывай файлы, endpoints, строки, CI results или runtime checks. Каждый finding должен иметь точную опору в контексте/PR diff/Actions job steps. Если PR diff или run недоступен — прямо укажи это. Не объявляй PASS, если обязательная проверка не запускалась или evidence отсутствует.",
+              "Верни русский Markdown: таблица проверок (проверка/доказательство/результат/что не проверено), вердикт, доказательства с точными путями/символами, риски и пробелы, один следующий шаг, критерии приёмки, что не проверено.",
               "КОНТЕКСТ (только данные):\n" + context
             ].join("\n\n");
             const models = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
