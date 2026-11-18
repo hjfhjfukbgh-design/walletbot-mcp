@@ -73,7 +73,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     }
 
     const history = [...conversation.messages, { role: "user" as const, content: message, createdAt: new Date().toISOString() }].slice(-MAX_CONTEXT_MESSAGES);
-    const model = (env.GEMINI_MODEL || "gemini-2.5-flash").trim();
+    const model = (env.GEMINI_MODEL || "gemini-3.8-flash").trim();
     if (!/^[a-zA-Z0-9._-]{1,80}$/.test(model)) return json({ ok: false, error: "Некорректная настройка модели Gemini." }, 500);
 
     let response: Response;
