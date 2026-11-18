@@ -590,7 +590,11 @@
       }
     }catch(error){
       const normalized=normalizeError(error);
-      if([400,401,403,410,503].includes(Number(error?.status))){
+      if(Number(error?.status)===410){
+        clearLiveOperation();state.liveExecuteStarted=false;state.preview=null;
+        notify("Preview истёк. Создаём новую проверку.");
+        await refreshPreview();
+      }else if([400,401,403,503].includes(Number(error?.status))){
         clearLiveOperation();state.liveExecuteStarted=false;notify(normalized.message);
       }else{
         closeModals();await pollLiveOperation(handle);
@@ -633,6 +637,8 @@
     if(!(state.margin>0)){$("#kg-ticket-volume").textContent="Объём: —";$("#kg-ticket-preview").textContent="";return;}
     try{
       if(state.tradeMode==="live"){
+        await new Promise(resolve=>setTimeout(resolve,250));
+        if(seq!==state.previewSeq)return;
         const result=unwrap(await invoke("live.preview",{symbol:state.selectedMarket,side:state.side,marginUsd:state.margin,leverage:state.leverage}),"live preview");
         if(seq!==state.previewSeq||state.tradeMode!=="live")return;
         state.preview=result;state.liveExecuteStarted=false;
