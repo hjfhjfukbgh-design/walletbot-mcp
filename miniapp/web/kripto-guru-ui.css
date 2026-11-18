@@ -484,7 +484,7 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .kg-ai-message.is-user>div{background:#2677f2;color:#fff;border-bottom-right-radius:5px}
 .kg-ai-message.is-assistant>div{border-bottom-left-radius:5px}
 .kg-ai-form{display:flex;align-items:flex-end;gap:8px;margin-top:10px;padding:7px;border:1px solid #e7eaf0;border-radius:16px;background:#fff;box-shadow:var(--kg-shadow)}
-.kg-ai-form textarea{flex:1;min-width:0;max-height:120px;resize:vertical;padding:8px 6px;border:0;outline:0;background:transparent;color:var(--kg-ink);font:12px/1.45 inherit}
+.kg-ai-form textarea{flex:1;min-width:0;max-height:120px;resize:vertical;padding:8px 6px;border:0;outline:0;background:transparent;color:var(--kg-ink);font:inherit;font-size:12px;line-height:1.45}
 .kg-ai-form button{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border:0;border-radius:12px;background:var(--kg-blue);color:#fff;font-size:22px;font-weight:700}
 .kg-ai-form button:disabled{opacity:.45}
 .kg-ai-disclaimer{margin:8px 3px;color:var(--kg-muted);font-size:9px;text-align:center}
