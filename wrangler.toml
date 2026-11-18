@@ -43,7 +43,7 @@ ALLOWED_MARKETS = "*"
 MIN_VOLUME_24H_USD = "1000000"
 # Адрес Mini App, которая публикуется вместе с Worker на Cloudflare.
 # /setup устанавливает прямой webhook Telegram и кнопку меню.
-MINIAPP_URL = "https://walletbot-mcp.hjfhjfukbgh.workers.dev/?build=20261117-kripto-guru-demo"
+MINIAPP_URL = "https://walletbot-mcp.hjfhjfukbgh.workers.dev/?build=20261118-authfix-1"
 # Canal/grupo que recebe os alertas automáticos (o bot precisa ser admin com permissão de postar).
 # Vazio = alertas vão para OWNER_CHAT_ID.
 ALERT_CHAT_ID = ""
