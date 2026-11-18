@@ -179,6 +179,21 @@ try{
     await page.screenshot({path:`clean-income-history-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator('#kg-nav button[data-screen="companion"]').click();
     await page.waitForSelector("#kg-companion-screen.is-active");
+    await page.waitForSelector("#kg-companion-screen .kg-ai-welcome");
+    await page.waitForFunction(()=>getComputedStyle(document.querySelector("#kg-nav")).display==="none");
+    if(!(await page.locator("#kg-ai-input").isVisible()))throw new Error("AI Companion composer must be visible on the home screen");
+    if(!(await page.locator("#kg-companion-screen .kg-ai-welcome").isVisible()))throw new Error("AI Companion welcome must be visible on the home screen");
+    await page.screenshot({path:`clean-companion-home-${device.width}x${device.height}.png`,fullPage:false});
+
+    // Playwright cannot display the native iOS keyboard; emulate its reduced visual viewport state
+    // so the focused-composer layout and keyboard-specific CSS can still be regression-tested.
+    await page.locator("#kg-ai-input").focus();
+    await page.waitForFunction(()=>document.querySelector("#kg-companion-screen").classList.contains("kg-composer-expanded"));
+    await page.evaluate(()=>document.querySelector("#kg-companion-screen").classList.add("kg-keyboard-open"));
+    if(getComputedStyle(await page.locator(".kg-gemini-tools").elementHandle()).display!=="none")throw new Error("Gemini tool shortcuts must hide while the keyboard is open");
+    if(await page.locator("#kg-nav").evaluate(el=>getComputedStyle(el).display)!=="none")throw new Error("bottom navigation must stay hidden while the keyboard is open");
+    await page.screenshot({path:`clean-companion-keyboard-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{document.querySelector("#kg-companion-screen").classList.remove("kg-keyboard-open");document.querySelector("#kg-ai-input").blur();});
     await page.locator("#kg-ai-input").fill("Проверь связь");
     await page.locator("#kg-ai-send").click();
     try{
