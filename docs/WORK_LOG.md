@@ -146,3 +146,12 @@
 - **CI:** combined status и workflow runs пока пустые; фактическое выполнение Actions не заявляется.
 - **Артефакты:** branch `fix/orchestrator-handoff-queue-2026-11-19`; commit `a368e2feed5728e030a158540f63ab779b7aa724`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/274.
 - **Безопасность:** Draft PR; merge/deploy, секреты и финансовые операции не затрагивались.
+
+### 2026-11-19 — старт постановки независимой QA-задачи в автоматическую очередь
+
+- **Время:** 2026-11-19T00:53:55.023+05:00
+- **Событие:** подготавливается первая ограниченная задача для автоматического dispatcher/worker цикла после аудита очереди.
+- **Статус:** начато
+- **Цель:** независимая проверка UI release candidate PR #228 и исходных PR #222/#223: scope, конфликты/актуальность, typecheck/tests/screenshot evidence, соответствие требованиям dark UI, OHLC и mobile modal; перечислить точные блокеры и безопасные следующие шаги.
+- **Роль/команда:** QA, Team B (Product); только read-only аудит и отчёт, без source changes, merge, deploy или LIVE операций.
+- **Очередь:** `orchestrator-ready`; за один workflow run диспетчер должен брать максимум одну задачу.
