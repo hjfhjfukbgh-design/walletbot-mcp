@@ -636,3 +636,14 @@
 - **Тесты:** 7 unit cases; CI run `44407090659` success — npm ci, JS syntax checks, typecheck, npm test.
 - **Issue #72:** закрыта как completed с `agent-done` после подтверждённого merge и CI.
 - **Ограничения:** функция не подключена к автономному исполнению; только paper signal primitive. Walt/MCP/network/real orders/production deploy не использовались.
+
+
+### 2026-11-19 — premium dark theme accepted and merged
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:59:00+05:00
+- **PR #337:** merged squash commit `e6bee1cac71501b873ebd66cafe6812d4923e195`.
+- **Final head SHA:** `a89d9b9354fff3be9d62dce719a6370941f9d3fd`.
+- **CI:** deploy workflow test run `44407250661` success — npm ci, JS syntax checks, typecheck, npm test; screenshot run `44407250126` success — Playwright capture and artifact upload `14475745907`.
+- **Visual review:** inspected 390×844 screenshots for wallet, AI home/chat/keyboard, asset detail, trading ticket and leverage modal. Initial screenshot issues (black balance text, white cards/nav, white AI composer, white ticket settings) were corrected in later commits and re-captured. Current screenshot artifact shows consistent dark surfaces and keyboard composer/nav behavior.
+- **Issue #275:** closed as completed, labels `team-b`, `agent-done`; physical iPhone/Telegram WebView testing remains explicitly unverified.
+- **No production deploy triggered.**
