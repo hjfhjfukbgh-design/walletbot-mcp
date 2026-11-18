@@ -1,6 +1,8 @@
 import type { Env } from "./env";
 import type { ContractInfo, GridConfig, GridPosition } from "./strategy/grid";
 
+export type ProductMode = "demo" | "live" | "ai";
+
 export interface BotState {
   mode: "paper" | "live";
   running: boolean;
@@ -19,6 +21,19 @@ export interface BotState {
   equity?: Array<[number, number]>;
 }
 
+// Declaration merging keeps the legacy BotState contract source-compatible.
+export interface BotState {
+  productMode?: ProductMode;
+}
+
+export function normalizeProductMode(value: unknown): ProductMode {
+  return value === "demo" || value === "live" || value === "ai" ? value : "demo";
+}
+
+export function withProductMode(state: BotState, value: unknown): BotState {
+  return { ...state, productMode: normalizeProductMode(value) };
+}
+
 const K_STATE = "bot:state";
 const K_TOOLS = "walt:tools";
 const K_CONTRACTS = "walt:contracts:v2"; // v2: inclui volume e funding
@@ -26,6 +41,7 @@ const K_CONTRACTS = "walt:contracts:v2"; // v2: inclui volume e funding
 export function defaultState(): BotState {
   return {
     mode: "paper",
+    productMode: "demo",
     running: false,
     paper: { cash: 1000, startCash: 1000 },
     stats: { trades: 0, wins: 0, losses: 0, realizedPnl: 0 },
@@ -35,6 +51,7 @@ export function defaultState(): BotState {
 export async function loadState(env: Env): Promise<BotState> {
   const saved = (await env.STATE.get<BotState>(K_STATE, "json")) ?? {};
   const s = { ...defaultState(), ...saved };
+  s.productMode = normalizeProductMode(s.productMode);
   s.stats = { ...defaultState().stats, ...s.stats };
   // estado da versão anterior (grid multi-nível) não é compatível
   if (s.grid && !(s.grid.cfg as Partial<GridConfig>).contract) s.grid = undefined;
