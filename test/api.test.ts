@@ -98,6 +98,27 @@ describe("API da Mini App", () => {
     expect((await call(e, "state", "chave-teste", {}, "")).status).toBe(401);
   });
 
+
+
+  it("returns a safe disconnected LIVE status without contacting Walt", async () => {
+    const e = env();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await call(e, "live/status", "chave-teste");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      ok: true,
+      connected: false,
+      readiness: { available: false, ok: false },
+      contracts: { available: false, count: null },
+      balance: { available: false, usd: null },
+      issues: [expect.objectContaining({ code: "not_connected" })],
+    });
+    expect(JSON.stringify(body)).not.toContain("TEST_TOKEN");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("requires explicit LIVE execute confirmation before any Walt call", async () => {
     const e = env();
     const fetchMock = vi.fn();
