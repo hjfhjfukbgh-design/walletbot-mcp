@@ -35,6 +35,7 @@ try{
     const pageErrors=[];
     page.on("pageerror",error=>pageErrors.push(error.message));
     await page.route("https://telegram.org/js/telegram-web-app.js",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
+    await page.route("**/kripto-guru-api.js*",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.addInitScript(()=>{
       try{
         if(location.origin!=="null"){
@@ -44,6 +45,7 @@ try{
       }catch{}
       const mockPositions=[];
       const mockHistory=[];
+      const companionHistory=[];
       const markets=[
         {symbol:"BTC",name:"Bitcoin",priceUsd:91240.5,change24hPct:2.42,volume24hUsd:8900000000,openInterestUsd:198750000,fundingRateHourlyPct:0.001,maxLeverage:50,takerFeePct:0.035,tradeable:true},
         {symbol:"ETH",name:"Ethereum",priceUsd:3120.2,change24hPct:-0.83,volume24hUsd:5200000000,openInterestUsd:92000000,fundingRateHourlyPct:-0.002,maxLeverage:30,takerFeePct:0.035,tradeable:true},
@@ -61,7 +63,8 @@ try{
           async close(id){const i=mockPositions.findIndex(x=>x.id===id);if(i>=0){const p=mockPositions.splice(i,1)[0];mockHistory.unshift({event:"Закрытие",symbol:p.symbol,side:p.side,netPnlUsd:.37,timestamp:"Сейчас"});}return {closed:true};}
         },
         history:{async list(){return {events:mockHistory.map(x=>({...x}))};}},
-        capabilities:{async get(){return {ipo:{available:false,reason:"Нет источника IPO"},stocks:{available:false},funds:{available:false},bonuses:{available:false},live:{available:false}};}}
+        capabilities:{async get(){return {ipo:{available:false,reason:"Нет источника IPO"},stocks:{available:false},funds:{available:false},bonuses:{available:false},live:{available:false}};}},
+        companion:{async list(){return companionHistory.map(x=>({...x}));},async get(id){return {id,messages:[{role:"user",content:"Привет"},{role:"assistant",content:"Здравствуйте!"}]};},async send(message,id){const conversationId=id||"preview-conversation-1";companionHistory.unshift({id:conversationId,title:message.slice(0,32),messageCount:2});return {conversationId,answer:"Тестовый ответ ИИ",conversation:{id:conversationId,messages:[{role:"user",content:message},{role:"assistant",content:"Тестовый ответ ИИ"}]}};},async remove(id){const index=companionHistory.findIndex(x=>x.id===id);if(index>=0)companionHistory.splice(index,1);return {ok:true};}},
       };
     });
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
@@ -74,7 +77,11 @@ try{
     }
     await page.waitForFunction(()=>document.querySelectorAll("#kg-favorites .kg-favorite").length===3);
     if(await page.locator("#kg-favorites .kg-favorite").count()!==3)throw new Error("wallet should show three favorite markets");
-    if(await page.locator("#kg-nav button").count()!==4)throw new Error("bottom navigation should have four tabs");
+    if(await page.locator("#kg-nav button").count()!==3)throw new Error("bottom navigation should have three tabs");
+    const navOrder=await page.locator("#kg-nav button").evaluateAll(nodes=>nodes.map(node=>node.dataset.screen).join(","));
+    if(navOrder!=="wallet,trading,companion")throw new Error("bottom navigation should contain wallet, trading, and AI Companion in that order");
+    const navLabels=await page.locator("#kg-nav button small").allTextContents();
+    if(navLabels.includes("Доход")||navLabels.includes("Бонусы"))throw new Error("Income and Bonuses must not appear in bottom navigation");
     if(!(await page.locator(".kg-wallet-hero").isVisible()))throw new Error("wallet balance hero must be visible on the first screen");
     if(!(await page.locator("#kg-wallet-quick-actions").isVisible()))throw new Error("wallet quick actions must be visible on the first screen");
     if(await page.locator("#kg-wallet-quick-actions button").count()!==4)throw new Error("wallet should show four reference quick actions");
@@ -163,17 +170,84 @@ try{
     await page.screenshot({path:`clean-confirm-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-trade-confirm").click();
     await page.waitForSelector("#kg-asset-screen:not([hidden])");
-    await page.locator("#kg-asset-back").click();
-    await page.locator('#kg-nav button[data-screen="income"]').click();
+    await page.locator("#kg-asset-history-all").click();
     await page.waitForSelector("#kg-income-screen.is-active");
     await page.waitForSelector(".kg-position");
     const missingPnl=page.locator(".kg-position-pnl").first();
     if((await missingPnl.innerText()).trim()!=="—")throw new Error("missing position PnL must render as an em dash");
     if(!(await missingPnl.evaluate(el=>el.classList.contains("kg-muted"))))throw new Error("missing position PnL must use neutral styling");
-    await page.screenshot({path:`clean-income-${device.width}x${device.height}.png`,fullPage:false});
-    await page.locator('#kg-nav button[data-screen="bonuses"]').click();
-    await page.waitForSelector("#kg-bonuses-screen.is-active");
-    await page.screenshot({path:`clean-bonuses-${device.width}x${device.height}.png`,fullPage:false});
+    await page.screenshot({path:`clean-income-history-${device.width}x${device.height}.png`,fullPage:false});
+    await page.locator('#kg-nav button[data-screen="companion"]').click();
+    await page.waitForSelector("#kg-companion-screen.is-active");
+    await page.waitForSelector("#kg-companion-screen .kg-ai-welcome");
+    await page.waitForFunction(()=>getComputedStyle(document.querySelector("#kg-nav")).display==="none");
+    if(!(await page.locator("#kg-ai-input").isVisible()))throw new Error("AI Companion composer must be visible on the home screen");
+    if(!(await page.locator("#kg-companion-screen .kg-ai-welcome").isVisible()))throw new Error("AI Companion welcome must be visible on the home screen");
+    await page.screenshot({path:`clean-companion-home-${device.width}x${device.height}.png`,fullPage:false});
+
+    // Playwright cannot open the native iOS keyboard. Emulate the reduced app viewport
+    // and draw a test-only iOS-style keyboard so the screenshot represents both states.
+    await page.locator("#kg-ai-input").focus();
+    await page.waitForFunction(()=>document.querySelector("#kg-companion-screen").classList.contains("kg-composer-expanded"));
+    await page.evaluate(()=>{
+      document.querySelector("#kg-companion-screen").classList.add("kg-keyboard-open");
+      const style=document.createElement("style");
+      style.id="kg-test-keyboard-style";
+      style.textContent=`
+        #kg-companion-screen.kg-keyboard-open{height:calc(100dvh - 280px)!important;min-height:calc(100dvh - 280px)!important}
+        #kg-test-keyboard{position:fixed;z-index:1000;right:0;bottom:0;left:0;height:280px;box-sizing:border-box;padding:8px 5px 20px;background:#d5d8df;border-top:1px solid #c5c9d1;color:#252a33;font:13px -apple-system,BlinkMacSystemFont,sans-serif}
+        #kg-test-keyboard .kg-test-kb-toolbar{display:flex;justify-content:space-between;align-items:center;height:26px;padding:0 8px;color:#606775;font-size:11px}
+        #kg-test-keyboard .kg-test-kb-row{display:flex;justify-content:center;gap:4px;margin:7px 0}
+        #kg-test-keyboard .kg-test-kb-key{display:grid;place-items:center;flex:1;min-width:0;height:39px;border-radius:5px;background:#fff;box-shadow:0 1px 0 #aeb3bc;font-size:16px}
+        #kg-test-keyboard .kg-test-kb-key.kg-test-kb-wide{flex:1.45;background:#b9bec8;font-size:13px}
+        #kg-test-keyboard .kg-test-kb-key.kg-test-kb-space{flex:5}
+      `;
+      document.head.appendChild(style);
+      const keyboard=document.createElement("div");
+      keyboard.id="kg-test-keyboard";
+      keyboard.setAttribute("aria-hidden","true");
+      const row=(keys,wide=[])=>'<div class="kg-test-kb-row">'+keys.map(key=>'<span class="kg-test-kb-key '+(wide.includes(key)?"kg-test-kb-wide":"")+'">'+key+'</span>').join("")+'</div>';
+      keyboard.innerHTML='<div class="kg-test-kb-toolbar"><span>◉</span><span>Русский</span><span>🎙</span></div>'+
+        row(["Й","Ц","У","К","Е","Н","Г","Ш","Щ","З","Х"])+
+        row(["Ф","Ы","В","А","П","Р","О","Л","Д","Ж","Э"])+
+        row(["⇧","Я","Ч","С","М","И","Т","Ь","Б","Ю","⌫"],["⇧","⌫"])+
+        row(["123","😊","Пробел","↵"],["123","😊","↵"]);
+      keyboard.querySelector(".kg-test-kb-row:last-child .kg-test-kb-key:nth-child(3)").classList.add("kg-test-kb-space");
+      document.body.appendChild(keyboard);
+    });
+    if(await page.locator(".kg-gemini-tools").evaluate(el=>getComputedStyle(el).display)!=="none")throw new Error("Gemini tool shortcuts must hide while the keyboard is open");
+    if(await page.locator("#kg-nav").evaluate(el=>getComputedStyle(el).display)!=="none")throw new Error("bottom navigation must stay hidden while the keyboard is open");
+    const composerAboveKeyboard=await page.evaluate(()=>{
+      const composer=document.querySelector("#kg-ai-form").getBoundingClientRect();
+      const keyboard=document.querySelector("#kg-test-keyboard").getBoundingClientRect();
+      return composer.bottom<=keyboard.top+1;
+    });
+    if(!composerAboveKeyboard)throw new Error("AI composer must remain above the on-screen keyboard");
+    await page.screenshot({path:`clean-companion-keyboard-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{document.querySelector("#kg-test-keyboard")?.remove();document.querySelector("#kg-test-keyboard-style")?.remove();document.querySelector("#kg-companion-screen").classList.remove("kg-keyboard-open");document.querySelector("#kg-ai-input").blur();});
+    await page.locator("#kg-ai-input").fill("Проверь связь");
+    await page.locator("#kg-ai-send").click();
+    try{
+      await page.waitForFunction(()=>document.querySelector("#kg-ai-messages")?.innerText.includes("Тестовый ответ ИИ"),null,{timeout:6000});
+    }catch(error){
+      const debug=await page.evaluate(()=>({
+        apiReady:!!window.KriptoGuruAPI,
+        companionMethods:Object.keys(window.KriptoGuruAPI?.companion||{}),
+        input:document.querySelector("#kg-ai-input")?.value,
+        sendDisabled:document.querySelector("#kg-ai-send")?.disabled,
+        messages:document.querySelector("#kg-ai-messages")?.innerText,
+        toast:document.querySelector("#kg-toast")?.innerText,
+        history:document.querySelector("#kg-ai-history")?.innerText
+      }));
+      throw new Error("AI Companion send failed: "+JSON.stringify(debug)+" pageErrors="+pageErrors.join("; ")+" "+error.message);
+    }
+    if(!(await page.locator("#kg-ai-messages").innerText()).includes("Проверь связь"))throw new Error("AI Companion should render the sent user message");
+    await page.screenshot({path:`clean-companion-${device.width}x${device.height}.png`,fullPage:false});
+    await page.locator("#kg-ai-menu-open").click();
+    await page.waitForSelector("#kg-ai-menu.is-open");
+    await page.locator("#kg-ai-history [data-ai-delete]").first().click();
+    await page.waitForFunction(()=>document.querySelectorAll("#kg-ai-history [data-ai-conversation]").length===0);
+    if(!(await page.locator("#kg-ai-messages").innerText()).includes("Привет! Я Kripto Guru AI."))throw new Error("deleting the active AI conversation should reset the chat view");
     if(pageErrors.length)throw new Error("browser errors: "+pageErrors.join("; "));
     await page.close();
   }

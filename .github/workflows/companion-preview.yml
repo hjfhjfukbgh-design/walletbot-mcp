@@ -1,0 +1,133 @@
+name: AI Companion isolated Gemini preview
+
+on:
+  push:
+    branches: [feature/gemini-companion-backend]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: companion-preview
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate preview secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID TELEGRAM_BOT_TOKEN GEMINI_API_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              exit 1
+            fi
+          done
+
+      - name: Probe Gemini API and select an available low-cost model
+        id: gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
+          for (const model of models) {
+            let response;
+            try {
+              response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
+                body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "Reply with exactly: OK" }] }], generationConfig: { maxOutputTokens: 8 } }),
+                signal: AbortSignal.timeout(20000)
+              });
+            } catch (error) {
+              console.error(`Gemini direct probe network failure for ${model}:`, error instanceof Error ? error.name : "unknown");
+              continue;
+            }
+            const payload = await response.json().catch(() => ({}));
+            console.log(`Gemini direct probe ${model}: HTTP ${response.status}`);
+            if (!response.ok) {
+              console.error("Gemini API error:", payload.error?.status ?? "unknown", payload.error?.message ?? "No provider message");
+              continue;
+            }
+            const answer = payload.candidates?.[0]?.content?.parts?.map(part => part.text ?? "").join("") ?? "";
+            if (!answer.trim()) {
+              console.error(`Gemini returned no text candidate for ${model}.`);
+              continue;
+            }
+            console.log(`Gemini direct probe: PASS using ${model}`);
+            console.log(`Selected Gemini model: ${model}`);
+            await import("node:fs/promises").then(fs => fs.appendFile(process.env.GITHUB_OUTPUT, "model=" + model + String.fromCharCode(10)));
+            process.exit(0);
+          }
+          console.error("No configured Gemini model responded successfully.");
+          process.exit(1);
+          NODE
+
+      - name: Provision a dedicated preview KV namespace
+        id: kv
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          API_BASE="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces"
+          KV_LIST="$(curl --fail --silent --show-error -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API_BASE")"
+          KV_ID="$(printf '%s' "$KV_LIST" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const body=JSON.parse(s);if(!body.success)process.exit(2);const found=body.result.find(x=>x.title==="walletbot-mcp-companion-preview-state");if(found)process.stdout.write(found.id);});')"
+          if [ -z "$KV_ID" ]; then
+            CREATED="$(curl --fail --silent --show-error -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data '{"title":"walletbot-mcp-companion-preview-state"}' "$API_BASE")"
+            KV_ID="$(printf '%s' "$CREATED" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const body=JSON.parse(s);if(!body.success)process.exit(2);process.stdout.write(body.result.id);});')"
+          fi
+          if [ -z "$KV_ID" ]; then
+            echo "::error::Could not resolve the isolated preview KV namespace ID."
+            exit 1
+          fi
+          echo "id=$KV_ID" >> "$GITHUB_OUTPUT"
+          sed -e "s/__PREVIEW_KV_ID__/$KV_ID/" -e "s/__PREVIEW_MODEL__/${{ steps.gemini.outputs.model }}/" wrangler.companion-preview.template.toml > wrangler.companion-preview.toml
+
+      - name: Deploy isolated preview Worker
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -o pipefail
+          npx wrangler deploy --config wrangler.companion-preview.toml 2>&1 | tee deploy.log
+          PREVIEW_URL="$(grep -Eo 'https://[a-zA-Z0-9.-]+\.workers\.dev' deploy.log | head -n 1)"
+          if [ -z "$PREVIEW_URL" ]; then
+            echo "::error::Could not determine the preview Worker URL from Wrangler output."
+            exit 1
+          fi
+          echo "url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Configure preview-only secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          printf '%s' "$GEMINI_API_KEY" | npx wrangler secret put GEMINI_API_KEY --config wrangler.companion-preview.toml
+          printf '%s' "$TELEGRAM_BOT_TOKEN" | npx wrangler secret put TELEGRAM_BOT_TOKEN --config wrangler.companion-preview.toml
+
+      - name: Verify live Gemini response and tenant isolation
+        env:
+          COMPANION_PREVIEW_URL: ${{ steps.deploy.outputs.url }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: node test/companion-preview-smoke.mjs

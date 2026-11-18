@@ -9,7 +9,7 @@
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
-    autoclose:false, busy:false
+    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false
   };
   const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
   const money = (v,d=2) => Number.isFinite(Number(v)) ? "$"+fmt(v,d) : "—";
@@ -331,6 +331,94 @@
     catch(error){notify(normalizeError(error).message);}
     finally{state.busy=false;}
   }
+  function renderCompanionMessages(){
+    const root=$("#kg-ai-messages");
+    if(!state.companionMessages.length){
+      root.innerHTML='<div class="kg-ai-welcome"><div class="kg-gemini-spark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 2.5C27.8 15.1 32.9 20.2 45.5 24 32.9 27.8 27.8 32.9 24 45.5 20.2 32.9 15.1 27.8 2.5 24 15.1 20.2 20.2 15.1 24 2.5Z"/></svg></div><b>Привет! Я Kripto Guru AI.</b><p>Что будем разбирать сегодня?</p></div>';
+      return;
+    }
+    root.innerHTML=state.companionMessages.map(message=>`<div class="kg-ai-message ${message.role==="user"?"is-user":"is-assistant"}"><div>${esc(message.content).replace(/\n/g,"<br>")}</div></div>`).join("");
+    root.scrollTop=root.scrollHeight;
+  }
+  function renderCompanionHistory(){
+    const root=$("#kg-ai-history");
+    root.innerHTML=state.companionConversations.length?state.companionConversations.map(item=>`<div class="kg-ai-history-entry"><button type="button" class="kg-ai-history-item ${item.id===state.companionId?"is-selected":""}" data-ai-conversation="${esc(item.id)}"><span>${esc(item.title||"Новый диалог")}</span><small>${Number(item.messageCount)||0}</small></button><button type="button" class="kg-ai-history-delete" data-ai-delete="${esc(item.id)}" aria-label="Удалить диалог: ${esc(item.title||"Новый диалог")}" title="Удалить диалог">×</button></div>`).join(""):'<div class="kg-ai-history-empty">Здесь появятся ваши диалоги. Начните новый чат, чтобы сохранить историю.</div>';
+  }
+  async function deleteCompanionConversation(id){
+    if(!id||state.companionBusy)return;
+    state.companionBusy=true;
+    try{
+      const removedActive=state.companionId===id;
+      await invoke("companion.remove",id);
+      if(removedActive){state.companionId=null;state.companionMessages=[];renderCompanionMessages();}
+      await loadCompanionConversations();
+      // Release the delete lock before loading the next active conversation.
+      if(removedActive&&state.companionConversations.length){
+        state.companionBusy=false;
+        await openCompanionConversation(state.companionConversations[0].id);
+      }
+      notify("Диалог удалён.");
+    }catch(error){notify(normalizeError(error).message);}
+    finally{state.companionBusy=false;}
+  }
+  async function loadCompanionConversations(){
+    try{
+      state.companionConversations=await invoke("companion.list");
+      renderCompanionHistory();
+    }catch(error){notify(normalizeError(error).message);}
+  }
+  async function openCompanionConversation(id){
+    if(state.companionBusy)return;
+    try{
+      const conversation=await invoke("companion.get",id);
+      state.companionId=conversation.id;
+      state.companionMessages=conversation.messages||[];
+      renderCompanionMessages();renderCompanionHistory();
+    }catch(error){notify(normalizeError(error).message);}
+  }
+  function setCompanionMenu(open){
+    const menu=$("#kg-ai-menu"),backdrop=$("#kg-ai-menu-backdrop"),trigger=$("#kg-ai-menu-open");
+    menu.classList.toggle("is-open",open);
+    menu.setAttribute("aria-hidden",String(!open));
+    menu.inert=!open;
+    backdrop.hidden=!open;
+    trigger.setAttribute("aria-expanded",String(open));
+  }
+  function renderCompanionLimits(){
+    const root=$("#kg-ai-limits-content"),limits=state.companionLimits;
+    if(!limits){root.innerHTML='<span>Не удалось загрузить лимиты.</span>';return;}
+    const rows=[
+      ["Сообщений","до "+limits.messagesPerWindow+" за "+Math.round(limits.rateWindowSeconds/60)+" мин."],
+      ["Длина сообщения",Number(limits.maxMessageChars).toLocaleString("ru-RU")+" символов"],
+      ["История диалога","до "+limits.maxStoredMessages+" сообщений"],
+      ["Контекст ответа","до "+limits.maxContextMessages+" сообщений"],
+      ["Ответ ИИ","до "+limits.maxOutputTokens+" токенов"],
+      ["Список диалогов","до "+limits.maxConversations]
+    ];
+    root.innerHTML=rows.map(([label,value])=>'<div class="kg-ai-limit-row"><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join("");
+  }
+  async function loadCompanionLimits(){
+    try{state.companionLimits=await invoke("companion.limits");renderCompanionLimits();}
+    catch{state.companionLimits=null;renderCompanionLimits();}
+  }
+  function newCompanionConversation(){
+    state.companionId=null;state.companionMessages=[];
+    renderCompanionMessages();renderCompanionHistory();setCompanionMenu(false);
+    $("#kg-ai-input").focus();
+  }
+  async function sendCompanionMessage(event){
+    event?.preventDefault();
+    const input=$("#kg-ai-input"), message=input.value.trim();
+    if(!message||state.companionBusy)return;
+    state.companionBusy=true;$("#kg-ai-send").disabled=true;input.disabled=true;
+    try{
+      const result=await invoke("companion.send",message,state.companionId);
+      state.companionId=result.conversationId;
+      state.companionMessages=result.conversation?.messages||[...state.companionMessages,{role:"user",content:message},{role:"assistant",content:result.answer}];
+      input.value="";renderCompanionMessages();await loadCompanionConversations();
+    }catch(error){notify(normalizeError(error).message);}
+    finally{state.companionBusy=false;$("#kg-ai-send").disabled=false;input.disabled=false;input.focus();}
+  }
   function bind(){
     $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
       setScreen(button.dataset.screen);
@@ -338,7 +426,38 @@
       if(state.screen==="trading")await (state.category==="all"?setSearchFilter("all"):loadCategory(state.category));
       if(state.screen==="income"){await loadWallet();await loadHistory();}
       if(state.screen==="bonuses")await loadCapabilities();
+      if(state.screen==="companion"){
+         await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);
+         if(!state.companionInitialized){
+           state.companionInitialized=true;
+           if(state.companionConversations.length)await openCompanionConversation(state.companionConversations[0].id);
+         }
+       }
     }));
+    $("#kg-ai-new").addEventListener("click",newCompanionConversation);
+    $("#kg-ai-new-menu").addEventListener("click",newCompanionConversation);
+    $("#kg-ai-menu-open").addEventListener("click",()=>setCompanionMenu(true));
+    $("#kg-ai-menu-close").addEventListener("click",()=>setCompanionMenu(false));
+    $("#kg-ai-menu-backdrop").addEventListener("click",()=>setCompanionMenu(false));
+    $("#kg-ai-form").addEventListener("submit",sendCompanionMessage);
+    const aiScreen=$("#kg-companion-screen"), aiInput=$("#kg-ai-input");
+    const syncComposer=()=>{const focused=document.activeElement===aiInput;aiScreen.classList.toggle("kg-composer-expanded",focused||Boolean(aiInput.value));};
+    aiInput.addEventListener("focus",()=>{syncComposer();});
+    aiInput.addEventListener("blur",()=>{window.setTimeout(syncComposer,120);});
+    aiInput.addEventListener("input",()=>{aiInput.style.height="auto";aiInput.style.height=Math.min(aiInput.scrollHeight,130)+"px";syncComposer();});
+    if(window.visualViewport){const syncViewport=()=>aiScreen.classList.toggle("kg-keyboard-open",document.activeElement===aiInput&&window.visualViewport.height<window.innerHeight-120);window.visualViewport.addEventListener("resize",syncViewport);window.visualViewport.addEventListener("scroll",syncViewport);aiInput.addEventListener("focus",syncViewport);aiInput.addEventListener("blur",()=>aiScreen.classList.remove("kg-keyboard-open"));}
+    $("#kg-ai-attach").addEventListener("click",()=>notify("Добавление файлов появится в следующем обновлении."));
+    $("#kg-ai-voice").addEventListener("click",()=>notify("Голосовой ввод пока не подключён."));
+    $$(".kg-gemini-tools [data-ai-tool]").forEach(button=>button.addEventListener("click",()=>notify("Инструмент «"+button.textContent.trim()+"» пока недоступен.")));
+    $("#kg-ai-input").addEventListener("keydown",event=>{
+      if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();$("#kg-ai-form").requestSubmit();}
+    });
+    $("#kg-ai-history").addEventListener("click",event=>{
+      const remove=event.target.closest("[data-ai-delete]");
+      if(remove?.dataset.aiDelete){deleteCompanionConversation(remove.dataset.aiDelete);return;}
+      const item=event.target.closest("[data-ai-conversation]");
+      if(item?.dataset.aiConversation){setCompanionMenu(false);openCompanionConversation(item.dataset.aiConversation);}
+    });
     $$("[data-open-trading]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("crypto");}));
     $$("[data-open-futures]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("futures");}));
     $$(".kg-category").forEach(b=>b.addEventListener("click",()=>loadCategory(b.dataset.category)));
@@ -404,7 +523,7 @@
       showModal("#kg-confirm-screen");
     });
     $("#kg-trade-confirm").addEventListener("click",confirmTrade);
-    document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("#kg-confirm-screen").hidden||!$("#kg-leverage-screen").hidden)closeModals();else if(!$("#kg-ticket-screen").hidden)closeTicket();else if(!$("#kg-asset-screen").hidden)closeAsset();}});
+    document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("#kg-confirm-screen").hidden||!$("#kg-leverage-screen").hidden)closeModals();else if(!$("#kg-ticket-screen").hidden)closeTicket();else if(!$("#kg-asset-screen").hidden)closeAsset();else if($("#kg-ai-menu").classList.contains("is-open"))setCompanionMenu(false);}});
   }
   let started=false;
   async function start(){

@@ -7,7 +7,7 @@
   <meta name="color-scheme" content="light">
   <title>Kripto Guru</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="/kripto-guru-ui.css?v=20261117-wallet-home-2">
+  <link rel="stylesheet" href="/kripto-guru-ui.css?v=20261118-gemini-home-6">
 </head>
 <body>
   <main id="kg-main">
@@ -68,6 +68,44 @@
     <section id="kg-income-screen" class="kg-screen" aria-label="Доход">
       <div class="kg-page-title"><h1>Доход</h1><p>Открытые позиции и история демо-сделок.</p></div><div class="kg-section-head"><h2>Открытые позиции</h2><span id="kg-position-count" class="kg-muted">0</span></div><div id="kg-positions" class="kg-position-list"><div class="kg-empty-card">Загрузка позиций…</div></div><div class="kg-section-head"><h2>История транзакций</h2></div><div id="kg-history" class="kg-list"><div class="kg-empty-card">Загрузка истории…</div></div>
     </section>
+    <section id="kg-companion-screen" class="kg-screen kg-gemini-home" aria-label="ИИ-собеседник">
+      <header class="kg-gemini-topbar">
+        <button id="kg-ai-menu-open" class="kg-gemini-icon-button" type="button" aria-label="Открыть меню ИИ" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <button class="kg-gemini-model" type="button" aria-label="Модель Kripto Guru AI">Kripto Guru AI <span>⌄</span></button>
+        <button id="kg-ai-new" class="kg-gemini-icon-button kg-gemini-new" type="button" aria-label="Новый чат">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </header>
+      <div id="kg-ai-menu-backdrop" class="kg-ai-menu-backdrop" hidden></div>
+      <aside id="kg-ai-menu" class="kg-ai-menu" aria-label="Меню ИИ" aria-hidden="true" inert>
+        <div class="kg-ai-menu-head"><div><b>Ваши диалоги</b><small>История и настройки ИИ</small></div><button id="kg-ai-menu-close" type="button" aria-label="Закрыть меню">×</button></div>
+        <button id="kg-ai-new-menu" class="kg-ai-new-chat" type="button"><span>＋</span> Новый чат</button>
+        <div id="kg-ai-history" class="kg-ai-history" aria-label="История диалогов"></div>
+        <div class="kg-ai-limits"><b>Лимиты ИИ</b><div id="kg-ai-limits-content"><span>Загрузка лимитов…</span></div></div>
+      </aside>
+      <div id="kg-ai-messages" class="kg-ai-messages" aria-live="polite">
+        <div class="kg-ai-welcome">
+          <div class="kg-gemini-spark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 2.5C27.8 15.1 32.9 20.2 45.5 24 32.9 27.8 27.8 32.9 24 45.5 20.2 32.9 15.1 27.8 2.5 24 15.1 20.2 20.2 15.1 24 2.5Z"/></svg></div>
+          <b>Привет! Я Kripto Guru AI.</b>
+          <p>Что будем разбирать сегодня?</p>
+        </div>
+      </div>
+      <div class="kg-gemini-tools" aria-label="Инструменты">
+        <button type="button" data-ai-tool="image"><span>✧</span> Изображения</button>
+        <button type="button" data-ai-tool="video"><span>▶</span> Видео</button>
+        <button type="button" data-ai-tool="research"><span>⌕</span> Исследование</button>
+        <button type="button" data-ai-tool="learn"><span>▤</span> Обучение</button>
+      </div>
+      <form id="kg-ai-form" class="kg-ai-form">
+        <button id="kg-ai-attach" class="kg-gemini-composer-icon" type="button" aria-label="Добавить вложение"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        <textarea id="kg-ai-input" rows="1" maxlength="4000" placeholder="Спросите что-нибудь…" aria-label="Сообщение ИИ"></textarea>
+        <button id="kg-ai-voice" class="kg-gemini-composer-icon kg-gemini-voice" type="button" aria-label="Голосовой ввод"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3m-4 0h8"/></svg></button>
+        <button id="kg-ai-send" type="submit" aria-label="Отправить сообщение"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg></button>
+      </form>
+      <p class="kg-ai-disclaimer">Kripto Guru AI может ошибаться. Проверяйте важную информацию.</p>
+    </section>
     <section id="kg-bonuses-screen" class="kg-screen" aria-label="Бонусы">
       <div class="kg-page-title"><h1>Бонусы</h1><p>Привилегии и специальные предложения Kripto Guru.</p></div><div class="kg-bonus-card"><span class="kg-bonus-icon">✦</span><div><small>ПРОГРАММА ГОТОВИТСЯ</small><b>Бонусы Kripto Guru</b><p id="kg-bonus-reason">Бонусная программа пока недоступна. Никакие начисления не имитируются.</p></div></div><div class="kg-settings-note">Режим: <b>ДЕМО</b>. LIVE заблокирован.</div>
     </section>
@@ -93,10 +131,10 @@
   <section id="kg-leverage-screen" class="kg-modal" hidden aria-label="Выбор плеча"><div class="kg-modal-card"><div class="kg-modal-head"><b>Плечо</b><button data-close-modal type="button">×</button></div><div class="kg-leverage-value"><button id="kg-lev-min" type="button">Мин</button><strong id="kg-lev-value">1×</strong><button id="kg-lev-max" type="button">Макс</button></div><input id="kg-lev-slider" type="range" min="1" max="50" value="1"><p id="kg-lev-warning">Чем выше плечо, тем ближе ликвидация.</p><button id="kg-lev-apply" class="kg-primary" type="button">Применить</button></div></section>
   <section id="kg-confirm-screen" class="kg-modal" hidden aria-label="Подтверждение сделки"><div class="kg-modal-card"><div class="kg-modal-head"><b>Проверка сделки</b><button data-close-modal type="button">×</button></div><div id="kg-confirm-details"></div><button id="kg-trade-confirm" class="kg-primary" type="button">Подтвердить демо-сделку</button></div></section>
   <nav id="kg-nav" class="kg-nav" aria-label="Основная навигация">
-    <button class="is-active" data-screen="wallet" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6" width="17" height="13" rx="2.5"/><path d="M3.5 9h17M16 14h2"/></svg><small>Кошелёк</small></button><button data-screen="trading" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18.5 9 13l3.5 3.5L20 8"/><path d="M14.5 8H20v5.5"/></svg><small>Торговля</small></button><button data-screen="income" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v8.5h8.5A8.5 8.5 0 1 1 12 3.5Z"/><path d="M15 3.8a8.5 8.5 0 0 1 5.2 5.2H15Z"/></svg><small>Доход</small></button><button data-screen="bonuses" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10h17v10h-17zM2.5 7h19v3h-19zM12 7v13M12 7H7.8a2.2 2.2 0 1 1 2.2-2.2C10 6 12 7 12 7Zm0 0h4.2a2.2 2.2 0 1 0-2.2-2.2C14 6 12 7 12 7Z"/></svg><small>Бонусы</small></button>
+    <button class="is-active" data-screen="wallet" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6" width="17" height="13" rx="2.5"/><path d="M3.5 9h17M16 14h2"/></svg><small>Кошелёк</small></button><button data-screen="trading" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18.5 9 13l3.5 3.5L20 8"/><path d="M14.5 8H20v5.5"/></svg><small>Торговля</small></button><button data-screen="companion" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v11H9l-5 3v-14Z"/><path d="M8 10h8M8 13.5h5"/></svg><small>ИИ</small></button>
   </nav>
   <div id="kg-toast" class="kg-toast" role="status" aria-live="polite"></div>
-  <script src="/kripto-guru-api.js?v=20261117-demo-api-4"></script>
-  <script src="/kripto-guru-ui.js?v=20261117-shell-8"></script>
+  <script src="/kripto-guru-api.js?v=20261118-ai-companion-3"></script>
+  <script src="/kripto-guru-ui.js?v=20261118-gemini-home-3"></script>
 </body>
 </html>

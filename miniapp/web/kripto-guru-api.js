@@ -267,6 +267,32 @@
     },
   };
 
+  const companion = {
+    async list() {
+      const data = await request("/api/companion/conversations");
+      return data.conversations || [];
+    },
+    async get(conversationId) {
+      const data = await request("/api/companion/conversations/" + encodeURIComponent(String(conversationId)));
+      return data.conversation;
+    },
+    async send(message, conversationId) {
+      const data = await request("/api/companion/chat", {
+        method: "POST",
+        body: { message: String(message), ...(conversationId ? { conversationId: String(conversationId) } : {}) },
+        timeoutMs: 60_000,
+      });
+      return data;
+    },
+    async remove(conversationId) {
+      return request("/api/companion/conversations/" + encodeURIComponent(String(conversationId)), { method: "DELETE" });
+    },
+    async limits() {
+      const data = await request("/api/companion/limits");
+      return data.limits || {};
+    },
+  };
+
   const capabilities = {
     async get() {
       return {
@@ -287,6 +313,7 @@
     market,
     trade,
     history,
+    companion,
     capabilities,
     errors: Object.freeze({ ApiError: KriptoGuruApiError }),
   });

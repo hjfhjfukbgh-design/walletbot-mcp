@@ -10,12 +10,17 @@ permissions:
 jobs:
   screenshots:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Install Playwright
+        timeout-minutes: 8
         run: |
-          npm install --no-save --package-lock=false playwright@1.56.1
-          npx playwright install --with-deps chromium
+          npm install --no-save --package-lock=false --omit=dev --no-audit --no-fund playwright@1.56.1
+          npx playwright install chromium
       - name: Check clean UI JavaScript syntax
         run: |
           node --check miniapp/web/kripto-guru-ui.js
@@ -36,3 +41,4 @@ jobs:
             clean-confirm-*.png
             clean-income-*.png
             clean-bonuses-*.png
+            clean-companion-*.png

@@ -1,0 +1,17 @@
+name = "walletbot-mcp-companion-preview"
+main = "src/companion-preview.ts"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+[assets]
+directory = "./miniapp/web"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+[[kv_namespaces]]
+binding = "STATE"
+id = "__PREVIEW_KV_ID__"
+
+[vars]
+GEMINI_MODEL = "__PREVIEW_MODEL__"

@@ -1,5 +1,6 @@
 import { tick } from "./bot";
 import { handleApi } from "./api";
+import { handleCompanionApi } from "./companion";
 import { handleUpdate } from "./commands";
 import type { Env } from "./env";
 import { handleCallback } from "./oauth";
@@ -26,6 +27,7 @@ export default {
       return new Response("ok");
     }
 
+    if (url.pathname.startsWith("/api/companion")) return handleCompanionApi(req, env);
     if (url.pathname.startsWith("/api/")) return handleApi(req, env, ctx);
 
     if (req.method === "GET" && url.pathname === "/oauth/callback") {

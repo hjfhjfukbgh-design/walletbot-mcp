@@ -17,6 +17,8 @@ export interface Env {
   ALLOWED_MARKETS: string;
   MIN_VOLUME_24H_USD?: string;
   API_SECRET?: string;
+  GEMINI_API_KEY?: string;
+  GEMINI_MODEL?: string;
   MINIAPP_URL?: string;
   AUTO_RECENTER?: string;
   RECENTER_DOWN_PCT?: string;
