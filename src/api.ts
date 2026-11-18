@@ -775,7 +775,7 @@ async function fundAiPaper(env: Env, userId: string, body: Json): Promise<Respon
   if (normalizeProductMode(state.productMode) !== "ai")
     return fail("Выберите режим AI Trading перед виртуальным пополнением.", 409);
   const amountText = String(body.amountUsd ?? "").trim();
-  if (!/^\\d+(?:\\.\\d{1,2})?$/.test(amountText))
+  if (!/^\d+(?:\.\d{1,2})?$/.test(amountText))
     return fail("Сумма должна быть положительным числом с точностью до двух знаков.");
   let amountMicro: bigint;
   try { amountMicro = parseFixed(amountText, MONEY_SCALE, 6); }
