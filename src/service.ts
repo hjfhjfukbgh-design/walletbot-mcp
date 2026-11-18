@@ -112,3 +112,38 @@ export async function setMode(env: Env, args: string[]): Promise<string> {
   await saveState(env, s);
   return `Режим ${target === "paper" ? "ДЕМО" : "LIVE"} включён. Сетка остановлена — запустите её командой /run.`;
 }
+
+export type PaperSignal = {
+  signal: "long" | "short" | "hold";
+  shortAverage: number | null;
+  longAverage: number | null;
+  reason: string;
+};
+
+/** Pure moving-average baseline for DEMO/paper research; never executes trades. */
+export function buildPaperSignal(
+  prices: number[],
+  shortWindow = 5,
+  longWindow = 20,
+): PaperSignal {
+  const hold = (reason: string): PaperSignal => ({
+    signal: "hold", shortAverage: null, longAverage: null, reason,
+  });
+  if (!Array.isArray(prices) || !prices.every(price => Number.isFinite(price) && price > 0))
+    return hold("Недостаточно корректных положительных цен для анализа.");
+  if (!Number.isSafeInteger(shortWindow) || !Number.isSafeInteger(longWindow) ||
+      shortWindow < 1 || longWindow < 2 || shortWindow >= longWindow)
+    return hold("Окна скользящих средних заданы некорректно.");
+  if (prices.length < longWindow)
+    return hold("Недостаточно истории для расчёта длинной скользящей средней.");
+
+  const shortPrices = prices.slice(-shortWindow);
+  const longPrices = prices.slice(-longWindow);
+  const shortAverage = shortPrices.reduce((sum, price) => sum + price, 0) / shortWindow;
+  const longAverage = longPrices.reduce((sum, price) => sum + price, 0) / longWindow;
+  if (shortAverage > longAverage)
+    return { signal: "long", shortAverage, longAverage, reason: "Короткая средняя выше длинной." };
+  if (shortAverage < longAverage)
+    return { signal: "short", shortAverage, longAverage, reason: "Короткая средняя ниже длинной." };
+  return { signal: "hold", shortAverage, longAverage, reason: "Скользящие средние совпадают." };
+}
