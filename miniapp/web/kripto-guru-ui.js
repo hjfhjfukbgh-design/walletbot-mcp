@@ -6,6 +6,8 @@
   const state = {
     screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, sparklineCache:{},
     favorites:(()=>{try{return new Set(JSON.parse(localStorage.getItem("kg:favorites:v1")||'["BTC","ETH","SOL"]'));}catch{return new Set(["BTC","ETH","SOL"]);}})(),
+    equities:(()=>{try{const saved=JSON.parse(localStorage.getItem("kg:equities:v1"));return Array.isArray(saved)?saved.filter(x=>x&&typeof x.symbol==="string"&&typeof x.name==="string"):[{symbol:"AAPL",name:"Apple",kind:"Акция"}];}catch{return[{symbol:"AAPL",name:"Apple",kind:"Акция"}];}})(),
+    editEquities:false,
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
@@ -117,6 +119,31 @@
       return `<div class="kg-asset-row" ${s?`data-open-market="${esc(s)}"`:""}><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-row-copy"><b>${esc(a.name||symbolName(s))}</b><small>${esc(s)}</small></span><strong class="kg-wallet-row-value">${moneyRub(balance)}</strong></div>`;
     }).join(""):'<div class="kg-empty-inline">Активы появятся здесь после зачисления на счёт.</div>';
   }
+  function saveEquities(){try{localStorage.setItem("kg:equities:v1",JSON.stringify(state.equities));}catch{notify("Не удалось сохранить список на этом устройстве.");}}
+  function renderWalletEquities(){
+    const root=$("#kg-wallet-equities");if(!root)return;
+    root.innerHTML=state.equities.length?state.equities.map(item=>{
+      const symbol=item.symbol.toUpperCase();
+      const logo=symbol==="AAPL"?'<span class="kg-asset-icon kg-brand-apple" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16.7 12.8c0-2.1 1.7-3.1 1.8-3.2-1-1.5-2.6-1.7-3.2-1.7-1.4-.2-2.8.9-3.5.9-.7 0-1.8-.9-3-.9-1.6 0-3.1.9-3.9 2.3-1.7 2.9-.4 7.2 1.2 9.5.8 1.1 1.7 2.3 2.9 2.2 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.3-2.5 1.3-2.6-.1 0-2.4-.9-2.4-3.6ZM14.4 6.4c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2Z" fill="currentColor"/></svg></span>':'<span class="kg-asset-icon kg-equity-generic" aria-hidden="true">'+esc(symbol.slice(0,1))+'</span>';
+      return '<div class="kg-asset-row kg-equity-row">'+logo+'<span class="kg-row-copy"><b>'+esc(item.name)+'</b><small>'+esc(symbol)+' · котировка недоступна</small></span><span class="kg-wallet-row-value">—</span>'+(state.editEquities?'<button class="kg-equity-remove" type="button" data-remove-equity="'+esc(symbol)+'" aria-label="Убрать '+esc(item.name)+'">−</button>':'')+'</div>';
+    }).join(""):'<div class="kg-empty-inline">Добавьте акции и фонды, которыми хотите пользоваться.</div>';
+    $("#kg-edit-equities").textContent=state.editEquities?"Готово":"Изменить";
+    $("#kg-equities-add-wrap").hidden=!state.editEquities;
+    root.classList.toggle("is-editing",state.editEquities);
+  }
+  const equityPresets=[{symbol:"AAPL",name:"Apple",kind:"Акция"},{symbol:"MSFT",name:"Microsoft",kind:"Акция"},{symbol:"NVDA",name:"NVIDIA",kind:"Акция"},{symbol:"TSLA",name:"Tesla",kind:"Акция"},{symbol:"AMZN",name:"Amazon",kind:"Акция"},{symbol:"GOOGL",name:"Alphabet",kind:"Акция"},{symbol:"SPY",name:"S&P 500 ETF",kind:"Фонд"},{symbol:"QQQ",name:"NASDAQ 100 ETF",kind:"Фонд"},{symbol:"VOO",name:"Vanguard S&P 500",kind:"Фонд"}];
+  function openEquitiesEditor(){
+    const root=$("#kg-equities-editor"),list=$("#kg-equities-presets");
+    list.innerHTML=equityPresets.filter(p=>!state.equities.some(x=>x.symbol===p.symbol)).map(p=>'<button type="button" class="kg-equity-preset" data-add-equity="'+p.symbol+'"><span><b>'+esc(p.name)+'</b><small>'+p.symbol+' · '+p.kind+'</small></span><strong>＋</strong></button>').join("")||'<div class="kg-empty-inline">Все предложенные активы уже добавлены.</div>';
+    root.hidden=false;$("#kg-equities-symbol").focus();
+  }
+  function addEquity(symbol,name,kind="Акция"){
+    const normalized=String(symbol||"").trim().toUpperCase().replace(/[^A-Z0-9.^-]/g,"").slice(0,12);
+    if(!normalized){notify("Введите корректный тикер.");return;}
+    if(state.equities.some(x=>x.symbol===normalized)){notify("Этот актив уже есть в списке.");return;}
+    const preset=equityPresets.find(x=>x.symbol===normalized);
+    state.equities.push({symbol:normalized,name:name||preset?.name||normalized,kind:kind||preset?.kind||"Акция"});saveEquities();renderWalletEquities();openEquitiesEditor();notify("Актив добавлен.");
+  }
   function renderRecent(){
     const map=marketMap(), recent=state.recent.map(s=>map.get(s)).filter(Boolean);
     $("#kg-recent").innerHTML=recent.length?recent.map(m=>{const s=m.symbol||m.market;return `<button class="kg-recent-chip" data-open-market="${esc(s)}" type="button"><span class="kg-asset-icon">${esc(iconFor(s))}</span>${esc(s)}</button>`;}).join(""):'<span class="kg-muted">Здесь появятся просмотренные активы</span>';
@@ -208,6 +235,7 @@
       const totalNode=$("#kg-wallet-crypto-total");
       if(totalNode)totalNode.textContent=cryptoValues.length?moneyRub(cryptoValues.reduce((sum,value)=>sum+value,0)):"—";
       renderWalletAssets();
+      renderWalletEquities();
       const pos=listOf(state.wallet,["positions"]);
       $("#kg-position-count").textContent=String(pos.length);
       renderPositions(pos);
@@ -625,6 +653,13 @@
     });
     document.querySelectorAll("[data-wallet-action]").forEach(button=>button.addEventListener("click",()=>notify("Операции с переводом и реальными средствами отключены. Доступен только демо-режим.")));
     $("#kg-edit-favorites").addEventListener("click",()=>{state.editFavorites=!state.editFavorites;$("#kg-edit-favorites").textContent=state.editFavorites?"Готово":"Изменить";renderFavorites();});
+    $("#kg-edit-equities").addEventListener("click",()=>{state.editEquities=!state.editEquities;renderWalletEquities();});
+    $("#kg-add-equity").addEventListener("click",openEquitiesEditor);
+    $("#kg-equities-presets").addEventListener("click",event=>{const button=event.target.closest("[data-add-equity]");if(button){const preset=equityPresets.find(x=>x.symbol===button.dataset.addEquity);if(preset)addEquity(preset.symbol,preset.name,preset.kind);}});
+    $("#kg-equities-custom-form").addEventListener("submit",event=>{event.preventDefault();const symbol=$("#kg-equities-symbol").value;addEquity(symbol,symbol.trim().toUpperCase());$("#kg-equities-symbol").value="";});
+    $("#kg-equities-editor").addEventListener("click",event=>{if(event.target.closest("[data-close-equities]"))$("#kg-equities-editor").hidden=true;});
+    $("#kg-wallet-equities").addEventListener("click",event=>{const button=event.target.closest("[data-remove-equity]");if(!button)return;state.equities=state.equities.filter(x=>x.symbol!==button.dataset.removeEquity);saveEquities();renderWalletEquities();});
+
     $("#kg-asset-back").addEventListener("click",closeAsset);
     $("#kg-asset-favorite").addEventListener("click",()=>{const s=state.selectedMarket;if(!s)return;state.favorites.has(s)?state.favorites.delete(s):state.favorites.add(s);renderFavorites();try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}$("#kg-asset-favorite").textContent=state.favorites.has(s)?"★ В избранном":"☆ В избранное";});
     $$("#kg-timeframes button").forEach(b=>b.addEventListener("click",()=>loadCandles(b.dataset.interval)));
