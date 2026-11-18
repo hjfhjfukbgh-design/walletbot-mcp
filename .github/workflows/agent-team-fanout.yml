@@ -94,6 +94,8 @@ jobs:
               "--limit","100","--json","number,title,body,url,createdAt,labels"
             ]) || "[]");
             const eligible = issues.filter(item => {
+              const labels=(item.labels||[]).map(label=>typeof label==="string"?label:label.name);
+              if(labels.includes("agent-dispatched")||labels.includes("agent-done"))return false;
               const m = String(item.body||"").match(childPattern);
               if (!m || m[3]!==team || !roles.has(m[4])) return false;
               const deps = m[5] && m[5] !== "none" ? m[5].split(",") : [];
@@ -114,7 +116,9 @@ jobs:
           const expires = new Date(Date.now()+45*60*1000).toISOString().replace(".000","");
             const lease = "<!-- kg-lease:run="+process.env.RUN_ID+";expires="+expires+" -->";
             gh(["issue","comment",String(issue.number),"--repo",repo,"--body","Задача захвачена командой "+team+". Исполнитель запускается; lease до "+expires+".\n\n"+lease]);
-            gh(["issue","edit",String(issue.number),"--repo",repo,"--remove-label","agent-ready","--add-label","agent-dispatched"]);
+            const currentLabels=(issue.labels||[]).map(label=>typeof label==="string"?label:label.name);
+            const removeLabels=["agent-ready","orchestrator-ready","agent-review","agent-blocked"].filter(label=>currentLabels.includes(label));
+            gh(["issue","edit",String(issue.number),"--repo",repo,...removeLabels.flatMap(label=>["--remove-label",label]),"--add-label","agent-dispatched"]);
             assignments.push({
               team,
               role:marker[4],
