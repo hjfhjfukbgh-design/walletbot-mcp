@@ -51,6 +51,7 @@ jobs:
           TASK: ${{ inputs.task }}
           ISSUE_NUMBER: ${{ inputs.issue_number }}
           RUN_ID: ${{ github.run_id }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
