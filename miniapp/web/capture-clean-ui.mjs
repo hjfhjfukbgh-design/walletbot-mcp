@@ -180,7 +180,20 @@ try{
     await page.waitForSelector("#kg-companion-screen.is-active");
     await page.locator("#kg-ai-input").fill("Проверь связь");
     await page.locator("#kg-ai-send").click();
-    await page.waitForFunction(()=>document.querySelector("#kg-ai-messages")?.innerText.includes("Тестовый ответ ИИ"));
+    try{
+      await page.waitForFunction(()=>document.querySelector("#kg-ai-messages")?.innerText.includes("Тестовый ответ ИИ"),null,{timeout:6000});
+    }catch(error){
+      const debug=await page.evaluate(()=>({
+        apiReady:!!window.KriptoGuruAPI,
+        companionMethods:Object.keys(window.KriptoGuruAPI?.companion||{}),
+        input:document.querySelector("#kg-ai-input")?.value,
+        sendDisabled:document.querySelector("#kg-ai-send")?.disabled,
+        messages:document.querySelector("#kg-ai-messages")?.innerText,
+        toast:document.querySelector("#kg-toast")?.innerText,
+        history:document.querySelector("#kg-ai-history")?.innerText
+      }));
+      throw new Error("AI Companion send failed: "+JSON.stringify(debug)+" pageErrors="+pageErrors.join("; ")+" "+error.message);
+    }
     if(!(await page.locator("#kg-ai-messages").innerText()).includes("Проверь связь"))throw new Error("AI Companion should render the sent user message");
     await page.screenshot({path:`clean-companion-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-ai-history [data-ai-delete]").first().click();
