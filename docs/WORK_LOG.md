@@ -711,3 +711,11 @@
 - **Issue #332:** independent source audit comment #6993130467 published. S1 adapter and S2 API confirm close is fail-closed/absent; S3 official schema/docs unavailable; overall NOT VERIFIED. No Walt calls or live financial actions.
 - **Orchestration:** fan-out run `44408839251` completed but team worker matrix was skipped; do not claim A/B/C are actively coding. Issues #332/#326/#270 remain blocked by genuine dependency/contract gaps; #263/#266/#254/#277/#278 remain review states pending acceptance.
 - **Safety:** no merge/deploy by Team Lead in this cycle; no real Walt/Gemini calls, orders, closes, transfers, account/position writes, secrets, or paid services.
+
+
+### 2026-11-19 — PR #343 visual state mismatch flagged
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:05:00+05:00
+- **CI:** PR #343 deploy test `44409118147` passed all steps including `npm test`; screenshot run `44409118258` passed and artifact `14475343603` uploaded.
+- **Finding:** 390×844 `clean-wallet` artifact displays AI Trading as selected while status text still says DEMO. This is contradictory account context. Team Lead left review comment #6993149285 requiring same-state DEMO/AI copy assertions and a dedicated AI screenshot artifact. PR #343 remains unmerged pending correction; LIVE remains safely locked.
+- **Independent market code review:** `kripto-guru-ui.js` contains 15s visible-screen polling, a single in-flight refresh guard, request-epoch protection against stale category overwrite, stale-data marker on refresh failure, visibility pause/resume, and 120ms search debounce. Static review only; no runtime test claimed here.
