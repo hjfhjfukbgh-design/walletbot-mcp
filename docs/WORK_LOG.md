@@ -182,3 +182,12 @@
 - **Изменение:** README больше не заявляет глобальный предел 3x; теперь явно указывает целочисленное плечо от 1 до максимума конкретного контракта без искусственного общего потолка.
 - **Доказательства:** код `src/risk.ts` и `src/api.ts` проверяет contract max; branch `docs/contract-leverage-limits-2026-11-19`; commit `50c7aacf9a05794ca321adaa0a4b34bae8bc13c5`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/276.
 - **Границы:** только README; торговая логика, аккаунты, secrets, merge/deploy и финансовые операции не менялись.
+
+### 2026-11-19 — старт формирования независимых очередей Team A и Team C
+
+- **Время:** 2026-11-19T00:55:26.069+05:00
+- **Событие:** после постановки UI QA задачи #275 формируются две независимые read-only проверки для остальных продуктовых команд.
+- **Статус:** начато
+- **Team A:** аудит безопасности LIVE prepare/confirmation/execute/reconciliation, tenant authorization, contract leverage, idempotency и поведения unknown/pending. Только статический код/тесты/логи; не вызывать реальные Walt write/execute.
+- **Team C:** аудит AI Companion и AI Trading paper-only: разделение account contexts, tenant isolation, prompt/tool boundaries, запрет live execution, сохранение истории/attachments. Только read-only.
+- **Оркестрация:** каждая задача будет иметь отдельный team label и `orchestrator-ready`; текущий main dispatcher обрабатывает максимум одну Issue за запуск с интервалом 5 минут.
