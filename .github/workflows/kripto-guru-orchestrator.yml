@@ -201,9 +201,9 @@ jobs:
           if [ "$status" = "READY" ]; then
             lease_expires_at="$(date -u -d '+45 minutes' '+%Y-%m-%dT%H:%M:%SZ')"
             gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "Диспетчер подготовил пакет: $pr_url. Исполнитель запускается. Lease до: $lease_expires_at.\n\n<!-- kg-lease:run=$RUN_ID;expires=$lease_expires_at -->"
-            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label agent-ready --add-label agent-dispatched
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label orchestrator-ready --add-label agent-dispatched
           else
-            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label agent-ready --add-label agent-blocked
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label orchestrator-ready --add-label agent-blocked
             gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "Диспетчер заблокировал задачу. Пакет: $pr_url. Требуется уточнение и ручная проверка."
           fi
           {
