@@ -130,6 +130,38 @@ describe("API da Mini App", () => {
     expect(response.status).toBe(400);
   });
 
+  it("requires AI product mode and derives AI funding userId from Telegram initData", async () => {
+    const e = env();
+    const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const stub = {
+      fetch: async (request: Request) => {
+        const body = request.method === "POST" ? await request.json() as Record<string, unknown> : {};
+        calls.push({ url: request.url, body });
+        return Response.json({ ok: true, funded: true });
+      },
+    };
+    e.ENGINE = { idFromName: (name: string) => name, get: () => stub } as unknown as typeof e.ENGINE;
+
+    const locked = await call(e, "ai/paper/fund", "chave-teste", {
+      method: "POST", body: JSON.stringify({ amountUsd: "50.00", idempotencyKey: "api-ai-fund-001", userId: "999" }),
+    }, "111");
+    expect(locked.status).toBe(409);
+    expect(calls).toHaveLength(0);
+
+    const mode = await call(e, "product-mode", "chave-teste", {
+      method: "POST", body: JSON.stringify({ productMode: "ai" }),
+    }, "111");
+    expect(mode.status).toBe(200);
+
+    const funded = await call(e, "ai/paper/fund", "chave-teste", {
+      method: "POST", body: JSON.stringify({ amountUsd: "50.00", idempotencyKey: "api-ai-fund-001", userId: "999" }),
+    }, "111");
+    expect(funded.status).toBe(200);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toContain("/ai/paper/fund");
+    expect(calls[0].body).toMatchObject({ userId: "111", amountMicro: "50000000", idempotencyKey: "api-ai-fund-001" });
+  });
+
   it("returns a safe disconnected LIVE status without contacting Walt", async () => {
     const e = env();
     const fetchMock = vi.fn();
