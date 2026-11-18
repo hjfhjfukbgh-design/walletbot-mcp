@@ -647,3 +647,13 @@
 - **Visual review:** inspected 390×844 screenshots for wallet, AI home/chat/keyboard, asset detail, trading ticket and leverage modal. Initial screenshot issues (black balance text, white cards/nav, white AI composer, white ticket settings) were corrected in later commits and re-captured. Current screenshot artifact shows consistent dark surfaces and keyboard composer/nav behavior.
 - **Issue #275:** closed as completed, labels `team-b`, `agent-done`; physical iPhone/Telegram WebView testing remains explicitly unverified.
 - **No production deploy triggered.**
+
+### 2026-11-19 — LIVE status fail-safe test merged
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:04:32.213+05:00
+- **Issue #60:** live/status read-only route был уже реализован в main; agent-blocked заменён на review, добавлен отсутствовавший API regression test для disconnected Walt.
+- **PR #339:** merged squash commit `a9e45296e6fc5b30808270e50acde55f18136e22`.
+- **CI run:** `44407754586` success — npm ci, JS syntax checks, npm run typecheck, npm test.
+- **Test proof:** GET live/status при отсутствии Walt token возвращает connected:false, unavailable fields и issue code not_connected; fetch mock не вызывается, token не попадает в response.
+- **Issue #60:** закрыта completed с agent-done.
+- **Safety:** никаких реальных Walt calls, ордеров, account changes или production deploy.
