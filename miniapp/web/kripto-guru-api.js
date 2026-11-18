@@ -271,6 +271,41 @@
     },
   };
 
+  const live = {
+    async status() {
+      return request("/api/live/status");
+    },
+    async position(symbol) {
+      const normalized = String(symbol || "").trim().toUpperCase();
+      if (!normalized) throw new KriptoGuruApiError({ code: "VALIDATION_ERROR", message: "Укажите торговый символ." });
+      return request("/api/live/position?symbol=" + encodeURIComponent(normalized));
+    },
+    async preview({ symbol, side, marginUsd, leverage = 1 } = {}) {
+      if (!["long", "short"].includes(side)) {
+        throw new KriptoGuruApiError({ code: "VALIDATION_ERROR", message: "Направление должно быть LONG или SHORT." });
+      }
+      return request("/api/live/preview", {
+        method: "POST",
+        body: { symbol: String(symbol || "").trim().toUpperCase(), side, marginUsd: Number(marginUsd), leverage: Number(leverage) },
+      });
+    },
+    async execute({ handle, confirm } = {}) {
+      const operationHandle = String(handle || "").trim();
+      if (confirm !== true) {
+        throw new KriptoGuruApiError({ code: "CONFIRMATION_REQUIRED", message: "Для LIVE-ордера требуется отдельное подтверждение.", status: 400, retryable: false });
+      }
+      if (!operationHandle) {
+        throw new KriptoGuruApiError({ code: "VALIDATION_ERROR", message: "Отсутствует идентификатор LIVE-операции.", status: 400, retryable: false });
+      }
+      return request("/api/live/execute", { method: "POST", body: { handle: operationHandle, confirm: true } });
+    },
+    async operation(handle) {
+      const operationHandle = String(handle || "").trim();
+      if (!operationHandle) throw new KriptoGuruApiError({ code: "VALIDATION_ERROR", message: "Отсутствует идентификатор LIVE-операции." });
+      return request("/api/live/operation?handle=" + encodeURIComponent(operationHandle));
+    },
+  };
+
   const history = {
     async list() {
       const data = await request("/api/demo/history");
@@ -321,14 +356,36 @@
 
   const capabilities = {
     async get() {
-      return {
-        live: { available: false, reason: "Реальная торговля отключена." },
-        stocks: { available: false, reason: "Нет подтверждённого источника котировок акций." },
-        funds: { available: false, reason: "Нет подтверждённого источника котировок фондов." },
-        ipo: { available: false, reason: "Данные IPO пока не подключены." },
-        bonuses: { available: false, reason: "Механика бонусов пока не реализована." },
-        demo: { available: true },
-      };
+      let liveStatus = null;
+      let liveReason = "Walt не подключён или не прошёл проверку готовности.";
+      try {
+        liveStatus = await live.status();
+        const issues = Array.isArray(liveStatus.issues) ? liveStatus.issues : [];
+        const available = liveStatus.connected === true &&
+          liveStatus.readiness?.ok === true &&
+          liveStatus.contracts?.available === true &&
+          liveStatus.balance?.available === true &&
+          issues.length === 0;
+        liveReason = available ? null : (issues[0] || liveReason);
+        return {
+          live: { available, reason: liveReason, balanceUsd: finite(liveStatus.balance?.usd), issues, status: liveStatus },
+          stocks: { available: false, reason: "Нет подтверждённого источника котировок акций." },
+          funds: { available: false, reason: "Нет подтверждённого источника котировок фондов." },
+          ipo: { available: false, reason: "Данные IPO пока не подключены." },
+          bonuses: { available: false, reason: "Механика бонусов пока не реализована." },
+          demo: { available: true },
+        };
+      } catch (error) {
+        liveReason = error?.message || liveReason;
+        return {
+          live: { available: false, reason: liveReason, balanceUsd: null, issues: [liveReason], status: null },
+          stocks: { available: false, reason: "Нет подтверждённого источника котировок акций." },
+          funds: { available: false, reason: "Нет подтверждённого источника котировок фондов." },
+          ipo: { available: false, reason: "Данные IPO пока не подключены." },
+          bonuses: { available: false, reason: "Механика бонусов пока не реализована." },
+          demo: { available: true },
+        };
+      }
     },
   };
 
@@ -340,6 +397,7 @@
     trade,
     history,
     companion,
+    live,
     capabilities,
     errors: Object.freeze({ ApiError: KriptoGuruApiError }),
   });
