@@ -625,3 +625,14 @@
 - **PR #337 CI for corrective SHA `59fa4164c09c6e419984dd7ffe32f0b360a64227`:** deploy workflow test run `44406607441` — success (npm ci, JS syntax, typecheck, npm test). Screenshot run `44406605825` ещё выполняет capture; до проверки второго screenshot artifact PR не сливать.
 - **Team orchestration:** fan-out run `44405703107` claimed successfully but worker matrix was skipped; only ready issue #203 lacks required child-task metadata/team label. New A/B/C Gemini worker dispatches not started pending verification that existing API key/account is restricted to a zero-cost free tier; no paid usage authorized.
 - **PR #335 CI discrepancy:** worker checks run `44403857370` passed, but associated PR deploy workflow run `44404049083` concluded failure and exposed no jobs via connector. This discrepancy should remain visible in audit trail; the PR itself only changed tests and did not change production behavior.
+
+
+### 2026-11-19 — Team Lead завершил AI paper signal baseline
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:59:00+05:00
+- **Issue #72:** обнаружено, что прежний `agent-done` был ложным — `buildPaperSignal` отсутствовал в main. Статус исправлен на `agent-review`, затем задача выполнена Team Lead.
+- **PR #338:** merged squash commit `3963a602f2b173234c583ddc01cde3817b4d76e7`.
+- **Реализация:** чистая функция moving-average paper signal (`long`/`short`/`hold`), проверка положительных конечных цен и корректности окон, отказ в `hold` при неполной/ошибочной истории, объяснимый reason, входной массив не мутируется.
+- **Тесты:** 7 unit cases; CI run `44407090659` success — npm ci, JS syntax checks, typecheck, npm test.
+- **Issue #72:** закрыта как completed с `agent-done` после подтверждённого merge и CI.
+- **Ограничения:** функция не подключена к автономному исполнению; только paper signal primitive. Walt/MCP/network/real orders/production deploy не использовались.
