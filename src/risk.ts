@@ -25,6 +25,7 @@ export function checkOpen(
   leverage: number,
   ctx: RiskContext,
   limits: RiskLimits,
+  contractMaxLeverage = Number.POSITIVE_INFINITY,
 ): RiskDecision {
   if (!marketAllowed(limits, market))
     return { ok: false, reason: `рынок ${market} не входит в список разрешённых (${limits.allowedMarkets.join(", ")})` };
