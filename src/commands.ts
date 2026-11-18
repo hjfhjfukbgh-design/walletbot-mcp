@@ -137,7 +137,7 @@ async function conta(env: Env, confirm: boolean): Promise<string> {
       p.ok ? "Предварительная проверка пройдена. Для создания отправьте: /conta CONFIRMO" : `Создание отклонено при предварительной проверке: ${previewReason(p)}`,
     ].join("\n");
   }
-  await w.createAccount();
+  await w.createAccount(confirm);
   return "Запрос на создание отправлен ✅ (операция асинхронная). Через несколько секунд выполните /conta ещё раз для проверки.";
 }
 
