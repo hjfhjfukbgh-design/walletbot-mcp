@@ -447,3 +447,20 @@
 - **Изменения:** legacy Walt openLong/closePosition fail-closed; account creation требует явного confirmed=true; добавлены mock tests для отсутствия внешних write calls без подтверждения.
 - **Deployment:** merge-triggered workflow ещё подлежит проверке; не заявлять production deploy до подтверждения Actions run.
 - **Безопасность:** реальных Walt writes, ордеров, закрытий позиций, account creation, переводов и secrets не было.
+
+
+### 2026-11-19 — release hardening, own engineering work, QA workflow repair
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T01:42:57.110+05:00
+- **Merged PR #282** (legacy Walt fail-closed + explicit account confirmation), merge commit ff72895805f08d1dca52fdd30c4073b6f9cb2b8e; CI run 44387127484 passed.
+- **Merged PR #283** (contractId=0 accepted correctly in LIVE preview/claim), merge commit 064332a10ecdc925225632823da2e6242bd7134a; CI run 44387403149 passed.
+- **Merged PR #281** (dispatcher role packet/fallback + honest queue finalization), merge commit 2aa03fa4cfee1b53f115119f9b274d62ebb70e88; updated branch CI passed.
+- **Merged PR #273** (remove IPO/Stocks/Funds from market navigation/search), merge commit 3ceb4cca33824e844e47cc91b90820c2e3e3043b; deploy/test and clean UI screenshot runs passed.
+- **Merged PR #289** (learning-mode acceptance tests), merge commit fc84e5ce99d242a97d3bccba86ec50a86f6475d1; CI run 44392312860 passed.
+- **Merged PR #295** (QA/SECURITY worker now prioritizes explicit paths and fetches referenced PR diffs + Actions job/step evidence; requires evidence-backed verdicts), merge commit b0cdca9947af06fb220c3dd96e26476a1133b3e0; CI run 44393638521 passed.
+- **Production deploy:** inspected .github/workflows/deploy.yml; production deployment is workflow_dispatch-only. Push-triggered test workflows succeeded, deployment job was skipped. No production deploy performed.
+- **PR #284 quota change:** fixed TypeScript shadowing/type errors by renaming quota timestamp to quotaNow; CI run 44392388213 now passes npm ci, syntax checks, typecheck and npm test. PR remains Draft pending Team C review of fixed-window burst semantics, research quota consumption on provider errors, and zero-cost Cloudflare allowance. No Durable Object migration deployed.
+- **Own Team Lead PR #288:** implements start/stop of 15s polling only while visible market screens are active, pauses on asset/ticket screens and invalidates stale loads. Initial screenshot run exposed an introduced selector typo in showSubscreen; debug evidence identified it and the branch was corrected to use document.querySelectorAll. Latest screenshot run 44393758152 is still running; earlier run 44393721522 was against the pre-fix commit and must not be counted.
+- **Superseded PR #287** closed; it was based on pre-#273 main and is not part of the release.
+- **Worker QA quality:** report-only PRs #291/#292/#293 were reviewed and closed as invalid: they did not inspect assigned PR/CI evidence and contained inaccurate or irrelevant claims. The corresponding issues were requeued after PR #295 merged. Current fan-out claim run 44393805449 is in progress; the competing issue event was cancelled by concurrency. Do not claim A/B/C have delivered accepted QA until the new run and reports are inspected.
+- **No real financial operations:** no Walt execute/write calls, no orders, position changes, transfers, account mutations or secret changes. No new paid services or spend.
