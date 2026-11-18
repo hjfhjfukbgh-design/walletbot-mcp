@@ -140,7 +140,7 @@ describe("AI Companion API", () => {
     expect(await response.json()).toMatchObject({ error: expect.stringContaining("проверяемых источников") });
   });
 
-  it("blocks research when the free-tier monthly budget guard is exhausted", async () => {
+  it("blocks research when the free-tier daily budget guard is exhausted", async () => {
     const day = new Date().toISOString().slice(0, 10);
     const e = isolatedEnv({}, { ["research:global:" + day]: 20 });
     const fetchMock = vi.fn();
