@@ -10,6 +10,7 @@ import { tenantEnv } from "../src/tenants";
 
 const ctx = { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext;
 async function signedInitData(botToken: string, userId: string): Promise<string> {
+  if (!botToken) return "";
   const params = new URLSearchParams({
     auth_date: String(Math.floor(Date.now() / 1000)),
     user: JSON.stringify({ id: Number(userId), first_name: "Test" }),
