@@ -427,3 +427,13 @@
 - **Ограничение dispatcher:** доступный GitHub connector не предоставляет list/dispatch workflow runs; labels orchestrator-ready не считаются доказательством запуска. Проверить следующие scheduled циклы по реальным branch/PR/run артефактам.
 - **Собственная задача Team Lead:** независимый глубокий review PR #284 (atomic Companion quotas), затем при подтверждённом дефекте — отдельная ограниченная правка/тест без пересечения с #254.
 - **Безопасность:** без реальных Walt/Gemini writes, ордеров, переводов, account/secrets changes, merge/deploy и новых расходов.
+
+
+### 2026-11-19 — старт собственной задачи Team Lead: жизненный цикл market polling
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T01:29:16.526+05:00
+- **Задача:** исправить фактический polling lifecycle рынка: интервал должен существовать только при видимой странице и активном market screen; при скрытии/уходе с market screen интервал снимается; при возврате выполняется один немедленный refresh.
+- **Контекст:** базовый код уже имел 15-секундный setInterval, visibility guard, in-flight guard и debounce поиска, но interval создавался один раз и продолжал тикать в фоне/на экранах AI и истории. Задача #266 это явно запрещает.
+- **Scope:** только miniapp/web/kripto-guru-ui.js, отдельная ветка от main; без изменения API/источников котировок.
+- **Проверки:** syntax check, npm typecheck/tests через PR CI; физический Telegram WebView не заявлять.
+- **Безопасность:** без внешних платных источников, Walt writes, сделок, merge и production deploy.
