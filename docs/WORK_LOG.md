@@ -115,3 +115,14 @@
 - **Объём:** убрать IPO placeholder и категории Акции/Фонды из каталога и поисковых фильтров; удалить связанный JS путь, который обращается к неподключённым источникам и оставляет экран-заглушку; сохранить Крипто и Фьючерсы; перестроить категорийную сетку под два доступных рынка.
 - **Проверяемые файлы:** `miniapp/web/index.html`, `miniapp/web/kripto-guru-ui.js`, `miniapp/web/kripto-guru-ui.css`.
 - **Критерии:** в HTML нет IPO placeholder, data-category stocks/funds и search-filter stocks/funds; JS не обращается к IPO DOM и не имеет stock/fund placeholder path; две реальные категории доступны и сохраняют существующую загрузку рынков; diff ограничен тремя файлами.
+
+### 2026-11-19 — очистка каталога рынков опубликована в Draft PR #273
+
+- **Время:** 2026-11-19T00:52:02.121+05:00
+- **Событие:** завершён узкий UI-патч по удалению неподдерживаемых разделов и placeholder.
+- **Статус:** код опубликован; CI/runtime проверки ожидаются
+- **Результат:** удалены IPO placeholder и его неиспользуемые CSS-классы; Акции/Фонды удалены из каталога и поисковых фильтров; удалены недостижимые JS-ветки placeholder для этих категорий и IPO DOM update; сохранены Крипто/Фьючерсы; сетка категорий переведена на 2 колонки; обновлены cache-busting версии CSS/JS.
+- **Статические проверки:** после правки HTML не содержит IPO card, stocks/funds category или search-filter; JS не содержит stock/fund placeholder branches и не обращается к `kg-ipo-reason`; CSS содержит двухколоночную сетку и не содержит IPO card/icon/badge selectors.
+- **Ограничение проверки:** CI workflow runs и combined status для head commit пока не возвращены; браузерный screenshot и физический Telegram WebView не выполнялись. Прохождение runtime не заявляется.
+- **Артефакты:** branch `fix/remove-placeholder-markets-2026-11-19`; последний CSS commit `97c69b846b56330cfc62f6c28412b9ffcf980ced`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/273.
+- **Безопасность:** Draft PR; merge/deploy и финансовые операции не выполнялись.
