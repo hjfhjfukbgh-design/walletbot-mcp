@@ -375,7 +375,7 @@
     }
 
     const H = 200, top = 12, bottom = 172, rightMargin = 60;
-    const chartWidth = Math.max(280, data.length * 10);
+    const chartWidth = Math.max(280, data.length * 12);
     const W = chartWidth + rightMargin;
     const lows = data.map(c => c.low);
     const highs = data.map(c => c.high);
