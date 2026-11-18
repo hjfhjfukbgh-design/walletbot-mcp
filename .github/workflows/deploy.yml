@@ -18,6 +18,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --check miniapp/web/app.js
+      - run: node --check miniapp/web/kripto-guru-api.js
+      - run: node --check miniapp/web/kripto-guru-ui.js
       - run: node --check miniapp/web/wallet-v2.js
       - run: node --check miniapp/web/trading-v2.js
       - run: node --check miniapp/web/capture-ui.mjs
