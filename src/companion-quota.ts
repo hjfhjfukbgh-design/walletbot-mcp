@@ -14,15 +14,17 @@ export class CompanionQuota {
         key TEXT PRIMARY KEY,
         count INTEGER NOT NULL,
         expires_at INTEGER NOT NULL
-      );
+      )
+    `);
+    this.ctx.storage.sql.exec(`
       CREATE TABLE IF NOT EXISTS quota_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         key TEXT NOT NULL,
         expires_at INTEGER NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS quota_events_key_expires ON quota_events(key, expires_at);
-      CREATE INDEX IF NOT EXISTS quota_events_expires ON quota_events(expires_at);
+      )
     `);
+    this.ctx.storage.sql.exec("CREATE INDEX IF NOT EXISTS quota_events_key_expires ON quota_events(key, expires_at)");
+    this.ctx.storage.sql.exec("CREATE INDEX IF NOT EXISTS quota_events_expires ON quota_events(expires_at)");
   }
 
   async fetch(request: Request): Promise<Response> {
