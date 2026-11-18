@@ -86,9 +86,10 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
           contents: history.map((item) => ({ role: item.role === "assistant" ? "model" : "user", parts: [{ text: item.content }] })),
           generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, temperature: 0.7 },
         }),
-        signal: AbortSignal.timeout(25_000),
+        signal: AbortSignal.timeout(55_000),
       });
-    } catch {
+    } catch (error) {
+      console.error("[companion] Gemini request failed:", error instanceof Error ? error.name : "unknown");
       return json({ ok: false, error: "Gemini не ответил вовремя. Попробуйте ещё раз." }, 504);
     }
 
