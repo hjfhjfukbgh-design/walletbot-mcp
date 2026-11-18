@@ -244,3 +244,13 @@
 - **Очередь:** #275 Team B и #277 Team A на последней проверке ещё `orchestrator-ready`, без dispatch comments. Schedule настроен каждые 5 минут, но следующая обработка этих задач пока не подтверждена.
 - **Артефакты:** branch `fix/agent-queue-acceptance-guards-2026-11-19`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/281; head commit `699d09aa6d79fc2df2b68a46a37afeb630946c62`.
 - **Безопасность:** PR Draft; merge/deploy, секреты и финансовые операции не выполнялись.
+
+### 2026-11-19 — старт defense-in-depth для legacy Walt write methods
+
+- **Время:** 2026-11-19T01:01:57.221+05:00
+- **Событие:** начата точечная защита от случайного вызова legacy Walt.openLong / Walt.closePosition.
+- **Статус:** начато
+- **Основание:** аудит подтвердил, что текущий runTick останавливается при state.mode === live, а Mini App API имеет отдельный prepare/explicit-confirm/atomic-claim/execute/reconcile путь. Однако Walt.openLong и Walt.closePosition напрямую вызывают общий prepareAndExecute и сами исполняют operation после preview. Сейчас openLong вызывается только из заблокированного legacy bot tick; createAccount вызывается после явной команды /conta CONFIRMO.
+- **Цель:** fail-closed отключить автоматическое исполнение через legacy open/close methods; сохранить отдельный API confirmation flow и явно подтверждаемый create-account flow. Добавить unit tests, доказывающие отсутствие любых MCP calls из legacy open/close methods.
+- **Scope:** src/walt.ts, test/walt.test.ts.
+- **Запрет:** никаких реальных Walt calls, ордеров, закрытий позиций, account writes, secrets, merge или deploy.
