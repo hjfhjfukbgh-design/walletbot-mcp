@@ -498,7 +498,7 @@ jobs:
           git push origin "$branch"
           gh pr create --draft --base "${{ inputs.base_branch }}" --head "$branch" \
             --title "${ROLE} handoff for issue #${ISSUE_NUMBER}" \
-            --body "Report-only handoff. This role is not yet authorized for source changes in the MVP. Human review required."
+            --body "Report-only handoff: the worker did not publish an implementation patch (analysis-only or no-safe-patch). This is not a statement that the role is forbidden from source changes. Human review and a narrower follow-up task may be required."
 
       - name: Finalize durable queue state
         if: always()
@@ -510,12 +510,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh label create agent-done --repo "$GITHUB_REPOSITORY" --color "0E8A16" --description "Исполнение завершено; требуется человеческая проверка" 2>/dev/null || true
+          gh label create agent-review --repo "$GITHUB_REPOSITORY" --color "FBCA04" --description "Артефакт опубликован; требуется проверка критериев приёмки" 2>/dev/null || true
           gh label create agent-blocked --repo "$GITHUB_REPOSITORY" --color "B60205" --description "Задача заблокирована и требует разбора" 2>/dev/null || true
           mode="$(cat /tmp/worker-mode.txt 2>/dev/null || echo unknown)"
           if [ "$JOB_STATUS" = "success" ] && [ "$mode" != "no-safe-patch" ]; then
-            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label agent-dispatched --add-label agent-done
-            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Исполнитель завершил workflow. Результат опубликован в Draft PR/отчёте; требуется человеческая проверка. Режим: $mode.\n\n<!-- kg-complete:run=$RUN_ID;status=success;mode=$mode -->"
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label agent-dispatched --add-label agent-review
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Workflow завершился, артефакт опубликован. Это НЕ означает выполнение критериев приёмки. Требуется проверка человеком/QA; только после подтверждения можно поставить agent-done. Режим: $mode.\n\n<!-- kg-complete:run=$RUN_ID;status=review;mode=$mode -->"
           else
             gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label agent-dispatched --add-label agent-blocked
             gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Исполнение не завершило задачу: status=$JOB_STATUS, mode=$mode. Задача переведена в blocked; требуется разбор причины. Автоматический повтор не запускается.\n\n<!-- kg-complete:run=$RUN_ID;status=blocked;mode=$mode -->"
