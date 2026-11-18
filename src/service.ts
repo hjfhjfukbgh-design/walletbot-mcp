@@ -61,7 +61,7 @@ export async function configureGrid(env: Env, args: string[]): Promise<string> {
     high: Number(args[2]),
     levels: Number(args[3]),
     marginUsd: Number(args[4]),
-    leverage: Math.min(Math.trunc(Number(args[5] ?? 1)), limits.maxLeverage),
+    leverage: Math.trunc(Number(args[5] ?? 1)),
   };
   const err = validateConfig(cfg);
   if (err) return `Некорректные настройки: ${err}`;
