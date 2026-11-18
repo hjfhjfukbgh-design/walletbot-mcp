@@ -366,7 +366,8 @@
           liveStatus.contracts?.available === true &&
           liveStatus.balance?.available === true &&
           issues.length === 0;
-        liveReason = available ? null : (issues[0] || liveReason);
+        const firstIssue = issues[0];
+        liveReason = available ? null : (typeof firstIssue === "string" ? firstIssue : (firstIssue?.description || firstIssue?.message || liveReason));
         return {
           live: { available, reason: liveReason, balanceUsd: finite(liveStatus.balance?.usd), issues, status: liveStatus },
           stocks: { available: false, reason: "Нет подтверждённого источника котировок акций." },
