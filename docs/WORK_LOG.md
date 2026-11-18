@@ -586,3 +586,12 @@
 - **Проверка fan-out:** последний run `44404843368` завершился success на этапе claim, но matrix worker job skipped — фактических исполнителей в этом run не было. Ранее run `44401776151` запускал Team B (report-only handoff) и Team A завершился ошибкой на генерации патча. Это подтверждает, что dispatcher/worker throughput нестабилен.
 - **Собственная задача Team Lead:** провести review актуального implementation PR #335 для Issue #330, включая diff, проверки и регрессии Companion attachment validation; отдельно проверить CI/typecheck и безопасность вложений.
 - **Не выполнено:** никакой merge/deploy и никаких реальных финансовых операций.
+
+
+### 2026-11-19 — Team Lead завершил Issue #330 и взял следующий QA/security участок
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:50:00+05:00
+- **Завершено:** PR #335 одобрен после ручного diff review и merged squash commit `e891b70bb00d21d607db633f059733c7be97317c`.
+- **Проверки PR #335:** worker run `44403857370` — project checks завершились success, включая `npm run typecheck` и `npm test`; second-model review success. Diff затрагивал только `test/companion.test.ts` (+74 строки): 5 attachments, >5 MB/file, >8 MB total, malformed base64; unsupported MIME already covered by existing test. Provider fetch не вызывается на invalid payload.
+- **Issue #330:** закрыта как completed, labels `team-c`, `agent-done`.
+- **Следующая задача Team Lead (начата):** независимый read-only security review LIVE order safety/reconciliation по Issue #277; никаких Walt network/write calls, реальных ордеров, merge/deploy или secret changes.
