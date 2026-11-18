@@ -85,7 +85,7 @@
     setScreen(state.screen);
   }
   function marketMap(){return new Map([...state.markets,...state.futures].map(m=>[m.symbol||m.market,m]));}
-  function quoteOf(m){return Number(m?.priceUsd ?? m?.price ?? m?.markPriceUsd ?? m?.markPrice);}
+  function quoteOf(m){const mark=Number(m?.markPriceUsd ?? m?.markPrice),mid=Number(m?.priceUsd ?? m?.price);return Number.isFinite(mark)&&mark>0?mark:Number.isFinite(mid)&&mid>0?mid:0;}
   function changeOf(m){return Number(m?.change24hPct ?? m?.changePct24h ?? m?.change24h);}
   function renderFavorites(){
     const map=marketMap();
