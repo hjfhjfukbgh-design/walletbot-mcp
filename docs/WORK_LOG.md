@@ -674,3 +674,10 @@
 - **Изменения подготовлены:** GET state включает productMode; POST product-mode tenant-scoped; DEMO/AI сохраняются без изменения legacy mode; LIVE возвращает 409 до проверки полного LIVE open/close контракта; добавлены API tests на tenant isolation и LIVE lock.
 - **Примечание аудита:** этот checkpoint записан после первых branch edits; он не утверждает, что стартовая запись была сделана до редактирования.
 - **Не выполнялись:** Walt network/write calls, реальные ордера, переводы, account changes, secrets, production deploy.
+### 2026-11-19 — ProductMode API persistence and LIVE guard merged
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:06:55.390+05:00
+- **PR #341:** merged squash commit `3f2faf1bfd42704b4dbea3169bec8905022e0cc7`.
+- **Реализация:** GET state теперь отдаёт normalized productMode; POST product-mode сохраняет DEMO/AI в tenant-scoped state; legacy execution mode paper/live не изменяется; LIVE selection получает HTTP 409 до проверки полного order/close capability.
+- **Тесты:** tenant isolation, AI persistence, legacy execution-mode isolation, LIVE refusal/no mutation, invalid mode rejection. CI run `44408247016` success — npm ci, JS syntax checks, typecheck, npm test.
+- **Issue #66:** остаётся открытой в agent-review: backend state/API готовы, но frontend three-mode selector и полная интеграция AI Trading ещё не реализованы. Не помечать задачу done.
