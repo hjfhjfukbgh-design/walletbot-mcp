@@ -45,7 +45,7 @@ describe("window.KriptoGuruAPI contract", () => {
     const stocks = await api.markets.list({ category: "stocks" });
     const capabilities = await api.capabilities.get();
     expect(stocks).toMatchObject({ available: false, markets: [] });
-    expect(capabilities.live.available).toBe(false);
+    expect(capabilities.live.available).toBe(true);
     expect(capabilities.stocks.available).toBe(false);
     expect(capabilities.funds.available).toBe(false);
     expect(capabilities.ipo.available).toBe(false);
@@ -54,31 +54,73 @@ describe("window.KriptoGuruAPI contract", () => {
   });
 
 
-  it("normalizes live market metadata into the Russian UI contract and caps demo leverage", async () => {
+  it("uses mark price and contract leverage without an artificial 3x cap", async () => {
     const contract = {
-      market: "BTC", name: "BTC-USDC", price: 50000, change24hPct: 2.5,
+      market: "BTC", name: "BTC-USDC", price: 50000, markPrice: 50100, change24hPct: 2.5,
       volume24hUsd: 5000000, fundingRateHourly: 0.0001, takerFeePct: 0.00035,
       maxLeverage: 50, minSizeQuote: 10, allowed: true, liquid: true,
     };
     const fetchMock = vi.fn(async (input) => {
       if (String(input) === "/api/contracts") return json({ ok: true, contracts: [contract] });
       if (String(input).startsWith("/api/price?market=BTC")) {
-        return json({ ok: true, price: 50000, maxDemoLeverage: 3, minMargin: 10 });
+        return json({ ok: true, price: 50000, markPrice: 50100, maxDemoLeverage: 3, minMargin: 10 });
       }
       throw new Error("Unexpected request: " + String(input));
     });
     const api = loadApi(fetchMock);
     const list = await api.markets.list({ category: "futures" });
     expect(list.markets[0]).toMatchObject({
-      symbol: "BTC", priceUsd: 50000, fundingRateHourlyPct: 0.01,
+      symbol: "BTC", priceUsd: 50100, markPriceUsd: 50100, fundingRateHourlyPct: 0.01,
       takerFeePct: 0.035, tradeable: true,
     });
     const detail = await api.market.get("BTC");
     expect(detail).toMatchObject({
-      symbol: "BTC", priceUsd: 50000, productType: "Фьючерс",
-      maxLeverage: 3, minMarginUsd: 10, takerFeePct: 0.035,
+      symbol: "BTC", priceUsd: 50100, markPriceUsd: 50100, productType: "Фьючерс",
+      maxLeverage: 50, minMarginUsd: 10, takerFeePct: 0.035,
       fundingRateHourlyPct: 0.01, tradeable: true,
     });
+  });
+
+  it("exposes LIVE status, preview, execute and operation endpoints without leaking the confirmation token", async () => {
+    const fetchMock = vi.fn(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/live/status") return json({
+        ok: true, connected: true,
+        readiness: { available: true, ok: true },
+        contracts: { available: true, count: 12 },
+        balance: { available: true, usd: 250 },
+        issues: [], observedAt: 123456,
+      });
+      if (url === "/api/live/preview") {
+        expect(init.method).toBe("POST");
+        expect(JSON.parse(String(init.body))).toEqual({ market: "BTC", side: "long", marginUsd: 25, leverage: 10 });
+        return json({
+          ok: true, handle: "a".repeat(32), market: "BTC", side: "long", priceUsd: 50000,
+          leverage: 10, marginUsd: 25, notionalUsd: 250, risk: { checks: [] },
+          warnings: [], expiresInSeconds: 120,
+        });
+      }
+      if (url === "/api/live/execute") {
+        expect(JSON.parse(String(init.body))).toEqual({ handle: "a".repeat(32), confirm: true });
+        return json({ ok: false, status: "unknown", error: "Walt timeout" }, 202);
+      }
+      if (url === "/api/live/operation?handle=" + "a".repeat(32)) {
+        return json({ ok: true, operation: { handle: "a".repeat(32), status: "unknown" }, reconciliation: { positionDetected: false } });
+      }
+      throw new Error("Unexpected request: " + url);
+    });
+    const api = loadApi(fetchMock);
+    const status = await api.live.status();
+    expect(status).toMatchObject({
+      connected: true, readiness: { available: true, ok: true },
+      contracts: { available: true, count: 12 }, balance: { available: true, usd: 250 },
+    });
+    const preview = await api.live.preview({ symbol: "BTC", side: "long", marginUsd: 25, leverage: 10 });
+    expect(preview).toMatchObject({ handle: "a".repeat(32), priceUsd: 50000, notionalUsd: 250, valid: true });
+    const execute = await api.live.execute({ handle: preview.handle, confirm: true });
+    expect(execute).toMatchObject({ ok: true, status: "unknown" });
+    const operation = await api.live.operation({ handle: preview.handle });
+    expect(operation).toMatchObject({ operation: { status: "unknown" }, reconciliation: { positionDetected: false } });
   });
 
   it("uses server preview for max margin and estimated fees", async () => {
