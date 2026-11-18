@@ -192,6 +192,7 @@ try{
     await page.evaluate(()=>{
       document.querySelector("#kg-companion-screen").classList.add("kg-keyboard-open");
       const style=document.createElement("style");
+      style.id="kg-test-keyboard-style";
       style.textContent=`
         #kg-companion-screen.kg-keyboard-open{height:calc(100dvh - 280px)!important;min-height:calc(100dvh - 280px)!important}
         #kg-test-keyboard{position:fixed;z-index:1000;right:0;bottom:0;left:0;height:280px;box-sizing:border-box;padding:8px 5px 20px;background:#d5d8df;border-top:1px solid #c5c9d1;color:#252a33;font:13px -apple-system,BlinkMacSystemFont,sans-serif}
@@ -223,7 +224,7 @@ try{
     });
     if(!composerAboveKeyboard)throw new Error("AI composer must remain above the on-screen keyboard");
     await page.screenshot({path:`clean-companion-keyboard-${device.width}x${device.height}.png`,fullPage:false});
-    await page.evaluate(()=>{document.querySelector("#kg-test-keyboard")?.remove();document.querySelector("style")?.remove();document.querySelector("#kg-companion-screen").classList.remove("kg-keyboard-open");document.querySelector("#kg-ai-input").blur();});
+    await page.evaluate(()=>{document.querySelector("#kg-test-keyboard")?.remove();document.querySelector("#kg-test-keyboard-style")?.remove();document.querySelector("#kg-companion-screen").classList.remove("kg-keyboard-open");document.querySelector("#kg-ai-input").blur();});
     await page.locator("#kg-ai-input").fill("Проверь связь");
     await page.locator("#kg-ai-send").click();
     try{
