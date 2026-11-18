@@ -1,56 +1,67 @@
-# SECURITY — анализ задачи #278
+# SECURITY — перепроверенный статический аудит Issue #278
 
-- Режим: анализ, исходники не изменялись
-- Задача: ## Цель
-Проверить, что универсальный AI Companion и AI Trading paper engine не могут обойти границы account context и вызвать реальные финансовые действия.
+- **Режим:** read-only анализ исходников и имеющихся тестов.
+- **Baseline:** main, 2026-11-19.
+- **Actions run:** 44385734444; worker mode: analysis-only.
+- **Runtime checks:** npm ci, typecheck и test suite в этом SECURITY run НЕ запускались. В role-worker эти команды запускаются только для роли QA. Успешный workflow означает публикацию отчёта, а не Security QA PASS.
 
-## Scope (read-only; не менять исходники)
-- Изучить `src/companion.ts`, AI/tool routing, `src/tenants.ts`, `src/state.ts`, API routes, Durable Object/DEMO engine и относящиеся тесты.
-- Проверить tenant isolation, ownership всех conversation/message keys, history CRUD, attachments MIME/size validation, rate limits, prompt injection boundaries и модельные output parsing.
-- Проверить разделение general/learning/research и AI Trading; любые AI-generated trades должны оставаться paper-only.
-- Проверить, что AI Companion не может инициировать LIVE order execute, менять account settings, закрывать позиции или переводить средства; LIVE допустим только как preparation/preview до отдельного user-confirm gate.
-- Проверить отсутствие cross-tenant conversation/history leakage и несанкционированных tool calls.
+## Итог
 
-## Запреты
-Не вызывать LLM provider с пользовательскими секретами, не выполнять Walt writes/execute, не менять позиции/средства, secrets, аккаунты, deploy или merge. Только статический аудит и чтение тестов/логов.
+Исходный AI-отчёт содержал неподтверждённые утверждения о LIVE execution. После проверки реальных call paths вывод исправлен:
 
-## Результат
-Отчёт с точными файлами/символами, проверяемыми attack paths, severity, existing test coverage, gaps и отдельными небольшими remediation tasks. Не заявлять тесты, которые не запускались; не ставить agent-done.
+- **Не подтверждается:** что текущий scheduled bot tick может открыть LIVE-ордер. В `src/bot.ts`, `runTick`, при `state.mode === "live"` выполнение останавливается ранним return до вызова `openLong`.
+- **Подтверждается:** Mini App API имеет отдельный LIVE preview/confirmation flow. `src/api.ts`, `executeLiveTrade`, требует `body.confirm === true`, tenant-scoped preview record и неистёкший token; затем получает атомарный Durable Object claim и выполняет один `perps_execute_operation`. При неопределённом результате записывает `unknown`, возвращает HTTP 202 и не делает blind retry.
+- **Подтверждается:** `src/trading/engine.ts`, `claimLive`, использует SQLite transaction для одноразового claim. Miniflare tests проверяют конкурентный claim, replay prevention, user isolation и expiry.
+- **Defense-in-depth gap:** legacy `Walt.openLong()` / `Walt.closePosition()` в `src/walt.ts` сами вызывали `prepareAndExecute` и могли исполнить операцию после preview, если появится новый call site или регрессия guard. Текущий найденный call site openLong находится за ранним LIVE return; это не доказывает, что сейчас бот торгует автоматически. Fail-closed исправление опубликовано в Draft PR #282.
+- **Account creation:** `src/commands.ts`, `conta`, вызывает `createAccount()` только после явной команды `/conta CONFIRMO`. В main сам adapter не требовал confirmation argument; дополнительная защита — в PR #282.
 
-Анализ безопасности для **Issue #278** (Walletbot MCP).
+## Подтверждённые меры
 
-### Вердикт
-Система имеет критическую архитектурную уязвимость: **отсутствие изоляции исполнения LIVE-ордеров**. Несмотря на наличие механизмов `prepare` → `execute`, текущая реализация `tick` в `src/bot.ts` содержит логику, которая может попытаться выполнить ордер автоматически, если не будет жестко заблокирована. В коде присутствует заглушка, блокирующая LIVE, но она является единственным барьером.
+### Auth и tenant isolation
+- `src/companion.ts` требует Telegram initData в Authorization `tma`, проверяет подпись, срок auth_date и user ID.
+- `src/tenants.ts`, `tenantEnv`, добавляет префикс `tenant:<userId>:` к KV get/put/delete/list; Companion history использует scoped namespace.
+- `test/companion.test.ts` проверяет, что другой Telegram user не может прочитать или удалить чужой диалог.
+- Глобальный OAuth client registration — отдельное намеренное исключение; pending OAuth state и user data tenant-scoped.
 
-### Threat-Model Анализ
-1.  **Границы доверия**: Бот работает в Cloudflare Workers. Секреты (API_SECRET, токены) хранятся в KV и переменных окружения. Использование `tenantEnv` в `src/tenants.ts` обеспечивает изоляцию данных между пользователями, но не защищает от ошибок в логике `tick`.
-2.  **Секреты**: `API_SECRET` используется для авторизации API, но его утечка через логи или публичный репозиторий (если не настроен CI) даст полный контроль над API.
-3.  **Деньги и Риск**:
-    *   `src/bot.ts`: Функция `tick` — критическая точка. Если `state.mode === "live"`, бот должен быть полностью пассивен.
-    *   `src/walt.ts`: Метод `prepareAndExecute` выполняет `execute` сразу после `preview`. Это **небезопасно** для LIVE-торговли без явного подтверждения пользователем в UI.
-4.  **Tenant Isolation**: Реализована через префиксы в KV (`tenant:user:<id>`). Это предотвращает смешивание состояний, но не защищает от выполнения кода с правами владельца бота.
+### Companion
+- Handler Companion вызывает Gemini и tenant-scoped storage; в нём нет Walt/order tools.
+- Режимы general/learning/research валидируются; существующий диалог нельзя переключить в другой mode.
+- Вложения: максимум 4 файла, 5 MiB каждый, 8 MiB суммарно; MIME allowlist и Base64 validation; для MP4/WebM проверяются расширение и сигнатура контейнера.
+- Research использует Google Search grounding, сохраняет только HTTPS source URLs и отказывает, если проверяемых источников нет.
+- Существующие tests покрывают auth, expiry, tenant isolation, image/audio attachments, unsupported MIME, message length, max conversations, grounding и отсутствие fabricated sources.
 
-### Доказательства (Пути и Символы)
-*   **`src/bot.ts` (строки 62-67)**: Блок `if (live) { state.running = false; ... return; }` — это единственный предохранитель. Если он будет удален или изменен, бот начнет торговать на реальные деньги без подтверждения.
-*   **`src/walt.ts` (строки 118-121)**: Метод `prepareAndExecute` объединяет `preview` и `execute`. Это нарушает требование "отдельного явного подтверждения пользователя" для LIVE-операций.
-*   **`src/api.ts` (строки 50-51)**: Маршрут `POST live/execute` существует, но логика подтверждения в `src/service.ts` не просматривается как атомарная транзакция с UI.
+### LIVE
+- `previewLiveTrade` проверяет contract metadata, market allowlist, leverage, баланс, объём и Walt prepare result; confirmation token хранится в tenant-scoped KV с TTL.
+- `executeLiveTrade` требует отдельный confirm, проверяет token/expiry, получает atomic claim, удаляет preview token как cleanup, делает один execute call и сохраняет completed/unknown.
+- Ошибка или timeout после claim не приводит к blind retry; предусмотрен operation status для сверки.
+- Scheduled legacy bot tick немедленно ставит LIVE на паузу.
+- DEMO Durable Object engine отклоняет mode кроме demo; LIVE operations хранятся отдельно.
 
-### Риски и пробелы
-1.  **Отсутствие подтверждения**: Нет механизма, который бы требовал от пользователя нажать кнопку "Подтвердить" в Telegram Mini App *после* получения данных о риске от `preview`.
-2.  **Автоматизация**: `src/index.ts` (scheduled) вызывает `tick`, который может инициировать `openLong`. В LIVE-режиме это недопустимо.
-3.  **Риск-лимиты**: Проверки в `src/risk.ts` выполняются на стороне бота, а не на стороне Walt. Если бот скомпрометирован, он может игнорировать эти проверки.
+## Риски и пробелы
 
-### Один следующий шаг
-Внедрить **"Pending Operation State"** в KV:
-1. При запросе на открытие ордера (LIVE) бот должен записывать параметры в `pending_op:<id>` и переходить в состояние ожидания.
-2. `tick` должен игнорировать любые попытки исполнения, пока не будет найдена запись `confirmed:<id>`, созданная только после явного вызова пользователем команды `/confirm <id>`.
+| Приоритет | Риск | Доказательство / влияние | Исправление |
+|---|---|---|---|
+| Medium | Неатомарные Gemini quotas | В `src/companion.ts` rate limit и research budgets реализованы KV read → increment → write. Параллельные запросы могут прочитать одно значение и превысить лимит; KV не является атомарным счётчиком. | Durable Object/SQLite atomic counter + concurrency tests. |
+| Low | Ошибка research provider расходует дневную квоту | Research counters увеличиваются до вызова Gemini; 429/timeout/grounding error может списать попытку без результата. | Reserve/commit/release с учётом конкурентности. |
+| Low | Нет magic-byte проверки image/audio | MIME и Base64 проверяются, сигнатура контейнера — только у video. Данные передаются модели, Worker их не исполняет. | Проверка сигнатур image/audio + spoofed MIME tests. |
+| Medium | Legacy Walt methods имели опасную семантику | openLong/closePosition вызывали prepare+execute; текущий tick guard защищает найденный call site, но будущий caller мог бы обойти API confirmation gate. | Fail-closed methods + zero-MCP-call tests; PR #282. |
+| Medium | Analysis-only ошибочно получал agent-done | Run 44385734444 завершился analysis-only, но main finalizer поставил agent-done, хотя требовалась ручная проверка. | agent-review вместо agent-done; PR #281. |
 
-### Критерии приёмки
-*   LIVE-торговля невозможна без записи в KV, создаваемой только через интерактивный диалог с пользователем.
-*   `tick` в LIVE-режиме выполняет только чтение (мониторинг), но никогда не вызывает `openLong` или `closePosition`.
-*   `prepareAndExecute` разделен на два независимых метода, вызываемых из разных контекстов (API vs Bot Tick).
+## Тесты и непроверенное
 
-### Что не проверено
-*   Корректность работы `tenantEnv` при высокой нагрузке (состояние гонки в KV).
-*   Безопасность `Durable Objects` в `src/trading/engine.ts` (не анализировался на предмет утечек памяти или данных между пользователями).
-*   Реальное поведение `Walt MCP` при получении `confirmationToken` (неизвестно, истекает ли он мгновенно).
+**Существующие тесты (в run 44385734444 не запускались):**
+- `test/companion.test.ts`: auth, tenant isolation, attachments, research, limits.
+- `test/trading-engine.miniflare.test.ts`: atomic LIVE claim, replay, cross-user isolation, expiry.
+- `test/walt.test.ts`: contract parsing, включая contract ID 0.
+- `test/api.test.ts`: общие auth/API/DEMO сценарии; полноценный успешный LIVE API execute path покрыт недостаточно.
+
+**Не проверено:** npm ci/typecheck/tests в SECURITY run; реальный Walt sandbox E2E; физический iPhone/Telegram WebView; нагрузка KV quotas; внешние гарантии Walt confirmation token; production deployment/config. Реальные Walt writes не выполнялись.
+
+## Следующие задачи
+1. Проверить PR #282: fail-closed legacy methods, explicit account confirmation и API confirmation test.
+2. Проверить PR #281: agent-review, role packet handoff и queue fallback.
+3. Создать backend task на атомарные Companion quotas.
+4. Добавить mock API tests на LIVE preview → confirm → single execute, duplicate, expired token и unknown reconciliation.
+5. После CI и независимого review повторить Security QA.
+
+**Статус принятия:** отчёт исправлен по исходникам, но это статический анализ, не независимый QA PASS и не разрешение на LIVE-операции.
