@@ -105,6 +105,7 @@ describe("AI Companion API", () => {
     const e = isolatedEnv();
     let sentBody: any;
     vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(_input)).toContain("/models/gemini-2.5-flash-lite:generateContent");
       sentBody = JSON.parse(String(init?.body));
       return Response.json({ candidates: [{
         content: { parts: [{ text: "Подтверждённый обзор." }] },
@@ -119,7 +120,7 @@ describe("AI Companion API", () => {
       body: JSON.stringify({ message: "Сделай исследование", mode: "research" }),
     });
     expect(response.status).toBe(200);
-    expect(sentBody.tools).toEqual([{ googleSearch: {} }]);
+    expect(sentBody.tools).toEqual([{ googleSearchRetrieval: {} }]);
     const result = await response.json() as { sources: Array<{ title: string; url: string }>; conversation: { mode: string; messages: Array<{ sources?: Array<{ title: string; url: string }> }> } };
     expect(result.sources).toEqual([{ title: "Первичный отчёт", url: "https://example.com/report" }]);
     expect(result.conversation.mode).toBe("research");
@@ -139,8 +140,8 @@ describe("AI Companion API", () => {
   });
 
   it("blocks research when the free-tier monthly budget guard is exhausted", async () => {
-    const month = new Date().toISOString().slice(0, 7);
-    const e = isolatedEnv({ ["companion:research:global:" + month]: "1000" });
+    const day = new Date().toISOString().slice(0, 10);
+    const e = isolatedEnv({ ["companion:research:global:" + day]: "100" });
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const response = await call(e, "111", "/api/companion/chat", {
