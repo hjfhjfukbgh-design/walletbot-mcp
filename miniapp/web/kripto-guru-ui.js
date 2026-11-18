@@ -87,16 +87,20 @@
     const fav=[...state.favorites].map(s=>map.get(s)).filter(Boolean).slice(0,8);
     $("#kg-favorites").innerHTML=fav.length?fav.map(m=>{
       const s=m.symbol||m.market, change=changeOf(m), price=quoteOf(m);
-      return `<button class="kg-favorite" data-open-market="${esc(s)}" type="button"><div class="kg-fav-top"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-badge">${Number(m.maxLeverage||1)}×</span><span class="kg-fav-remove" data-remove-favorite="${esc(s)}" ${state.editFavorites?"":"hidden"}>×</span></div><b>${esc(s)}</b><strong>${priceMoney(price,m)}</strong><small class="${change>=0?"kg-change-up":"kg-change-down"}">${pct(change)}</small><svg class="kg-sparkline" viewBox="0 0 100 22" preserveAspectRatio="none"><path d="M1 15 L14 12 L25 16 L37 8 L49 10 L62 4 L74 12 L86 9 L99 18" fill="none" stroke="${change>=0?"#22ad78":"#e45a65"}" stroke-width="2"/></svg></button>`;
-    }).join(""):'<button class="kg-favorite kg-favorite-static" type="button"><div class="kg-fav-top"><span class="kg-asset-icon" style="background:#17191d;color:#fff">S</span><span class="kg-badge">10×</span></div><b>Samsung</b><strong>—</strong><small class="kg-change-up">—</small><svg class="kg-sparkline" viewBox="0 0 100 22"><path d="M1 15 L14 12 L25 19 L37 7 L49 2 L62 17 L74 11 L86 8 L99 14" fill="none" stroke="#36ad70" stroke-width="2"/></svg></button><button class="kg-favorite kg-favorite-static" type="button"><div class="kg-fav-top"><span class="kg-asset-icon" style="background:#17191d;color:#fff">X</span><span class="kg-badge">20×</span></div><b>SpaceX</b><strong>—</strong><small class="kg-change-up">—</small><svg class="kg-sparkline" viewBox="0 0 100 22"><path d="M1 20 L14 15 L25 14 L37 9 L49 2 L62 12 L74 9 L86 5 L99 9" fill="none" stroke="#36ad70" stroke-width="2"/></svg></button><button class="kg-favorite kg-favorite-static" type="button"><div class="kg-fav-top"><span class="kg-asset-icon" style="background:#df3338;color:#fff">T</span><span class="kg-badge">20×</span></div><b>Tesla</b><strong>—</strong><small class="kg-change-down">—</small><svg class="kg-sparkline" viewBox="0 0 100 22"><path d="M1 4 L14 8 L25 9 L37 13 L49 14 L62 18 L74 16 L86 20 L99 21" fill="none" stroke="#e45a65" stroke-width="2"/></svg></button>';
+      const points=Array.isArray(m.sparkline)?m.sparkline.map(Number).filter(Number.isFinite):[];
+      const path=points.length>1?points.map((v,i)=>`${i?"L":"M"}${(i/(points.length-1)*100).toFixed(1)} ${(20-(v-Math.min(...points))/(Math.max(...points)-Math.min(...points)||1)*16).toFixed(1)}`).join(" "):"";
+      const chart=path?`<svg class="kg-sparkline" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true"><path d="${path}" fill="none" stroke="${change>=0?"#32ad70":"#e45a65"}" stroke-width="2"/></svg>`:'<div class="kg-sparkline kg-sparkline-empty" aria-hidden="true"></div>';
+      const changeLabel=Number.isFinite(change)?pct(change):"Изменение н/д";
+      return `<button class="kg-favorite" data-open-market="${esc(s)}" type="button"><div class="kg-fav-top"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-badge">${Number(m.maxLeverage||1)}×</span><span class="kg-fav-remove" data-remove-favorite="${esc(s)}" ${state.editFavorites?"":"hidden"}>×</span></div><b>${esc(s)}</b><strong>${priceMoney(price,m)}</strong><small class="${Number.isFinite(change)?(change>=0?"kg-change-up":"kg-change-down"):"kg-muted"}">${changeLabel}</small>${chart}</button>`;
+    }).join(""):'<div class="kg-empty-inline">Добавьте активы в избранное из списка рынка.</div>';
   }
   function renderWalletAssets(){
     const assets=listOf(state.wallet,["assets","balances"]);
     $("#kg-wallet-assets").innerHTML=assets.length?assets.map(a=>{
       const s=a.symbol||a.asset||"";
       const balance=Number(a.valueUsd ?? a.balanceUsd ?? a.usdValue);
-      return `<div class="kg-asset-row" data-open-market="${esc(s)}"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-row-copy"><b>${esc(a.name||symbolName(s))}</b><small>${esc(s)}</small></span><strong class="kg-row-value">${Number.isFinite(balance)?money(balance):"—"}</strong></div>`;
-    }).join(""):'<div class="kg-asset-row"><span class="kg-asset-icon" style="background:#36a8ee;color:#fff">◆</span><span class="kg-row-copy"><b>Gram</b><small>GRAM · котировка</small></span><span class="kg-wallet-row-value">0,00 $</span></div><div class="kg-asset-row"><span class="kg-asset-icon" style="background:#f49a19;color:#fff">₿</span><span class="kg-row-copy"><b>Bitcoin</b><small>BTC · котировка</small></span><span class="kg-wallet-row-value">0,00 $</span></div><div class="kg-asset-row"><span class="kg-asset-icon" style="background:#627eea;color:#fff">◆</span><span class="kg-row-copy"><b>Ethereum</b><small>ETH · котировка</small></span><span class="kg-wallet-row-value">0,00 $</span></div>';
+      return `<div class="kg-asset-row" ${s?`data-open-market="${esc(s)}"`:""}><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-row-copy"><b>${esc(a.name||symbolName(s))}</b><small>${esc(s)}</small></span><strong class="kg-wallet-row-value">${Number.isFinite(balance)?money(balance):"—"}</strong></div>`;
+    }).join(""):'<div class="kg-empty-inline">Активы появятся здесь после зачисления на счёт.</div>';
   }
   function renderRecent(){
     const map=marketMap(), recent=state.recent.map(s=>map.get(s)).filter(Boolean);
@@ -185,12 +189,9 @@
       $("#kg-wallet-balance").textContent=money(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
       $("#kg-wallet-currency-value").textContent=money(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
       const walletAssets=listOf(state.wallet,["assets","balances"]);
-      const cryptoTotal=walletAssets.reduce((sum,asset)=>{
-        const value=Number(asset.valueUsd ?? asset.balanceUsd ?? asset.usdValue);
-        return sum+(Number.isFinite(value)?value:0);
-      },0);
+      const cryptoValues=walletAssets.map(asset=>Number(asset.valueUsd ?? asset.balanceUsd ?? asset.usdValue)).filter(Number.isFinite);
       const totalNode=$("#kg-wallet-crypto-total");
-      if(totalNode)totalNode.textContent=fmt(cryptoTotal)+" $";
+      if(totalNode)totalNode.textContent=cryptoValues.length?fmt(cryptoValues.reduce((sum,value)=>sum+value,0))+" $":"—";
       renderWalletAssets();
       const pos=listOf(state.wallet,["positions"]);
       $("#kg-position-count").textContent=String(pos.length);
