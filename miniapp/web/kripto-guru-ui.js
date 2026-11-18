@@ -446,7 +446,7 @@
       renderAssetHistory(symbol);
       showSubscreen("asset");
       await loadCandles(state.interval);
-    }catch(error){notify(normalizeError(error).message);}
+    }catch(error){console.warn("[Kripto Guru] Asset open failed",error);notify(normalizeError(error).message);}
   }
   async function loadCandles(interval){
     state.interval=interval;
