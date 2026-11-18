@@ -39,18 +39,21 @@ describe("window.KriptoGuruAPI contract", () => {
     });
   });
 
-  it("returns explicit unavailable states instead of inventing stocks, funds or bonuses", async () => {
-    const fetchMock = vi.fn();
+  it("keeps LIVE unavailable when Walt readiness is incomplete while preserving unsupported markets", async () => {
+    const fetchMock = vi.fn(async (input) => {
+      expect(String(input)).toBe("/api/live/status");
+      return json({ ok: true, connected: false, readiness: { available: false, ok: false }, contracts: { available: false, count: 0 }, balance: { available: false, usd: null }, issues: [{ code: "not_connected", description: "Walt не подключён." }] });
+    });
     const api = loadApi(fetchMock);
     const stocks = await api.markets.list({ category: "stocks" });
     const capabilities = await api.capabilities.get();
     expect(stocks).toMatchObject({ available: false, markets: [] });
-    expect(capabilities.live.available).toBe(false);
+    expect(capabilities.live).toMatchObject({ available: false, reason: "Walt не подключён.", balanceUsd: null });
     expect(capabilities.stocks.available).toBe(false);
     expect(capabilities.funds.available).toBe(false);
     expect(capabilities.ipo.available).toBe(false);
     expect(capabilities.bonuses.available).toBe(false);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
 
@@ -137,6 +140,56 @@ describe("window.KriptoGuruAPI contract", () => {
     expect(opened.position).toMatchObject({ id: "p2", marginUsd: 12.5, entryPriceUsd: 250 });
     const closed = await api.trade.close("p2");
     expect(closed).toMatchObject({ closed: true, result: { totalNetPnlMicro: "125000" } });
+  });
+
+  it("exposes LIVE status, position, preview and operation routes with encoded query values", async () => {
+    const calls = [];
+    const fetchMock = vi.fn(async (input, init = {}) => {
+      calls.push({ url: String(input), method: init.method || "GET", body: init.body ? JSON.parse(String(init.body)) : null });
+      if (String(input) === "/api/live/status") return json({ ok: true, connected: true, readiness: { available: true, ok: true }, contracts: { available: true, count: 12 }, balance: { available: true, usd: 250 }, issues: [] });
+      if (String(input) === "/api/live/position?symbol=BTC%2FUSDT") return json({ ok: true, position: null });
+      if (String(input) === "/api/live/preview") return json({ ok: true, handle: "live-handle-1", risk: { liquidationPriceUsd: 42000 }, warnings: [] });
+      if (String(input) === "/api/live/operation?handle=live%2Fhandle%3F1") return json({ ok: true, status: "pending" });
+      throw new Error("Unexpected request: " + String(input));
+    });
+    const api = loadApi(fetchMock);
+    const status = await api.live.status();
+    const position = await api.live.position("btc/usdt");
+    const preview = await api.live.preview({ symbol: "btc/usdt", side: "long", marginUsd: 25, leverage: 4 });
+    const operation = await api.live.operation("live/handle?1");
+    expect(status.connected).toBe(true);
+    expect(position.position).toBe(null);
+    expect(preview.handle).toBe("live-handle-1");
+    expect(operation.status).toBe("pending");
+    expect(calls).toEqual([
+      { url: "/api/live/status", method: "GET", body: null },
+      { url: "/api/live/position?symbol=BTC%2FUSDT", method: "GET", body: null },
+      { url: "/api/live/preview", method: "POST", body: { symbol: "BTC/USDT", side: "long", marginUsd: 25, leverage: 4 } },
+      { url: "/api/live/operation?handle=live%2Fhandle%3F1", method: "GET", body: null },
+    ]);
+  });
+
+  it("requires explicit confirmation before a LIVE execute request", async () => {
+    const fetchMock = vi.fn(async () => json({ ok: true, status: "completed" }));
+    const api = loadApi(fetchMock);
+    await expect(api.live.execute({ handle: "live-handle-1", confirm: false })).rejects.toMatchObject({
+      code: "CONFIRMATION_REQUIRED", status: 400, retryable: false,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    await api.live.execute({ handle: "live-handle-1", confirm: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toBe("/api/live/execute");
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({ handle: "live-handle-1", confirm: true });
+  });
+
+  it("enables LIVE capability only when every readiness component is available", async () => {
+    const fetchMock = vi.fn(async () => json({
+      ok: true, connected: true, readiness: { available: true, ok: true },
+      contracts: { available: true, count: 12 }, balance: { available: true, usd: 250 }, issues: [],
+    }));
+    const api = loadApi(fetchMock);
+    const capabilities = await api.capabilities.get();
+    expect(capabilities.live).toMatchObject({ available: true, balanceUsd: 250, issues: [] });
   });
 
   it("normalizes history close events and keeps exact raw payloads", async () => {
