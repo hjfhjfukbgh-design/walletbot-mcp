@@ -513,3 +513,12 @@ button:disabled{cursor:not-allowed;opacity:.5}
   min-width:0;
   padding:5px 12px;
 }
+
+
+/* iOS Telegram WebView: 16px minimum prevents Safari's automatic focus zoom
+   on the AI composer while preserving the page's initial viewport scale. */
+.kg-ai-form textarea{
+  font-size:16px!important;
+  line-height:1.35;
+  -webkit-text-size-adjust:100%;
+}
