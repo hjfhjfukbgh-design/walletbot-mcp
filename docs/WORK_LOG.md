@@ -657,3 +657,12 @@
 - **Test proof:** GET live/status при отсутствии Walt token возвращает connected:false, unavailable fields и issue code not_connected; fetch mock не вызывается, token не попадает в response.
 - **Issue #60:** закрыта completed с agent-done.
 - **Safety:** никаких реальных Walt calls, ордеров, account changes или production deploy.
+### 2026-11-19 — ProductMode state contract merged
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:04:57.912+05:00
+- **Issue #67:** ранее помеченная agent-done задача не имела реализации; ProductMode/normalizeProductMode/withProductMode отсутствовали в main. Team Lead реализовал отсутствующий контракт.
+- **PR #340:** merged squash commit `1acb086effe07a41336e1273330f5c9fe7bc5fad`.
+- **Реализация:** declaration merging добавляет optional ProductMode demo/live/ai; строгая нормализация неизвестных значений в demo; immutable withProductMode; defaultState и loadState мигрируют старые состояния к demo, не меняя legacy mode paper/live.
+- **CI run:** `44407893844` success — npm ci, JS syntax checks, npm run typecheck, npm test; unit tests valid/invalid modes, immutability, default and legacy migration.
+- **Issue #67:** закрыта completed с agent-done.
+- **Safety:** состояние не включает LIVE execution и не меняет legacy execution mode; никаких внешних финансовых операций или production deploy.
