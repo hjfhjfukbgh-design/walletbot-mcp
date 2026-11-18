@@ -4,7 +4,7 @@
   const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
   const tg = window.Telegram?.WebApp || null;
   const state = {
-    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, sparklineCache:{},
+    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, currencyMode:"RUB", sparklineCache:{},
     favorites:(()=>{try{return new Set(JSON.parse(localStorage.getItem("kg:favorites:v1")||'["BTC","ETH","SOL"]'));}catch{return new Set(["BTC","ETH","SOL"]);}})(),
     equities:(()=>{try{const saved=JSON.parse(localStorage.getItem("kg:equities:v1"));return Array.isArray(saved)?saved.filter(x=>x&&typeof x.symbol==="string"&&typeof x.name==="string"):[{symbol:"AAPL",name:"Apple",kind:"Акция"}];}catch{return[{symbol:"AAPL",name:"Apple",kind:"Акция"}];}})(),
     editEquities:false,
@@ -228,8 +228,8 @@
   async function loadWallet(){
     try{
       state.wallet=unwrap(await invoke("wallet.get"),"wallet");
-      const balanceRub=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN)*Number(state.fxRateRub); $("#kg-wallet-balance").innerHTML=Number.isFinite(balanceRub)?fmt(balanceRub)+' <span class="kg-ruble-symbol">₽</span>':"—";
-      $("#kg-wallet-currency-value").textContent=Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—";const currencySubtitle=$("#kg-wallet-currency .kg-card-copy small");if(currencySubtitle)currencySubtitle.textContent=Number.isFinite(state.fxRateRub)?"USDT · 1 $ = "+fmt(state.fxRateRub,2)+" ₽":"USDT · курс недоступен";
+      const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub);const shownBalance=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shownBalance)?fmt(shownBalance)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";
+      $("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";const currencySubtitle=$("#kg-wallet-currency .kg-card-copy small");if(currencySubtitle)currencySubtitle.textContent=Number.isFinite(state.fxRateRub)?"Курс: 1 $ = "+fmt(state.fxRateRub,2)+" ₽ · нажмите для смены валюты":"Курс доллара недоступен";
       const walletAssets=listOf(state.wallet,["assets","balances"]);
       const cryptoValues=walletAssets.map(asset=>Number(asset.valueUsd ?? asset.balanceUsd ?? asset.usdValue)).filter(Number.isFinite);
       const totalNode=$("#kg-wallet-crypto-total");
@@ -589,6 +589,8 @@
     finally{state.companionBusy=false;$("#kg-ai-send").disabled=false;input.disabled=false;input.focus();}
   }
   function bind(){
+    $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
+    $("#kg-wallet-ai").addEventListener("click",async()=>{setScreen("companion");await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);if(!state.companionInitialized){state.companionInitialized=true;if(state.companionConversations.length)await openCompanionConversation(state.companionConversations[0].id);}});
     $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
       setScreen(button.dataset.screen);
       if(state.screen==="wallet")await loadWallet();
@@ -614,7 +616,7 @@
     aiInput.addEventListener("focus",()=>{syncComposer();});
     aiInput.addEventListener("blur",()=>{window.setTimeout(syncComposer,120);});
     aiInput.addEventListener("input",()=>{aiInput.style.height="auto";aiInput.style.height=Math.min(aiInput.scrollHeight,130)+"px";syncComposer();});
-    if(window.visualViewport){const syncViewport=()=>aiScreen.classList.toggle("kg-keyboard-open",document.activeElement===aiInput&&window.visualViewport.height<window.innerHeight-120);window.visualViewport.addEventListener("resize",syncViewport);window.visualViewport.addEventListener("scroll",syncViewport);aiInput.addEventListener("focus",syncViewport);aiInput.addEventListener("blur",()=>aiScreen.classList.remove("kg-keyboard-open"));}
+    if(window.visualViewport){const syncViewport=()=>{const keyboardOpen=document.activeElement===aiInput&&window.visualViewport.height<window.innerHeight-120;aiScreen.classList.toggle("kg-keyboard-open",keyboardOpen);$("#kg-nav").hidden=keyboardOpen;};window.visualViewport.addEventListener("resize",syncViewport);window.visualViewport.addEventListener("scroll",syncViewport);aiInput.addEventListener("focus",syncViewport);aiInput.addEventListener("blur",()=>{aiScreen.classList.remove("kg-keyboard-open");$("#kg-nav").hidden=false;});}
     $("#kg-ai-attach").addEventListener("click",()=>$("#kg-ai-file-input").click());
     $("#kg-ai-file-input").addEventListener("change",event=>{addCompanionFiles(event.target.files||[]);event.target.value="";});
     $("#kg-ai-attachments").addEventListener("click",event=>{const button=event.target.closest("[data-remove-attachment]");if(!button)return;state.companionAttachments.splice(Number(button.dataset.removeAttachment),1);renderCompanionAttachments();});

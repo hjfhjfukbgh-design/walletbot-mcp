@@ -1082,3 +1082,10 @@ button{ -webkit-tap-highlight-color:transparent }
  #kg-companion-screen .kg-ai-welcome{padding-top:12px;padding-bottom:18px}
  #kg-companion-screen .kg-brand-mark{width:58px;height:58px;margin-bottom:15px}
 }
+
+
+/* Sprint 180: prevent browser-page zoom/scroll artifacts in Telegram WebView. */
+html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;touch-action:pan-x pan-y}
+#kg-market-search{font-size:16px!important}
+.kg-ipo-card,.kg-equities-heading,#kg-wallet-equities,#kg-equities-add-wrap,.kg-wallet-defi{display:none!important}
+.kg-category[data-category="stocks"],.kg-category[data-category="funds"],#kg-search-filters [data-search-filter="stocks"],#kg-search-filters [data-search-filter="funds"]{display:none!important}
