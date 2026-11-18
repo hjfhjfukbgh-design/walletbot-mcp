@@ -91,7 +91,8 @@ export class Walt {
     throw new WaltError("Автоматическое LIVE-закрытие через legacy closePosition отключено. Используйте отдельный API preview и явное подтверждение пользователя.");
   }
 
-  async createAccount(): Promise<unknown> {
+  async createAccount(confirmed: boolean): Promise<unknown> {
+    if (confirmed !== true) throw new WaltError("Создание Perps account требует отдельного явного подтверждения пользователя.");
     return this.prepareAndExecute("perps_prepare_account_create", {});
   }
 
