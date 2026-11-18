@@ -531,8 +531,8 @@
     catch{state.companionLimits=null;renderCompanionLimits();}
   }
   function newCompanionConversation(focus=true){
-    state.companionId=null;state.companionMessages=[];
-    renderCompanionMessages();renderCompanionHistory();setCompanionMenu(false);
+    state.companionId=null;state.companionMessages=[];state.companionAttachments=[];
+    renderCompanionMessages();renderCompanionAttachments();renderCompanionHistory();setCompanionMenu(false);
     if(focus)$("#kg-ai-input").focus();
   }
   function renderCompanionAttachments(){
@@ -590,7 +590,7 @@
   }
   function bind(){
     $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
-    $("#kg-wallet-ai").addEventListener("click",async()=>{setScreen("companion");await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);if(!state.companionInitialized){state.companionInitialized=true;newCompanionConversation(false);}});
+    $("#kg-wallet-ai").addEventListener("click",async()=>{setScreen("companion");await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);state.companionInitialized=true;newCompanionConversation(false);});
     $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
       setScreen(button.dataset.screen);
       if(state.screen==="wallet")await loadWallet();
@@ -599,10 +599,8 @@
       if(state.screen==="bonuses")await loadCapabilities();
       if(state.screen==="companion"){
          await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);
-         if(!state.companionInitialized){
-           state.companionInitialized=true;
-           newCompanionConversation(false);
-         }
+         state.companionInitialized=true;
+         newCompanionConversation(false);
        }
     }));
     $("#kg-ai-new").addEventListener("click",newCompanionConversation);
