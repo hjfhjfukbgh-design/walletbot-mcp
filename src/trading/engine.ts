@@ -92,7 +92,7 @@ export class TradingEngine {
       if (request.method === "GET" && url.pathname === "/live/status") {
         const userId = url.searchParams.get("userId") ?? "";
         const handle = url.searchParams.get("handle") ?? "";
-        if (!/^\\d{1,20}$/.test(userId) || !/^[a-f0-9]{32}$/.test(handle))
+        if (!/^\d{1,20}$/.test(userId) || !/^[a-f0-9]{32}$/.test(handle))
           return Response.json({ ok: false, error: "Некорректный идентификатор LIVE-операции." }, { status: 400 });
         const row = this.ctx.storage.sql.exec(
           "SELECT handle, user_id, contract_id, symbol, side, leverage, margin_usd, notional_usd, preview_at, expires_at, status, created_at, updated_at, result_json FROM live_operations WHERE handle = ? AND user_id = ?",
@@ -194,7 +194,7 @@ export class TradingEngine {
     const previewAt = Number(body.previewAt);
     const expiresAt = Number(body.expiresAt);
     const now = Date.now();
-    if (!/^\\d{1,20}$/.test(userId) || !/^[a-f0-9]{32}$/.test(handle) ||
+    if (!/^\d{1,20}$/.test(userId) || !/^[a-f0-9]{32}$/.test(handle) ||
         !Number.isSafeInteger(contractId) || contractId <= 0 ||
         (side !== "long" && side !== "short") ||
         !Number.isSafeInteger(leverage) || leverage < 1 ||
@@ -230,7 +230,7 @@ export class TradingEngine {
     const userId = String(body.userId ?? "");
     const handle = String(body.handle ?? "");
     const requestedStatus = String(body.status ?? "");
-    if (!/^\\d{1,20}$/.test(userId) || !/^[a-f0-9]{32}$/.test(handle) ||
+    if (!/^\d{1,20}$/.test(userId) || !/^[a-f0-9]{32}$/.test(handle) ||
         !["completed", "unknown", "reconciled"].includes(requestedStatus)) {
       return Response.json({ ok: false, error: "Некорректный статус LIVE-операции." }, { status: 400 });
     }
