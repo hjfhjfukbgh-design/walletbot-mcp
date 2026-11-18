@@ -259,7 +259,7 @@ jobs:
           } catch {}
           const role = process.env.ROLE;
           const allowed = {
-            BACKEND: p => ["src/index.ts","src/api.ts","src/service.ts","src/state.ts","src/tenants.ts"].includes(p),
+            BACKEND: p => ["src/index.ts","src/api.ts","src/service.ts","src/state.ts","src/tenants.ts","src/companion.ts","src/walt.ts","src/manual.ts","src/env.ts"].includes(p),
             FRONTEND: p => p.startsWith("miniapp/web/") && /\.(js|mjs|css|html)$/.test(p)
           };
           const parsedPaths = [...new Set([...original.matchAll(/^--- a\/([^\r\n]+)/gm)].map(m=>m[1].trim().split(/\s+/)[0]))];
@@ -339,7 +339,7 @@ jobs:
           for path in "${changed[@]}"; do
             git ls-files --error-unmatch "$path" >/dev/null 2>&1 || { echo "::error::New files are not allowed: $path"; exit 1; }
             case "${ROLE}" in
-              BACKEND) [[ "$path" == "src/index.ts" || "$path" == "src/api.ts" || "$path" == "src/service.ts" || "$path" == "src/state.ts" || "$path" == "src/tenants.ts" ]] || { echo "::error::Forbidden backend path: $path"; exit 1; } ;;
+              BACKEND) [[ "$path" == "src/index.ts" || "$path" == "src/api.ts" || "$path" == "src/service.ts" || "$path" == "src/state.ts" || "$path" == "src/tenants.ts" || "$path" == "src/companion.ts" || "$path" == "src/walt.ts" || "$path" == "src/manual.ts" || "$path" == "src/env.ts" ]] || { echo "::error::Forbidden backend path: $path"; exit 1; } ;;
               FRONTEND) [[ "$path" == miniapp/web/*.js || "$path" == miniapp/web/*.mjs || "$path" == miniapp/web/*.css || "$path" == miniapp/web/*.html ]] || { echo "::error::Forbidden path: $path"; exit 1; } ;;
               *) echo "::error::Role is not allowed to modify source."; exit 1 ;;
             esac
