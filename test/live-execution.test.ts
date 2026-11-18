@@ -142,6 +142,10 @@ describe("LIVE execute safety", () => {
 
     const second = await callApi(e, "live/execute", { method: "POST", body: JSON.stringify({ handle, confirm: true }) });
     expect(second.status).toBe(200);
+    const status = await callApi(e, "live/operation?handle=" + handle);
+    expect(status.status).toBe(200);
+    expect(await status.json()).toMatchObject({ operation: { status: "unknown" }, reconciliation: { positionDetected: false } });
+    expect(client.openPosition).toHaveBeenCalledTimes(1);
     expect(client.call).toHaveBeenCalledTimes(1);
   });
 });
