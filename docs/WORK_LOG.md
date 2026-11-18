@@ -314,3 +314,12 @@
 - **PR #282 итог:** 4 файла (`src/walt.ts`, `src/commands.ts`, `test/walt.test.ts`, `test/api.test.ts`), 47 additions / 26 deletions; head `b08a679cb9450ac43806bc1aaf0e306f2d96e7d4`.
 - **Проверка:** полный diff прочитан; combined status и PR workflow runs пустые. Typecheck/tests ещё не подтверждены.
 - **Безопасность:** никаких реальных Walt tools, ордеров, позиций или account creation; merge/deploy не выполнялись.
+
+### 2026-11-19 — старт перепроверки и исправления SECURITY handoff report #280
+
+- **Время:** 2026-11-19T01:04:59.216+05:00
+- **Событие:** начата замена неподтверждённых выводов SECURITY handoff на проверяемый статический аудит с конкретными call paths.
+- **Статус:** начато
+- **Основание:** исходный AI report PR #280 содержит неверные утверждения о текущем LIVE execution path и не указывает, что SECURITY worker не запускал npm/typecheck/tests. Фактические исходники и Actions job logs уже перепроверены.
+- **Цель:** обновить report artifact в его ветке: отделить подтверждённые меры, реальные defense-in-depth gaps, KV quota race risk и неисполненные проверки; не выдавать анализ за QA PASS.
+- **Scope:** только `team/reports/role-security-issue-278-44385734444.md`; никаких application source changes в этой report task.
