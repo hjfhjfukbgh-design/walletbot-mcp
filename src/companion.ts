@@ -61,11 +61,6 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     if (!env.GEMINI_API_KEY)
       return json({ ok: false, error: "ИИ временно не настроен: отсутствует серверный ключ Gemini." }, 503);
 
-    const rateKey = "companion:rate:" + Math.floor(Date.now() / (RATE_WINDOW_SECONDS * 1000));
-    const current = (await scoped.STATE.get<number>(rateKey, "json")) ?? 0;
-    if (current >= RATE_LIMIT) return json({ ok: false, error: "Слишком много сообщений. Подождите минуту." }, 429);
-    await scoped.STATE.put(rateKey, JSON.stringify(current + 1), { expirationTtl: RATE_WINDOW_SECONDS + 5 });
-
     const body = await req.json().catch(() => ({})) as { message?: unknown; conversationId?: unknown };
     const message = typeof body.message === "string" ? body.message.trim() : "";
     if (!message) return json({ ok: false, error: "Напишите сообщение." }, 400);
@@ -87,6 +82,12 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     const history = [...conversation.messages, { role: "user" as const, content: message, createdAt: new Date().toISOString() }].slice(-MAX_CONTEXT_MESSAGES);
     const model = (env.GEMINI_MODEL || "gemini-3.8-flash").trim();
     if (!/^[a-zA-Z0-9._-]{1,80}$/.test(model)) return json({ ok: false, error: "Некорректная настройка модели Gemini." }, 500);
+
+    // Invalid requests must not consume the user's Gemini message quota.
+    const rateKey = "companion:rate:" + Math.floor(Date.now() / (RATE_WINDOW_SECONDS * 1000));
+    const current = (await scoped.STATE.get<number>(rateKey, "json")) ?? 0;
+    if (current >= RATE_LIMIT) return json({ ok: false, error: "Слишком много сообщений. Подождите минуту." }, 429);
+    await scoped.STATE.put(rateKey, JSON.stringify(current + 1), { expirationTtl: RATE_WINDOW_SECONDS + 5 });
 
     let response: Response;
     try {
