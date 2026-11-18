@@ -201,7 +201,7 @@ jobs:
           patch = patch.replace(/^\x60\x60\x60(?:css|diff)?\s*/, "").replace(/\s*\x60\x60\x60$/, "").trim();
           if (patch === "NO_SAFE_PATCH") {
             fs.writeFileSync("/tmp/worker-mode.txt", "no-safe-patch");
-            fs.writeFileSync("/tmp/worker-report.md", "# Исполнитель остановлен безопасно\\n\\nМодель не смогла сформировать безопасный patch. Исходники не изменены.\\n");
+            fs.writeFileSync("/tmp/worker-report.md", "# Исполнитель остановлен безопасно\n\nМодель не смогла сформировать безопасный patch. Исходники не изменены.\n");
             console.log("Model declined to create a safe patch.");
             process.exit(0);
           }
@@ -277,8 +277,8 @@ jobs:
             "Не меняй цель задачи и не расширяй scope. Используй только перечисленные существующие файлы.",
             "Верни только чистый unified diff, без Markdown fences и объяснений. Если исправить безопасно нельзя, верни NO_SAFE_PATCH.",
             "Задача: "+process.env.TASK,
-            "Исходный diff, который не применился:\\n"+original,
-            "Текущие точные файлы:\\n"+context
+            "Исходный diff, который не применился:\n"+original,
+            "Текущие точные файлы:\n"+context
           ].join("\n\n");
           let repaired = "", last = "";
           for (const model of ["gemini-3.5-flash-lite","gemini-3.1-flash-lite"]) {
@@ -515,8 +515,8 @@ jobs:
           mode="$(cat /tmp/worker-mode.txt 2>/dev/null || echo unknown)"
           if [ "$JOB_STATUS" = "success" ] && [ "$mode" != "no-safe-patch" ]; then
             gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label agent-dispatched --add-label agent-review
-            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Workflow завершился, артефакт опубликован. Это НЕ означает выполнение критериев приёмки. Требуется проверка человеком/QA; только после подтверждения можно поставить agent-done. Режим: $mode.\\n\\n<!-- kg-complete:run=$RUN_ID;status=review;mode=$mode -->"
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Workflow завершился, артефакт опубликован. Это НЕ означает выполнение критериев приёмки. Требуется проверка человеком/QA; только после подтверждения можно поставить agent-done. Режим: $mode.\n\n<!-- kg-complete:run=$RUN_ID;status=review;mode=$mode -->"
           else
             gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label agent-dispatched --add-label agent-blocked
-            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Исполнение не завершило задачу: status=$JOB_STATUS, mode=$mode. Задача переведена в blocked; требуется разбор причины. Автоматический повтор не запускается.\\n\\n<!-- kg-complete:run=$RUN_ID;status=blocked;mode=$mode -->"
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Исполнение не завершило задачу: status=$JOB_STATUS, mode=$mode. Задача переведена в blocked; требуется разбор причины. Автоматический повтор не запускается.\n\n<!-- kg-complete:run=$RUN_ID;status=blocked;mode=$mode -->"
           fi
