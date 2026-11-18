@@ -334,7 +334,7 @@
   function renderCompanionMessages(){
     const root=$("#kg-ai-messages");
     if(!state.companionMessages.length){
-      root.innerHTML='<div class="kg-ai-welcome"><div class="kg-ai-welcome-mark">✦</div><b>Привет! Я Kripto Guru AI.</b><p>Рад знакомству. Помогу разобраться в сложных вопросах, освоить новые темы, продумать идеи и спланировать следующие шаги.</p><small>Напиши, с чего начнём.</small></div>';
+      root.innerHTML='<div class="kg-ai-welcome"><div class="kg-gemini-spark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 2.5C27.8 15.1 32.9 20.2 45.5 24 32.9 27.8 27.8 32.9 24 45.5 20.2 32.9 15.1 27.8 2.5 24 15.1 20.2 20.2 15.1 24 2.5Z"/></svg></div><b>Привет! Я Kripto Guru AI.</b><p>Что будем разбирать сегодня?</p></div>';
       return;
     }
     root.innerHTML=state.companionMessages.map(message=>`<div class="kg-ai-message ${message.role==="user"?"is-user":"is-assistant"}"><div>${esc(message.content).replace(/\n/g,"<br>")}</div></div>`).join("");
