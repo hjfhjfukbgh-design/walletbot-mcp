@@ -491,3 +491,16 @@
 - **Fix scope:** central orchestrator must filter out agent-review/agent-dispatched/agent-blocked/agent-done tasks; fan-out claim must remove both ready labels and stale review/blocked state before adding agent-dispatched.
 - **Immediate containment:** remove orchestrator-ready from already claimed QA issues #275/#277/#290 to prevent another scheduled duplicate.
 - **Safety:** no financial or production operations.
+
+
+### 2026-11-19 — candlestick refresh, dispatch safety and AI media test coverage merged
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T01:59:20.908+05:00
+- **Merged PR #288** market polling lifecycle, merge commit 59faaf5adaf7e0e0144c88f2383116cd9a659d3e. Typecheck/tests and clean UI screenshot passed; interval now pauses outside visible wallet/trading screens and on asset/ticket subscreens, resumes with one refresh.
+- **Merged PR #303** candlestick history/live refresh, merge commit 11f584bc33625b49cbd9f35b86c06f8426cc903f. CI typecheck/tests and screenshot run 44395282058 passed; chart now uses horizontal scroll history, preserves scroll position, and polls candles every 15s only while asset view is visible. Screenshot harness verifies scroll overflow, polling, ticket pause and resume.
+- **Merged PR #306** duplicate dispatch prevention, merge commit b7e39fdc35b21f6e18c7ca65bcef8bd426b62c3a. Central orchestrator filters already dispatched/review/blocked/done issues; fan-out clears stale labels and refuses already-dispatched/done tasks.
+- **Merged PR #310** Companion MP4/WebM validation tests, merge commit 1c67c15450301d7abbebc9ecdc5e8e6c7654f02c; CI run 44396217709 passed. Existing backend/frontend video upload support is now directly regression-tested; provider calls are mocked.
+- **Merged PR #311** mandatory QA scope coverage + expanded backend test allowlist, merge commit 79ad2e3d027505c887cbac784a9839f005249c76; CI run 44396548074 passed. Analysis reports must include one [S1]..[Sn] evidence row for every Scope bullet; missing rows or PASS with NOT VERIFIED/NOT RUN fail closed.
+- **QA tasks requeued:** #275 Team B, #277 Team A, #290 Team C are marked agent-ready (without orchestrator-ready) after the worker fixes. Fan-out push run 44396664533 is claiming up to one task per team; issue-specific duplicate runs are cancelled by concurrency. Acceptance remains pending until reports pass the new checklist validator and are manually reviewed.
+- **PR #284 remains Draft:** atomic quota implementation has passing CI but no merge/deploy due unresolved rate-window policy and unverified Cloudflare account plan/zero-cost allowance. Official pricing review was recorded in a PR comment.
+- **No production deploy:** deploy workflow is workflow_dispatch-only; merge-triggered tests do not deploy. No real Walt/Gemini calls, financial operations, paid API or secrets changes.
