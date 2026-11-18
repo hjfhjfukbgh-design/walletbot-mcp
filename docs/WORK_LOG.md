@@ -191,3 +191,12 @@
 - **Team A:** аудит безопасности LIVE prepare/confirmation/execute/reconciliation, tenant authorization, contract leverage, idempotency и поведения unknown/pending. Только статический код/тесты/логи; не вызывать реальные Walt write/execute.
 - **Team C:** аудит AI Companion и AI Trading paper-only: разделение account contexts, tenant isolation, prompt/tool boundaries, запрет live execution, сохранение истории/attachments. Только read-only.
 - **Оркестрация:** каждая задача будет иметь отдельный team label и `orchestrator-ready`; текущий main dispatcher обрабатывает максимум одну Issue за запуск с интервалом 5 минут.
+
+### 2026-11-19 — Team A и Team C добавлены в очередь
+
+- **Время:** 2026-11-19T00:55:38.314+05:00
+- **Событие:** повторно проверены созданные issues для независимых агентов Team A и Team C.
+- **Статус:** поставлены в очередь
+- **Team A:** Issue #277 — https://github.com/hjfhjfukbgh-design/walletbot-mcp/issues/277; фактические labels: `team-a`, `orchestrator-ready`; read-only Security audit LIVE execution gates.
+- **Team C:** Issue #278 — https://github.com/hjfhjfukbgh-design/walletbot-mcp/issues/278; фактические labels: `team-c`, `orchestrator-ready`; read-only audit AI Companion / AI Trading paper-only boundaries.
+- **Проверка очереди:** все три задачи (#275 Team B, #277 Team A, #278 Team C) разделены по write scope и предназначены для последовательного запуска текущим dispatcher; фактические Actions runs/worker outputs пока не подтверждены.
