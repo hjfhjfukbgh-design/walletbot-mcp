@@ -444,7 +444,7 @@
     if(window.visualViewport){const syncViewport=()=>aiScreen.classList.toggle("kg-keyboard-open",document.activeElement===aiInput&&window.visualViewport.height<window.innerHeight-120);window.visualViewport.addEventListener("resize",syncViewport);window.visualViewport.addEventListener("scroll",syncViewport);aiInput.addEventListener("focus",syncViewport);aiInput.addEventListener("blur",()=>aiScreen.classList.remove("kg-keyboard-open"));}
     $("#kg-ai-attach").addEventListener("click",()=>notify("Добавление файлов появится в следующем обновлении."));
     $("#kg-ai-voice").addEventListener("click",()=>notify("Голосовой ввод пока не подключён."));
-    $(".kg-gemini-tools [data-ai-tool]").forEach(button=>button.addEventListener("click",()=>notify("Инструмент «"+button.textContent.trim()+"» пока недоступен.")));
+    $$(".kg-gemini-tools [data-ai-tool]").forEach(button=>button.addEventListener("click",()=>notify("Инструмент «"+button.textContent.trim()+"» пока недоступен.")));
     $("#kg-ai-input").addEventListener("keydown",event=>{
       if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();$("#kg-ai-form").requestSubmit();}
     });
