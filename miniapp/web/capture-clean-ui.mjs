@@ -77,7 +77,9 @@ try{
     }
     await page.waitForFunction(()=>document.querySelectorAll("#kg-favorites .kg-favorite").length===3);
     if(await page.locator("#kg-favorites .kg-favorite").count()!==3)throw new Error("wallet should show three favorite markets");
-    if(await page.locator("#kg-nav button").count()!==5)throw new Error("bottom navigation should have five tabs including AI Companion");
+    if(await page.locator("#kg-nav button").count()!==4)throw new Error("bottom navigation should have four tabs without bonuses");
+    const navOrder=await page.locator("#kg-nav button").evaluateAll(nodes=>nodes.map(node=>node.dataset.screen).join(","));
+    if(navOrder!=="wallet,trading,income,companion")throw new Error("bottom navigation order should end with AI Companion");
     if(!(await page.locator(".kg-wallet-hero").isVisible()))throw new Error("wallet balance hero must be visible on the first screen");
     if(!(await page.locator("#kg-wallet-quick-actions").isVisible()))throw new Error("wallet quick actions must be visible on the first screen");
     if(await page.locator("#kg-wallet-quick-actions button").count()!==4)throw new Error("wallet should show four reference quick actions");
