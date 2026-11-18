@@ -36,7 +36,7 @@ async function signedInitData(botToken: string, userId: string): Promise<string>
     const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
     return new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
   };
-  const secret = await hmac(encoder.encode("WebAppData"), botToken);
+  const secret = await hmac(encoder.encode(botToken), "WebAppData");
   const checkString = [...params.entries()]
     .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
     .map(([key, value]) => `${key}=${value}`)
