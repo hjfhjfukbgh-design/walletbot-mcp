@@ -332,7 +332,7 @@ async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<R
     return fail("Walt не вернул корректные лимиты выбранного контракта.", 503);
   }
 
-  const maxAllowedLeverage = Math.min(limits.maxLeverage, contract.maxLeverage);
+  const maxAllowedLeverage = contract.maxLeverage;
   if (!Number.isFinite(maxAllowedLeverage) || maxAllowedLeverage < 1) return fail("Не удалось определить допустимое плечо для LIVE.", 503);
   if (leverage > maxAllowedLeverage) {
     return fail(`Плечо превышает допустимый лимит (${maxAllowedLeverage}×).`);
