@@ -549,3 +549,10 @@
 - **Merged PR #322** as `0b8d6aaf55d236cc61ca5d4975cbab75d20e089d`. Enabled the previously disabled auto-close control in the DEMO ticket; added TP/SL percentage inputs, side-aware target price calculation based on the preview entry price, preview/confirmation rows, and `trade.open` payload wiring.
 - **Validation:** CI run 44399286544 passed npm ci, syntax checks, typecheck and npm test; clean UI screenshot run 44399286561 passed. Mocked assertion verifies a LONG at $91,240.50 sends TP $95,802.525 and SL $89,415.69; no real provider calls.
 - **Deploy:** the deploy job in run 44399286544 was `skipped`; this merge did not deploy production.
+
+
+### 2026-11-19 — start: synchronize worker JS and shell allowlists
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:15:48.195+05:00
+- **Finding:** Team C generated a valid bounded patch for `test/companion.test.ts`, but the later shell validation hardcoded allowlist rejected that test path. PR #323 likewise updated the JS FRONTEND allowlist but not the shell validation case for `test/kripto-guru-api.test.mjs`.
+- **Fix scope:** synchronize both shell allowlists with the role maps: allow Companion quota/source tests for BACKEND and the dedicated adapter test for FRONTEND. No broader test write access.
