@@ -9,7 +9,7 @@
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
-    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false
+    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionAttachments:[], companionRecorder:null, companionRecordChunks:[]
   };
   const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
   const money = (v,d=2) => Number.isFinite(Number(v)) ? "$"+fmt(v,d) : "—";
@@ -406,16 +406,56 @@
     renderCompanionMessages();renderCompanionHistory();setCompanionMenu(false);
     $("#kg-ai-input").focus();
   }
+  function renderCompanionAttachments(){
+    const root=$("#kg-ai-attachments");
+    root.innerHTML=state.companionAttachments.map((file,index)=>'<div class="kg-ai-attachment-chip"><span>'+esc(file.name)+'</span><button type="button" data-remove-attachment="'+index+'" aria-label="Убрать вложение">×</button></div>').join("");
+    root.hidden=!state.companionAttachments.length;
+  }
+  function fileToBase64(file){
+    return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(",")[1]||"");reader.onerror=()=>reject(new Error("Не удалось прочитать файл."));reader.readAsDataURL(file);});
+  }
+  async function addCompanionFiles(fileList){
+    const allowed=/^(image\/(jpeg|png|webp|gif)|audio\/(mpeg|mp3|wav|aac|ogg|flac|webm|mp4|m4a))$/i;
+    for(const file of [...fileList]){
+      if(state.companionAttachments.length>=4){notify("Можно добавить не больше 4 файлов.");break;}
+      if(!allowed.test(file.type)){notify("Поддерживаются изображения и аудио (JPG, PNG, WEBP, MP3, WAV, OGG, M4A).");continue;}
+      if(file.size>5*1024*1024){notify("Размер одного файла — максимум 5 МБ.");continue;}
+      if(state.companionAttachments.some(x=>x.name===file.name&&x.size===file.size)){continue;}
+      try{state.companionAttachments.push({name:file.name,size:file.size,mimeType:file.type,dataBase64:await fileToBase64(file)});renderCompanionAttachments();}
+      catch(error){notify(error.message);}
+    }
+  }
+  async function toggleCompanionRecording(){
+    if(state.companionRecorder?.state==="recording"){state.companionRecorder.stop();return;}
+    if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){notify("Запись аудио не поддерживается этим браузером. Разрешите доступ к микрофону или обновите Telegram.");return;}
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const types=["audio/mp4","audio/webm;codecs=opus","audio/ogg;codecs=opus"];
+      const mimeType=types.find(type=>MediaRecorder.isTypeSupported?.(type))||"";
+      const recorder=new MediaRecorder(stream,mimeType?{mimeType}:undefined);
+      state.companionRecordChunks=[];
+      recorder.ondataavailable=event=>{if(event.data?.size)state.companionRecordChunks.push(event.data);};
+      recorder.onerror=()=>{stream.getTracks().forEach(track=>track.stop());state.companionRecorder=null;$("#kg-ai-voice").classList.remove("is-recording");notify("Не удалось записать аудио.");};
+      recorder.onstop=async()=>{
+        stream.getTracks().forEach(track=>track.stop());
+        const blob=new Blob(state.companionRecordChunks,{type:recorder.mimeType||"audio/webm"});
+        state.companionRecorder=null;$("#kg-ai-voice").classList.remove("is-recording");
+        if(blob.size){const ext=blob.type.includes("mp4")?"m4a":blob.type.includes("ogg")?"ogg":"webm";await addCompanionFiles([new File([blob],"Голосовое сообщение."+ext,{type:blob.type})]);}
+      };
+      state.companionRecorder=recorder;recorder.start(250);$("#kg-ai-voice").classList.add("is-recording");notify("Идёт запись. Нажмите микрофон ещё раз, чтобы остановить.");
+      window.setTimeout(()=>{if(state.companionRecorder===recorder&&recorder.state==="recording"){recorder.stop();notify("Запись остановлена (лимит 90 секунд).");}},90_000);
+    }catch(error){notify(error?.name==="NotAllowedError"?"Разрешите доступ к микрофону в настройках Telegram.":"Не удалось включить микрофон: "+(error.message||"ошибка доступа"));}
+  }
   async function sendCompanionMessage(event){
     event?.preventDefault();
     const input=$("#kg-ai-input"), message=input.value.trim();
-    if(!message||state.companionBusy)return;
+    if((!message&&!state.companionAttachments.length)||state.companionBusy)return;
     state.companionBusy=true;$("#kg-ai-send").disabled=true;input.disabled=true;
     try{
-      const result=await invoke("companion.send",message,state.companionId);
+      const result=await invoke("companion.send",message||"Проанализируй приложенные файлы.",state.companionId,state.companionAttachments.map(({name,mimeType,dataBase64})=>({name,mimeType,dataBase64})));
       state.companionId=result.conversationId;
       state.companionMessages=result.conversation?.messages||[...state.companionMessages,{role:"user",content:message},{role:"assistant",content:result.answer}];
-      input.value="";renderCompanionMessages();await loadCompanionConversations();
+      input.value="";state.companionAttachments=[];renderCompanionAttachments();renderCompanionMessages();await loadCompanionConversations();
     }catch(error){notify(normalizeError(error).message);}
     finally{state.companionBusy=false;$("#kg-ai-send").disabled=false;input.disabled=false;input.focus();}
   }
@@ -446,8 +486,10 @@
     aiInput.addEventListener("blur",()=>{window.setTimeout(syncComposer,120);});
     aiInput.addEventListener("input",()=>{aiInput.style.height="auto";aiInput.style.height=Math.min(aiInput.scrollHeight,130)+"px";syncComposer();});
     if(window.visualViewport){const syncViewport=()=>aiScreen.classList.toggle("kg-keyboard-open",document.activeElement===aiInput&&window.visualViewport.height<window.innerHeight-120);window.visualViewport.addEventListener("resize",syncViewport);window.visualViewport.addEventListener("scroll",syncViewport);aiInput.addEventListener("focus",syncViewport);aiInput.addEventListener("blur",()=>aiScreen.classList.remove("kg-keyboard-open"));}
-    $("#kg-ai-attach").addEventListener("click",()=>notify("Добавление файлов появится в следующем обновлении."));
-    $("#kg-ai-voice").addEventListener("click",()=>notify("Голосовой ввод пока не подключён."));
+    $("#kg-ai-attach").addEventListener("click",()=>$("#kg-ai-file-input").click());
+    $("#kg-ai-file-input").addEventListener("change",event=>{addCompanionFiles(event.target.files||[]);event.target.value="";});
+    $("#kg-ai-attachments").addEventListener("click",event=>{const button=event.target.closest("[data-remove-attachment]");if(!button)return;state.companionAttachments.splice(Number(button.dataset.removeAttachment),1);renderCompanionAttachments();});
+    $("#kg-ai-voice").addEventListener("click",toggleCompanionRecording);
     $$(".kg-gemini-tools [data-ai-tool]").forEach(button=>button.addEventListener("click",()=>notify("Инструмент «"+button.textContent.trim()+"» пока недоступен.")));
     $("#kg-ai-input").addEventListener("keydown",event=>{
       if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();$("#kg-ai-form").requestSubmit();}

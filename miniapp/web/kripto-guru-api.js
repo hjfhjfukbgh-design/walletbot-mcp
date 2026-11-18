@@ -276,10 +276,10 @@
       const data = await request("/api/companion/conversations/" + encodeURIComponent(String(conversationId)));
       return data.conversation;
     },
-    async send(message, conversationId) {
+    async send(message, conversationId, attachments = []) {
       const data = await request("/api/companion/chat", {
         method: "POST",
-        body: { message: String(message), ...(conversationId ? { conversationId: String(conversationId) } : {}) },
+        body: { message: String(message), ...(conversationId ? { conversationId: String(conversationId) } : {}), ...(attachments.length ? { attachments } : {}) },
         timeoutMs: 60_000,
       });
       return data;

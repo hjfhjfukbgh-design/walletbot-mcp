@@ -62,9 +62,29 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     if (!env.GEMINI_API_KEY)
       return json({ ok: false, error: "ИИ временно не настроен: отсутствует серверный ключ Gemini." }, 503);
 
-    const body = await req.json().catch(() => ({})) as { message?: unknown; conversationId?: unknown };
+    const body = await req.json().catch(() => ({})) as { message?: unknown; conversationId?: unknown; attachments?: unknown };
     const message = typeof body.message === "string" ? body.message.trim() : "";
-    if (!message) return json({ ok: false, error: "Напишите сообщение." }, 400);
+    const rawAttachments = Array.isArray(body.attachments) ? body.attachments : [];
+    if (!message && !rawAttachments.length) return json({ ok: false, error: "Напишите сообщение или приложите файл." }, 400);
+    if (rawAttachments.length > 4) return json({ ok: false, error: "Можно приложить не больше 4 файлов." }, 400);
+    const attachments: Array<{ name: string; mimeType: string; dataBase64: string }> = [];
+    let totalBytes = 0;
+    for (const item of rawAttachments) {
+      if (!item || typeof item !== "object") return json({ ok: false, error: "Некорректное вложение." }, 400);
+      const file = item as { name?: unknown; mimeType?: unknown; dataBase64?: unknown };
+      const mimeType = typeof file.mimeType === "string" ? file.mimeType.toLowerCase() : "";
+      const name = typeof file.name === "string" ? file.name.slice(0, 120) : "Вложение";
+      const dataBase64 = typeof file.dataBase64 === "string" ? file.dataBase64 : "";
+      if (!/^(image\/(jpeg|png|webp|gif)|audio\/(mpeg|mp3|wav|aac|ogg|flac|webm|mp4|m4a))$/.test(mimeType))
+        return json({ ok: false, error: "Формат файла не поддерживается." }, 415);
+      if (!/^[A-Za-z0-9+/]+={0,2}$/.test(dataBase64) || dataBase64.length % 4 !== 0)
+        return json({ ok: false, error: "Файл повреждён или имеет неверный формат." }, 400);
+      const size = Math.floor(dataBase64.length * 3 / 4);
+      if (!size || size > 5 * 1024 * 1024) return json({ ok: false, error: "Размер файла должен быть не больше 5 МБ." }, 413);
+      totalBytes += size;
+      if (totalBytes > 8 * 1024 * 1024) return json({ ok: false, error: "Общий размер вложений — максимум 8 МБ." }, 413);
+      attachments.push({ name, mimeType, dataBase64 });
+    }
     if (message.length > MAX_MESSAGE_CHARS)
       return json({ ok: false, error: `Сообщение слишком длинное. Максимум ${MAX_MESSAGE_CHARS} символов.` }, 413);
 
@@ -83,10 +103,11 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       conversation = existing;
     } else {
       const now = new Date().toISOString();
-      conversation = { id: crypto.randomUUID(), title: message.slice(0, 72), createdAt: now, updatedAt: now, messages: [] };
+      conversation = { id: crypto.randomUUID(), title: (message || attachments.map(file => file.name).join(", ") || "Вложения").slice(0, 72), createdAt: now, updatedAt: now, messages: [] };
     }
 
-    const history = [...conversation.messages, { role: "user" as const, content: message, createdAt: new Date().toISOString() }].slice(-MAX_CONTEXT_MESSAGES);
+    const userContent = message || "Проанализируй приложенные файлы.";
+    const history = [...conversation.messages, { role: "user" as const, content: userContent, createdAt: new Date().toISOString() }].slice(-MAX_CONTEXT_MESSAGES);
     const model = (env.GEMINI_MODEL || "gemini-3.8-flash").trim();
     if (!/^[a-zA-Z0-9._-]{1,80}$/.test(model)) return json({ ok: false, error: "Некорректная настройка модели Gemini." }, 500);
 
@@ -103,7 +124,13 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
         headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: "Ты — Kripto Guru AI Companion, универсальный русскоязычный ИИ-помощник. Отвечай ясно, по делу и естественно. Помогай с повседневными вопросами, обучением, технологиями, работой и планированием. Не утверждай, что выполняешь действия вне чата. У тебя нет доступа к счетам, API-инструментам или исполнению сделок. Если обсуждается рынок или трейдинг, отделяй факты от предположений и не обещай доходность. Не проси у пользователя пароли, API-ключи и секреты." }] },
-          contents: history.map((item) => ({ role: item.role === "assistant" ? "model" : "user", parts: [{ text: item.content }] })),
+          contents: history.map((item, index) => ({
+            role: item.role === "assistant" ? "model" : "user",
+            parts: [
+              { text: item.content },
+              ...(index === history.length - 1 ? attachments.map(file => ({ inlineData: { mimeType: file.mimeType, data: file.dataBase64 } })) : []),
+            ],
+          })),
           generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, temperature: 0.7 },
         }),
         signal: AbortSignal.timeout(55_000),
@@ -121,7 +148,8 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     if (!answer) return json({ ok: false, error: "ИИ вернул пустой ответ. Попробуйте переформулировать вопрос." }, 502);
 
     const now = new Date().toISOString();
-    const updatedMessages: ChatMessage[] = [...conversation.messages, { role: "user", content: message, createdAt: now }, { role: "assistant", content: answer, createdAt: now }];
+    const attachmentLabel = attachments.length ? "\n[Вложения: " + attachments.map(file => file.name).join(", ") + "]" : "";
+    const updatedMessages: ChatMessage[] = [...conversation.messages, { role: "user", content: userContent + attachmentLabel, createdAt: now }, { role: "assistant", content: answer, createdAt: now }];
     conversation.messages = updatedMessages.slice(-MAX_STORED_MESSAGES);
     conversation.updatedAt = now;
     await scoped.STATE.put(PREFIX + conversation.id, JSON.stringify(conversation));
