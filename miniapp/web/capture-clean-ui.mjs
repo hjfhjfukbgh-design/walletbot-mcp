@@ -121,6 +121,7 @@ try{
     await page.locator('[data-search-filter="all"]').click();
     await page.waitForSelector("#kg-market-list .kg-market-row");
     await page.locator("#kg-market-search").fill("BTC");
+    await page.waitForFunction(() => document.querySelectorAll("#kg-market-list .kg-market-row").length === 1, null, {timeout:3000});
     if(await page.locator("#kg-market-list .kg-market-row").count()!==1)throw new Error("all-market search should filter BTC once");
     await page.screenshot({path:`clean-search-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-search-close").click();
