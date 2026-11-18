@@ -84,6 +84,80 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     });
   }
 
+  it("keeps AI paper funds separate and transfers virtual DEMO balance atomically", async () => {
+    const stub = await boot();
+    const funded = await post(stub, "/ai/paper/fund", {
+      userId, amountMicro: (100n * U).toString(), idempotencyKey: "fund-ai-001",
+    });
+    expect(funded.status).toBe(200);
+    expect(funded.body).toMatchObject({
+      ok: true, duplicate: false,
+      demoBalanceMicro: (900n * U).toString(),
+      aiBalanceMicro: (100n * U).toString(),
+      status: "stopped", openPositions: 0,
+    });
+    const manual = await stub.fetch("https://engine.test/account?userId=" + userId);
+    expect(await manual.json()).toMatchObject({ balanceMicro: (900n * U).toString(), positions: [] });
+    const ai = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
+    expect(await ai.json()).toMatchObject({
+      demoBalanceMicro: (900n * U).toString(), aiBalanceMicro: (100n * U).toString(),
+    });
+  });
+
+  it("makes AI paper funding idempotent and rejects key reuse with a different amount", async () => {
+    const stub = await boot();
+    const first = await post(stub, "/ai/paper/fund", {
+      userId, amountMicro: (100n * U).toString(), idempotencyKey: "fund-ai-repeat",
+    });
+    const duplicate = await post(stub, "/ai/paper/fund", {
+      userId, amountMicro: (100n * U).toString(), idempotencyKey: "fund-ai-repeat",
+    });
+    expect(first.body.duplicate).toBe(false);
+    expect(duplicate.body.duplicate).toBe(true);
+    expect(duplicate.body.demoBalanceMicro).toBe((900n * U).toString());
+    expect(duplicate.body.aiBalanceMicro).toBe((100n * U).toString());
+    const conflict = await post(stub, "/ai/paper/fund", {
+      userId, amountMicro: (200n * U).toString(), idempotencyKey: "fund-ai-repeat",
+    });
+    expect(conflict.status).toBe(409);
+    expect(conflict.body.ok).toBe(false);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
+    expect(await status.json()).toMatchObject({
+      demoBalanceMicro: (900n * U).toString(), aiBalanceMicro: (100n * U).toString(),
+    });
+  });
+
+  it("rejects insufficient virtual funding without creating an AI balance", async () => {
+    const stub = await boot();
+    const result = await post(stub, "/ai/paper/fund", {
+      userId, amountMicro: (1_001n * U).toString(), idempotencyKey: "fund-ai-too-much",
+    });
+    expect(result.status).toBe(409);
+    expect(result.body.ok).toBe(false);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
+    expect(await status.json()).toMatchObject({
+      demoBalanceMicro: (1_000n * U).toString(), aiBalanceMicro: "0",
+    });
+  });
+
+  it("serializes concurrent AI funding and isolates users", async () => {
+    const stub = await boot();
+    const concurrent = await Promise.all([
+      post(stub, "/ai/paper/fund", { userId, amountMicro: (600n * U).toString(), idempotencyKey: "fund-ai-concurrent-a" }),
+      post(stub, "/ai/paper/fund", { userId, amountMicro: (600n * U).toString(), idempotencyKey: "fund-ai-concurrent-b" }),
+    ]);
+    expect(concurrent.filter(x => x.body.ok === true)).toHaveLength(1);
+    expect(concurrent.filter(x => x.status === 409)).toHaveLength(1);
+    const other = await post(stub, "/ai/paper/fund", {
+      userId: "987654321", amountMicro: (200n * U).toString(), idempotencyKey: "fund-ai-other-user",
+    });
+    expect(other.body.ok).toBe(true);
+    const firstStatus = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
+    const secondStatus = await stub.fetch("https://engine.test/ai/paper/status?userId=987654321");
+    expect(await firstStatus.json()).toMatchObject({ demoBalanceMicro: (400n * U).toString(), aiBalanceMicro: (600n * U).toString() });
+    expect(await secondStatus.json()).toMatchObject({ demoBalanceMicro: (800n * U).toString(), aiBalanceMicro: (200n * U).toString() });
+  });
+
   it("rejects stale quotes for both market updates and trade entry", async () => {
     const stub = await boot();
     const stale = await post(stub, "/quote", { symbol: "BTC", price: (50_000n * P).toString(), observedAt: Date.now() - 20_000 });
