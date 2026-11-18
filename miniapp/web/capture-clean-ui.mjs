@@ -180,7 +180,7 @@ try{
     await page.locator('#kg-nav button[data-screen="companion"]').click();
     await page.waitForSelector("#kg-companion-screen.is-active");
     await page.waitForSelector("#kg-companion-screen .kg-ai-welcome");
-    await page.waitForFunction(()=>getComputedStyle(document.querySelector("#kg-nav")).display==="none");
+    await page.waitForFunction(()=>getComputedStyle(document.querySelector("#kg-nav")).display!=="none");
     if(!(await page.locator("#kg-ai-input").isVisible()))throw new Error("AI Companion composer must be visible on the home screen");
     if(!(await page.locator("#kg-companion-screen .kg-ai-welcome").isVisible()))throw new Error("AI Companion welcome must be visible on the home screen");
     await page.screenshot({path:`clean-companion-home-${device.width}x${device.height}.png`,fullPage:false});
