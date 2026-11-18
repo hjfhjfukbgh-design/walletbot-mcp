@@ -1,8 +1,9 @@
 import type { Env } from "./env";
 import { tenantEnv } from "./tenants";
 
-type ChatMessage = { role: "user" | "assistant"; content: string; createdAt: string };
-type CompanionMode = "general" | "learning";
+type CompanionSource = { title: string; url: string };
+type ChatMessage = { role: "user" | "assistant"; content: string; createdAt: string; sources?: CompanionSource[] };
+type CompanionMode = "general" | "learning" | "research";
 type Conversation = { id: string; title: string; createdAt: string; updatedAt: string; messages: ChatMessage[]; mode?: CompanionMode };
 
 const PREFIX = "companion:conversation:";
@@ -65,8 +66,8 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
 
     const body = await req.json().catch(() => ({})) as { message?: unknown; conversationId?: unknown; attachments?: unknown; mode?: unknown };
     const message = typeof body.message === "string" ? body.message.trim() : "";
-    if (body.mode !== undefined && body.mode !== "general" && body.mode !== "learning") return json({ ok: false, error: "Неизвестный режим AI Companion." }, 400);
-    const mode: CompanionMode = body.mode === "learning" ? "learning" : "general";
+    if (body.mode !== undefined && body.mode !== "general" && body.mode !== "learning" && body.mode !== "research") return json({ ok: false, error: "Неизвестный режим AI Companion." }, 400);
+    const mode: CompanionMode = body.mode === "learning" ? "learning" : body.mode === "research" ? "research" : "general";
     const rawAttachments = Array.isArray(body.attachments) ? body.attachments : [];
     if (!message && !rawAttachments.length) return json({ ok: false, error: "Напишите сообщение или приложите файл." }, 400);
     if (rawAttachments.length > 4) return json({ ok: false, error: "Можно приложить не больше 4 файлов." }, 400);
@@ -140,6 +141,20 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     const current = (await scoped.STATE.get<number>(rateKey, "json")) ?? 0;
     if (current >= RATE_LIMIT) return json({ ok: false, error: "Слишком много сообщений. Подождите минуту." }, 429);
     await scoped.STATE.put(rateKey, JSON.stringify(current + 1), { expirationTtl: RATE_WINDOW_SECONDS + 5 });
+
+    // Conservative free-tier guard for Google Search grounding (Gemini 3+).
+    // Reserve 40 search-query units per research prompt; hard cap: 1,000/month globally, 200/user.
+    const researchMonth = new Date().toISOString().slice(0, 7);
+    const researchGlobalKey = "companion:research:global:" + researchMonth;
+    const researchUserKey = "companion:research:user:" + researchMonth;
+    const researchGlobalUsed = (await env.STATE.get<number>(researchGlobalKey, "json")) ?? 0;
+    const researchUserUsed = (await scoped.STATE.get<number>(researchUserKey, "json")) ?? 0;
+    if (mode === "research") {
+      if (researchGlobalUsed + 40 > 1_000 || researchUserUsed + 40 > 200)
+        return json({ ok: false, error: "Месячный бесплатный лимит веб-исследований исчерпан. Попробуйте в следующем месяце." }, 429);
+      await env.STATE.put(researchGlobalKey, JSON.stringify(researchGlobalUsed + 40), { expirationTtl: 45 * 24 * 60 * 60 });
+      await scoped.STATE.put(researchUserKey, JSON.stringify(researchUserUsed + 40), { expirationTtl: 45 * 24 * 60 * 60 });
+    }
 
     let response: Response;
     try {
