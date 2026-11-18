@@ -65,7 +65,8 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
 
     const body = await req.json().catch(() => ({})) as { message?: unknown; conversationId?: unknown; attachments?: unknown; mode?: unknown };
     const message = typeof body.message === "string" ? body.message.trim() : "";
-    const mode: CompanionMode = body.mode === undefined ? "general" : body.mode === "learning" ? "learning" : body.mode === "general" ? "general" : (() => { throw new Error("Неизвестный режим AI Companion."); })();
+    if (body.mode !== undefined && body.mode !== "general" && body.mode !== "learning") return json({ ok: false, error: "Неизвестный режим AI Companion." }, 400);
+    const mode: CompanionMode = body.mode === "learning" ? "learning" : "general";
     const rawAttachments = Array.isArray(body.attachments) ? body.attachments : [];
     if (!message && !rawAttachments.length) return json({ ok: false, error: "Напишите сообщение или приложите файл." }, 400);
     if (rawAttachments.length > 4) return json({ ok: false, error: "Можно приложить не больше 4 файлов." }, 400);
