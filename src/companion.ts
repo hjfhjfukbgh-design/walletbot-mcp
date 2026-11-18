@@ -1,8 +1,9 @@
 import type { Env } from "./env";
 import { tenantEnv } from "./tenants";
 
-type ChatMessage = { role: "user" | "assistant"; content: string; createdAt: string };
-type CompanionMode = "general" | "learning";
+type CompanionSource = { title: string; url: string };
+type ChatMessage = { role: "user" | "assistant"; content: string; createdAt: string; sources?: CompanionSource[] };
+type CompanionMode = "general" | "learning" | "research";
 type Conversation = { id: string; title: string; createdAt: string; updatedAt: string; messages: ChatMessage[]; mode?: CompanionMode };
 
 const PREFIX = "companion:conversation:";
@@ -65,8 +66,8 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
 
     const body = await req.json().catch(() => ({})) as { message?: unknown; conversationId?: unknown; attachments?: unknown; mode?: unknown };
     const message = typeof body.message === "string" ? body.message.trim() : "";
-    if (body.mode !== undefined && body.mode !== "general" && body.mode !== "learning") return json({ ok: false, error: "Неизвестный режим AI Companion." }, 400);
-    const mode: CompanionMode = body.mode === "learning" ? "learning" : "general";
+    if (body.mode !== undefined && body.mode !== "general" && body.mode !== "learning" && body.mode !== "research") return json({ ok: false, error: "Неизвестный режим AI Companion." }, 400);
+    const mode: CompanionMode = body.mode === "learning" ? "learning" : body.mode === "research" ? "research" : "general";
     const rawAttachments = Array.isArray(body.attachments) ? body.attachments : [];
     if (!message && !rawAttachments.length) return json({ ok: false, error: "Напишите сообщение или приложите файл." }, 400);
     if (rawAttachments.length > 4) return json({ ok: false, error: "Можно приложить не больше 4 файлов." }, 400);
@@ -132,7 +133,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
 
     const userContent = message || "Проанализируй приложенные файлы.";
     const history = [...conversation.messages, { role: "user" as const, content: userContent, createdAt: new Date().toISOString() }].slice(-MAX_CONTEXT_MESSAGES);
-    const model = (env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim();
+    const model = (mode === "research" ? "gemini-2.5-flash-lite" : env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim();
     if (!/^[a-zA-Z0-9._-]{1,80}$/.test(model)) return json({ ok: false, error: "Некорректная настройка модели Gemini." }, 500);
 
     // Invalid requests must not consume the user's Gemini message quota.
@@ -141,13 +142,26 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     if (current >= RATE_LIMIT) return json({ ok: false, error: "Слишком много сообщений. Подождите минуту." }, 429);
     await scoped.STATE.put(rateKey, JSON.stringify(current + 1), { expirationTtl: RATE_WINDOW_SECONDS + 5 });
 
+    if (mode === "research") {
+      // Gemini 2.5 grounding is billed per prompt. Stay well below its 500 RPD free allowance.
+      const researchDay = new Date().toISOString().slice(0, 10);
+      const researchGlobalKey = "companion:research:global:" + researchDay;
+      const researchUserKey = "companion:research:user:" + researchDay;
+      const researchGlobalUsed = (await env.STATE.get<number>(researchGlobalKey, "json")) ?? 0;
+      const researchUserUsed = (await scoped.STATE.get<number>(researchUserKey, "json")) ?? 0;
+      if (researchGlobalUsed >= 20 || researchUserUsed >= 5)
+        return json({ ok: false, error: "Дневной бесплатный лимит веб-исследований исчерпан. Попробуйте завтра." }, 429);
+      await env.STATE.put(researchGlobalKey, JSON.stringify(researchGlobalUsed + 1), { expirationTtl: 48 * 60 * 60 });
+      await scoped.STATE.put(researchUserKey, JSON.stringify(researchUserUsed + 1), { expirationTtl: 48 * 60 * 60 });
+    }
+
     let response: Response;
     try {
       response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: mode === "learning" ? "Ты — интерактивный преподаватель Kripto Guru. Обучай криптотрейдингу на русском с нуля и по шагам: краткая цель, понятное объяснение, безопасный пример, затем один контрольный вопрос или небольшое упражнение. Подстраивай сложность под ответы ученика и исправляй ошибки корректно. Объясняй свечи, LONG/SHORT, плечо, маржу, комиссии, ликвидацию, стоп-лосс, риск-менеджмент и различие DEMO/LIVE. Не обещай доходность, не давай персональных указаний купить/продать и не исполняй сделки. У тебя нет доступа к счетам и торговым API. Не проси пароли, API-ключи и секреты." : "Ты — Kripto Guru AI Companion, универсальный русскоязычный ИИ-помощник. Отвечай ясно, по делу и естественно. Помогай с повседневными вопросами, обучением, технологиями, работой и планированием. Не утверждай, что выполняешь действия вне чата. У тебя нет доступа к счетам, API-инструментам или исполнению сделок. Если обсуждается рынок или трейдинг, отделяй факты от предположений и не обещай доходность. Не проси у пользователя пароли, API-ключи и секреты." }] },
+          systemInstruction: { parts: [{ text: mode === "learning" ? "Ты — интерактивный преподаватель Kripto Guru. Обучай криптотрейдингу на русском с нуля и по шагам: краткая цель, понятное объяснение, безопасный пример, затем один контрольный вопрос или небольшое упражнение. Подстраивай сложность под ответы ученика и исправляй ошибки корректно. Объясняй свечи, LONG/SHORT, плечо, маржу, комиссии, ликвидацию, стоп-лосс, риск-менеджмент и различие DEMO/LIVE. Не обещай доходность, не давай персональных указаний купить/продать и не исполняй сделки. У тебя нет доступа к счетам и торговым API. Не проси пароли, API-ключи и секреты." : mode === "research" ? "Ты — исследователь Kripto Guru. Выполняй реальный веб-поиск через подключённый Google Search grounding. Используй только факты, которые подтверждаются возвращёнными источниками. Отделяй подтверждённые факты от анализа и неопределённости, указывай даты и отдавай приоритет первичным источникам. Не придумывай URL, заголовки, цитаты, цифры или источники. Если поиск не вернул проверяемых источников, прямо скажи об этом и не выдавай ответ за исследование. Не обещай доходность и не давай персональных указаний купить/продать. Не исполняй сделки и не проси секреты." : "Ты — Kripto Guru AI Companion, универсальный русскоязычный ИИ-помощник. Отвечай ясно, по делу и естественно. Помогай с повседневными вопросами, обучением, технологиями, работой и планированием. Не утверждай, что выполняешь действия вне чата. У тебя нет доступа к счетам, API-инструментам или исполнению сделок. Если обсуждается рынок или трейдинг, отделяй факты от предположений и не обещай доходность. Не проси у пользователя пароли, API-ключи и секреты." }] },
           contents: history.map((item, index) => ({
             role: item.role === "assistant" ? "model" : "user",
             parts: [
@@ -155,6 +169,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
               ...(index === history.length - 1 ? attachments.map(file => ({ inlineData: { mimeType: file.mimeType, data: file.dataBase64 } })) : []),
             ],
           })),
+          ...(mode === "research" ? { tools: [{ googleSearchRetrieval: {} }] } : {}),
           generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, temperature: 0.7 },
         }),
         signal: AbortSignal.timeout(25_000),
@@ -164,26 +179,44 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       return json({ ok: false, error: "Gemini не ответил вовремя. Попробуйте ещё раз." }, 504);
     }
 
-    const payload = await response.json().catch(() => null) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>; error?: { message?: string } } | null;
+    const payload = await response.json().catch(() => null) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>; webSearchQueries?: string[] } }>; error?: { message?: string } } | null;
     if (!response.ok) {
       const providerMessage = payload?.error?.message ?? "unknown provider error";
       console.error("[companion] Gemini API rejected request:", response.status, providerMessage.slice(0, 300));
       if (response.status === 429) return json({ ok: false, error: "Лимит запросов Gemini исчерпан. Попробуйте через минуту." }, 429);
       if (response.status === 401 || response.status === 403) return json({ ok: false, error: "Gemini отклонил API-ключ. Нужно проверить ключ в настройках сервера." }, 503);
+      if (response.status === 404 && mode === "research") return json({ ok: false, error: "Модель Gemini 2.5 Flash-Lite недоступна для этого API-ключа. Веб-поиск не будет переключён на платный режим." }, 503);
       if (response.status === 404) return json({ ok: false, error: "Выбранная модель Gemini недоступна. Проверьте настройку GEMINI_MODEL." }, 503);
+      if (response.status === 400 && mode === "research") return json({ ok: false, error: "Google Search grounding недоступен для текущей модели или API-ключа. Источники не подменялись." }, 503);
       if (response.status === 400) return json({ ok: false, error: "Gemini отклонил формат запроса. Проверьте настройки модели." }, 502);
       return json({ ok: false, error: "Сервис Gemini временно недоступен. Попробуйте ещё раз." }, response.status >= 500 ? 503 : 502);
     }
     const answer = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
     if (!answer) return json({ ok: false, error: "ИИ вернул пустой ответ. Попробуйте переформулировать вопрос." }, 502);
+    const groundingChunks = payload?.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+    const sourceMap = new Map<string, CompanionSource>();
+    if (mode === "research") {
+      for (const chunk of groundingChunks) {
+        const uri = chunk.web?.uri;
+        if (!uri) continue;
+        try {
+          const parsed = new URL(uri);
+          if (parsed.protocol !== "https:") continue;
+          sourceMap.set(parsed.href, { title: (chunk.web?.title || parsed.hostname).slice(0, 160), url: parsed.href });
+        } catch {}
+      }
+    }
+    const sources = Array.from(sourceMap.values()).slice(0, 10);
+    if (mode === "research" && !sources.length)
+      return json({ ok: false, error: "Поиск не вернул проверяемых источников. Ответ не будет выдан как исследование; попробуйте уточнить запрос." }, 502);
 
     const now = new Date().toISOString();
     const attachmentLabel = attachments.length ? "\n[Вложения: " + attachments.map(file => file.name).join(", ") + "]" : "";
-    const updatedMessages: ChatMessage[] = [...conversation.messages, { role: "user", content: userContent + attachmentLabel, createdAt: now }, { role: "assistant", content: answer, createdAt: now }];
+    const updatedMessages: ChatMessage[] = [...conversation.messages, { role: "user", content: userContent + attachmentLabel, createdAt: now }, { role: "assistant", content: answer, createdAt: now, ...(sources.length ? { sources } : {}) }];
     conversation.messages = updatedMessages.slice(-MAX_STORED_MESSAGES);
     conversation.updatedAt = now;
     await scoped.STATE.put(PREFIX + conversation.id, JSON.stringify(conversation));
-    return json({ ok: true, conversationId: conversation.id, answer, conversation });
+    return json({ ok: true, conversationId: conversation.id, answer, sources, conversation });
   } catch (error) {
     console.error("[companion] request failed", error instanceof Error ? error.message : "unknown error");
     return json({ ok: false, error: "Внутренняя ошибка AI Companion." }, 500);
