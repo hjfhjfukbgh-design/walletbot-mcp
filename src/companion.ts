@@ -142,13 +142,13 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       key: "rate:" + userId,
       sliding: true,
       limit: RATE_LIMIT,
-      windowSeconds: RATE_WINDOW_SECONDS + 5,
+      windowSeconds: RATE_WINDOW_SECONDS,
     }];
     if (mode === "research") {
       const researchDay = new Date(quotaNow).toISOString().slice(0, 10);
       quotaLimits.push(
-        { key: "research:global:" + researchDay, limit: 20, windowSeconds: 48 * 60 * 60 },
-        { key: "research:user:" + userId + ":" + researchDay, limit: 5, windowSeconds: 48 * 60 * 60 },
+        { key: "research:global:" + researchDay, limit: 20, windowSeconds: 48 * 60 * 60, sliding: false },
+        { key: "research:user:" + userId + ":" + researchDay, limit: 5, windowSeconds: 48 * 60 * 60, sliding: false },
       );
     }
     let quotaResponse: Response;
