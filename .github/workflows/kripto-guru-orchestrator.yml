@@ -3,7 +3,7 @@ name: Kripto Guru — central orchestrator (MVP)
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 */2 * * *"
+    - cron: "*/15 * * * *"
 
 permissions:
   contents: write
