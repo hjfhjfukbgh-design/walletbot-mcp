@@ -787,3 +787,8 @@
 - **Initial CI failure:** run `44411000577` failed due over-escaped numeric regexes; corrected before merge in commits `a86874e` and `b5ea7e6`. Failure and correction remain recorded in PR comment.
 - **Issue #348:** closed completed with agent-done.
 - **Limitations:** AI account remains stopped; no strategy tick/positions execution. No Walt/LLM calls or real funds. Production deploy blocked pending Cloudflare zero-cost allowance verification.
+### 2026-11-19 — Team Lead started LIVE preview expiry/tenant regression tests
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:25:11.105+05:00
+- **Issue #346:** current suite already covers explicit confirmation, concurrent duplicate execute (exactly one Walt execute), unknown timeout/no blind retry and read-only reconciliation. Missing targeted cases: expired preview and cross-tenant preview isolation.
+- **Planned change:** add mocked tests only in `test/live-execution.test.ts`; no production code or real Walt calls.
