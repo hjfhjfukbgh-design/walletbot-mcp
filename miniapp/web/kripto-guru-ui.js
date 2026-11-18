@@ -4,7 +4,7 @@
   const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
   const tg = window.Telegram?.WebApp || null;
   const state = {
-    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null,
+    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, sparklineCache:{},
     favorites:(()=>{try{return new Set(JSON.parse(localStorage.getItem("kg:favorites:v1")||'["BTC","ETH","SOL"]'));}catch{return new Set(["BTC","ETH","SOL"]);}})(),
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
@@ -89,12 +89,25 @@
     const fav=[...state.favorites].map(s=>map.get(s)).filter(Boolean).slice(0,8);
     $("#kg-favorites").innerHTML=fav.length?fav.map(m=>{
       const s=m.symbol||m.market, change=changeOf(m), price=quoteOf(m);
-      const points=Array.isArray(m.sparkline)?m.sparkline.map(Number).filter(Number.isFinite):[];
+      const points=state.sparklineCache[s]||[];
       const path=points.length>1?points.map((v,i)=>`${i?"L":"M"}${(i/(points.length-1)*100).toFixed(1)} ${(20-(v-Math.min(...points))/(Math.max(...points)-Math.min(...points)||1)*16).toFixed(1)}`).join(" "):"";
       const chart=path?`<svg class="kg-sparkline" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true"><path d="${path}" fill="none" stroke="${change>=0?"#32ad70":"#e45a65"}" stroke-width="2"/></svg>`:'<div class="kg-sparkline kg-sparkline-empty" aria-hidden="true"></div>';
-      const changeLabel=Number.isFinite(change)?pct(change):"Изменение н/д";
-      return `<button class="kg-favorite" data-open-market="${esc(s)}" type="button"><div class="kg-fav-top"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-badge">${Number(m.maxLeverage||1)}×</span><span class="kg-fav-remove" data-remove-favorite="${esc(s)}" ${state.editFavorites?"":"hidden"}>×</span></div><b>${esc(s)}</b><strong>${priceMoney(price,m)}</strong><small class="${Number.isFinite(change)?(change>=0?"kg-change-up":"kg-change-down"):"kg-muted"}">${changeLabel}</small>${chart}</button>`;
+      const delta=Number.isFinite(price)&&Number.isFinite(change)?Math.abs(price*change/100):NaN; const sign=change>=0?"↑":"↓";
+      return `<button class="kg-favorite" data-open-market="${esc(s)}" type="button"><div class="kg-fav-top"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-badge">${Number(m.maxLeverage||1)}×</span><span class="kg-fav-remove" data-remove-favorite="${esc(s)}" ${state.editFavorites?"":"hidden"}>×</span></div><b>${esc(s)}</b><strong>${priceMoney(price,m)}</strong><div class="kg-fav-change"><small class="${Number.isFinite(change)?(change>=0?"kg-change-up":"kg-change-down"):"kg-muted"}">${Number.isFinite(change)?sign+" "+fmt(Math.abs(change),2)+"%":"—"}</small><small class="${Number.isFinite(delta)?(change>=0?"kg-change-up":"kg-change-down"):"kg-muted"}">${Number.isFinite(delta)?(change>=0?"+":"−")+priceMoney(delta,m):"—"}</small></div>${chart}</button>`;
     }).join(""):'<div class="kg-empty-inline">Добавьте активы в избранное из списка рынка.</div>';
+  }
+
+  async function loadFavoriteSparklines(){
+    const symbols=[...state.favorites].slice(0,8);
+    await Promise.all(symbols.map(async symbol=>{
+      try{
+        const result=await invoke("market.candles",symbol,"1h");
+        const candles=listOf(result,["candles","items"]);
+        const points=candles.map(c=>Number(c.close??c.c??c.closePrice)).filter(Number.isFinite).slice(-24);
+        if(points.length>1)state.sparklineCache[symbol]=points;
+      }catch(error){console.debug("[Kripto Guru] Sparkline unavailable for",symbol,normalizeError(error).code);}
+    }));
+    renderFavorites();
   }
   function renderWalletAssets(){
     const assets=listOf(state.wallet,["assets","balances"]);
@@ -159,7 +172,7 @@
       const current=category==="futures"?state.futures:state.markets;
       $("#kg-market-title").textContent=category==="futures"?"Фьючерсы":"Все активы";
       $("#kg-market-updated").textContent="Обновлено";
-      renderMarketList(current);renderHeatmap(current);renderTopDay(current);renderFavorites();renderRecent();
+      renderMarketList(current);renderHeatmap(current);renderTopDay(current);renderFavorites();renderRecent();if(category==="crypto")loadFavoriteSparklines();
     }catch(error){
       $("#kg-market-list").innerHTML=`<div class="kg-empty-inline">${esc(normalizeError(error).message)}</div>`;
       $("#kg-heatmap").innerHTML='<div class="kg-empty-inline">Нет данных рынка.</div>';
@@ -188,8 +201,8 @@
   async function loadWallet(){
     try{
       state.wallet=unwrap(await invoke("wallet.get"),"wallet");
-      $("#kg-wallet-balance").textContent=moneyRub(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
-      $("#kg-wallet-currency-value").textContent=moneyRub(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));const currencySubtitle=$("#kg-wallet-currency .kg-card-copy small");if(currencySubtitle)currencySubtitle.textContent=Number.isFinite(state.fxRateRub)?"USDT · 1 $ = "+fmt(state.fxRateRub,2)+" ₽":"USDT · курс недоступен";
+      const balanceRub=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN)*Number(state.fxRateRub); $("#kg-wallet-balance").innerHTML=Number.isFinite(balanceRub)?fmt(balanceRub)+' <span class="kg-ruble-symbol">₽</span>':"—";
+      $("#kg-wallet-currency-value").innerHTML=Number.isFinite(balanceRub)?fmt(balanceRub)+' <small>— ₽</small>':"—";const currencySubtitle=$("#kg-wallet-currency .kg-card-copy small");if(currencySubtitle)currencySubtitle.textContent=Number.isFinite(state.fxRateRub)?"USDT · 1 $ = "+fmt(state.fxRateRub,2)+" ₽":"USDT · курс недоступен";
       const walletAssets=listOf(state.wallet,["assets","balances"]);
       const cryptoValues=walletAssets.map(asset=>Number(asset.valueUsd ?? asset.balanceUsd ?? asset.usdValue)).filter(Number.isFinite);
       const totalNode=$("#kg-wallet-crypto-total");
