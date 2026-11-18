@@ -52,9 +52,13 @@ jobs:
           issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label orchestrator-ready --limit 1 --json number,title,body,url,labels)"
           echo "$issue" > /tmp/ready-issue.json
           if [ "$(node -e 'const x=require("/tmp/ready-issue.json"); process.stdout.write(String(x.length))')" = "0" ]; then
+            issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label agent-ready --limit 1 --json number,title,body,url,labels)"
+            echo "$issue" > /tmp/ready-issue.json
+          fi
+          if [ "$(node -e 'const x=require("/tmp/ready-issue.json"); process.stdout.write(String(x.length))')" = "0" ]; then
             echo "has_task=false" >> "$GITHUB_OUTPUT"
             echo "## Orchestrator: очередь пуста" >> "$GITHUB_STEP_SUMMARY"
-            echo "Открытых Issues с меткой `orchestrator-ready` нет. LLM-вызовов: 0." >> "$GITHUB_STEP_SUMMARY"
+            echo "Открытых Issues с метками `orchestrator-ready` или `agent-ready` нет. LLM-вызовов: 0." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           echo "has_task=true" >> "$GITHUB_OUTPUT"
@@ -172,7 +176,7 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_OUTPUT, "role=" + role + "\n");
           fs.appendFileSync(process.env.GITHUB_OUTPUT, "team=" + team + "\n");
           fs.appendFileSync(process.env.GITHUB_OUTPUT, "issue_number=" + issue.number + "\n");
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, "task<<" + taskDelimiter + "\n" + taskText + "\n" + taskDelimiter + "\n");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, "task<<" + taskDelimiter + "\n" + packet + "\n" + taskDelimiter + "\n");
           fs.writeFileSync("/tmp/dispatch-meta.json", JSON.stringify({ number: issue.number, url: issue.url, title: issue.title, model: usedModel, status, role, team }));
           console.log("Dispatch packet generated for Issue #" + issue.number + ": " + status + " / " + role + " / " + usedModel + ".");
           NODE
