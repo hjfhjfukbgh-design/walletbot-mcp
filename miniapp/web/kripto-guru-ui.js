@@ -459,6 +459,156 @@
     }catch(error){$("#kg-chart").innerHTML=`<div class="kg-empty-inline">${esc(normalizeError(error).message)}</div>`;$("#kg-chart-state").textContent="Нет данных";}
   }
   function closeAsset(){const returnTo=state.previousScreen||"trading";state.selected=null;state.selectedMarket=null;$("#kg-asset-screen").hidden=true;$("#kg-nav").hidden=false;setScreen(returnTo);}
+  function ticketAvailableBalance(){
+    return state.tradeMode==="live"
+      ? Number(state.liveStatus?.balance?.usd??0)
+      : Number(state.wallet?.balanceUsd??state.wallet?.balance??0);
+  }
+  function persistLiveOperation(value){
+    const safe={handle:String(value?.handle??""),status:String(value?.status??"unknown"),market:String(value?.market??value?.symbol??""),side:String(value?.side??""),updatedAt:Number(value?.updatedAt??Date.now())};
+    state.liveOperation=safe;
+    try{sessionStorage.setItem("kg:live-operation",JSON.stringify(safe));}catch{}
+    renderTicketMode();
+  }
+  function clearLiveOperation(){
+    state.liveOperation=null;
+    try{sessionStorage.removeItem("kg:live-operation");}catch{}
+    renderTicketMode();
+  }
+  function renderTicketMode(){
+    const live=state.tradeMode==="live";
+    $("[data-ticket-mode]").forEach(button=>{
+      const selected=button.dataset.ticketMode===(live?"live":"demo");
+      button.classList.toggle("is-selected",selected);
+      button.setAttribute("aria-pressed",String(selected));
+    });
+    const balance=ticketAvailableBalance();
+    $("#kg-ticket-available").textContent="Доступно: "+money(balance)+(live?" USD":" USDT");
+    $("#kg-ticket-check").textContent=live?"Проверить LIVE":"Проверить DEMO";
+    const status=$("#kg-ticket-mode-status");
+    const acknowledge=$("#kg-live-acknowledge");
+    status.classList.remove("is-warning","is-live");
+    if(state.liveOperation&&["unknown","executing"].includes(state.liveOperation.status)){
+      status.textContent="LIVE "+state.liveOperation.status.toUpperCase()+" · проверьте операцию в Walt. Повторный ордер заблокирован.";
+      status.classList.add("is-warning");
+      if(acknowledge)acknowledge.hidden=false;
+    }else{
+      if(acknowledge)acknowledge.hidden=true;
+      if(live){
+        status.textContent=state.liveStatus?.connected?"LIVE · Walt подключён · баланс "+money(balance)+" USD":"Проверяем подключение Walt…";
+        status.classList.add("is-live");
+      }else status.textContent="DEMO · виртуальные средства";
+    }
+  }
+  async function refreshLiveStatus(){
+    try{
+      state.liveStatus=unwrap(await invoke("live.status"),"live status");
+      if(state.tradeMode==="live")renderTicketMode();
+      return state.liveStatus;
+    }catch(error){
+      if(state.tradeMode==="live"){$("#kg-ticket-mode-status").textContent=normalizeError(error).message;$("#kg-ticket-mode-status").classList.add("is-warning");}
+      return null;
+    }
+  }
+  async function setTicketMode(mode){
+    if(mode!=="live"){
+      state.tradeMode="demo";state.liveStatus=null;state.previewSeq++;state.preview=null;state.liveExecuteStarted=false;
+      renderTicketMode();await refreshPreview();return;
+    }
+    if(state.liveOperation&&["unknown","executing"].includes(state.liveOperation.status)){
+      notify("Сначала завершите ручную сверку предыдущей LIVE-операции в Walt.");
+      renderTicketMode();return;
+    }
+    state.tradeMode="live";state.liveStatus=null;state.previewSeq++;state.preview=null;
+    renderTicketMode();
+    $("#kg-ticket-mode-status").textContent="Проверяем подключение и готовность Walt…";
+    try{
+      const status=unwrap(await invoke("live.status"),"live status");
+      state.liveStatus=status;
+      const balance=Number(status.balance?.usd);
+      const ready=status.connected===true&&status.readiness?.available===true&&status.readiness?.ok===true&&status.balance?.available===true&&Number.isFinite(balance)&&balance>0;
+      if(!ready){
+        state.tradeMode="demo";
+        renderTicketMode();
+        const issues=[...(Array.isArray(status.issues)?status.issues:[]),...(Array.isArray(status.readiness?.issues)?status.readiness.issues:[])];
+        const reason=issues.join(" ")||"Walt не подключён или не прошёл проверку готовности. LIVE заблокирован.";
+        $("#kg-ticket-mode-status").textContent=reason;$("#kg-ticket-mode-status").classList.add("is-warning");
+        notify(reason);return;
+      }
+      renderTicketMode();
+      await refreshPreview();
+    }catch(error){
+      state.tradeMode="demo";state.liveStatus=null;renderTicketMode();
+      $("#kg-ticket-mode-status").textContent=normalizeError(error).message;$("#kg-ticket-mode-status").classList.add("is-warning");
+      notify(normalizeError(error).message);
+    }
+  }
+  async function pollLiveOperation(handle){
+    if(state.livePollActive)return;
+    state.livePollActive=true;
+    persistLiveOperation({handle,status:"unknown",market:state.selectedMarket,side:state.side});
+    const deadline=Date.now()+60_000;
+    try{
+      while(Date.now()<deadline){
+        try{
+          const result=unwrap(await invoke("live.operation",{handle}),"live operation");
+          const operation=result.operation||{};
+          persistLiveOperation({handle,status:operation.status||"unknown",market:operation.market,side:operation.side,updatedAt:operation.updatedAt});
+          if(result.reconciliation?.message){
+            $("#kg-ticket-mode-status").textContent=result.reconciliation.message;
+            $("#kg-ticket-mode-status").classList.add("is-warning");
+          }
+          if(operation.status==="completed"||operation.status==="reconciled"){
+            clearLiveOperation();closeModals();closeTicket();await refreshLiveStatus();
+            notify("LIVE-позиция подтверждена через Walt.");
+            return;
+          }
+          if(operation.status==="failed"){
+            clearLiveOperation();notify("Walt сообщил об отказе. Проверьте журнал операций.");return;
+          }
+        }catch(error){console.warn("[Kripto Guru] LIVE status check failed",normalizeError(error).code);}
+        await new Promise(resolve=>setTimeout(resolve,3000));
+      }
+      persistLiveOperation({handle,status:"unknown",market:state.selectedMarket,side:state.side});
+      $("#kg-ticket-mode-status").textContent="Результат остаётся UNKNOWN. Проверьте позиции в Walt вручную. Не отправляйте ордер повторно.";
+      $("#kg-ticket-mode-status").classList.add("is-warning");
+      notify("LIVE-статус не подтверждён. Проверьте Walt вручную; повторный ордер заблокирован.");
+    }finally{state.livePollActive=false;}
+  }
+  async function confirmLiveTrade(){
+    if(!state.preview?.handle||state.busy||state.liveExecuteStarted)return;
+    const handle=state.preview.handle,button=$("#kg-trade-confirm");
+    state.busy=true;state.liveExecuteStarted=true;button.disabled=true;button.textContent="Отправляем в Walt…";
+    persistLiveOperation({handle,status:"executing",market:state.selectedMarket,side:state.side});
+    try{
+      const result=unwrap(await invoke("live.execute",{handle,confirm:true}),"live execute");
+      if(result.status==="completed"){
+        clearLiveOperation();closeModals();closeTicket();await refreshLiveStatus();
+        notify("LIVE-позиция открыта в Walt.");
+      }else{
+        closeModals();await pollLiveOperation(handle);
+      }
+    }catch(error){
+      const normalized=normalizeError(error);
+      if([400,401,403,410,503].includes(Number(error?.status))){
+        clearLiveOperation();state.liveExecuteStarted=false;notify(normalized.message);
+      }else{
+        closeModals();await pollLiveOperation(handle);
+      }
+    }finally{
+      state.busy=false;button.disabled=false;button.textContent="Подтвердить и открыть LIVE-позицию";
+    }
+  }
+  function restoreLiveOperation(){
+    try{
+      const saved=JSON.parse(sessionStorage.getItem("kg:live-operation")||"null");
+      if(!saved?.handle)return;
+      state.liveOperation=saved;
+      if(saved.status==="completed"||saved.status==="reconciled"){clearLiveOperation();return;}
+      if(["unknown","executing"].includes(saved.status))pollLiveOperation(saved.handle);
+      renderTicketMode();
+    }catch{}
+  }
   function openTicket(side){
     if(!state.selected)return;
     state.side=side;state.leverage=1;state.maxLeverage=Math.max(1,Number(state.selected.maxLeverage||1));state.margin=0;state.preview=null;state.autoclose=false;
