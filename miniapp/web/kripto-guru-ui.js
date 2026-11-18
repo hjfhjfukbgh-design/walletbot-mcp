@@ -124,7 +124,7 @@
     const root=$("#kg-wallet-equities");if(!root)return;
     root.innerHTML=state.equities.length?state.equities.map(item=>{
       const symbol=item.symbol.toUpperCase();
-      const logo=symbol==="AAPL"?'<span class="kg-asset-icon kg-brand-apple" aria-hidden="true">●</span>':'<span class="kg-asset-icon kg-equity-generic" aria-hidden="true">'+esc(symbol.slice(0,1))+'</span>';
+      const logo=symbol==="AAPL"?'<span class="kg-asset-icon kg-brand-apple" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16.7 12.8c0-2.1 1.7-3.1 1.8-3.2-1-1.5-2.6-1.7-3.2-1.7-1.4-.2-2.8.9-3.5.9-.7 0-1.8-.9-3-.9-1.6 0-3.1.9-3.9 2.3-1.7 2.9-.4 7.2 1.2 9.5.8 1.1 1.7 2.3 2.9 2.2 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.3-2.5 1.3-2.6-.1 0-2.4-.9-2.4-3.6ZM14.4 6.4c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2Z" fill="currentColor"/></svg></span>':'<span class="kg-asset-icon kg-equity-generic" aria-hidden="true">'+esc(symbol.slice(0,1))+'</span>';
       return '<div class="kg-asset-row kg-equity-row">'+logo+'<span class="kg-row-copy"><b>'+esc(item.name)+'</b><small>'+esc(symbol)+' · котировка недоступна</small></span><span class="kg-wallet-row-value">—</span>'+(state.editEquities?'<button class="kg-equity-remove" type="button" data-remove-equity="'+esc(symbol)+'" aria-label="Убрать '+esc(item.name)+'">−</button>':'')+'</div>';
     }).join(""):'<div class="kg-empty-inline">Добавьте акции и фонды, которыми хотите пользоваться.</div>';
     $("#kg-edit-equities").textContent=state.editEquities?"Готово":"Изменить";
