@@ -1233,3 +1233,14 @@ html,body{background:#0b1018!important;color:#eef3fa}
 #kg-companion-screen .kg-ai-form textarea{color:#eef3fa}
 #kg-companion-screen .kg-ai-form textarea::placeholder{color:#94a3b8}
 #kg-companion-screen.kg-composer-expanded .kg-ai-form{background:rgba(20,28,39,.96);border-color:rgba(173,190,211,.18);box-shadow:0 8px 30px rgba(0,0,0,.28),inset 0 1px 0 rgba(173,190,211,.08)}
+
+/* Dark trading ticket surfaces and inputs. */
+#kg-ticket-screen .kg-ticket-settings{background:#141c27;color:#eef3fa;border-color:rgba(173,190,211,.14);box-shadow:none}
+#kg-ticket-screen .kg-ticket-settings input{background:#1b2634;color:#eef3fa;border-color:rgba(173,190,211,.16);caret-color:#3989f4}
+#kg-ticket-screen .kg-ticket-settings label,
+#kg-ticket-screen .kg-ticket-preview,
+#kg-ticket-screen .kg-ticket-volume,
+#kg-ticket-screen .kg-ticket-available{color:#94a3b8}
+#kg-ticket-screen .kg-ticket-actions{border-top-color:rgba(173,190,211,.14)}
+#kg-ticket-screen .kg-ticket-actions .kg-badge{background:#1b2634;color:#eef3fa}
+#kg-ticket-screen .kg-ticket-heading{background:#141c27;color:#eef3fa}
