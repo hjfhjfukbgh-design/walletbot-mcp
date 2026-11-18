@@ -158,6 +158,33 @@ describe("AI Companion API", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("deduplicates normalized grounding URLs and keeps the first source title", async () => {
+    const e = isolatedEnv();
+    vi.stubGlobal("fetch", async () => Response.json({ candidates: [{
+      content: { parts: [{ text: "Обзор со ссылкой https://model.example/not-grounded." }] },
+      groundingMetadata: { groundingChunks: [
+        { web: { uri: "https://example.com/source1#first", title: "Источник 1" } },
+        { web: { uri: "https://example.com/source1#duplicate", title: "Дубликат источника 1" } },
+        { web: { uri: "https://example.com/source2", title: "Источник 2" } },
+        { web: { uri: "http://example.com/insecure", title: "HTTP источник" } },
+        { web: { uri: "javascript:alert(1)", title: "JS источник" } },
+        { web: { uri: "https://user:pass@example.com/private", title: "Источник с credentials" } },
+        { web: { uri: "not a valid URL", title: "Некорректный источник" } },
+      ] },
+    }] }));
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Сделай исследование", mode: "research" }),
+    });
+    expect(response.status).toBe(200);
+    const result = await response.json() as { sources: Array<{ title: string; url: string }> };
+    expect(result.sources).toEqual([
+      { title: "Источник 1", url: "https://example.com/source1" },
+      { title: "Источник 2", url: "https://example.com/source2" },
+    ]);
+    expect(result.sources.some(source => source.url.includes("model.example"))).toBe(false);
+  });
+
   it("uses real Google Search grounding and persists verified source links in research mode", async () => {
     const e = isolatedEnv();
     let sentBody: any;
@@ -186,7 +213,11 @@ describe("AI Companion API", () => {
 
   it("does not fabricate sources when Google Search grounding returns none", async () => {
     const e = isolatedEnv();
-    const fetchMock = vi.fn(async () => Response.json({ candidates: [{ content: { parts: [{ text: "Неподтверждённый текст." }] }, groundingMetadata: { groundingChunks: [] } }] }));
+    const fetchMock = vi.fn(async () => Response.json({ candidates: [{ content: { parts: [{ text: "Неподтверждённый текст со ссылкой https://model.example/fake." }] }, groundingMetadata: { groundingChunks: [
+      { web: { uri: "http://example.com/insecure", title: "HTTP" } },
+      { web: { uri: "javascript:alert(1)", title: "JavaScript" } },
+      { web: { uri: "https://user:pass@example.com/private", title: "Credentials" } },
+    ] } }] }));
     vi.stubGlobal("fetch", fetchMock);
     const response = await call(e, "111", "/api/companion/chat", {
       method: "POST",
