@@ -43,6 +43,22 @@ describe("API da Mini App", () => {
     expect((await call(e, "state", "chave-teste", {}, "")).status).toBe(401);
   });
 
+  it("requires explicit LIVE execute confirmation before any Walt call", async () => {
+    const e = env();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await call(e, "live/execute", "chave-teste", {
+      method: "POST",
+      body: JSON.stringify({ handle: "a".repeat(32) }),
+    });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("отдельное явное подтверждение"),
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("routes demo history through the authenticated user-scoped Engine", async () => {
     const e = env();
     let requestedUrl = "";
