@@ -54,6 +54,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         return demoAccountView(env, telegramUserId);
       case "GET demo/history":
         return engineRequest(env, "/history?userId=" + encodeURIComponent(telegramUserId));
+      case "POST live/preview":
+        return previewLiveTrade(scopedEnv, telegramUserId, body);
       case "POST demo/preview":
         return previewDemoTrade(env, telegramUserId, body);
       case "POST demo/open":
@@ -287,6 +289,117 @@ async function previewDemoTrade(env: Env, userId: string, body: Json): Promise<R
     liquidationPriceUsd: liquidation, tradeable,
     reason: tradeable ? null : "Лимит демо-счёта не позволяет открыть позицию минимального размера.",
     source: "hyperliquid",
+  });
+}
+
+/**
+ * Server-side LIVE preview via Walt. Prepares order placement and checks leverage,
+ * margin, balance, and contract limits without executing.
+ */
+async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<Response> {
+  const symbol = String(body.market ?? body.symbol ?? "").trim().toUpperCase();
+  const side = String(body.side ?? "").toLowerCase();
+  const leverage = Number(body.leverage);
+  const limits = riskLimits(env);
+
+  if (!/^[A-Z0-9:_-]{2,32}$/.test(symbol)) return fail("Некорректный торговый актив.");
+  if (side !== "long" && side !== "short") return fail("Направление должно быть LONG или SHORT.");
+  if (!Number.isSafeInteger(leverage) || leverage < 1) return fail("Некорректное целое плечо.");
+  if (body.marginUsd == null || Number.isNaN(Number(body.marginUsd)) || Number(body.marginUsd) <= 0) {
+    return fail("Маржа должна быть положительным числом.");
+  }
+  const marginUsd = Number(body.marginUsd);
+
+  const client = await connectWalt(env).catch(() => null);
+  if (!client) return fail("Подключение к Walt не настроено.", 503);
+
+  let contractList;
+  try {
+    contractList = await client.contracts();
+  } catch {
+    return fail("Не удалось получить список контрактов от Walt.", 503);
+  }
+  const contract = contractList.find(
+    (item) => item.name.replace(/-USDC?$/i, "").toUpperCase() === symbol
+  );
+  if (!contract) return fail("Этот актив недоступен в Walt.");
+
+  const maxAllowedLeverage = Math.min(limits.maxLeverage, contract.maxLeverage);
+  if (leverage > maxAllowedLeverage) {
+    return fail(`Плечо превышает допустимый лимит (${maxAllowedLeverage}×).`);
+  }
+
+  let currentPriceVal;
+  try {
+    currentPriceVal = await client.rate(contract);
+  } catch {
+    return fail("Не удалось получить текущую цену от Walt.", 503);
+  }
+  if (!Number.isFinite(currentPriceVal) || currentPriceVal <= 0) {
+    return fail("Walt вернул некорректную цену.", 502);
+  }
+
+  let balanceUsdVal;
+  try {
+    balanceUsdVal = await client.balanceUsd();
+  } catch {
+    return fail("Не удалось получить баланс Walt.", 503);
+  }
+  if (!Number.isFinite(balanceUsdVal) || balanceUsdVal < 0) {
+    return fail("Walt вернул некорректный баланс.", 502);
+  }
+
+  if (marginUsd > balanceUsdVal) {
+    return fail("Маржа превышает доступный баланс Walt.");
+  }
+
+  const notionalUsd = marginUsd * leverage;
+  if (notionalUsd < contract.minSizeQuote || notionalUsd > contract.maxSizeQuote) {
+    return fail(`Объём позиции (${notionalUsd.toFixed(2)} USDC) вне допустимых лимитов контракта (${contract.minSizeQuote} – ${contract.maxSizeQuote}).`);
+  }
+
+  const args = {
+    contractId: contract.contractId,
+    side,
+    marginUsd,
+    leverage,
+    priceUsd: currentPriceVal,
+  };
+
+  let previewResult;
+  try {
+    previewResult = await client.preview("perps_prepare_order_place", args);
+  } catch (e) {
+    return fail(`Подготовка ордера в Walt отклонена: ${(e as Error).message}`);
+  }
+
+  const confirmationToken = (previewResult as { confirmationToken?: string })?.confirmationToken;
+  let opaqueHandle: string | null = null;
+
+  if (confirmationToken) {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    opaqueHandle = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const expiresAt = Date.now() + 120_000;
+    await env.STATE.put(
+      `live:preview:${userId}:${opaqueHandle}`,
+      JSON.stringify({ confirmationToken, expiresAt }),
+      { expirationTtl: 120 }
+    );
+  }
+
+  return json({
+    ok: true,
+    market: symbol,
+    side,
+    leverage,
+    marginUsd,
+    notionalUsd,
+    priceUsd: currentPriceVal,
+    risks: (previewResult as { risks?: unknown })?.risks ?? [],
+    warnings: (previewResult as { warnings?: unknown })?.warnings ?? [],
+    expiresInSeconds: 120,
+    handle: opaqueHandle,
   });
 }
 
