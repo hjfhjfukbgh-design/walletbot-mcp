@@ -9,7 +9,6 @@ export interface Env {
   ALERT_CHAT_ID?: string;
   WALT_MCP_URL: string;
   WALT_AUTH_ISSUER: string;
-  MAX_LEVERAGE: string;
   MAX_ORDER_PCT: string;
   MAX_TOTAL_EXPOSURE_PCT: string;
   MAX_DAILY_LOSS_PCT: string;
@@ -26,7 +25,6 @@ export interface Env {
 }
 
 export interface RiskLimits {
-  maxLeverage: number;
   maxOrderPct: number;
   maxTotalExposurePct: number;
   maxDailyLossPct: number;
@@ -44,7 +42,6 @@ export function riskLimits(env: Env): RiskLimits {
     return Number.isFinite(n) && n > 0 ? n : d;
   };
   return {
-    maxLeverage: num(env.MAX_LEVERAGE, 3),
     maxOrderPct: num(env.MAX_ORDER_PCT, 5),
     maxTotalExposurePct: num(env.MAX_TOTAL_EXPOSURE_PCT, 50),
     maxDailyLossPct: num(env.MAX_DAILY_LOSS_PCT, 5),
