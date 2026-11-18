@@ -258,7 +258,7 @@
     }
   }
   async function refreshMarketData(){
-    if(document.visibilityState!=="visible"||!(state.screen==="wallet"||state.screen==="trading")||!$("#kg-asset-screen").hidden||!$("#kg-ticket-screen").hidden||$("#kg-market-live").hidden||marketRefreshInFlight)return;
+    if(document.visibilityState!=="visible"||!(state.screen==="wallet"||state.screen==="trading")||!$("#kg-asset-screen").hidden||!$("#kg-ticket-screen").hidden||(state.screen==="trading"&&$("#kg-market-live").hidden)||marketRefreshInFlight)return;
     const category=state.category;
     const requestId=marketLoadEpoch;
     marketRefreshInFlight=true;
