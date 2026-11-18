@@ -352,7 +352,11 @@
       await invoke("companion.remove",id);
       if(removedActive){state.companionId=null;state.companionMessages=[];renderCompanionMessages();}
       await loadCompanionConversations();
-      if(removedActive&&state.companionConversations.length)await openCompanionConversation(state.companionConversations[0].id);
+      // Release the delete lock before loading the next active conversation.
+      if(removedActive&&state.companionConversations.length){
+        state.companionBusy=false;
+        await openCompanionConversation(state.companionConversations[0].id);
+      }
       notify("Диалог удалён.");
     }catch(error){notify(normalizeError(error).message);}
     finally{state.companionBusy=false;}
