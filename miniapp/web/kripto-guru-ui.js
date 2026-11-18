@@ -662,6 +662,7 @@
   function showModal(id){$(id).hidden=false;}
   function closeModals(){$$(".kg-modal").forEach(m=>m.hidden=true);}
   async function confirmTrade(){
+    if(state.tradeMode==="live"){await confirmLiveTrade();return;}
     if(!state.preview||state.busy)return;
     state.busy=true;$("#kg-trade-confirm").disabled=true;
     try{
@@ -967,9 +968,16 @@
     $("#kg-short").addEventListener("click",()=>openTicket("short"));
     $("#kg-ticket-close").addEventListener("click",closeTicket);
     $("#kg-ticket-margin").addEventListener("input",refreshPreview);
+    $("[data-ticket-mode]").forEach(button=>button.addEventListener("click",()=>setTicketMode(button.dataset.ticketMode)));
+    $("#kg-live-acknowledge").addEventListener("click",()=>{
+      if(window.confirm("Подтверждаете, что вручную проверили позиции и историю Walt и понимаете, что повторный ордер может создать дополнительную позицию?")){
+        clearLiveOperation();state.liveExecuteStarted=false;notify("Ручная проверка отмечена. Перед новой сделкой создайте новый preview.");
+      }
+    });
     $("#kg-ticket-max").addEventListener("click",async()=>{
-      const available=Number(state.wallet?.balanceUsd??state.wallet?.balance??0);
-      if(!(available>0)){notify("Нет доступного демо-баланса.");return;}
+      const available=ticketAvailableBalance();
+      if(!(available>0)){notify(state.tradeMode==="live"?"Нет доступного LIVE-баланса Walt.":"Нет доступного демо-баланса.");return;}
+      if(state.tradeMode==="live"){$("#kg-ticket-margin").value=String(available);refreshPreview();return;}
       const request={symbol:state.selectedMarket,side:state.side,leverage:state.leverage};
       const button=$("#kg-ticket-max");
       button.disabled=true;
@@ -999,7 +1007,29 @@
     $("#kg-asset-history-all").addEventListener("click",()=>{setScreen("income");loadWallet();loadHistory();});
     $("#kg-ticket-check").addEventListener("click",()=>{
       if(!state.preview)return;
-      $("#kg-confirm-details").innerHTML=`<div class="kg-detail-row"><span>Направление</span><b>${state.side==="long"?"Лонг":"Шорт"} ${esc(state.selectedMarket)}</b></div><div class="kg-detail-row"><span>Маржа</span><b>${money(state.margin)}</b></div><div class="kg-detail-row"><span>Плечо</span><b>${state.leverage}×</b></div><div class="kg-detail-row"><span>Объём</span><b>${money(Number(state.preview.volumeUsd??state.preview.notionalUsd))}</b></div>`;
+      if(state.tradeMode==="live"){
+        const p=state.preview;
+        const warnings=(Array.isArray(p.warnings)?p.warnings:[]).map(item=>typeof item==="string"?item:JSON.stringify(item)).filter(Boolean).join(" · ");
+        const risk=p.risk?JSON.stringify(p.risk).slice(0,280):"Риск-проверка Walt пройдена";
+        $("#kg-confirm-details").innerHTML=
+          '<div class="kg-detail-row"><span>Режим</span><b>LIVE · Walt</b></div>'+
+          '<div class="kg-detail-row"><span>Направление</span><b>'+(state.side==="long"?"Лонг":"Шорт")+' '+esc(state.selectedMarket)+'</b></div>'+
+          '<div class="kg-detail-row"><span>Цена Walt</span><b>'+money(Number(p.priceUsd))+'</b></div>'+
+          '<div class="kg-detail-row"><span>Маржа</span><b>'+money(Number(p.marginUsd??state.margin))+'</b></div>'+
+          '<div class="kg-detail-row"><span>Плечо</span><b>'+Number(p.leverage??state.leverage)+'×</b></div>'+
+          '<div class="kg-detail-row"><span>Номинал</span><b>'+money(Number(p.notionalUsd))+'</b></div>'+
+          '<div class="kg-detail-row"><span>Проверка риска</span><b>'+esc(risk)+'</b></div>'+
+          (warnings?'<div class="kg-detail-row"><span>Предупреждения</span><b>'+esc(warnings)+'</b></div>':'')+
+          '<div class="kg-detail-row"><span>Срок preview</span><b>'+Number(p.expiresInSeconds||120)+' сек.</b></div>';
+        $("#kg-trade-confirm").textContent="Подтвердить и открыть LIVE-позицию";
+      }else{
+        $("#kg-confirm-details").innerHTML=
+          '<div class="kg-detail-row"><span>Направление</span><b>'+(state.side==="long"?"Лонг":"Шорт")+' '+esc(state.selectedMarket)+'</b></div>'+
+          '<div class="kg-detail-row"><span>Маржа</span><b>'+money(state.margin)+'</b></div>'+
+          '<div class="kg-detail-row"><span>Плечо</span><b>'+state.leverage+'×</b></div>'+
+          '<div class="kg-detail-row"><span>Объём</span><b>'+money(Number(state.preview.volumeUsd??state.preview.notionalUsd))+'</b></div>';
+        $("#kg-trade-confirm").textContent="Подтвердить демо-сделку";
+      }
       showModal("#kg-confirm-screen");
     });
     $("#kg-trade-confirm").addEventListener("click",confirmTrade);
