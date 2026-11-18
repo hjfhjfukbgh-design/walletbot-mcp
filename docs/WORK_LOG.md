@@ -556,3 +556,11 @@
 - **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:15:48.195+05:00
 - **Finding:** Team C generated a valid bounded patch for `test/companion.test.ts`, but the later shell validation hardcoded allowlist rejected that test path. PR #323 likewise updated the JS FRONTEND allowlist but not the shell validation case for `test/kripto-guru-api.test.mjs`.
 - **Fix scope:** synchronize both shell allowlists with the role maps: allow Companion quota/source tests for BACKEND and the dedicated adapter test for FRONTEND. No broader test write access.
+
+
+### 2026-11-19 — worker shell allowlists synchronized; A/B/C requeued
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:17:48.851+05:00
+- **Merged PR #324** as `1d1fd5d3d9fcc9a74fe1cea959739ca674fa74cf`; CI run 44399790098 passed. BACKEND shell validation now permits only the additional Companion quota/source test files already present in the JS role map; FRONTEND shell validation permits only `test/kripto-guru-api.test.mjs` in addition to UI files.
+- **Root cause verified:** Team C's patch for `test/companion.test.ts` passed `git apply --check` but was rejected by stale shell allowlist; Team B's adapter patch could not update its contract test because that test path was not allowlisted. Team A/B patch repair returned empty candidates; no source patch was applied.
+- **Requeued:** #312 Team A LIVE position-by-symbol endpoint, #313 Team B LIVE API adapter, #314 Team C AI Research grounding tests. Fan-out run 44399895248 is claiming the tasks. No implementation is considered complete until source diff, checks and review are verified.
