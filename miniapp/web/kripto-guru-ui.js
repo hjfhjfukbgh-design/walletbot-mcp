@@ -600,7 +600,7 @@
     const avatar=$("#kg-profile-avatar");
     avatar.replaceChildren();
     let photoUrl="";
-    try{const parsed=new URL(typeof user.photo_url==="string"?user.photo_url:"");if(parsed.protocol==="https:")photoUrl=parsed.href;}catch{}
+    try{const parsed=new URL(typeof user.photo_url==="string"?user.photo_url:"");if(parsed.protocol==="https:"&&(parsed.hostname==="t.me"||parsed.hostname==="telegram.org"))photoUrl=parsed.href;}catch{}
     if(photoUrl){
       const image=document.createElement("img");
       image.src=photoUrl;image.alt="";image.referrerPolicy="no-referrer";
@@ -611,11 +611,13 @@
     }
     $("#kg-profile-sheet").hidden=false;
     $("#kg-profile-backdrop").hidden=false;
+    $("#kg-wallet-profile").setAttribute("aria-expanded","true");
     $("#kg-profile-close").focus();
   }
   function closeProfile(){
     $("#kg-profile-sheet").hidden=true;
     $("#kg-profile-backdrop").hidden=true;
+    $("#kg-wallet-profile").setAttribute("aria-expanded","false");
     $("#kg-wallet-profile").focus();
   }
   function bind(){
