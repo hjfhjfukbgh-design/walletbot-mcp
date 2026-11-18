@@ -136,7 +136,12 @@
     <div id="kg-ticket-volume" class="kg-ticket-volume">Объём: —</div>
     <div class="kg-ticket-available"><span id="kg-ticket-available">Доступно: —</span><button id="kg-ticket-max" class="kg-ticket-max" type="button">Макс.</button></div>
     <div class="kg-ticket-settings">
-      <div class="kg-ticket-actions"><span class="kg-badge">Оплата в долларах</span><button id="kg-ticket-autoclose" class="kg-badge" type="button" disabled title="Автозакрытие пока недоступно">Автозакрытие</button></div>
+      <div class="kg-ticket-actions"><span class="kg-badge">Оплата в долларах</span><button id="kg-ticket-autoclose" class="kg-badge kg-ticket-autoclose" type="button" aria-pressed="false">Автозакрытие: выкл</button></div>
+      <div id="kg-ticket-autoclose-fields" class="kg-ticket-autoclose-fields" hidden>
+        <label>Тейк-профит, %<input id="kg-ticket-tp" type="number" inputmode="decimal" min="0.1" max="90" step="0.1" value="5"></label>
+        <label>Стоп-лосс, %<input id="kg-ticket-sl" type="number" inputmode="decimal" min="0.1" max="90" step="0.1" value="2"></label>
+        <p>Позиция закроется автоматически при достижении одного из уровней.</p>
+      </div>
       <div id="kg-ticket-preview" class="kg-ticket-preview"></div>
     </div>
     <button id="kg-ticket-check" class="kg-primary kg-ticket-check" type="button" disabled>Проверить</button>

@@ -500,16 +500,37 @@
     }
   }
   function closeAsset(){const returnTo=state.previousScreen||"trading";state.selected=null;state.selectedMarket=null;$("#kg-asset-screen").hidden=true;$("#kg-nav").hidden=false;setScreen(returnTo);}
+  function setAutoCloseUi(enabled){
+    state.autoclose=Boolean(enabled);
+    const button=$("#kg-ticket-autoclose");
+    button.setAttribute("aria-pressed",String(state.autoclose));
+    button.textContent=state.autoclose?"Автозакрытие: вкл":"Автозакрытие: выкл";
+    $("#kg-ticket-autoclose-fields").hidden=!state.autoclose;
+  }
+  function getAutoCloseTargets(entryOverride){
+    if(!state.autoclose)return null;
+    const entry=Number(entryOverride??state.preview?.priceUsd??state.selected?.priceUsd);
+    const takeProfitPct=Number($("#kg-ticket-tp").value);
+    const stopLossPct=Number($("#kg-ticket-sl").value);
+    if(!(entry>0)||!(takeProfitPct>0&&takeProfitPct<=90)||!(stopLossPct>0&&stopLossPct<=90))return false;
+    const direction=state.side==="long"?1:-1;
+    return {
+      takeProfitUsd:entry*(1+direction*takeProfitPct/100),
+      stopLossUsd:entry*(1-direction*stopLossPct/100),
+    };
+  }
   function openTicket(side){
     if(!state.selected)return;
-    state.side=side;state.leverage=1;state.maxLeverage=Math.max(1,Number(state.selected.maxLeverage||1));state.margin=0;state.preview=null;state.autoclose=false;
+    state.side=side;state.leverage=1;state.maxLeverage=Math.max(1,Number(state.selected.maxLeverage||1));state.margin=0;state.preview=null;
     $("#kg-ticket-heading").textContent=(side==="long"?"Лонг ":"Шорт ")+state.selectedMarket+" · "+$("#kg-asset-price").textContent;
     $("#kg-ticket-margin").value="";
     $("#kg-ticket-leverage").textContent="1×";
     $("#kg-ticket-available").textContent="Доступно: "+money(Number(state.wallet?.balanceUsd??state.wallet?.balance??0))+" USDT";
     $("#kg-ticket-volume").textContent="Объём: —";
     $("#kg-ticket-preview").textContent="";
-    $("#kg-ticket-autoclose").textContent="Автозакрытие";
+    $("#kg-ticket-tp").value="5";
+    $("#kg-ticket-sl").value="2";
+    setAutoCloseUi(false);
     showSubscreen("ticket");
     const input=$("#kg-ticket-margin");
     input.focus({preventScroll:true});
@@ -521,15 +542,20 @@
     $("#kg-ticket-check").disabled=true;
     state.preview=null;
     if(!(state.margin>0)){$("#kg-ticket-volume").textContent="Объём: —";$("#kg-ticket-preview").textContent="";return;}
+    const targets=getAutoCloseTargets();
+    if(targets===false){$("#kg-ticket-preview").textContent="Укажите TP и SL от 0,1% до 90%.";return;}
     try{
       const result=unwrap(await invoke("trade.preview",{symbol:state.selectedMarket,side:state.side,marginUsd:state.margin,leverage:state.leverage}),"preview");
       if(seq!==state.previewSeq)return;
-      state.preview=result;
+      const pricedTargets=getAutoCloseTargets(Number(result.priceUsd??state.selected?.priceUsd));
+      if(pricedTargets===false){$("#kg-ticket-preview").textContent="Не удалось рассчитать уровни автозакрытия.";return;}
+      state.preview={...result,...(pricedTargets||{})};
       const volume=Number(result.volumeUsd??result.notionalUsd);
       $("#kg-ticket-volume").textContent="Объём: "+money(volume);
       const fees=[];
       if(result.entryFeeUsd!==undefined)fees.push("Комиссия открытия "+money(Number(result.entryFeeUsd)));
       if(result.exitFeeUsd!==undefined)fees.push("Комиссия закрытия "+money(Number(result.exitFeeUsd)));
+      if(pricedTargets)fees.push("TP "+money(pricedTargets.takeProfitUsd)+" · SL "+money(pricedTargets.stopLossUsd));
       $("#kg-ticket-preview").textContent=fees.join(" · ");
       $("#kg-ticket-check").disabled=!(result.valid!==false && result.available!==false);
     }catch(error){if(seq!==state.previewSeq)return;$("#kg-ticket-preview").textContent=normalizeError(error).message;}
@@ -541,7 +567,11 @@
     if(!state.preview||state.busy)return;
     state.busy=true;$("#kg-trade-confirm").disabled=true;
     try{
-      const result=await invoke("trade.open",{symbol:state.selectedMarket,side:state.side,marginUsd:state.margin,leverage:state.leverage,previewId:state.preview.previewId});
+      const targets=getAutoCloseTargets(state.preview?.priceUsd);
+      if(targets===false)throw new Error("Укажите корректные уровни TP и SL.");
+      const payload={symbol:state.selectedMarket,side:state.side,marginUsd:state.margin,leverage:state.leverage,previewId:state.preview.previewId};
+      if(targets)Object.assign(payload,targets);
+      const result=await invoke("trade.open",payload);
       closeModals();closeTicket();await Promise.all([loadWallet(),loadHistory()]);
       if(state.selectedMarket)renderAssetHistory(state.selectedMarket);
       notify("Демо-сделка открыта.");
@@ -842,6 +872,9 @@
     $("#kg-short").addEventListener("click",()=>openTicket("short"));
     $("#kg-ticket-close").addEventListener("click",closeTicket);
     $("#kg-ticket-margin").addEventListener("input",refreshPreview);
+    $("#kg-ticket-autoclose").addEventListener("click",()=>{setAutoCloseUi(!state.autoclose);refreshPreview();});
+    $("#kg-ticket-tp").addEventListener("input",refreshPreview);
+    $("#kg-ticket-sl").addEventListener("input",refreshPreview);
     $("#kg-ticket-max").addEventListener("click",async()=>{
       const available=Number(state.wallet?.balanceUsd??state.wallet?.balance??0);
       if(!(available>0)){notify("Нет доступного демо-баланса.");return;}
@@ -874,7 +907,9 @@
     $("#kg-asset-history-all").addEventListener("click",()=>{setScreen("income");loadWallet();loadHistory();});
     $("#kg-ticket-check").addEventListener("click",()=>{
       if(!state.preview)return;
-      $("#kg-confirm-details").innerHTML=`<div class="kg-detail-row"><span>Направление</span><b>${state.side==="long"?"Лонг":"Шорт"} ${esc(state.selectedMarket)}</b></div><div class="kg-detail-row"><span>Маржа</span><b>${money(state.margin)}</b></div><div class="kg-detail-row"><span>Плечо</span><b>${state.leverage}×</b></div><div class="kg-detail-row"><span>Объём</span><b>${money(Number(state.preview.volumeUsd??state.preview.notionalUsd))}</b></div>`;
+      const targets=getAutoCloseTargets(state.preview?.priceUsd);
+      const autoCloseRows=targets?`<div class="kg-detail-row"><span>Тейк-профит</span><b>${money(targets.takeProfitUsd)}</b></div><div class="kg-detail-row"><span>Стоп-лосс</span><b>${money(targets.stopLossUsd)}</b></div>`:"";
+      $("#kg-confirm-details").innerHTML=`<div class="kg-detail-row"><span>Направление</span><b>${state.side==="long"?"Лонг":"Шорт"} ${esc(state.selectedMarket)}</b></div><div class="kg-detail-row"><span>Маржа</span><b>${money(state.margin)}</b></div><div class="kg-detail-row"><span>Плечо</span><b>${state.leverage}×</b></div><div class="kg-detail-row"><span>Объём</span><b>${money(Number(state.preview.volumeUsd??state.preview.notionalUsd))}</b></div>${autoCloseRows}`;
       showModal("#kg-confirm-screen");
     });
     $("#kg-trade-confirm").addEventListener("click",confirmTrade);

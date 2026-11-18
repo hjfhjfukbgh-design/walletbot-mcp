@@ -49,6 +49,7 @@ try{
       const mockHistory=[];
       const companionHistory=[];
       window.__candleCalls=0;
+      window.__lastTradeOpen=null;
       const markets=[
         {symbol:"BTC",name:"Bitcoin",priceUsd:91240.5,change24hPct:2.42,volume24hUsd:8900000000,openInterestUsd:198750000,fundingRateHourlyPct:0.001,maxLeverage:50,takerFeePct:0.035,tradeable:true},
         {symbol:"ETH",name:"Ethereum",priceUsd:3120.2,change24hPct:-0.83,volume24hUsd:5200000000,openInterestUsd:92000000,fundingRateHourlyPct:-0.002,maxLeverage:30,takerFeePct:0.035,tradeable:true},
@@ -61,8 +62,8 @@ try{
         markets:{async list({category}){if(category==="stocks"||category==="funds")return {available:false,reason:"Проверенный источник котировок пока не подключён."};return {available:true,markets:markets.map(x=>({...x}))};}},
         market:{async get(symbol){const item=markets.find(x=>x.symbol===symbol);if(!item)throw {code:"NOT_FOUND",message:"Инструмент не найден"};return {...item,productType:"Фьючерс"};},async candles(symbol,interval){window.__candleCalls++;return {candles};}},
         trade:{
-          async preview({marginUsd,leverage}){return {valid:marginUsd>=10&&marginUsd<=50,available:marginUsd>=10&&marginUsd<=50,maxMarginUsd:50,minMarginUsd:10,volumeUsd:marginUsd*leverage,entryFeeUsd:marginUsd*leverage*.00035,exitFeeUsd:marginUsd*leverage*.00035};},
-          async open(payload){const p={id:"preview-position-1",symbol:payload.symbol,side:payload.side,marginUsd:payload.marginUsd,leverage:payload.leverage};mockPositions.push(p);mockHistory.unshift({event:"Открытие",symbol:p.symbol,side:p.side,timestamp:"Сейчас"});return {position:p};},
+          async preview({marginUsd,leverage}){return {valid:marginUsd>=10&&marginUsd<=50,available:marginUsd>=10&&marginUsd<=50,maxMarginUsd:50,minMarginUsd:10,priceUsd:91240.5,volumeUsd:marginUsd*leverage,entryFeeUsd:marginUsd*leverage*.00035,exitFeeUsd:marginUsd*leverage*.00035};},
+          async open(payload){window.__lastTradeOpen={...payload};const p={id:"preview-position-1",symbol:payload.symbol,side:payload.side,marginUsd:payload.marginUsd,leverage:payload.leverage};mockPositions.push(p);mockHistory.unshift({event:"Открытие",symbol:p.symbol,side:p.side,timestamp:"Сейчас"});return {position:p};},
           async close(id){const i=mockPositions.findIndex(x=>x.id===id);if(i>=0){const p=mockPositions.splice(i,1)[0];mockHistory.unshift({event:"Закрытие",symbol:p.symbol,side:p.side,netPnlUsd:.37,timestamp:"Сейчас"});}return {closed:true};}
         },
         history:{async list(){return {events:mockHistory.map(x=>({...x}))};}},
@@ -160,12 +161,19 @@ try{
     await page.waitForTimeout(250);
     if(await page.evaluate(()=>window.__candleCalls)!==pausedCandleCalls)throw new Error("candlestick polling must pause while the ticket screen is open");
     if(!(await page.evaluate(()=>document.activeElement?.id==="kg-ticket-margin")))throw new Error("ticket amount input should autofocus during the user gesture");
+    await page.locator("#kg-ticket-autoclose").click();
+    if(await page.locator("#kg-ticket-autoclose").getAttribute("aria-pressed")!=="true")throw new Error("auto-close toggle must enable");
+    if(!(await page.locator("#kg-ticket-autoclose-fields").isVisible()))throw new Error("auto-close target fields must be visible");
+    await page.locator("#kg-ticket-tp").fill("5");
+    await page.locator("#kg-ticket-sl").fill("2");
     await page.locator("#kg-ticket-max").click();
     await page.waitForFunction(()=>document.querySelector("#kg-ticket-margin")?.value==="50");
     await page.waitForFunction(()=>document.querySelector("#kg-ticket-check")?.disabled===false);
     if(await page.locator("#kg-ticket-margin").inputValue()!=="50")throw new Error("Max must use the server-approved margin cap, not the full demo balance");
     const volumeText=await page.locator("#kg-ticket-volume").innerText();
     if(!volumeText.startsWith("Объём: $"))throw new Error("ticket volume label should appear exactly once: "+volumeText);
+    const autoClosePreview=await page.locator("#kg-ticket-preview").innerText();
+    if(!autoClosePreview.includes("TP $")||!autoClosePreview.includes("SL $"))throw new Error("auto-close targets must appear in ticket preview: "+autoClosePreview);
     await page.screenshot({path:`clean-ticket-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-ticket-leverage").click();
     await page.waitForSelector("#kg-leverage-screen:not([hidden])");
@@ -176,6 +184,8 @@ try{
     await page.waitForSelector("#kg-confirm-screen:not([hidden])");
     await page.screenshot({path:`clean-confirm-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-trade-confirm").click();
+    const submittedAutoClose=await page.evaluate(()=>window.__lastTradeOpen);
+    if(Math.abs(Number(submittedAutoClose?.takeProfitUsd)-91240.5*1.05)>0.02||Math.abs(Number(submittedAutoClose?.stopLossUsd)-91240.5*.98)>0.02)throw new Error("DEMO trade must receive the configured TP/SL prices: "+JSON.stringify(submittedAutoClose));
     await page.waitForSelector("#kg-asset-screen:not([hidden])");
     const candleCallsBeforeResume=await page.evaluate(()=>window.__candleCalls);
     await page.waitForFunction(previous=>window.__candleCalls>previous,candleCallsBeforeResume,{timeout:3000});
