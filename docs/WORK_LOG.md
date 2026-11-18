@@ -332,3 +332,14 @@
 - **Доказательство:** `test/walt.test.ts` явно фиксирует, что `findContract()` принимает контракт с `contractId: 0` как валидный; при этом `src/api.ts` LIVE preview и `src/trading/engine.ts` atomic claim отклоняют `contractId <= 0`.
 - **Цель:** заменить искусственное требование ID > 0 на неотрицательное целое значение и закрепить это Miniflare regression test для LIVE claim. Это не меняет risk limits и не вызывает Walt.
 - **Scope:** src/api.ts, src/trading/engine.ts, test/trading-engine.miniflare.test.ts на отдельной ветке.
+
+### 2026-11-19 — LIVE contractId=0 regression исправлен в Draft PR #283
+
+- **Время:** 2026-11-19T01:06:04.130+05:00
+- **Событие:** завершена правка согласованности Walt contract IDs между adapter, LIVE preview и Durable Object claim.
+- **Статус:** код опубликован; CI ещё не вернул статусы
+- **Изменения:** `src/api.ts` и `src/trading/engine.ts` теперь отклоняют только отрицательные contract IDs; `0` считается валидным, как уже зафиксировано в `findContract()` тесте. LIVE claim Miniflare fixture переведён на contractId 0, сохраняя проверки atomic single-claim и replay.
+- **Diff:** 3 файла, 3 additions / 3 deletions; полный diff проверен.
+- **Артефакты:** branch `fix/live-contract-id-zero-2026-11-19`; head `41d57af3b3b5d82ebfe4d24f5cee8f2cbc228c94`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/283.
+- **CI:** combined status и PR workflow runs пустые; тест не объявляется пройденным.
+- **Безопасность:** реальный Walt/MCP не вызывался; ордера/позиции/аккаунты/secrets не менялись; merge/deploy не выполнялись.
