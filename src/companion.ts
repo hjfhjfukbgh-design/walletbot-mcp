@@ -2,7 +2,8 @@ import type { Env } from "./env";
 import { tenantEnv } from "./tenants";
 
 type ChatMessage = { role: "user" | "assistant"; content: string; createdAt: string };
-type Conversation = { id: string; title: string; createdAt: string; updatedAt: string; messages: ChatMessage[] };
+type CompanionMode = "general" | "learning";
+type Conversation = { id: string; title: string; createdAt: string; updatedAt: string; messages: ChatMessage[]; mode?: CompanionMode };
 
 const PREFIX = "companion:conversation:";
 const MAX_MESSAGE_CHARS = 4_000;
@@ -42,7 +43,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       const page = await scoped.STATE.list({ prefix: PREFIX, limit: 50 });
       const conversations = await Promise.all(page.keys.map(async ({ name }) => {
         const item = await scoped.STATE.get<Conversation>(name, "json");
-        return item ? { id: item.id, title: item.title, createdAt: item.createdAt, updatedAt: item.updatedAt, messageCount: item.messages.length } : null;
+        return item ? { id: item.id, title: item.title, createdAt: item.createdAt, updatedAt: item.updatedAt, messageCount: item.messages.length, mode: item.mode ?? "general" } : null;
       }));
       return json({ ok: true, conversations: conversations.filter(Boolean).sort((a, b) => b!.updatedAt.localeCompare(a!.updatedAt)) });
     }
@@ -62,8 +63,10 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     if (!env.GEMINI_API_KEY)
       return json({ ok: false, error: "ИИ временно не настроен: отсутствует серверный ключ Gemini." }, 503);
 
-    const body = await req.json().catch(() => ({})) as { message?: unknown; conversationId?: unknown; attachments?: unknown };
+    const body = await req.json().catch(() => ({})) as { message?: unknown; conversationId?: unknown; attachments?: unknown; mode?: unknown };
     const message = typeof body.message === "string" ? body.message.trim() : "";
+    if (body.mode !== undefined && body.mode !== "general" && body.mode !== "learning") return json({ ok: false, error: "Неизвестный режим AI Companion." }, 400);
+    const mode: CompanionMode = body.mode === "learning" ? "learning" : "general";
     const rawAttachments = Array.isArray(body.attachments) ? body.attachments : [];
     if (!message && !rawAttachments.length) return json({ ok: false, error: "Напишите сообщение или приложите файл." }, 400);
     if (rawAttachments.length > 4) return json({ ok: false, error: "Можно приложить не больше 4 файлов." }, 400);
@@ -119,10 +122,12 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       if (!/^[a-f0-9-]{36}$/i.test(requestedId)) return json({ ok: false, error: "Некорректный ID диалога." }, 400);
       const existing = await scoped.STATE.get<Conversation>(PREFIX + requestedId, "json");
       if (!existing) return json({ ok: false, error: "Диалог не найден." }, 404);
-      conversation = existing;
+      const existingMode = existing.mode ?? "general";
+      if (existingMode !== mode) return json({ ok: false, error: "Режим диалога нельзя менять в середине истории. Создайте новый чат для другого режима." }, 409);
+      conversation = { ...existing, mode: existingMode };
     } else {
       const now = new Date().toISOString();
-      conversation = { id: crypto.randomUUID(), title: (message || attachments.map(file => file.name).join(", ") || "Вложения").slice(0, 72), createdAt: now, updatedAt: now, messages: [] };
+      conversation = { id: crypto.randomUUID(), title: (message || attachments.map(file => file.name).join(", ") || "Вложения").slice(0, 72), createdAt: now, updatedAt: now, messages: [], mode };
     }
 
     const userContent = message || "Проанализируй приложенные файлы.";
@@ -142,7 +147,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: "Ты — Kripto Guru AI Companion, универсальный русскоязычный ИИ-помощник. Отвечай ясно, по делу и естественно. Помогай с повседневными вопросами, обучением, технологиями, работой и планированием. Не утверждай, что выполняешь действия вне чата. У тебя нет доступа к счетам, API-инструментам или исполнению сделок. Если обсуждается рынок или трейдинг, отделяй факты от предположений и не обещай доходность. Не проси у пользователя пароли, API-ключи и секреты." }] },
+          systemInstruction: { parts: [{ text: mode === "learning" ? "Ты — интерактивный преподаватель Kripto Guru. Обучай криптотрейдингу на русском с нуля и по шагам: краткая цель, понятное объяснение, безопасный пример, затем один контрольный вопрос или небольшое упражнение. Подстраивай сложность под ответы ученика и исправляй ошибки корректно. Объясняй свечи, LONG/SHORT, плечо, маржу, комиссии, ликвидацию, стоп-лосс, риск-менеджмент и различие DEMO/LIVE. Не обещай доходность, не давай персональных указаний купить/продать и не исполняй сделки. У тебя нет доступа к счетам и торговым API. Не проси пароли, API-ключи и секреты." : "Ты — Kripto Guru AI Companion, универсальный русскоязычный ИИ-помощник. Отвечай ясно, по делу и естественно. Помогай с повседневными вопросами, обучением, технологиями, работой и планированием. Не утверждай, что выполняешь действия вне чата. У тебя нет доступа к счетам, API-инструментам или исполнению сделок. Если обсуждается рынок или трейдинг, отделяй факты от предположений и не обещай доходность. Не проси у пользователя пароли, API-ключи и секреты." }] },
           contents: history.map((item, index) => ({
             role: item.role === "assistant" ? "model" : "user",
             parts: [

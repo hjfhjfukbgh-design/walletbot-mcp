@@ -302,10 +302,10 @@
       const data = await request("/api/companion/conversations/" + encodeURIComponent(String(conversationId)));
       return data.conversation;
     },
-    async send(message, conversationId, attachments = []) {
+    async send(message, conversationId, attachments = [], mode = "general") {
       const data = await request("/api/companion/chat", {
         method: "POST",
-        body: { message: String(message), ...(conversationId ? { conversationId: String(conversationId) } : {}), ...(attachments.length ? { attachments } : {}) },
+        body: { message: String(message), mode: String(mode), ...(conversationId ? { conversationId: String(conversationId) } : {}), ...(attachments.length ? { attachments } : {}) },
         timeoutMs: 30_000,
       });
       return data;

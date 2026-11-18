@@ -11,7 +11,7 @@
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
-    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionAttachments:[], companionRecorder:null, companionRecordChunks:[]
+    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[]
   };
   const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
   const priceDigits = (value, metadata) => {
@@ -460,6 +460,12 @@
     catch(error){notify(normalizeError(error).message);}
     finally{state.busy=false;}
   }
+  function renderCompanionMode(){
+    const status=$("#kg-ai-mode-status");
+    if(status){status.hidden=state.companionMode!=="learning";status.textContent="Учебный режим · пошаговое обучение";}
+    const learn=$('[data-ai-tool="learn"]');
+    if(learn){learn.classList.toggle("is-selected",state.companionMode==="learning");learn.setAttribute("aria-pressed",String(state.companionMode==="learning"));}
+  }
   function renderCompanionMessages(){
     const root=$("#kg-ai-messages");
     if(!state.companionMessages.length){
@@ -502,7 +508,8 @@
       const conversation=await invoke("companion.get",id);
       state.companionId=conversation.id;
       state.companionMessages=conversation.messages||[];
-      renderCompanionMessages();renderCompanionHistory();
+      state.companionMode=conversation.mode||"general";
+      renderCompanionMode();renderCompanionMessages();renderCompanionHistory();
     }catch(error){notify(normalizeError(error).message);}
   }
   function setCompanionMenu(open){
@@ -532,7 +539,7 @@
   }
   function newCompanionConversation(focus=true){
     state.companionId=null;state.companionMessages=[];state.companionAttachments=[];
-    renderCompanionMessages();renderCompanionAttachments();renderCompanionHistory();setCompanionMenu(false);
+    renderCompanionMode();renderCompanionMessages();renderCompanionAttachments();renderCompanionHistory();setCompanionMenu(false);
     if(focus)$("#kg-ai-input").focus();
   }
   function renderCompanionAttachments(){
@@ -581,7 +588,7 @@
     if((!message&&!state.companionAttachments.length)||state.companionBusy)return;
     state.companionBusy=true;$("#kg-ai-send").disabled=true;input.disabled=true;
     try{
-      const result=await invoke("companion.send",message||"Проанализируй приложенные файлы.",state.companionId,state.companionAttachments.map(({name,mimeType,dataBase64})=>({name,mimeType,dataBase64})));
+      const result=await invoke("companion.send",message||"Проанализируй приложенные файлы.",state.companionId,state.companionAttachments.map(({name,mimeType,dataBase64})=>({name,mimeType,dataBase64})),state.companionMode);
       state.companionId=result.conversationId;
       state.companionMessages=result.conversation?.messages||[...state.companionMessages,{role:"user",content:message},{role:"assistant",content:result.answer}];
       input.value="";state.companionAttachments=[];renderCompanionAttachments();renderCompanionMessages();await loadCompanionConversations();
@@ -650,11 +657,26 @@
     aiInput.addEventListener("blur",()=>{window.setTimeout(syncComposer,120);});
     aiInput.addEventListener("input",()=>{aiInput.style.height="auto";aiInput.style.height=Math.min(aiInput.scrollHeight,130)+"px";syncComposer();});
     if(window.visualViewport){const syncViewport=()=>{const keyboardOpen=document.activeElement===aiInput&&window.visualViewport.height<window.innerHeight-120;aiScreen.classList.toggle("kg-keyboard-open",keyboardOpen);$("#kg-nav").hidden=keyboardOpen;};window.visualViewport.addEventListener("resize",syncViewport);window.visualViewport.addEventListener("scroll",syncViewport);aiInput.addEventListener("focus",syncViewport);aiInput.addEventListener("blur",()=>{aiScreen.classList.remove("kg-keyboard-open");$("#kg-nav").hidden=false;});}
-    $("#kg-ai-attach").addEventListener("click",()=>$("#kg-ai-file-input").click());
-    $("#kg-ai-file-input").addEventListener("change",event=>{addCompanionFiles(event.target.files||[]);event.target.value="";});
+    $("#kg-ai-attach").addEventListener("click",()=>{$("#kg-ai-file-input").setAttribute("accept","image/jpeg,image/png,image/webp,image/gif,audio/*,video/mp4,video/webm");$("#kg-ai-file-input").click();});
+    $("#kg-ai-file-input").addEventListener("change",event=>{addCompanionFiles(event.target.files||[]);event.target.value="";event.target.setAttribute("accept","image/jpeg,image/png,image/webp,image/gif,audio/*,video/mp4,video/webm");});
     $("#kg-ai-attachments").addEventListener("click",event=>{const button=event.target.closest("[data-remove-attachment]");if(!button)return;state.companionAttachments.splice(Number(button.dataset.removeAttachment),1);renderCompanionAttachments();});
     $("#kg-ai-voice").addEventListener("click",toggleCompanionRecording);
-    $$(".kg-gemini-tools [data-ai-tool]").forEach(button=>button.addEventListener("click",()=>notify("Инструмент «"+button.textContent.trim()+"» пока недоступен.")));
+    $$(".kg-gemini-tools [data-ai-tool]").forEach(button=>button.addEventListener("click",()=>{
+      const tool=button.dataset.aiTool,input=$("#kg-ai-file-input");
+      if(tool==="learn"){
+        state.companionMode=state.companionMode==="learning"?"general":"learning";
+        newCompanionConversation(false);
+        notify(state.companionMode==="learning"?"Учебный режим включён. Начнём с базовых понятий.":"Обычный режим включён.");
+      }else if(tool==="research"){
+        notify("Глубокий веб-поиск ещё не подключён. Я не буду выдавать неподтверждённые источники за найденные.");
+      }else if(tool==="image"){
+        input.setAttribute("accept","image/jpeg,image/png,image/webp,image/gif");
+        input.click();
+      }else if(tool==="video"){
+        input.setAttribute("accept","video/mp4,video/webm");
+        input.click();
+      }
+    }));
     $("#kg-ai-input").addEventListener("keydown",event=>{
       if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();$("#kg-ai-form").requestSubmit();}
     });
