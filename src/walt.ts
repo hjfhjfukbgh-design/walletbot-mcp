@@ -77,30 +77,18 @@ export class Walt {
   }
 
   async openLong(
-    contract: ContractInfo,
-    marginUsd: number,
-    leverage: number,
-    price: number,
-    takeProfit: number,
-    stopLoss: number,
-  ): Promise<unknown> {
-    const d = contract.priceDecimals;
-    return this.prepareAndExecute("perps_prepare_order_place", {
-      contractId: contract.contractId,
-      side: "long",
-      type: "market",
-      leverage,
-      amount: marginUsd.toFixed(2),
-      price: price.toFixed(d),
-      autoClose: {
-        takeProfit: { priceQuote: takeProfit.toFixed(d) },
-        stopLoss: { priceQuote: stopLoss.toFixed(d) },
-      },
-    });
+    _contract: ContractInfo,
+    _marginUsd: number,
+    _leverage: number,
+    _price: number,
+    _takeProfit: number,
+    _stopLoss: number,
+  ): Promise<never> {
+    throw new WaltError("Автоматическое LIVE-исполнение через legacy openLong отключено. Используйте отдельный API preview и явное подтверждение пользователя.");
   }
 
-  async closePosition(contractId: number): Promise<unknown> {
-    return this.prepareAndExecute("perps_prepare_position_close", { contractId });
+  async closePosition(_contractId: number): Promise<never> {
+    throw new WaltError("Автоматическое LIVE-закрытие через legacy closePosition отключено. Используйте отдельный API preview и явное подтверждение пользователя.");
   }
 
   async createAccount(): Promise<unknown> {
