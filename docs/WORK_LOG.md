@@ -742,3 +742,12 @@
 - **PR #345:** Draft opened; branch fix/market-refresh-on-wallet-screen-2026-11-19. Guard now checks #kg-market-live only while Trading screen is active; wallet screen refresh remains allowed, asset/ticket subscreens still pause polling.
 - **Regression:** capture-clean-ui.mjs increments mock markets.list counter and dispatches visibilitychange while wallet is active, asserting a fresh market request.
 - **CI:** deploy run `44409939223` and screenshot run `44409939408` are in progress; no merge yet.
+### 2026-11-19 — wallet market refresh regression fixed
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:17:55.499+05:00
+- **PR #345:** merged squash commit `7359c29f55f24b5924ebfdca8eb79ba18eecb075`.
+- **Finding:** market refresh was scheduled on wallet and trading screens but refreshMarketData incorrectly returned whenever the trading-only market list was hidden; wallet home therefore stopped refreshing favorites/top movers after initial load.
+- **Fix:** guard now checks market-list visibility only while Trading screen is active; wallet refresh continues; asset/ticket subscreens still pause polling.
+- **Regression:** Playwright dispatches visibilitychange while wallet is active and asserts markets.list is called again. Search remains client-side 120ms debounce.
+- **CI:** run `44409939223` success — npm ci, JS syntax, typecheck, npm test; screenshot run `44409939408` success.
+- **Issue #266:** closed completed with agent-done.
