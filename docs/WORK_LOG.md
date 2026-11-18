@@ -135,3 +135,14 @@
 - **Цель:** обеспечить совместимость с обоими queue labels без потери приоритета orchestrator-ready и передавать worker именно сформированный ролевой пакет, чтобы агент исполнял конкретный scope, а не весь родительский backlog.
 - **Безопасность:** задача не должна автоматически выполнять merge/deploy или реальные финансовые операции; dispatcher по-прежнему запускает максимум одну задачу за workflow run.
 - **Доказательства:** `.github/workflows/kripto-guru-orchestrator.yml` main blob `de82ed712edb8ce18c169c858b48c54c91817f91`; Issue #203 открыт с label `agent-ready`; поиск открытых Issues с `orchestrator-ready` вернул 0.
+
+### 2026-11-19 — исправление маршрутизации очереди опубликовано в Draft PR #274
+
+- **Время:** 2026-11-19T00:53:25.705+05:00
+- **Событие:** завершён узкий patch центрального orchestrator; открыт Draft PR #274.
+- **Статус:** код опубликован; CI и фактический запуск агента ещё не подтверждены
+- **Изменения:** dispatcher сохраняет приоритет `orchestrator-ready`, но при пустой очереди делает fallback на `agent-ready`; при пустоте обеих очередей по-прежнему завершает запуск без LLM-вызова. В reusable worker теперь передаётся сформированный ролевой `packet`, а не исходный широкий issue body. Ограничение — максимум одна Issue за запуск — сохранено.
+- **Проверка diff:** один файл `.github/workflows/kripto-guru-orchestrator.yml`, 6 добавлений / 2 удаления; подтверждены fallback label, передача `packet` и `--limit 1`.
+- **CI:** combined status и workflow runs пока пустые; фактическое выполнение Actions не заявляется.
+- **Артефакты:** branch `fix/orchestrator-handoff-queue-2026-11-19`; commit `a368e2feed5728e030a158540f63ab779b7aa724`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/274.
+- **Безопасность:** Draft PR; merge/deploy, секреты и финансовые операции не затрагивались.
