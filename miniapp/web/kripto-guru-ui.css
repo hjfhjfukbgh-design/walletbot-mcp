@@ -220,6 +220,9 @@ button:disabled{cursor:not-allowed;opacity:.5}
   width:100%;
   margin-top:0;
 }
+@media(max-width:400px){
+  #kg-companion-screen .kg-ai-welcome>b{font-size:22px;letter-spacing:-.85px;white-space:nowrap}
+}
 @media(max-height:700px){
   .kg-ticket-amount{margin-top:190px}
   .kg-ticket-actions{padding-top:12px;padding-bottom:9px}
