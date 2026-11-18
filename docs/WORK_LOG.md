@@ -666,3 +666,11 @@
 - **CI run:** `44407893844` success — npm ci, JS syntax checks, npm run typecheck, npm test; unit tests valid/invalid modes, immutability, default and legacy migration.
 - **Issue #67:** закрыта completed с agent-done.
 - **Safety:** состояние не включает LIVE execution и не меняет legacy execution mode; никаких внешних финансовых операций или production deploy.
+### 2026-11-19 — Team Lead ProductMode API integration (active checkpoint)
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:06:19.074+05:00
+- **Задача:** интегрировать ProductMode state contract с API, чтобы Mini App могла читать/сохранять DEMO и AI режимы без изменения legacy execution mode.
+- **Текущий branch:** feat/product-mode-api-guard-2026-11-19; PR #341 открыт Draft.
+- **Изменения подготовлены:** GET state включает productMode; POST product-mode tenant-scoped; DEMO/AI сохраняются без изменения legacy mode; LIVE возвращает 409 до проверки полного LIVE open/close контракта; добавлены API tests на tenant isolation и LIVE lock.
+- **Примечание аудита:** этот checkpoint записан после первых branch edits; он не утверждает, что стартовая запись была сделана до редактирования.
+- **Не выполнялись:** Walt network/write calls, реальные ордера, переводы, account changes, secrets, production deploy.
