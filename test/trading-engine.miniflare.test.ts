@@ -54,7 +54,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const ns = await mf.getDurableObjectNamespace("ENGINE");
     const id = ns.idFromName(objectName);
     const stub = ns.get(id);
-    const testStorage = await mf.getDurableObjectStorage(id);
+    const testStorage = await mf.unsafeGetDurableObjectStorage(id);
     return Object.assign(stub, { testStorage });
   }
 
