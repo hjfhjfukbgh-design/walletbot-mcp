@@ -25,6 +25,18 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
   const scoped = tenantEnv(env, userId);
   const path = new URL(req.url).pathname;
   try {
+    if (req.method === "GET" && path === "/api/companion/limits") {
+      return json({ ok: true, limits: {
+        messagesPerWindow: RATE_LIMIT,
+        rateWindowSeconds: RATE_WINDOW_SECONDS,
+        maxMessageChars: MAX_MESSAGE_CHARS,
+        maxStoredMessages: MAX_STORED_MESSAGES,
+        maxContextMessages: MAX_CONTEXT_MESSAGES,
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
+        maxConversations: 50,
+      } });
+    }
+
     if (req.method === "GET" && path === "/api/companion/conversations") {
       const page = await scoped.STATE.list({ prefix: PREFIX, limit: 50 });
       const conversations = await Promise.all(page.keys.map(async ({ name }) => {
