@@ -850,3 +850,42 @@ body{padding-bottom:calc(94px + var(--kg-safe-bottom))}
  #kg-wallet-screen .kg-favorite{flex-basis:128px;min-width:128px}
  #kg-wallet-screen .kg-wallet-hero{margin-bottom:40px}
 }
+
+/* Walt parity pass 3: match the reference wallet action tiles and typography. */
+#kg-wallet-screen .kg-wallet-hero{margin-bottom:36px}
+#kg-wallet-screen .kg-wallet-hero>strong{font-size:clamp(40px,11.4vw,47px);font-weight:650;letter-spacing:-1.8px}
+#kg-wallet-screen .kg-wallet-hero>small{font-size:14px;font-weight:600;letter-spacing:0}
+#kg-wallet-screen .kg-wallet-performance{font-size:14px;font-weight:600}
+#kg-wallet-screen .kg-wallet-performance span{padding:3px 9px}
+#kg-wallet-screen .kg-wallet-quick-actions{gap:7px;margin:0 0 14px}
+#kg-wallet-screen .kg-wallet-quick-actions button{min-height:74px;padding:7px 2px 6px;gap:5px;border-radius:18px;background:#fff;color:#2788ef;box-shadow:0 2px 10px rgba(28,34,52,.035)}
+#kg-wallet-screen .kg-wallet-action-icon{width:36px;height:36px;background:#1688e9;color:#fff;box-shadow:none}
+#kg-wallet-screen .kg-wallet-action-icon svg{width:20px;height:20px;stroke-width:2}
+#kg-wallet-screen .kg-wallet-quick-actions small{font-size:12px;font-weight:600;color:#2788ef;letter-spacing:-.2px}
+#kg-wallet-screen .kg-wallet-currency .kg-card-copy b{font-size:15px;font-weight:550}
+#kg-wallet-screen .kg-wallet-currency .kg-card-copy small{font-size:12px}
+#kg-wallet-screen .kg-wallet-currency-value{font-size:16px;font-weight:500}
+#kg-wallet-screen .kg-section-head{margin-top:23px;margin-bottom:9px}
+#kg-wallet-screen .kg-section-head h2{font-size:15px;font-weight:600;letter-spacing:-.3px}
+#kg-wallet-screen .kg-section-head .kg-muted{font-size:13px;font-weight:450}
+#kg-wallet-screen .kg-link{font-size:14px;font-weight:550}
+#kg-wallet-screen .kg-favorite{flex-basis:150px;min-width:150px;min-height:150px;padding:12px;border-radius:25px}
+#kg-wallet-screen .kg-favorite b{font-size:13px;font-weight:600}
+#kg-wallet-screen .kg-favorite strong{font-size:18px;font-weight:550;letter-spacing:-.4px}
+#kg-wallet-screen .kg-favorite small{font-size:11px}
+#kg-wallet-screen .kg-asset-row{min-height:61px;padding:9px 13px}
+#kg-wallet-screen .kg-row-copy b{font-size:16px;font-weight:550}
+#kg-wallet-screen .kg-row-copy small{font-size:12px}
+#kg-wallet-screen .kg-wallet-row-value{font-size:16px;font-weight:450}
+#kg-wallet-screen .kg-discover-card .kg-row-copy b{font-size:15px;font-weight:550}
+#kg-wallet-screen .kg-discover-card .kg-row-copy small{font-size:12px}
+#kg-nav{width:min(270px,calc(100vw - 36px));padding:5px;background:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.88);box-shadow:0 8px 28px rgba(25,30,48,.13)}
+#kg-nav button{min-height:48px;color:#34353a}
+#kg-nav button.is-active{background:#e8e9ee;color:#2788ef;box-shadow:none}
+#kg-nav button small{font-size:11px;font-weight:550}
+@media(max-width:380px){
+ #kg-wallet-screen .kg-wallet-hero{margin-bottom:31px}
+ #kg-wallet-screen .kg-wallet-quick-actions button{min-height:70px}
+ #kg-wallet-screen .kg-wallet-quick-actions small{font-size:11px}
+ #kg-wallet-screen .kg-favorite{flex-basis:142px;min-width:142px}
+}
