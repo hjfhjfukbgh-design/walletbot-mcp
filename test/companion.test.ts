@@ -128,6 +128,27 @@ describe("AI Companion API", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("does not spend the message quota on invalid requests", async () => {
+    const e = isolatedEnv();
+    const fetchMock = vi.fn(async () => Response.json({ candidates: [{ content: { parts: [{ text: "Принято" }] } }] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    for (let i = 0; i < 8; i++) {
+      const invalid = await call(e, "111", "/api/companion/chat", {
+        method: "POST",
+        body: JSON.stringify({ message: "   " }),
+      });
+      expect(invalid.status).toBe(400);
+    }
+
+    const valid = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Рабочий запрос" }),
+    });
+    expect(valid.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("does not expose Gemini provider error details to the client", async () => {
     const e = isolatedEnv();
     vi.stubGlobal("fetch", async () => Response.json({ error: { message: "private provider detail" } }, { status: 429 }));
