@@ -530,7 +530,7 @@
       if(!ready){
         state.tradeMode="demo";
         renderTicketMode();
-        const issues=[...(Array.isArray(status.issues)?status.issues:[]),...(Array.isArray(status.readiness?.issues)?status.readiness.issues:[])];
+        const issues=Array.isArray(status.issues)?status.issues.map(item=>typeof item==="string"?item:String(item?.description??item?.code??"")).filter(Boolean):[];
         const reason=issues.join(" ")||"Walt не подключён или не прошёл проверку готовности. LIVE заблокирован.";
         $("#kg-ticket-mode-status").textContent=reason;$("#kg-ticket-mode-status").classList.add("is-warning");
         notify(reason);return;
