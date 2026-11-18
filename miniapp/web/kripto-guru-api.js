@@ -400,6 +400,18 @@
     },
   };
 
+  const aiPaper = {
+    async status() {
+      return request("/api/ai/paper/status");
+    },
+    async fund(amountUsd, idempotencyKey) {
+      return request("/api/ai/paper/fund", { method: "POST", body: { amountUsd, idempotencyKey } });
+    },
+    async withdraw(amountUsd, idempotencyKey) {
+      return request("/api/ai/paper/withdraw", { method: "POST", body: { amountUsd, idempotencyKey } });
+    },
+  };
+
   const api = Object.freeze({
     version: API_VERSION,
     wallet,
@@ -411,6 +423,7 @@
     live,
     capabilities,
     productMode,
+    aiPaper,
     errors: Object.freeze({ ApiError: KriptoGuruApiError }),
   });
 
