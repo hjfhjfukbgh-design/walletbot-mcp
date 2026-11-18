@@ -820,3 +820,8 @@
 - **Visual defect found:** first screenshot run `44411847400` caught auto-follow snapping a 30px historical offset to 40px because the tolerance was 12px. Changed to 2px in commit `c42bcdfc1067d37682f8dcf05092e20b2dca0a93`.
 - **CI:** deploy run `44412024215` success (npm ci, syntax, typecheck, npm test); screenshot run `44412024026` success; artifact `14478285271` reviewed at 390×844 and 430×932.
 - **Issue #347:** closed completed with agent-done.
+### 2026-11-19 — Team Lead started reversible AI paper withdrawal
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:31:10.338+05:00
+- **Issue #352:** add virtual AI paper→DEMO withdrawal, atomic and idempotent; block withdrawals while open AI paper positions exist.
+- **Scope:** existing TradingEngine DO and AI paper tables only; no new DO, no real transfer, no Walt/LLM, no production deploy.
