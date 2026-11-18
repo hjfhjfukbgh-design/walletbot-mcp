@@ -149,7 +149,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       const researchUserKey = "companion:research:user:" + researchDay;
       const researchGlobalUsed = (await env.STATE.get<number>(researchGlobalKey, "json")) ?? 0;
       const researchUserUsed = (await scoped.STATE.get<number>(researchUserKey, "json")) ?? 0;
-      if (researchGlobalUsed >= 100 || researchUserUsed >= 20)
+      if (researchGlobalUsed >= 20 || researchUserUsed >= 5)
         return json({ ok: false, error: "Дневной бесплатный лимит веб-исследований исчерпан. Попробуйте завтра." }, 429);
       await env.STATE.put(researchGlobalKey, JSON.stringify(researchGlobalUsed + 1), { expirationTtl: 48 * 60 * 60 });
       await scoped.STATE.put(researchUserKey, JSON.stringify(researchUserUsed + 1), { expirationTtl: 48 * 60 * 60 });
