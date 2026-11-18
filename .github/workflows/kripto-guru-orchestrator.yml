@@ -55,7 +55,7 @@ jobs:
           if [ "$(node -e 'const x=require("/tmp/ready-issue.json"); process.stdout.write(String(x.length))')" = "0" ]; then
             echo "has_task=false" >> "$GITHUB_OUTPUT"
             echo "## Orchestrator: очередь пуста" >> "$GITHUB_STEP_SUMMARY"
-            echo "Открытых Issues с меткой `agent-ready` нет. LLM-вызовов: 0." >> "$GITHUB_STEP_SUMMARY"
+            echo "Открытых Issues с меткой `orchestrator-ready` нет. LLM-вызовов: 0." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           echo "has_task=true" >> "$GITHUB_OUTPUT"
@@ -74,11 +74,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${GEMINI_API_KEY_TEAM_A:-}" ] || [ -z "${GEMINI_API_KEY_TEAM_B:-}" ] || [ -z "${GEMINI_API_KEY_TEAM_C:-}" ]; then
-            echo "::error::One or more team API key secrets are missing (A/B/C)."
-            exit 1
-          fi
-
           node --input-type=module <<'NODE'
           import fs from "node:fs";
           import { randomUUID } from "node:crypto";
@@ -91,6 +86,9 @@ jobs:
           const assignedTeam = ["A", "B", "C"].find(candidate => issueLabels.includes("team-" + candidate.toLowerCase()));
           const team = assignedTeam || ["A", "B", "C"][issue.number % 3];
           const apiKey = process.env["GEMINI_API_KEY_TEAM_" + team];
+          if (!apiKey) {
+            throw new Error("Missing API key for selected team " + team + "; other teams are not required for this task.");
+          }
           const prompt = [
             "Ты — DISPATCHER центральной команды Kripto Guru.",
             "Назначь задаче ровно одну ведущую роль из: ARCHITECT, FRONTEND, BACKEND, QA, SECURITY, ANALYST.",
