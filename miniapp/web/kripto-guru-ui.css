@@ -105,7 +105,7 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .kg-bonus-card small{font-size:8px;color:var(--kg-blue);font-weight:800;letter-spacing:.5px}
 .kg-bonus-card b{font-size:12px}.kg-bonus-card p{margin:0;color:var(--kg-muted);font-size:9px;line-height:1.5}
 .kg-settings-note{margin-top:14px;padding:12px;border-radius:13px;background:#fff;color:var(--kg-muted);font-size:10px}.kg-settings-note b{color:var(--kg-blue)}
-.kg-nav{position:fixed;z-index:20;right:10px;bottom:calc(8px + var(--kg-safe-bottom));left:10px;display:grid;grid-template-columns:repeat(4,1fr);max-width:540px;margin:auto;padding:5px;border:1px solid #ffffffaa;border-radius:19px;background:#fffffff0;box-shadow:0 5px 24px rgba(25,30,48,.10);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.kg-nav{position:fixed;z-index:20;right:10px;bottom:calc(8px + var(--kg-safe-bottom));left:10px;display:grid;grid-template-columns:repeat(3,1fr);max-width:540px;margin:auto;padding:5px;border:1px solid #ffffffaa;border-radius:19px;background:#fffffff0;box-shadow:0 5px 24px rgba(25,30,48,.10);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .kg-nav button{display:flex;align-items:center;flex-direction:column;gap:3px;min-height:44px;padding:4px 2px;border:0;border-radius:13px;background:transparent;color:#858b98}
 .kg-nav button span{font-size:18px;line-height:1.1}.kg-nav button small{font-size:8px;font-weight:650}
 .kg-nav button.is-active{background:#eaf1ff;color:var(--kg-blue)}
