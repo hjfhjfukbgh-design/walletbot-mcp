@@ -792,3 +792,11 @@
 - **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:25:11.105+05:00
 - **Issue #346:** current suite already covers explicit confirmation, concurrent duplicate execute (exactly one Walt execute), unknown timeout/no blind retry and read-only reconciliation. Missing targeted cases: expired preview and cross-tenant preview isolation.
 - **Planned change:** add mocked tests only in `test/live-execution.test.ts`; no production code or real Walt calls.
+### 2026-11-19 — LIVE preview expiry and tenant isolation tests merged
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:26:36.681+05:00
+- **PR #350:** merged squash commit `28f6a8f7ecb786677b9c4e3bf671ad64356653f5`.
+- **Existing coverage revalidated:** explicit confirmation, concurrent duplicate execute (one Walt execute), uncertain timeout -> unknown, no blind retry, read-only reconciliation.
+- **New tests:** expired preview returns 410 before connectWalt; cross-tenant preview handle returns 410 and no execute; owner can still execute.
+- **CI:** run `44411453079` success — npm ci, JS syntax, typecheck, npm test.
+- **Issue #346:** closed completed with agent-done. All Walt interactions mocked; no real financial actions.
