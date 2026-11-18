@@ -64,6 +64,7 @@
     return value || {};
   }
   function setScreen(name){
+    const returningFromSubscreen=!$("#kg-asset-screen").hidden||!$("#kg-ticket-screen").hidden;
     state.screen=name;
     if(name!=="wallet"&&name!=="trading")marketLoadEpoch++;
     $(".kg-screen").forEach(node=>node.classList.toggle("is-active",node.id==="kg-"+name+"-screen"));
@@ -71,7 +72,7 @@
     $("#kg-nav").hidden=false;
     $("#kg-asset-screen").hidden=true;
     $("#kg-ticket-screen").hidden=true;
-    syncMarketPolling();
+    syncMarketPolling(returningFromSubscreen||name==="wallet");
     if(tg?.BackButton){tg.BackButton.hide();tg.BackButton.offClick?.(handleNativeBack);}
   }
   function showSubscreen(name){
@@ -255,13 +256,13 @@
     const label=$("#kg-market-updated");
     if(label){label.textContent=marketLastUpdatedAt?"Данные устарели · "+new Date(marketLastUpdatedAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"Нет свежих котировок";label.classList.add("is-stale");}
   }
-  function syncMarketPolling(){
+  function syncMarketPolling(refreshOnStart=false){
     const marketScreenActive=(state.screen==="wallet"||state.screen==="trading")&&$("#kg-asset-screen").hidden&&$("#kg-ticket-screen").hidden;
     const shouldPoll=document.visibilityState==="visible"&&marketScreenActive;
     if(shouldPoll){
       if(!marketRefreshTimer){
         marketRefreshTimer=setInterval(refreshMarketData,15000);
-        void refreshMarketData();
+        if(refreshOnStart)void refreshMarketData();
       }
     }else if(marketRefreshTimer){
       clearInterval(marketRefreshTimer);
@@ -782,10 +783,9 @@
       if(event.key==="Escape"){event.currentTarget.value="";clearTimeout(marketSearchTimer);renderMarketList(currentMarkets());}
     });
     if(!marketVisibilityListenerInstalled){
-      document.addEventListener("visibilitychange",syncMarketPolling);
+      document.addEventListener("visibilitychange",()=>syncMarketPolling(true));
       marketVisibilityListenerInstalled=true;
     }
-    syncMarketPolling();
     $$("#kg-search-filters button").forEach(b=>b.addEventListener("click",()=>setSearchFilter(b.dataset.searchFilter)));
     $("#kg-market-search").addEventListener("keydown",e=>{if(e.key==="Escape")$("#kg-search-close").click();});
     $("#kg-recent-clear").addEventListener("click",()=>{state.recent=[];try{localStorage.removeItem("kg:recent:v1");}catch{}renderRecent();});
@@ -867,7 +867,7 @@
     // immediately instead of waiting for FX, capabilities, history or wallet.
     const marketTask=loadCategory("crypto").catch(error=>{
       console.warn("[Kripto Guru] Initial market load failed",normalizeError(error).code);
-    });
+    }).finally(()=>syncMarketPolling());
     await Promise.all([loadFxRate(),loadCapabilities(),loadHistory()]);
     await Promise.all([loadWallet(),marketTask]);
 
