@@ -528,3 +528,16 @@
 - **Gap:** the ticket's `Автозакрытие` control is disabled and has no event handler. Backend DEMO open already accepts TP/SL price targets and the engine auto-closes on quotes; PR #318 added long/short TP and SL regression tests.
 - **Scope:** expose the existing backend feature in the ticket: toggle + TP/SL percentage inputs, side-aware price calculation, preview display, pass targets to `trade.open`, and mock-based UI regression coverage.
 - **Safety:** DEMO only; LIVE flow remains separately gated; no real Walt calls or production deployment.
+
+
+### 2026-11-19 — Companion quotas merged code-only; auto-close coverage and worker context fixes
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:14:53.813+05:00
+- **Merged PR #284** as `031e6e81ab9145df6edb45d0a56fe2e5366b2a45`: atomic Companion quotas now use a true rolling 60-second event window, per-user stable key, expiring SQLite events, indexed cleanup, and atomic daily research counters. CI run 44397099742 passed npm ci, syntax checks, typecheck and npm test. This supersedes the earlier note that PR #284 remained Draft.
+- **Deployment gate:** the merge-triggered deploy workflow run 44397351656 completed with the deploy job explicitly `skipped`; no Durable Object migration or production code was deployed. Cloudflare account plan/usage remains unverified; do not deploy until zero-cost eligibility is confirmed.
+- **Merged PR #318** as `9e1b77c0bfaaa5dc79441f878587d1a87c069f51`: Miniflare regression tests now cover LONG TP, SHORT TP and SHORT SL auto-close triggers; CI passed.
+- **Merged PR #320** as `8cf5bf549b574323a25963a5b492107929d55c76`: code worker explicit-path parser now includes test/ paths and implementation prompts list exact editable files.
+- **Merged PR #323** as `0783dd23b1bdb91296e64afea850a33560e9723c`: FRONTEND workers can update the dedicated `test/kripto-guru-api.test.mjs` alongside the API adapter.
+- **PR #322** DEMO auto-close UI controls: draft, current head `0472511a4101ea4b10fed3155f91c28f9807e7c3`; adds a live toggle, TP/SL percent inputs, side-aware target prices based on preview entry price, and mocked UI assertions. Initial checks passed; updated screenshot run 44399286561 is still in progress.
+- **Team dispatch:** issues #312/#313/#314 were narrowed and requeued after the worker context/allowlist fixes. Team A run 44399400520 is active; Team B and C runs are queued/pending. Do not count handoff-only PRs as completed work.
+- **No live financial operations:** no Walt execute/close, no account or position mutations, no real Gemini calls. No secrets or paid services changed.
