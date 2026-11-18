@@ -195,7 +195,7 @@ export class TradingEngine {
     const expiresAt = Number(body.expiresAt);
     const now = Date.now();
     if (!/^\d{1,20}$/.test(userId) || !/^[a-f0-9]{32}$/.test(handle) ||
-        !Number.isSafeInteger(contractId) || contractId <= 0 ||
+        !Number.isSafeInteger(contractId) || contractId < 0 ||
         (side !== "long" && side !== "short") ||
         !Number.isSafeInteger(leverage) || leverage < 1 ||
         !Number.isFinite(marginUsd) || marginUsd <= 0 ||
