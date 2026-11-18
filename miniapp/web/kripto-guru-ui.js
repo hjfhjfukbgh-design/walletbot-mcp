@@ -13,7 +13,7 @@
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
     autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[]
   };
-  let marketLoadEpoch=0,marketRefreshInFlight=false,marketRefreshTimer=0,marketLastUpdatedAt=0,marketSearchTimer=0,marketVisibilityListenerInstalled=false;
+  let marketLoadEpoch=0,marketRefreshInFlight=false,marketLastUpdatedAt=0,marketSearchTimer=0,marketVisibilityListenerInstalled=false;
   const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
   const priceDigits = (value, metadata) => {
     const candidates = [metadata?.priceDecimals, metadata?.raw?.priceDecimals, metadata?.raw?.contract?.priceDecimals];
@@ -853,13 +853,7 @@
     });
     await Promise.all([loadFxRate(),loadCapabilities(),loadHistory()]);
     await Promise.all([loadWallet(),marketTask]);
-    if(!marketRefreshTimer){
-      marketRefreshTimer=setInterval(()=>{
-        if(state.category==="crypto"&&(state.screen==="wallet"||state.screen==="trading")){
-          loadCategory("crypto").catch(error=>console.warn("[Kripto Guru] Market refresh failed",normalizeError(error).code));
-        }
-      },15000);
-    }
+
   }
   window.addEventListener("kripto-guru-api-ready",()=>start());
   if(api()) start();
