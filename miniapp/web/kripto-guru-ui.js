@@ -12,7 +12,21 @@
     autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionAttachments:[], companionRecorder:null, companionRecordChunks:[]
   };
   const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
+  const priceDigits = (value, metadata) => {
+    const candidates = [metadata?.priceDecimals, metadata?.raw?.priceDecimals, metadata?.raw?.contract?.priceDecimals];
+    const declared = candidates.find(v => Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) <= 12);
+    return declared === undefined ? null : Number(declared);
+  };
+  const formatPrice = (value, metadata) => {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "—";
+    const digits = priceDigits(number, metadata);
+    return new Intl.NumberFormat("ru-RU", digits === null
+      ? { maximumSignificantDigits: 7, useGrouping: true }
+      : { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: true }).format(number);
+  };
   const money = (v,d=2) => Number.isFinite(Number(v)) ? "$"+fmt(v,d) : "—";
+  const priceMoney = (v, metadata) => Number.isFinite(Number(v)) ? "$"+formatPrice(v, metadata) : "—";
   const pct = (v) => Number.isFinite(Number(v)) ? (Number(v)>=0?"+":"")+fmt(v,2)+"%" : "—";
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const symbolName = (m) => ({BTC:"Bitcoin",ETH:"Ethereum",SOL:"Solana",GRAM:"Gram",XAUT:"Золото",BNB:"BNB",DOGE:"Dogecoin",XRP:"XRP"}[m] || m);
@@ -73,7 +87,7 @@
     const fav=[...state.favorites].map(s=>map.get(s)).filter(Boolean).slice(0,8);
     $("#kg-favorites").innerHTML=fav.length?fav.map(m=>{
       const s=m.symbol||m.market, change=changeOf(m), price=quoteOf(m);
-      return `<button class="kg-favorite" data-open-market="${esc(s)}" type="button"><div class="kg-fav-top"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-badge">${Number(m.maxLeverage||1)}×</span><span class="kg-fav-remove" data-remove-favorite="${esc(s)}" ${state.editFavorites?"":"hidden"}>×</span></div><b>${esc(s)}</b><strong>${money(price,price>=100?0:2)}</strong><small class="${change>=0?"kg-change-up":"kg-change-down"}">${pct(change)}</small><svg class="kg-sparkline" viewBox="0 0 100 22" preserveAspectRatio="none"><path d="M1 15 L14 12 L25 16 L37 8 L49 10 L62 4 L74 12 L86 9 L99 18" fill="none" stroke="${change>=0?"#22ad78":"#e45a65"}" stroke-width="2"/></svg></button>`;
+      return `<button class="kg-favorite" data-open-market="${esc(s)}" type="button"><div class="kg-fav-top"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-badge">${Number(m.maxLeverage||1)}×</span><span class="kg-fav-remove" data-remove-favorite="${esc(s)}" ${state.editFavorites?"":"hidden"}>×</span></div><b>${esc(s)}</b><strong>${priceMoney(price,m)}</strong><small class="${change>=0?"kg-change-up":"kg-change-down"}">${pct(change)}</small><svg class="kg-sparkline" viewBox="0 0 100 22" preserveAspectRatio="none"><path d="M1 15 L14 12 L25 16 L37 8 L49 10 L62 4 L74 12 L86 9 L99 18" fill="none" stroke="${change>=0?"#22ad78":"#e45a65"}" stroke-width="2"/></svg></button>`;
     }).join(""):'<div class="kg-empty-inline">Добавьте активы в избранное из списка рынка.</div>';
   }
   function renderWalletAssets(){
@@ -112,7 +126,7 @@
     const visible=markets.filter(m=>(m.symbol||m.market||"").toUpperCase().includes(query));
     $("#kg-market-list").innerHTML=visible.length?visible.map(m=>{
       const s=m.symbol||m.market,ch=changeOf(m),p=quoteOf(m);
-      return `<div class="kg-market-row"><span class="kg-asset-icon" data-open-market="${esc(s)}">${esc(iconFor(s))}</span><button class="kg-market-copy" data-open-market="${esc(s)}" type="button"><b>${esc(m.name||symbolName(s))} <small>${esc(s)}</small></b><small>Фьючерс · ${Number(m.maxLeverage||1)}×</small></button><div class="kg-market-price">${money(p,p>=100?0:2)}<small class="${ch>=0?"kg-change-up":"kg-change-down"}">${pct(ch)}</small></div><button class="kg-fav-button" data-toggle-favorite="${esc(s)}" type="button" aria-label="Избранное">${state.favorites.has(s)?"★":"☆"}</button></div>`;
+      return `<div class="kg-market-row"><span class="kg-asset-icon" data-open-market="${esc(s)}">${esc(iconFor(s))}</span><button class="kg-market-copy" data-open-market="${esc(s)}" type="button"><b>${esc(m.name||symbolName(s))} <small>${esc(s)}</small></b><small>Фьючерс · ${Number(m.maxLeverage||1)}×</small></button><div class="kg-market-price">${priceMoney(p,m)}<small class="${ch>=0?"kg-change-up":"kg-change-down"}">${pct(ch)}</small></div><button class="kg-fav-button" data-toggle-favorite="${esc(s)}" type="button" aria-label="Избранное">${state.favorites.has(s)?"★":"☆"}</button></div>`;
     }).join(""):'<div class="kg-empty-inline">По запросу ничего не найдено.</div>';
   }
   async function loadCategory(category){
@@ -245,7 +259,7 @@
       $("#kg-asset-icon").textContent=iconFor(symbol);
       $("#kg-asset-product").textContent=detail.productType||"Фьючерс";
       $("#kg-asset-leverage").textContent=Number(detail.maxLeverage||1)+"×";
-      $("#kg-asset-price").textContent=money(Number(detail.priceUsd??detail.price),Number(detail.priceUsd??detail.price)>=100?0:2);
+      $("#kg-asset-price").textContent=priceMoney(Number(detail.priceUsd??detail.price),detail);
       const ch=Number(detail.change24hPct??detail.changePct24h);
       $("#kg-asset-change").textContent=pct(ch)+" за 24 часа";
       $("#kg-asset-change").className="kg-asset-change "+(ch>=0?"kg-positive":"kg-negative");
