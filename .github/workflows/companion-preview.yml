@@ -41,6 +41,39 @@ jobs:
             fi
           done
 
+      - name: Probe Gemini API directly without exposing the API key
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          const model = "gemini-3.8-flash";
+          const controller = AbortSignal.timeout(55000);
+          let response;
+          try {
+            response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
+              body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "Reply with exactly: OK" }] }], generationConfig: { maxOutputTokens: 8 } }),
+              signal: controller
+            });
+          } catch (error) {
+            console.error("Gemini direct probe network failure:", error instanceof Error ? error.name : "unknown");
+            process.exit(1);
+          }
+          const payload = await response.json().catch(() => ({}));
+          console.log(`Gemini direct probe HTTP ${response.status}`);
+          if (!response.ok) {
+            console.error("Gemini API error:", payload.error?.status ?? "unknown", payload.error?.message ?? "No provider message");
+            process.exit(1);
+          }
+          const answer = payload.candidates?.[0]?.content?.parts?.map(part => part.text ?? "").join("") ?? "";
+          if (!answer.trim()) {
+            console.error("Gemini API returned no text candidate.");
+            process.exit(1);
+          }
+          console.log("Gemini direct probe: PASS (non-empty model response)");
+          NODE
+
       - name: Provision a dedicated preview KV namespace
         id: kv
         env:
