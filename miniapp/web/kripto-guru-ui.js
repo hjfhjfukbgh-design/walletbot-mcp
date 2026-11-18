@@ -559,7 +559,9 @@
             $("#kg-ticket-mode-status").classList.add("is-warning");
           }
           if(operation.status==="completed"||operation.status==="reconciled"){
-            clearLiveOperation();closeModals();closeTicket();await refreshLiveStatus();
+            clearLiveOperation();closeModals();
+            if(!$("#kg-ticket-screen").hidden)closeTicket();
+            await refreshLiveStatus();
             notify("LIVE-позиция подтверждена через Walt.");
             return;
           }
@@ -977,7 +979,8 @@
     $("[data-ticket-mode]").forEach(button=>button.addEventListener("click",()=>setTicketMode(button.dataset.ticketMode)));
     $("#kg-live-acknowledge").addEventListener("click",()=>{
       if(window.confirm("Подтверждаете, что вручную проверили позиции и историю Walt и понимаете, что повторный ордер может создать дополнительную позицию?")){
-        clearLiveOperation();state.liveExecuteStarted=false;notify("Ручная проверка отмечена. Перед новой сделкой создайте новый preview.");
+        clearLiveOperation();state.liveExecuteStarted=false;state.preview=null;state.previewSeq++;$("#kg-ticket-check").disabled=true;
+        notify("Ручная проверка отмечена. Перед новой сделкой создайте новый preview.");
       }
     });
     $("#kg-ticket-max").addEventListener("click",async()=>{
