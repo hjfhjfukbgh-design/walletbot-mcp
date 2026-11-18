@@ -233,17 +233,81 @@
     }catch(error){console.warn("[Kripto Guru] capabilities unavailable",normalizeError(error));}
   }
   function normalizeCandle(c){
-    if(Array.isArray(c)) return {time:Number(c[0]),open:Number(c[1]),high:Number(c[2]),low:Number(c[3]),close:Number(c[4])};
-    return {time:Number(c.time??c.timestamp),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)};
+    const rawTime = Array.isArray(c) ? c[0] : (c?.time ?? c?.timestamp);
+    const rawOpen = Array.isArray(c) ? c[1] : c?.open;
+    const rawHigh = Array.isArray(c) ? c[2] : c?.high;
+    const rawLow = Array.isArray(c) ? c[3] : c?.low;
+    const rawClose = Array.isArray(c) ? c[4] : c?.close;
+
+    const time = Number(rawTime);
+    const open = Number(rawOpen);
+    const high = Number(rawHigh);
+    const low = Number(rawLow);
+    const close = Number(rawClose);
+
+    if (!Number.isFinite(time) || time <= 0) return null;
+    if (![open, high, low, close].every(Number.isFinite)) return null;
+    if ([open, high, low, close].some(value => value <= 0)) return null;
+    if (high < Math.max(open, close) || low > Math.min(open, close)) return null;
+    if (high < low) return null;
+
+    return { time, open, high, low, close };
   }
   function drawCandles(candles){
-    const data=candles.map(normalizeCandle).filter(c=>[c.open,c.high,c.low,c.close].every(Number.isFinite));
-    if(!data.length){$("#kg-chart").innerHTML='<div class="kg-empty-inline">Свечи для этого интервала недоступны.</div>';return;}
-    const W=340,H=200,top=8,bottom=188,min=Math.min(...data.map(c=>c.low)),max=Math.max(...data.map(c=>c.high)),range=max-min||1;
-    const y=v=>bottom-(v-min)/range*(bottom-top),step=W/data.length,body=Math.max(2,step*.48);
-    const marks=data.map((c,i)=>{const x=i*step+step/2,up=c.close>=c.open,color=up?"#20a96f":"#e35562",yt=y(Math.max(c.open,c.close)),yb=y(Math.min(c.open,c.close));return `<line x1="${x}" y1="${y(c.high)}" x2="${x}" y2="${y(c.low)}" stroke="${color}" stroke-width="1.2"/><rect x="${x-body/2}" y="${yt}" width="${body}" height="${Math.max(1,yb-yt)}" rx=".7" fill="${color}"/>`;}).join("");
-    const grid=[.25,.5,.75].map(p=>`<line x1="0" y1="${top+(bottom-top)*p}" x2="${W}" y2="${top+(bottom-top)*p}" stroke="#eceef3" stroke-dasharray="3 4"/>`).join("");
-    $("#kg-chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Свечной график">${grid}${marks}</svg>`;
+    const data = (Array.isArray(candles) ? candles : [])
+      .map(normalizeCandle)
+      .filter(Boolean);
+
+    if (!data.length) {
+      $("#kg-chart").innerHTML = '<div class="kg-empty-inline">Свечи для этого интервала недоступны.</div>';
+      return;
+    }
+
+    const W = 340, H = 200, top = 12, bottom = 172, rightMargin = 60, chartWidth = W - rightMargin;
+    const lows = data.map(c => c.low);
+    const highs = data.map(c => c.high);
+    let min = Math.min(...lows);
+    let max = Math.max(...highs);
+    let range = max - min;
+    if (range === 0) {
+      const pad = max !== 0 ? Math.abs(max) * 0.01 : 1;
+      min -= pad;
+      max += pad;
+      range = max - min;
+    }
+
+    const y = v => bottom - ((v - min) / range) * (bottom - top);
+    const step = chartWidth / data.length;
+    const body = Math.max(2, step * 0.48);
+
+    const marks = data.map((c, i) => {
+      const x = i * step + step / 2;
+      const up = c.close >= c.open;
+      const color = up ? "#20a96f" : "#e35562";
+      const yt = y(Math.max(c.open, c.close));
+      const yb = y(Math.min(c.open, c.close));
+      const bodyHeight = Math.max(1, yb - yt);
+      return `<line x1="${x}" y1="${y(c.high)}" x2="${x}" y2="${y(c.low)}" stroke="${color}" stroke-width="1.2"/><rect x="${x - body / 2}" y="${yt}" width="${body}" height="${bodyHeight}" rx=".7" fill="${color}"/>`;
+    }).join("");
+
+    const grid = [0, 0.25, 0.5, 0.75, 1].map(p => {
+      const val = max - p * range;
+      const yPos = top + (bottom - top) * p;
+      const labelText = new Intl.NumberFormat("ru-RU", { maximumSignificantDigits: 7, useGrouping: true }).format(val);
+      return `<line x1="0" y1="${yPos}" x2="${chartWidth}" y2="${yPos}" stroke="rgba(148,163,184,.24)" stroke-dasharray="3 4"/><text x="${chartWidth + 6}" y="${yPos + 3.5}" fill="#94a3b8" font-size="9" font-family="sans-serif">${esc(labelText)}</text>`;
+    }).join("");
+
+    const timeLabelsCount = Math.min(data.length, 4);
+    const timeLabels = Array.from({ length: timeLabelsCount }, (_, i) => {
+      const idx = Math.floor((i / (timeLabelsCount - 1 || 1)) * (data.length - 1));
+      const c = data[idx];
+      const xPos = idx * step + step / 2;
+      const d = new Date(c.time > 1e12 ? c.time : c.time * 1000);
+      const timeStr = Number.isNaN(d.getTime()) ? "" : `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      return `<text x="${xPos}" y="${H - 4}" fill="#8e919b" font-size="9" font-family="sans-serif" text-anchor="middle">${esc(timeStr)}</text>`;
+    }).join("");
+
+    $("#kg-chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Свечной график">${grid}${marks}${timeLabels}</svg>`;
   }
   async function openAsset(symbol){
     state.previousScreen=state.screen;

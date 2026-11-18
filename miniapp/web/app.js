@@ -5,9 +5,9 @@ try {
   if (tg) {
     tg.ready?.();
     tg.expand?.();
-    tg.setHeaderColor?.('#F2F2F7');
-    tg.setBackgroundColor?.('#F2F2F7');
-    tg.setBottomBarColor?.('#F2F2F7');
+    tg.setHeaderColor?.('#0B1018');
+    tg.setBackgroundColor?.('#0B1018');
+    tg.setBottomBarColor?.('#0B1018');
   } else {
     telegramInitError = 'Telegram WebApp SDK недоступен';
     console.error('[Kripto Guru] ' + telegramInitError);

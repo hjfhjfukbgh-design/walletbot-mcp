@@ -1,6 +1,11 @@
 
 name: deploy
 
+# Serialize production releases and secret uploads to avoid Cloudflare concurrent modifications.
+concurrency:
+  group: walletbot-mcp-production-deploy
+  cancel-in-progress: false
+
 on:
   push:
     branches: [main]
