@@ -49,6 +49,7 @@ try{
       const mockHistory=[];
       const companionHistory=[];
       window.__candleCalls=0;
+      window.__productMode="demo";
       window.__lastTradeOpen=null;
       const markets=[
         {symbol:"BTC",name:"Bitcoin",priceUsd:91240.5,change24hPct:2.42,volume24hUsd:8900000000,openInterestUsd:198750000,fundingRateHourlyPct:0.001,maxLeverage:50,takerFeePct:0.035,tradeable:true},
@@ -68,6 +69,7 @@ try{
         },
         history:{async list(){return {events:mockHistory.map(x=>({...x}))};}},
         capabilities:{async get(){return {ipo:{available:false,reason:"Нет источника IPO"},stocks:{available:false},funds:{available:false},bonuses:{available:false},live:{available:false}};}},
+        productMode:{async get(){return window.__productMode||"demo";},async set(mode){if(mode!=="demo"&&mode!=="ai")throw {code:"MODE_LOCKED",message:"LIVE заблокирован"};window.__productMode=mode;return {ok:true,productMode:mode};}},
         companion:{async list(){return companionHistory.map(x=>({...x}));},async get(id){return {id,messages:[{role:"user",content:"Привет"},{role:"assistant",content:"Здравствуйте!"}]};},async send(message,id){const conversationId=id||"preview-conversation-1";companionHistory.unshift({id:conversationId,title:message.slice(0,32),messageCount:2});return {conversationId,answer:"Тестовый ответ ИИ",conversation:{id:conversationId,messages:[{role:"user",content:message},{role:"assistant",content:"Тестовый ответ ИИ"}]}};},async remove(id){const index=companionHistory.findIndex(x=>x.id===id);if(index>=0)companionHistory.splice(index,1);return {ok:true};}},
       };
     });
@@ -87,6 +89,15 @@ try{
     const navLabels=await page.locator("#kg-nav button small").allTextContents();
     if(navLabels.includes("Доход")||navLabels.includes("Бонусы"))throw new Error("Income and Bonuses must not appear in bottom navigation");
     if(!(await page.locator(".kg-wallet-hero").isVisible()))throw new Error("wallet balance hero must be visible on the first screen");
+    if(!(await page.locator("#kg-product-mode").isVisible()))throw new Error("product mode selector must be visible on wallet home");
+    if(!(await page.locator('[data-product-mode="live"]').isDisabled()))throw new Error("LIVE selector must remain disabled until full close contract is verified");
+    await page.locator('[data-product-mode="ai"]').click();
+    await page.waitForFunction(()=>document.querySelector('[data-product-mode="ai"]')?.classList.contains("is-active"));
+    if(!(await page.locator("#kg-product-mode-status").innerText()).includes("Автоматические сделки пока отключены"))throw new Error("AI Trading selector must disclose paper-only/no-auto-execution status");
+    await page.screenshot({path:`clean-product-mode-ai-${device.width}x${device.height}.png`,fullPage:false});
+    await page.locator('[data-product-mode="demo"]').click();
+    await page.waitForFunction(()=>document.querySelector('[data-product-mode="demo"]')?.classList.contains("is-active"));
+
     if(!(await page.locator("#kg-wallet-quick-actions").isVisible()))throw new Error("wallet quick actions must be visible on the first screen");
     if(await page.locator("#kg-wallet-quick-actions button").count()!==4)throw new Error("wallet should show four reference quick actions");
     if(!(await page.locator("#kg-wallet-currency").isVisible()))throw new Error("wallet currency row should be visible");
