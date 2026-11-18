@@ -588,7 +588,42 @@
     }catch(error){notify(normalizeError(error).message);}
     finally{state.companionBusy=false;$("#kg-ai-send").disabled=false;input.disabled=false;input.focus();}
   }
+  function openProfile(){
+    const user=tg?.initDataUnsafe?.user||{};
+    const first=typeof user.first_name==="string"?user.first_name.trim():"";
+    const last=typeof user.last_name==="string"?user.last_name.trim():"";
+    const name=[first,last].filter(Boolean).join(" ")||"Профиль Kripto Guru";
+    const username=typeof user.username==="string"?user.username.trim():"";
+    $("#kg-profile-name").textContent=name;
+    $("#kg-profile-username").textContent=username?"@"+username:"";
+    $("#kg-profile-username").hidden=!username;
+    const avatar=$("#kg-profile-avatar");
+    avatar.replaceChildren();
+    let photoUrl="";
+    try{const parsed=new URL(typeof user.photo_url==="string"?user.photo_url:"");if(parsed.protocol==="https:"&&(parsed.hostname==="t.me"||parsed.hostname==="telegram.org"))photoUrl=parsed.href;}catch{}
+    if(photoUrl){
+      const image=document.createElement("img");
+      image.src=photoUrl;image.alt="";image.referrerPolicy="no-referrer";
+      avatar.append(image);
+    }else{
+      const initials=[first,last].filter(Boolean).map(part=>Array.from(part)[0]||"").join("").slice(0,2).toUpperCase();
+      avatar.textContent=initials||"KG";
+    }
+    $("#kg-profile-sheet").hidden=false;
+    $("#kg-profile-backdrop").hidden=false;
+    $("#kg-wallet-profile").setAttribute("aria-expanded","true");
+    $("#kg-profile-close").focus();
+  }
+  function closeProfile(){
+    $("#kg-profile-sheet").hidden=true;
+    $("#kg-profile-backdrop").hidden=true;
+    $("#kg-wallet-profile").setAttribute("aria-expanded","false");
+    $("#kg-wallet-profile").focus();
+  }
   function bind(){
+    $("#kg-wallet-profile").addEventListener("click",openProfile);
+    $("#kg-profile-close").addEventListener("click",closeProfile);
+    $("#kg-profile-backdrop").addEventListener("click",closeProfile);
     $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
     $("#kg-wallet-ai").addEventListener("click",async()=>{setScreen("companion");await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);state.companionInitialized=true;newCompanionConversation(false);});
     $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
@@ -703,7 +738,7 @@
       showModal("#kg-confirm-screen");
     });
     $("#kg-trade-confirm").addEventListener("click",confirmTrade);
-    document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("#kg-confirm-screen").hidden||!$("#kg-leverage-screen").hidden)closeModals();else if(!$("#kg-ticket-screen").hidden)closeTicket();else if(!$("#kg-asset-screen").hidden)closeAsset();else if($("#kg-ai-menu").classList.contains("is-open"))setCompanionMenu(false);}});
+    document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("#kg-confirm-screen").hidden||!$("#kg-leverage-screen").hidden)closeModals();else if(!$("#kg-ticket-screen").hidden)closeTicket();else if(!$("#kg-asset-screen").hidden)closeAsset();else if(!$("#kg-profile-sheet").hidden)closeProfile();else if($("#kg-ai-menu").classList.contains("is-open"))setCompanionMenu(false);}});
   }
   let started=false;
   let marketRefreshTimer=null;
