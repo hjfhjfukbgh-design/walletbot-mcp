@@ -395,7 +395,7 @@
       const item=event.target.closest("[data-ai-conversation]");
       if(item?.dataset.aiConversation)openCompanionConversation(item.dataset.aiConversation);
     });
-    $("[data-open-trading]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("crypto");}));
+    $$("[data-open-trading]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("crypto");}));
     $$("[data-open-futures]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("futures");}));
     $$(".kg-category").forEach(b=>b.addEventListener("click",()=>loadCategory(b.dataset.category)));
     $("#kg-search-open").addEventListener("click",()=>{$("#kg-trading-screen").classList.add("kg-search-mode");$("#kg-search-open").hidden=true;$("#kg-market-search").hidden=false;$("#kg-search-close").hidden=false;$("#kg-search-filters").hidden=false;setSearchFilter("all");$("#kg-market-search").focus();});
