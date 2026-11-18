@@ -197,6 +197,8 @@ try{
     }
     if(!(await page.locator("#kg-ai-messages").innerText()).includes("Проверь связь"))throw new Error("AI Companion should render the sent user message");
     await page.screenshot({path:`clean-companion-${device.width}x${device.height}.png`,fullPage:false});
+    await page.locator("#kg-ai-menu-open").click();
+    await page.waitForSelector("#kg-ai-menu.is-open");
     await page.locator("#kg-ai-history [data-ai-delete]").first().click();
     await page.waitForFunction(()=>document.querySelectorAll("#kg-ai-history [data-ai-conversation]").length===0);
     if(!(await page.locator("#kg-ai-messages").innerText()).includes("Привет! Я AI Companion"))throw new Error("deleting the active AI conversation should reset the chat view");
