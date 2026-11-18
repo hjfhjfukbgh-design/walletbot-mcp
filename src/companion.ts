@@ -103,7 +103,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       conversation = existing;
     } else {
       const now = new Date().toISOString();
-      conversation = { id: crypto.randomUUID(), title: message.slice(0, 72), createdAt: now, updatedAt: now, messages: [] };
+      conversation = { id: crypto.randomUUID(), title: (message || attachments.map(file => file.name).join(", ") || "Вложения").slice(0, 72), createdAt: now, updatedAt: now, messages: [] };
     }
 
     const userContent = message || "Проанализируй приложенные файлы.";
