@@ -3,9 +3,9 @@ import { handleCompanionApi } from "../src/companion";
 import type { Env } from "../src/env";
 import { env as baseEnv } from "./helpers";
 
-function isolatedEnv(): Env {
+function isolatedEnv(seed: Record<string, string> = {}): Env {
   const e = baseEnv();
-  const values = new Map<string, string>();
+  const values = new Map<string, string>(Object.entries(seed));
   e.STATE = {
     get: async (key: string, type?: string) => {
       const value = values.get(key);
@@ -125,6 +125,27 @@ describe("AI Companion API", () => {
       body: JSON.stringify({ message: "x".repeat(4001) }),
     });
     expect(response.status).toBe(413);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("enforces the advertised maximum of 50 conversations", async () => {
+    const seed: Record<string, string> = {};
+    for (let i = 0; i < 50; i++) {
+      const id = `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`;
+      seed[`companion:conversation:${id}`] = JSON.stringify({
+        id, title: "Старый диалог", createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), messages: [],
+      });
+    }
+    const e = isolatedEnv(seed);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Новый диалог" }),
+    });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining("50 диалогов") });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
