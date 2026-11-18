@@ -61,6 +61,22 @@ describe("API da Mini App", () => {
     expect(await response.json()).toMatchObject({ ok: true, trades: [] });
   });
 
+  it("exposes authenticated DEMO Engine health for runtime diagnosis", async () => {
+    const e = env();
+    e.ENGINE = {
+      idFromName: () => "global-engine",
+      get: () => ({
+        fetch: async (request: Request) => {
+          expect(new URL(request.url).pathname).toBe("/health");
+          return Response.json({ ok: true, openPositions: 0, socketOpen: false, quoteCount: 0, staleSymbols: [] });
+        },
+      }),
+    } as unknown as DurableObjectNamespace;
+    const response = await call(e, "demo/health", "chave-teste");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true, openPositions: 0, quoteCount: 0 });
+  });
+
   it("keeps authenticated DEMO API requests alive when tenant KV registration fails", async () => {
     const e = env();
     vi.spyOn(e.STATE, "put").mockRejectedValue(new Error("KV temporarily unavailable"));
