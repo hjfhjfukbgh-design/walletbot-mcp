@@ -305,7 +305,7 @@ async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<R
   if (!/^[A-Z0-9:_-]{2,32}$/.test(symbol)) return fail("Некорректный торговый актив.");
   if (side !== "long" && side !== "short") return fail("Направление должно быть LONG или SHORT.");
   if (!Number.isSafeInteger(leverage) || leverage < 1) return fail("Некорректное целое плечо.");
-  if (body.marginUsd == null || Number.isNaN(Number(body.marginUsd)) || Number(body.marginUsd) <= 0) {
+  if (body.marginUsd == null || !Number.isFinite(Number(body.marginUsd)) || Number(body.marginUsd) <= 0) {
     return fail("Маржа должна быть положительным числом.");
   }
   const marginUsd = Number(body.marginUsd);
@@ -324,13 +324,16 @@ async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<R
   );
   if (!contract) return fail("Этот актив недоступен в Walt.");
   if (!marketAllowed(limits, symbol)) return fail("Рынок не входит в список разрешённых для LIVE.");
-  if (!Number.isFinite(contract.priceDecimals) || contract.priceDecimals < 0 ||
+  if (!Number.isSafeInteger(contract.contractId) || contract.contractId <= 0 ||
+      !Number.isSafeInteger(contract.priceDecimals) || contract.priceDecimals < 0 || contract.priceDecimals > 18 ||
+      !Number.isFinite(contract.maxLeverage) || contract.maxLeverage < 1 ||
       !Number.isFinite(contract.minSizeQuote) || contract.minSizeQuote <= 0 ||
       !Number.isFinite(contract.maxSizeQuote) || contract.maxSizeQuote < contract.minSizeQuote) {
     return fail("Walt не вернул корректные лимиты выбранного контракта.", 503);
   }
 
   const maxAllowedLeverage = Math.min(limits.maxLeverage, contract.maxLeverage);
+  if (!Number.isFinite(maxAllowedLeverage) || maxAllowedLeverage < 1) return fail("Не удалось определить допустимое плечо для LIVE.", 503);
   if (leverage > maxAllowedLeverage) {
     return fail(`Плечо превышает допустимый лимит (${maxAllowedLeverage}×).`);
   }
