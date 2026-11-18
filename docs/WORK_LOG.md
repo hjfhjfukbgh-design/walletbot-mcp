@@ -681,3 +681,11 @@
 - **Реализация:** GET state теперь отдаёт normalized productMode; POST product-mode сохраняет DEMO/AI в tenant-scoped state; legacy execution mode paper/live не изменяется; LIVE selection получает HTTP 409 до проверки полного order/close capability.
 - **Тесты:** tenant isolation, AI persistence, legacy execution-mode isolation, LIVE refusal/no mutation, invalid mode rejection. CI run `44408247016` success — npm ci, JS syntax checks, typecheck, npm test.
 - **Issue #66:** остаётся открытой в agent-review: backend state/API готовы, но frontend three-mode selector и полная интеграция AI Trading ещё не реализованы. Не помечать задачу done.
+### 2026-11-19 — Product mode selector UI (active checkpoint)
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:10:30.812+05:00
+- **PR #343:** Draft открыт из branch feat/product-mode-selector-wallet-ui-2026-11-19.
+- **Изменения:** Wallet home показывает DEMO / AI Trading (PAPER) / LIVE (disabled); DEMO/AI selection сохраняется через новый tenant-scoped productMode API; AI mode прямо сообщает, что автоматические сделки пока отключены; LIVE disabled и серверно возвращает 409.
+- **Playwright harness:** добавлены mock productMode.get/set и сценарий переключения AI/DEMO, проверки статуса и блокировки LIVE.
+- **CI:** deploy run `44408863535` выполняет npm ci, JS syntax и typecheck success; npm test ещё выполняется. Screenshot run `44408863557` выполняет Playwright capture.
+- **Safety:** selector не запускает AI engine и не создаёт виртуальные/реальные позиции; LIVE не включается.
