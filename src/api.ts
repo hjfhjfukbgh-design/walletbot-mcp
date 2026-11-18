@@ -56,6 +56,10 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         return engineRequest(env, "/history?userId=" + encodeURIComponent(telegramUserId));
       case "POST live/preview":
         return previewLiveTrade(scopedEnv, telegramUserId, body);
+      case "POST live/execute":
+        return executeLiveTrade(env, scopedEnv, telegramUserId, body);
+      case "GET live/operation":
+        return liveOperationView(env, scopedEnv, telegramUserId, url.searchParams.get("handle") ?? "");
       case "POST demo/preview":
         return previewDemoTrade(env, telegramUserId, body);
       case "POST demo/open":
@@ -339,6 +343,14 @@ async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<R
     return fail(`Плечо превышает допустимый лимит (${maxAllowedLeverage}×).`);
   }
 
+  let existingPosition;
+  try {
+    existingPosition = await client.openPosition(contract.contractId);
+  } catch {
+    return fail("Не удалось проверить открытые позиции в Walt.", 503);
+  }
+  if (existingPosition) return fail("По этому контракту уже есть открытая позиция. Для безопасной сверки сначала закройте её вручную.", 409);
+
   let currentPriceVal;
   try {
     currentPriceVal = await client.rate(contract);
@@ -391,10 +403,11 @@ async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<R
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
   const opaqueHandle = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-  const expiresAt = Date.now() + 120_000;
+  const previewAt = Date.now();
+  const expiresAt = previewAt + 120_000;
   await env.STATE.put(
     `live:preview:${userId}:${opaqueHandle}`,
-    JSON.stringify({ confirmationToken: previewResult.confirmationToken, expiresAt, symbol, side, leverage, marginUsd }),
+    JSON.stringify({ confirmationToken: previewResult.confirmationToken, expiresAt, previewAt, contractId: contract.contractId, symbol, side, leverage, marginUsd, notionalUsd, priceUsd: currentPriceVal }),
     { expirationTtl: 120 }
   );
 
