@@ -462,9 +462,13 @@
   }
   function renderCompanionMode(){
     const status=$("#kg-ai-mode-status");
-    if(status){status.hidden=state.companionMode!=="learning";status.textContent="Учебный режим · пошаговое обучение";}
-    const learn=$('[data-ai-tool="learn"]');
+    if(status){
+      status.hidden=state.companionMode==="general";
+      status.textContent=state.companionMode==="learning"?"Учебный режим · пошаговое обучение":state.companionMode==="research"?"Исследование · проверяемые источники Google Search":"";
+    }
+    const learn=$('[data-ai-tool="learn"]'),research=$('[data-ai-tool="research"]');
     if(learn){learn.classList.toggle("is-selected",state.companionMode==="learning");learn.setAttribute("aria-pressed",String(state.companionMode==="learning"));}
+    if(research){research.classList.toggle("is-selected",state.companionMode==="research");research.setAttribute("aria-pressed",String(state.companionMode==="research"));}
   }
   function renderCompanionMessages(){
     const root=$("#kg-ai-messages");
@@ -472,7 +476,13 @@
       root.innerHTML='<div class="kg-ai-welcome"><div class="kg-gemini-spark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 2.5C27.8 15.1 32.9 20.2 45.5 24 32.9 27.8 27.8 32.9 24 45.5 20.2 32.9 15.1 27.8 2.5 24 15.1 20.2 20.2 15.1 24 2.5Z"/></svg></div><b>Привет! Я Kripto Guru AI.</b><p>Что будем разбирать сегодня?</p></div>';
       return;
     }
-    root.innerHTML=state.companionMessages.map(message=>`<div class="kg-ai-message ${message.role==="user"?"is-user":"is-assistant"}"><div>${esc(message.content).replace(/\n/g,"<br>")}</div></div>`).join("");
+    root.innerHTML=state.companionMessages.map(message=>{
+      const sources=(Array.isArray(message.sources)?message.sources:[]).map(source=>{
+        try{const url=new URL(source.url);if(url.protocol!=="https:")return "";return `<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${esc(source.title||url.hostname)}</a>`;}catch{return "";}
+      }).filter(Boolean).join("");
+      const sourceBlock=sources?`<div class="kg-ai-sources"><b>Источники Google Search</b>${sources}</div>`:"";
+      return `<div class="kg-ai-message ${message.role==="user"?"is-user":"is-assistant"}"><div>${esc(message.content).replace(/\n/g,"<br>")}</div>${sourceBlock}</div>`;
+    }).join("");
     root.scrollTop=root.scrollHeight;
   }
   function renderCompanionHistory(){
@@ -668,7 +678,9 @@
         newCompanionConversation(false);
         notify(state.companionMode==="learning"?"Учебный режим включён. Начнём с базовых понятий.":"Обычный режим включён.");
       }else if(tool==="research"){
-        notify("Глубокий веб-поиск ещё не подключён. Я не буду выдавать неподтверждённые источники за найденные.");
+        state.companionMode=state.companionMode==="research"?"general":"research";
+        newCompanionConversation(false);
+        notify(state.companionMode==="research"?"Режим исследования включён. Ответы будут показаны только с реальными источниками Google Search.":"Обычный режим включён.");
       }else if(tool==="image"){
         input.setAttribute("accept","image/jpeg,image/png,image/webp,image/gif");
         input.click();
