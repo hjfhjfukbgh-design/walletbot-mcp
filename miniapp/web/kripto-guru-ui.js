@@ -252,7 +252,7 @@
     if(label){label.textContent=marketLastUpdatedAt?"Данные устарели · "+new Date(marketLastUpdatedAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"Нет свежих котировок";label.classList.add("is-stale");}
   }
   async function refreshMarketData(){
-    if(document.visibilityState!=="visible"||$("#kg-market-live").hidden||marketRefreshInFlight)return;
+    if(document.visibilityState!=="visible"||!(state.screen==="wallet"||state.screen==="trading")||$("#kg-market-live").hidden||marketRefreshInFlight)return;
     const category=state.category;
     if(category==="stocks"||category==="funds")return;
     const requestId=marketLoadEpoch;
