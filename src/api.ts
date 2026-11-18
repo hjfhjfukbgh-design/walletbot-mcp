@@ -9,7 +9,7 @@ import { loadTrades } from "./history";
 import { getAccessToken } from "./oauth";
 import { marketAllowed } from "./risk";
 import { configureGrid, resumeGrid, runGrid, setMode, stopGrid, walt } from "./service";
-import { cachedContracts, loadState } from "./state";
+import { cachedContracts, loadState, normalizeProductMode, saveState } from "./state";
 import { buyPrice, minMargin, notional, step, stopLossPrice } from "./strategy/grid";
 import { timingSafeEqual, type TgUpdate } from "./telegram";
 import { findContract } from "./walt";
@@ -70,6 +70,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         return liveStatusView(scopedEnv);
       case "GET live/position":
         return livePositionView(scopedEnv, url.searchParams.get("symbol") ?? "");
+      case "POST product-mode":
+        return updateProductMode(scopedEnv, body);
       case "GET state":
         // Read-only polling must not run the legacy KV position monitor:
         // scheduled processing is the single monitor for that compatibility path.
@@ -752,6 +754,18 @@ async function control(env: Env, body: Json): Promise<string> {
   }
 }
 
+async function updateProductMode(env: Env, body: Json): Promise<Response> {
+  const requested = body.productMode;
+  if (requested !== "demo" && requested !== "ai" && requested !== "live")
+    return fail("Режим должен быть demo, ai или live.");
+  if (requested === "live")
+    return fail("LIVE пока заблокирован до подтверждения полного торгового и close-контракта.", 409);
+  const state = await loadState(env);
+  state.productMode = normalizeProductMode(requested);
+  await saveState(env, state);
+  return json({ ok: true, productMode: state.productMode, executionMode: state.mode });
+}
+
 async function stateView(env: Env) {
   const s = await loadState(env);
   const limits = riskLimits(env);
@@ -776,6 +790,7 @@ async function stateView(env: Env) {
   }
   return {
     mode: s.mode,
+    productMode: normalizeProductMode(s.productMode),
     running: s.running,
     paused: s.paused ?? null,
     connected,
