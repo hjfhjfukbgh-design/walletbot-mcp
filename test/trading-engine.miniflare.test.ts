@@ -52,7 +52,10 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       resourcePersistencePath: root,
     });
     const ns = await mf.getDurableObjectNamespace("ENGINE");
-    return ns.get(ns.idFromName(objectName));
+    const id = ns.idFromName(objectName);
+    const stub = ns.get(id);
+    const testStorage = await mf.getDurableObjectStorage(id);
+    return Object.assign(stub, { testStorage });
   }
 
   async function post(stub: EngineStub, path: string, body: Record<string, unknown>) {
@@ -199,6 +202,26 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
     expect(await status.json()).toMatchObject({
       demoBalanceMicro: (975n * U).toString(), aiBalanceMicro: (25n * U).toString(),
+    });
+  });
+
+  it("blocks AI paper withdrawal while any AI paper position is open", async () => {
+    const stub = await boot();
+    await post(stub, "/ai/paper/fund", {
+      userId, amountMicro: (100n * U).toString(), idempotencyKey: "fund-before-open-position",
+    });
+    stub.testStorage.sql.exec(
+      "INSERT INTO ai_paper_positions(id,user_id,symbol,side,qty_units,entry_price,margin_micro,leverage,fees_micro,slippage_micro,status,opened_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+      "ai-position-test", userId, "BTCUSDT", "LONG", "0.001", "60000", (50n * U).toString(), "1", "0", "0", "open", Date.now(),
+    );
+    const withdrawn = await post(stub, "/ai/paper/withdraw", {
+      userId, amountMicro: (25n * U).toString(), idempotencyKey: "withdraw-with-open-position",
+    });
+    expect(withdrawn.status).toBe(409);
+    expect(withdrawn.body.error).toContain("открытые AI paper позиции");
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
+    expect(await status.json()).toMatchObject({
+      demoBalanceMicro: (900n * U).toString(), aiBalanceMicro: (100n * U).toString(), openPositions: 1,
     });
   });
 
