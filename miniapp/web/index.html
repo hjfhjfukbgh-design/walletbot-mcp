@@ -3,44 +3,55 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b1018">
-  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#f0f0f6">
+  <meta name="color-scheme" content="light">
   <title>Kripto Guru</title>
   <script src="https://telegram.org/js/telegram-web-app.js?65"></script>
-  <link rel="stylesheet" href="/kripto-guru-ui.css?v=20261118-release-bundle-1">
+  <link rel="stylesheet" href="/kripto-guru-ui.css?v=20261118-walt-parity-1">
 </head>
 <body>
   <main id="kg-main">
     <section id="kg-wallet-screen" class="kg-screen is-active" aria-label="Кошелёк">
-      <section class="kg-wallet-hero" aria-label="Демо-баланс">
-        <small>ДЕМО-БАЛАНС</small>
+      <div class="kg-wallet-topline">
+        <div class="kg-wallet-avatar" aria-label="Профиль Kripto Guru">KG</div>
+        <button class="kg-wallet-bonus" type="button" data-wallet-action="bonus">Бонус 50 $</button>
+        <button class="kg-wallet-portfolio" type="button" aria-label="Статистика портфеля">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9l7.8 4.5A9 9 0 1 1 12 3Z"/><path d="M14 3.3A9 9 0 0 1 21 12h-9V3Z"/></svg>
+        </button>
+      </div>
+      <section class="kg-wallet-hero" aria-label="Баланс">
+        <small>Баланс</small>
         <strong id="kg-wallet-balance">—</strong>
+        <div class="kg-wallet-performance"><b>—</b><span>↓ —%</span><small>24 ч</small></div>
       </section>
       <div id="kg-wallet-quick-actions" class="kg-wallet-quick-actions" aria-label="Быстрые действия">
-        <button type="button" data-wallet-action="transfer"><span class="kg-wallet-action-icon">⇄</span><small>Перевести</small></button>
-        <button type="button" data-wallet-action="deposit"><span class="kg-wallet-action-icon">↓</span><small>Пополнить</small></button>
-        <button type="button" data-wallet-action="withdraw"><span class="kg-wallet-action-icon">↑</span><small>Вывести</small></button>
-        <button type="button" data-wallet-action="exchange"><span class="kg-wallet-action-icon">⇆</span><small>Обменять</small></button>
+        <button type="button" data-wallet-action="transfer"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 8 4-4 4 4M8 4v11M20 16l-4 4-4-4m4 4V9"/></svg></span><small>Перевести</small></button>
+        <button type="button" data-wallet-action="deposit"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg></span><small>Пополнить</small></button>
+        <button type="button" data-wallet-action="withdraw"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V4m-8 8 8-8 8 8"/></svg></span><small>Вывести</small></button>
+        <button type="button" data-wallet-action="exchange"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/></svg></span><small>Обменять</small></button>
       </div>
-      <button id="kg-wallet-currency" class="kg-wallet-currency" type="button" aria-label="Доллары USDT, демо-счёт">
+      <button id="kg-wallet-currency" class="kg-wallet-currency" type="button" aria-label="Доллары USDT">
         <span class="kg-currency-icon">$</span>
-        <span class="kg-card-copy"><b>Доллары</b><small>USDT · Демо-счёт</small></span>
+        <span class="kg-card-copy"><b>Доллары</b><small>USDT · — ₽</small></span>
         <span class="kg-wallet-currency-value" id="kg-wallet-currency-value">—</span>
-        <span class="kg-chevron">›</span>
       </button>
       <div class="kg-section-head"><h2>Избранное</h2><button id="kg-edit-favorites" class="kg-link" type="button">Изменить</button></div>
       <div id="kg-favorites" class="kg-favorites"><div class="kg-empty-inline">Загрузка избранного…</div></div>
-      <div class="kg-section-head"><h2>Крипто</h2><button class="kg-link" type="button" data-open-trading>Все</button></div>
+      <div class="kg-section-head"><h2>Крипто</h2><span class="kg-muted">Всего: 0,00 $</span></div>
       <div id="kg-wallet-assets" class="kg-list"><div class="kg-skeleton"></div></div>
-      <div class="kg-section-head"><h2>Акции и фонды</h2><span class="kg-muted">Информация</span></div>
-      <div class="kg-list kg-unavailable-row"><div class="kg-asset-icon">A</div><div class="kg-row-copy"><b>Акции и фонды</b><small id="kg-equity-wallet-reason">Котировки пока недоступны</small></div><strong>—</strong></div>
-      <div class="kg-section-head"><h2>Аккаунты ИИ-агента</h2><span class="kg-muted">Информация</span></div>
-      <div class="kg-list kg-unavailable-row"><div class="kg-asset-icon">◎</div><div class="kg-row-copy"><b>Агент Grok</b><small>Подключение пока недоступно</small></div><strong>—</strong></div>
+      <div class="kg-section-head"><h2>Акции и фонды</h2><span class="kg-muted">Всего: —</span></div>
+      <div class="kg-list kg-wallet-equities">
+        <div class="kg-asset-row"><span class="kg-asset-icon kg-brand-apple">●</span><span class="kg-row-copy"><b>Apple</b><small>AAPLx · котировка</small></span><span class="kg-wallet-row-value">—</span></div>
+      </div>
+      <div class="kg-list kg-wallet-defi"><div class="kg-asset-row"><span class="kg-asset-icon kg-brand-defi">W</span><span class="kg-row-copy"><b>DeFi Счёт</b></span><span class="kg-wallet-row-value">—</span></div></div>
+      <div class="kg-section-head"><h2>Аккаунты ИИ-агента</h2></div>
+      <div class="kg-list"><div class="kg-asset-row"><span class="kg-asset-icon kg-brand-grok">◉</span><span class="kg-row-copy"><b>Агент Grok</b></span><span class="kg-wallet-row-value">—</span></div></div>
       <div class="kg-section-head"><h2>Попробуйте</h2></div>
       <div class="kg-discover-list">
-        <div class="kg-discover-card is-disabled"><span class="kg-discover-icon">◎</span><span class="kg-row-copy"><b>Создайте аккаунт ИИ-агента</b><small>Функция пока недоступна</small></span><span class="kg-chevron">›</span></div>
-        <button class="kg-discover-card" type="button" data-open-futures><span class="kg-discover-icon is-green">↗</span><span class="kg-row-copy"><b>Бессрочные фьючерсы</b><small>Откройте демо-рынок</small></span><span class="kg-chevron">›</span></button>
+        <button class="kg-discover-card" type="button" data-screen="companion"><span class="kg-discover-icon kg-discover-ai">♙</span><span class="kg-row-copy"><b>Создайте аккаунт ИИ-агента</b><small>Позвольте ИИ-агенту совершать сделки</small></span><span class="kg-chevron">›</span></button>
+        <button class="kg-discover-card" type="button" data-open-futures><span class="kg-discover-icon is-green">♧</span><span class="kg-row-copy"><b>Фьючерсы</b><small>Торгуйте с плечом до 50×</small></span><span class="kg-chevron">›</span></button>
       </div>
+      <div class="kg-list kg-wallet-history"><div class="kg-asset-row"><span class="kg-asset-icon kg-history-symbol">☷</span><span class="kg-row-copy"><b>История транзакций</b></span><span class="kg-chevron">›</span></div></div>
     </section>
     <section id="kg-trading-screen" class="kg-screen" aria-label="Торговля">
       <div class="kg-search-row">
@@ -135,7 +146,7 @@
     <button class="is-active" data-screen="wallet" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6" width="17" height="13" rx="2.5"/><path d="M3.5 9h17M16 14h2"/></svg><small>Кошелёк</small></button><button data-screen="trading" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18.5 9 13l3.5 3.5L20 8"/><path d="M14.5 8H20v5.5"/></svg><small>Торговля</small></button><button data-screen="companion" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v11H9l-5 3v-14Z"/><path d="M8 10h8M8 13.5h5"/></svg><small>ИИ</small></button>
   </nav>
   <div id="kg-toast" class="kg-toast" role="status" aria-live="polite"></div>
-  <script src="/kripto-guru-api.js?v=20261118-release-bundle-1"></script>
+  <script src="/kripto-guru-api.js?v=20261118-walt-parity-1"></script>
   <script src="/kripto-guru-ui.js?v=20261118-release-bundle-1"></script>
 </body>
 </html>
