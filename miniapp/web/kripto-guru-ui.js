@@ -768,7 +768,7 @@
       ai:"AI Trading · PAPER-контекст. Автоматические сделки пока отключены.",
       live:"LIVE заблокирован до проверки полного торгового и close-контракта.",
     };
-    $("#kg-product-mode [data-product-mode]").forEach(button=>{
+    $$("#kg-product-mode [data-product-mode]").forEach(button=>{
       const selected=button.dataset.productMode===state.productMode;
       button.classList.toggle("is-active",selected);
       button.setAttribute("aria-pressed",String(selected));
