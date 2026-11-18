@@ -342,7 +342,18 @@
   }
   function renderCompanionHistory(){
     const root=$("#kg-ai-history");
-    root.innerHTML=state.companionConversations.map(item=>`<button type="button" class="kg-ai-history-item ${item.id===state.companionId?"is-selected":""}" data-ai-conversation="${esc(item.id)}"><span>${esc(item.title||"Новый диалог")}</span><small>${Number(item.messageCount)||0}</small></button>`).join("");
+    root.innerHTML=state.companionConversations.map(item=>`<div class="kg-ai-history-entry"><button type="button" class="kg-ai-history-item ${item.id===state.companionId?"is-selected":""}" data-ai-conversation="${esc(item.id)}"><span>${esc(item.title||"Новый диалог")}</span><small>${Number(item.messageCount)||0}</small></button><button type="button" class="kg-ai-history-delete" data-ai-delete="${esc(item.id)}" aria-label="Удалить диалог: ${esc(item.title||"Новый диалог")}" title="Удалить диалог">×</button></div>`).join("");
+  }
+  async function deleteCompanionConversation(id){
+    if(!id||state.companionBusy)return;
+    state.companionBusy=true;
+    try{
+      await invoke("companion.remove",id);
+      if(state.companionId===id){state.companionId=null;state.companionMessages=[];renderCompanionMessages();}
+      await loadCompanionConversations();
+      notify("Диалог удалён.");
+    }catch(error){notify(normalizeError(error).message);}
+    finally{state.companionBusy=false;}
   }
   async function loadCompanionConversations(){
     try{
@@ -392,6 +403,8 @@
       if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();$("#kg-ai-form").requestSubmit();}
     });
     $("#kg-ai-history").addEventListener("click",event=>{
+      const remove=event.target.closest("[data-ai-delete]");
+      if(remove?.dataset.aiDelete){deleteCompanionConversation(remove.dataset.aiDelete);return;}
       const item=event.target.closest("[data-ai-conversation]");
       if(item?.dataset.aiConversation)openCompanionConversation(item.dataset.aiConversation);
     });
