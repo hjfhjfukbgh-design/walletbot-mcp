@@ -4,9 +4,9 @@ const baseUrl = process.env.COMPANION_PREVIEW_URL;
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 if (!baseUrl || !botToken) throw new Error("COMPANION_PREVIEW_URL and TELEGRAM_BOT_TOKEN are required.");
 
-function signedInitData(userId) {
+function signedInitData(userId, authDate = Math.floor(Date.now() / 1000)) {
   const params = new URLSearchParams({
-    auth_date: String(Math.floor(Date.now() / 1000)),
+    auth_date: String(authDate),
     user: JSON.stringify({ id: Number(userId), first_name: "Preview test" }),
   });
   const checkString = [...params.entries()]
@@ -41,6 +41,11 @@ try {
     headers: { Authorization: "tma invalid-init-data" },
   });
   if (invalidAuth.status !== 401) throw new Error("Invalid Telegram initData must return HTTP 401.");
+
+  const expiredAuth = await fetch(new URL("/api/companion/conversations", baseUrl), {
+    headers: { Authorization: `tma ${signedInitData(ownerId, Math.floor(Date.now() / 1000) - 86_401)}` },
+  });
+  if (expiredAuth.status !== 401) throw new Error("Expired Telegram initData must return HTTP 401.");
 
   const emptyMessage = await api(ownerId, "/api/companion/chat", {
     method: "POST",
