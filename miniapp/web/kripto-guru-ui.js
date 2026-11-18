@@ -202,7 +202,7 @@
     try{
       state.wallet=unwrap(await invoke("wallet.get"),"wallet");
       const balanceRub=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN)*Number(state.fxRateRub); $("#kg-wallet-balance").innerHTML=Number.isFinite(balanceRub)?fmt(balanceRub)+' <span class="kg-ruble-symbol">₽</span>':"—";
-      $("#kg-wallet-currency-value").innerHTML=Number.isFinite(balanceRub)?fmt(balanceRub)+' <small>— ₽</small>':"—";const currencySubtitle=$("#kg-wallet-currency .kg-card-copy small");if(currencySubtitle)currencySubtitle.textContent=Number.isFinite(state.fxRateRub)?"USDT · 1 $ = "+fmt(state.fxRateRub,2)+" ₽":"USDT · курс недоступен";
+      $("#kg-wallet-currency-value").textContent=Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—";const currencySubtitle=$("#kg-wallet-currency .kg-card-copy small");if(currencySubtitle)currencySubtitle.textContent=Number.isFinite(state.fxRateRub)?"USDT · 1 $ = "+fmt(state.fxRateRub,2)+" ₽":"USDT · курс недоступен";
       const walletAssets=listOf(state.wallet,["assets","balances"]);
       const cryptoValues=walletAssets.map(asset=>Number(asset.valueUsd ?? asset.balanceUsd ?? asset.usdValue)).filter(Number.isFinite);
       const totalNode=$("#kg-wallet-crypto-total");
