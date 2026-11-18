@@ -170,6 +170,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
               ...(index === history.length - 1 ? attachments.map(file => ({ inlineData: { mimeType: file.mimeType, data: file.dataBase64 } })) : []),
             ],
           })),
+          ...(mode === "research" ? { tools: [{ googleSearch: {} }] } : {}),
           generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, temperature: 0.7 },
         }),
         signal: AbortSignal.timeout(25_000),
@@ -179,26 +180,43 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       return json({ ok: false, error: "Gemini не ответил вовремя. Попробуйте ещё раз." }, 504);
     }
 
-    const payload = await response.json().catch(() => null) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>; error?: { message?: string } } | null;
+    const payload = await response.json().catch(() => null) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>; webSearchQueries?: string[] } }>; error?: { message?: string } } | null;
     if (!response.ok) {
       const providerMessage = payload?.error?.message ?? "unknown provider error";
       console.error("[companion] Gemini API rejected request:", response.status, providerMessage.slice(0, 300));
       if (response.status === 429) return json({ ok: false, error: "Лимит запросов Gemini исчерпан. Попробуйте через минуту." }, 429);
       if (response.status === 401 || response.status === 403) return json({ ok: false, error: "Gemini отклонил API-ключ. Нужно проверить ключ в настройках сервера." }, 503);
       if (response.status === 404) return json({ ok: false, error: "Выбранная модель Gemini недоступна. Проверьте настройку GEMINI_MODEL." }, 503);
+      if (response.status === 400 && mode === "research") return json({ ok: false, error: "Google Search grounding недоступен для текущей модели или API-ключа. Источники не подменялись." }, 503);
       if (response.status === 400) return json({ ok: false, error: "Gemini отклонил формат запроса. Проверьте настройки модели." }, 502);
       return json({ ok: false, error: "Сервис Gemini временно недоступен. Попробуйте ещё раз." }, response.status >= 500 ? 503 : 502);
     }
     const answer = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
     if (!answer) return json({ ok: false, error: "ИИ вернул пустой ответ. Попробуйте переформулировать вопрос." }, 502);
+    const groundingChunks = payload?.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+    const sourceMap = new Map<string, CompanionSource>();
+    if (mode === "research") {
+      for (const chunk of groundingChunks) {
+        const uri = chunk.web?.uri;
+        if (!uri) continue;
+        try {
+          const parsed = new URL(uri);
+          if (parsed.protocol !== "https:") continue;
+          sourceMap.set(parsed.href, { title: (chunk.web?.title || parsed.hostname).slice(0, 160), url: parsed.href });
+        } catch {}
+      }
+    }
+    const sources = Array.from(sourceMap.values()).slice(0, 10);
+    if (mode === "research" && !sources.length)
+      return json({ ok: false, error: "Поиск не вернул проверяемых источников. Ответ не будет выдан как исследование; попробуйте уточнить запрос." }, 502);
 
     const now = new Date().toISOString();
     const attachmentLabel = attachments.length ? "\n[Вложения: " + attachments.map(file => file.name).join(", ") + "]" : "";
-    const updatedMessages: ChatMessage[] = [...conversation.messages, { role: "user", content: userContent + attachmentLabel, createdAt: now }, { role: "assistant", content: answer, createdAt: now }];
+    const updatedMessages: ChatMessage[] = [...conversation.messages, { role: "user", content: userContent + attachmentLabel, createdAt: now }, { role: "assistant", content: answer, createdAt: now, ...(sources.length ? { sources } : {}) }];
     conversation.messages = updatedMessages.slice(-MAX_STORED_MESSAGES);
     conversation.updatedAt = now;
     await scoped.STATE.put(PREFIX + conversation.id, JSON.stringify(conversation));
-    return json({ ok: true, conversationId: conversation.id, answer, conversation });
+    return json({ ok: true, conversationId: conversation.id, answer, sources, conversation });
   } catch (error) {
     console.error("[companion] request failed", error instanceof Error ? error.message : "unknown error");
     return json({ ok: false, error: "Внутренняя ошибка AI Companion." }, 500);
