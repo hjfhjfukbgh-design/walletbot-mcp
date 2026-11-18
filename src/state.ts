@@ -62,3 +62,29 @@ export async function cachedContracts(env: Env, fetcher: () => Promise<ContractI
   return fresh;
 }
 
+
+
+export function companionStorageKey(
+  kind: "conversation" | "message",
+  id: string
+): string | null {
+  if (kind !== "conversation" && kind !== "message") {
+    return null;
+  }
+  if (typeof id !== "string" || id.length === 0 || id.length > 128) {
+    return null;
+  }
+  for (let i = 0; i < id.length; i++) {
+    const c = id.charCodeAt(i);
+    const isAsciiLower = c >= 97 && c <= 122;
+    const isAsciiUpper = c >= 65 && c <= 90;
+    const isDigit = c >= 48 && c <= 57;
+    const isHyphen = c === 45;
+    const isUnderscore = c === 95;
+    if (!isAsciiLower && !isAsciiUpper && !isDigit && !isHyphen && !isUnderscore) {
+      return null;
+    }
+  }
+  return `companion:${kind}:${id}`;
+}
+
