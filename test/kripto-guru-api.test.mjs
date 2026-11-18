@@ -42,7 +42,7 @@ describe("window.KriptoGuruAPI contract", () => {
   it("keeps LIVE unavailable when Walt readiness is incomplete while preserving unsupported markets", async () => {
     const fetchMock = vi.fn(async (input) => {
       expect(String(input)).toBe("/api/live/status");
-      return json({ ok: true, connected: false, readiness: { available: false, ok: false }, contracts: { available: false, count: 0 }, balance: { available: false, usd: null }, issues: ["Walt не подключён."] });
+      return json({ ok: true, connected: false, readiness: { available: false, ok: false }, contracts: { available: false, count: 0 }, balance: { available: false, usd: null }, issues: [{ code: "not_connected", description: "Walt не подключён." }] });
     });
     const api = loadApi(fetchMock);
     const stocks = await api.markets.list({ category: "stocks" });
