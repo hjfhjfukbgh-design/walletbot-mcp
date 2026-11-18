@@ -343,3 +343,13 @@
 - **Артефакты:** branch `fix/live-contract-id-zero-2026-11-19`; head `41d57af3b3b5d82ebfe4d24f5cee8f2cbc228c94`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/283.
 - **CI:** combined status и PR workflow runs пустые; тест не объявляется пройденным.
 - **Безопасность:** реальный Walt/MCP не вызывался; ордера/позиции/аккаунты/secrets не менялись; merge/deploy не выполнялись.
+
+### 2026-11-19 — SECURITY report #280 переписан по подтверждённым call paths
+
+- **Время:** 2026-11-19T01:06:59.931+05:00
+- **Событие:** исходный report-only artifact обновлён в ветке PR #280, неподтверждённые утверждения заменены фактологическим аудитом.
+- **Статус:** завершено; report PR обновлён
+- **Исправления:** указано, что run `44385734444` был analysis-only и не запускал npm ci/typecheck/tests; опровергнуто утверждение, что текущий scheduled LIVE tick может торговать; описан фактический API confirm + tenant preview + atomic claim + single execute + unknown/no-retry flow; зафиксирован отдельный legacy Walt adapter risk и PR #282; указаны подтверждённые Companion tenant/attachment/research controls и реальные gaps неатомарных KV quotas.
+- **Артефакт:** branch `agent/security-handoff-278-44385734444`; report commit `f158039c64c5f998d89701c0748d5e470aa7f5c1`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/280.
+- **Ограничение:** статический анализ; тесты/динамический E2E не запускались; report не является Security QA PASS.
+- **Безопасность:** application source не менялся в этой report correction; реальные Walt calls/операции не выполнялись.
