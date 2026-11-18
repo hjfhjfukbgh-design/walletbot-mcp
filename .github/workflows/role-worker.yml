@@ -63,7 +63,7 @@ jobs:
           const task = process.env.TASK || "";
           const allowed = {
             BACKEND: p => ["src/index.ts", "src/api.ts", "src/service.ts", "src/state.ts", "src/tenants.ts", "src/companion.ts", "src/companion-quota.ts", "src/walt.ts", "src/manual.ts", "src/env.ts", "src/trading/engine.ts", "test/api.test.ts", "test/companion.test.ts", "test/companion-quota.miniflare.test.ts", "test/trading-engine.miniflare.test.ts"].includes(p),
-            FRONTEND: p => p.startsWith("miniapp/web/") && /\.(js|mjs|css|html)$/.test(p)
+            FRONTEND: p => (p.startsWith("miniapp/web/") && /\.(js|mjs|css|html)$/.test(p)) || p === "test/kripto-guru-api.test.mjs"
           };
           const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" }).trim().split("\n");
           if (!allowed[role]) {
