@@ -62,6 +62,7 @@ try{
         },
         history:{async list(){return {events:mockHistory.map(x=>({...x}))};}},
         capabilities:{async get(){return {ipo:{available:false,reason:"Нет источника IPO"},stocks:{available:false},funds:{available:false},bonuses:{available:false},live:{available:false}};}}
+        companion:{async list(){return history.map(x=>({...x}));},async get(id){return {id,messages:[{role:"user",content:"Привет"},{role:"assistant",content:"Здравствуйте!"}]};},async send(message,id){const conversationId=id||"preview-conversation-1";history.unshift({id:conversationId,title:message.slice(0,32),messageCount:2});return {conversationId,answer:"Тестовый ответ ИИ",conversation:{id:conversationId,messages:[{role:"user",content:message},{role:"assistant",content:"Тестовый ответ ИИ"}]}};},async remove(){return {ok:true};}},
       };
     });
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
@@ -174,6 +175,13 @@ try{
     await page.locator('#kg-nav button[data-screen="bonuses"]').click();
     await page.waitForSelector("#kg-bonuses-screen.is-active");
     await page.screenshot({path:`clean-bonuses-${device.width}x${device.height}.png`,fullPage:false});
+    await page.locator('#kg-nav button[data-screen="companion"]').click();
+    await page.waitForSelector("#kg-companion-screen.is-active");
+    await page.locator("#kg-ai-input").fill("Проверь связь");
+    await page.locator("#kg-ai-send").click();
+    await page.waitForFunction(()=>document.querySelector("#kg-ai-messages")?.innerText.includes("Тестовый ответ ИИ"));
+    if(!(await page.locator("#kg-ai-messages").innerText()).includes("Проверь связь"))throw new Error("AI Companion should render the sent user message");
+    await page.screenshot({path:`clean-companion-${device.width}x${device.height}.png`,fullPage:false});
     if(pageErrors.length)throw new Error("browser errors: "+pageErrors.join("; "));
     await page.close();
   }
