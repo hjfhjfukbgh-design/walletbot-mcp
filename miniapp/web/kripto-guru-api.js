@@ -303,7 +303,7 @@
       const data = await request("/api/companion/chat", {
         method: "POST",
         body: { message: String(message), ...(conversationId ? { conversationId: String(conversationId) } : {}), ...(attachments.length ? { attachments } : {}) },
-        timeoutMs: 60_000,
+        timeoutMs: 30_000,
       });
       return data;
     },
