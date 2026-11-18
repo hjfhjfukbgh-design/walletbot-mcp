@@ -413,7 +413,7 @@ export class TradingEngine {
         userId, idempotencyKey,
       ).toArray()[0] as { kind: string; amount_micro: string } | undefined;
       if (existing) {
-        if (existing.kind !== "withdraw_to_demo" || BigInt(existing.amount_micro) !== amount) conflict = true;
+        if (existing.kind !== "withdraw_to_demo" || BigInt(existing.amount_micro) !== -amount) conflict = true;
         else duplicate = true;
         return;
       }
