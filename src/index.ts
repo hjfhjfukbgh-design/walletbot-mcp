@@ -9,8 +9,9 @@ import { handleTenantTick, listTenantIds, oauthTenantId, tenantEnv } from "./ten
 import { send } from "./telegram";
 import { monitorManualTrades } from "./manual";
 import { TradingEngine } from "./trading/engine";
+import { CompanionQuota } from "./companion-quota";
 
-export { TradingEngine };
+export { TradingEngine, CompanionQuota };
 import { COMMANDS, tg, timingSafeEqual, type TgUpdate } from "./telegram";
 
 export default {
