@@ -530,10 +530,10 @@
     try{state.companionLimits=await invoke("companion.limits");renderCompanionLimits();}
     catch{state.companionLimits=null;renderCompanionLimits();}
   }
-  function newCompanionConversation(){
-    state.companionId=null;state.companionMessages=[];
-    renderCompanionMessages();renderCompanionHistory();setCompanionMenu(false);
-    $("#kg-ai-input").focus();
+  function newCompanionConversation(focus=true){
+    state.companionId=null;state.companionMessages=[];state.companionAttachments=[];
+    renderCompanionMessages();renderCompanionAttachments();renderCompanionHistory();setCompanionMenu(false);
+    if(focus)$("#kg-ai-input").focus();
   }
   function renderCompanionAttachments(){
     const root=$("#kg-ai-attachments");
@@ -544,10 +544,10 @@
     return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(",")[1]||"");reader.onerror=()=>reject(new Error("Не удалось прочитать файл."));reader.readAsDataURL(file);});
   }
   async function addCompanionFiles(fileList){
-    const allowed=/^(image\/(jpeg|png|webp|gif)|audio\/(mpeg|mp3|wav|aac|ogg|flac|webm|mp4|m4a))$/i;
+    const allowed=/^(image\/(jpeg|png|webp|gif)|audio\/(mpeg|mp3|wav|aac|ogg|flac|webm|mp4|m4a)|video\/(mp4|webm))$/i;
     for(const file of [...fileList]){
       if(state.companionAttachments.length>=4){notify("Можно добавить не больше 4 файлов.");break;}
-      if(!allowed.test(file.type)){notify("Поддерживаются изображения и аудио (JPG, PNG, WEBP, MP3, WAV, OGG, M4A).");continue;}
+      if(!allowed.test(file.type)){notify("Поддерживаются изображения, аудио и видео MP4/WebM.");continue;}
       if(file.size>5*1024*1024){notify("Размер одного файла — максимум 5 МБ.");continue;}
       if(state.companionAttachments.some(x=>x.name===file.name&&x.size===file.size)){continue;}
       try{state.companionAttachments.push({name:file.name,size:file.size,mimeType:file.type,dataBase64:await fileToBase64(file)});renderCompanionAttachments();}
@@ -590,7 +590,7 @@
   }
   function bind(){
     $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
-    $("#kg-wallet-ai").addEventListener("click",async()=>{setScreen("companion");await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);if(!state.companionInitialized){state.companionInitialized=true;if(state.companionConversations.length)await openCompanionConversation(state.companionConversations[0].id);}});
+    $("#kg-wallet-ai").addEventListener("click",async()=>{setScreen("companion");await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);state.companionInitialized=true;newCompanionConversation(false);});
     $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
       setScreen(button.dataset.screen);
       if(state.screen==="wallet")await loadWallet();
@@ -599,10 +599,8 @@
       if(state.screen==="bonuses")await loadCapabilities();
       if(state.screen==="companion"){
          await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);
-         if(!state.companionInitialized){
-           state.companionInitialized=true;
-           if(state.companionConversations.length)await openCompanionConversation(state.companionConversations[0].id);
-         }
+         state.companionInitialized=true;
+         newCompanionConversation(false);
        }
     }));
     $("#kg-ai-new").addEventListener("click",newCompanionConversation);
