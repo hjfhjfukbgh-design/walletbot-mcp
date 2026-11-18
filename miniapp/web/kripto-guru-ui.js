@@ -611,14 +611,15 @@
   }
   function openTicket(side){
     if(!state.selected)return;
-    state.side=side;state.leverage=1;state.maxLeverage=Math.max(1,Number(state.selected.maxLeverage||1));state.margin=0;state.preview=null;state.autoclose=false;
+    state.side=side;state.leverage=1;state.maxLeverage=Math.max(1,Number(state.selected.maxLeverage||1));state.margin=0;state.preview=null;state.previewSeq++;state.autoclose=false;
+    state.tradeMode="demo";state.liveStatus=null;state.liveExecuteStarted=false;
     $("#kg-ticket-heading").textContent=(side==="long"?"Лонг ":"Шорт ")+state.selectedMarket+" · "+$("#kg-asset-price").textContent;
     $("#kg-ticket-margin").value="";
     $("#kg-ticket-leverage").textContent="1×";
-    $("#kg-ticket-available").textContent="Доступно: "+money(Number(state.wallet?.balanceUsd??state.wallet?.balance??0))+" USDT";
     $("#kg-ticket-volume").textContent="Объём: —";
     $("#kg-ticket-preview").textContent="";
     $("#kg-ticket-autoclose").textContent="Автозакрытие";
+    renderTicketMode();
     showSubscreen("ticket");
     const input=$("#kg-ticket-margin");
     input.focus({preventScroll:true});
@@ -631,6 +632,20 @@
     state.preview=null;
     if(!(state.margin>0)){$("#kg-ticket-volume").textContent="Объём: —";$("#kg-ticket-preview").textContent="";return;}
     try{
+      if(state.tradeMode==="live"){
+        const result=unwrap(await invoke("live.preview",{symbol:state.selectedMarket,side:state.side,marginUsd:state.margin,leverage:state.leverage}),"live preview");
+        if(seq!==state.previewSeq||state.tradeMode!=="live")return;
+        state.preview=result;state.liveExecuteStarted=false;
+        const volume=Number(result.notionalUsd??0);
+        $("#kg-ticket-volume").textContent="Объём: "+money(volume);
+        const warnings=(Array.isArray(result.warnings)?result.warnings:[]).map(item=>typeof item==="string"?item:JSON.stringify(item)).filter(Boolean);
+        const riskText=result.risk?"Проверка риска: "+JSON.stringify(result.risk).slice(0,160):"Проверка риска пройдена";
+        const ttl=result.expiresInSeconds>0?"Preview действует "+result.expiresInSeconds+" сек.":"Preview действует 120 сек.";
+        $("#kg-ticket-preview").textContent=[riskText,...warnings,ttl].join(" · ");
+        $("#kg-ticket-check").disabled=!(result.handle&&result.valid!==false&&result.available!==false);
+        renderTicketMode();
+        return;
+      }
       const result=unwrap(await invoke("trade.preview",{symbol:state.selectedMarket,side:state.side,marginUsd:state.margin,leverage:state.leverage}),"preview");
       if(seq!==state.previewSeq)return;
       state.preview=result;
