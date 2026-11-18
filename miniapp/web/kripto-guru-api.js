@@ -279,6 +279,7 @@
       return {
         connected: data.connected === true,
         readiness: data.readiness || { available: false, ok: false },
+        contracts: data.contracts || { available: false, count: null },
         balance: data.balance || { available: false, usd: null },
         issues: Array.isArray(data.issues) ? data.issues : [],
         observedAt: Number(data.observedAt || Date.now()),
