@@ -73,8 +73,8 @@ jobs:
               continue;
             }
             console.log(`Gemini direct probe: PASS using ${model}`);
-            process.stdout.write(`Selected Gemini model: ${model}\\n`);
-            await import("node:fs/promises").then(fs => fs.appendFile(process.env.GITHUB_OUTPUT, `model=${model}\\n`));
+            console.log(`Selected Gemini model: ${model}`);
+            await import("node:fs/promises").then(fs => fs.appendFile(process.env.GITHUB_OUTPUT, "model=" + model + String.fromCharCode(10)));
             process.exit(0);
           }
           console.error("No configured Gemini model responded successfully.");
