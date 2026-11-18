@@ -966,3 +966,43 @@ button{ -webkit-tap-highlight-color:transparent }
 #kg-wallet-screen .kg-wallet-defi .kg-asset-row{min-height:68px}
 #kg-wallet-screen .kg-wallet-row-value{margin-left:auto;white-space:nowrap}
 #kg-wallet-screen .kg-discover-card:disabled{opacity:.65}
+
+/* Walt wallet parity geometry 2026-11-18 */
+#kg-wallet-screen .kg-wallet-topline{min-height:48px;margin:0 0 22px;gap:10px}
+#kg-wallet-screen .kg-wallet-avatar{width:39px;height:39px;border-width:3px;font-size:12px}
+#kg-wallet-screen .kg-wallet-bonus{min-height:40px;padding:0 16px;font-size:14px}
+#kg-wallet-screen .kg-wallet-portfolio{width:40px;height:40px}
+#kg-wallet-screen .kg-wallet-hero{min-height:0;margin:0 0 50px;padding:0;justify-content:flex-start}
+#kg-wallet-screen .kg-wallet-hero>small{font-size:13px;letter-spacing:0;color:#15161a;margin:0 0 5px}
+#kg-wallet-screen .kg-wallet-hero>strong{margin:0;font-size:clamp(38px,11vw,48px);line-height:1.1;letter-spacing:-1.6px;font-weight:760;white-space:nowrap}
+#kg-wallet-screen .kg-ruble-symbol{color:#92929a;font-size:.82em;font-weight:650}
+#kg-wallet-screen .kg-wallet-performance{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:4px;font-size:12px;font-weight:700;color:#ef5149}
+#kg-wallet-screen .kg-wallet-performance span{padding:3px 7px;border-radius:999px;background:#f9dfe1}
+#kg-wallet-screen .kg-wallet-performance small{font-size:11px;font-weight:600;color:#96969d}
+#kg-wallet-screen .kg-wallet-quick-actions{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:0 0 14px}
+#kg-wallet-screen .kg-wallet-quick-actions button{min-height:56px;padding:6px 2px;gap:4px;border-radius:17px;background:#fff;box-shadow:0 2px 9px rgba(20,24,40,.025);color:var(--kg-blue)}
+#kg-wallet-screen .kg-wallet-action-icon{width:21px;height:21px;background:#1688ed;color:#fff;box-shadow:none}
+#kg-wallet-screen .kg-wallet-action-icon svg{width:15px;height:15px;stroke-width:2.2}
+#kg-wallet-screen .kg-wallet-quick-actions button small{font-size:11px;font-weight:650;color:#1688ed}
+#kg-wallet-screen .kg-wallet-currency{min-height:54px;padding:8px 14px;gap:10px;border-radius:22px;box-shadow:none}
+#kg-wallet-screen .kg-wallet-currency .kg-currency-icon{flex-basis:38px;width:38px;height:38px;font-size:20px}
+#kg-wallet-screen .kg-wallet-currency .kg-card-copy{gap:1px}
+#kg-wallet-screen .kg-wallet-currency .kg-card-copy b{font-size:15px;font-weight:600}
+#kg-wallet-screen .kg-wallet-currency .kg-card-copy small{font-size:11px}
+#kg-wallet-screen .kg-wallet-currency-value{display:flex;align-items:flex-end;flex-direction:column;gap:1px;font-size:15px;font-weight:500;line-height:1.2}
+#kg-wallet-screen .kg-wallet-currency-value small{font-size:11px;color:var(--kg-red);font-weight:550}
+#kg-wallet-screen .kg-favorites-heading h2{display:flex;align-items:center;gap:5px;color:#77777f;font-weight:650}
+#kg-wallet-screen .kg-favorites-heading h2 span{font-size:25px;line-height:15px;color:#77777f}
+#kg-wallet-screen .kg-section-head{margin-top:23px;margin-bottom:9px}
+#kg-wallet-screen .kg-favorites{gap:9px;padding-bottom:2px}
+#kg-wallet-screen .kg-favorite{flex:0 0 136px;min-width:136px;min-height:137px;padding:10px 11px 8px;border-radius:24px;box-shadow:0 2px 10px rgba(20,24,40,.025);text-align:left}
+#kg-wallet-screen .kg-fav-top{gap:5px}
+#kg-wallet-screen .kg-favorite .kg-asset-icon{width:31px;height:31px;flex-basis:31px}
+#kg-wallet-screen .kg-favorite .kg-badge{padding:4px 7px;background:#f1f2f5;font-size:9px}
+#kg-wallet-screen .kg-favorite b{margin-top:7px;font-size:12px;font-weight:600}
+#kg-wallet-screen .kg-favorite strong{margin-top:3px;font-size:19px;font-weight:560;letter-spacing:-.4px;white-space:nowrap}
+#kg-wallet-screen .kg-sparkline{height:37px;margin-top:5px;overflow:visible}
+#kg-wallet-screen .kg-sparkline-empty{height:37px;margin-top:5px;border-bottom:0;opacity:.25}
+#kg-nav{width:min(270px,calc(100vw - 40px));min-height:58px;padding:5px;border-radius:999px}
+#kg-nav button{min-height:48px}
+@media(max-width:380px){#kg-wallet-screen .kg-wallet-hero{margin-bottom:42px}#kg-wallet-screen .kg-favorite{flex-basis:130px;min-width:130px}}
