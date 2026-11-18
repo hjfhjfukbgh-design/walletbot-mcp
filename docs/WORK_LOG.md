@@ -323,3 +323,12 @@
 - **Основание:** исходный AI report PR #280 содержит неверные утверждения о текущем LIVE execution path и не указывает, что SECURITY worker не запускал npm/typecheck/tests. Фактические исходники и Actions job logs уже перепроверены.
 - **Цель:** обновить report artifact в его ветке: отделить подтверждённые меры, реальные defense-in-depth gaps, KV quota race risk и неисполненные проверки; не выдавать анализ за QA PASS.
 - **Scope:** только `team/reports/role-security-issue-278-44385734444.md`; никаких application source changes в этой report task.
+
+### 2026-11-19 — старт исправления contractId=0 в LIVE flow
+
+- **Время:** 2026-11-19T01:05:23.622+05:00
+- **Событие:** обнаружена несогласованность между валидным ID контракта 0 в Walt adapter и LIVE validation.
+- **Статус:** начато
+- **Доказательство:** `test/walt.test.ts` явно фиксирует, что `findContract()` принимает контракт с `contractId: 0` как валидный; при этом `src/api.ts` LIVE preview и `src/trading/engine.ts` atomic claim отклоняют `contractId <= 0`.
+- **Цель:** заменить искусственное требование ID > 0 на неотрицательное целое значение и закрепить это Miniflare regression test для LIVE claim. Это не меняет risk limits и не вызывает Walt.
+- **Scope:** src/api.ts, src/trading/engine.ts, test/trading-engine.miniflare.test.ts на отдельной ветке.
