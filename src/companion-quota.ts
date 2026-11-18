@@ -2,6 +2,7 @@ export interface QuotaLimit {
   key: string;
   limit: number;
   windowSeconds: number;
+  sliding?: boolean;
 }
 
 type CounterRow = { count: number; expires_at: number };
@@ -13,7 +14,13 @@ export class CompanionQuota {
         key TEXT PRIMARY KEY,
         count INTEGER NOT NULL,
         expires_at INTEGER NOT NULL
-      )
+      );
+      CREATE TABLE IF NOT EXISTS quota_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key TEXT NOT NULL,
+        expires_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS quota_events_key_expires ON quota_events(key, expires_at);
     `);
   }
 
@@ -36,25 +43,43 @@ export class CompanionQuota {
       const windowSeconds = Number(item.windowSeconds);
       if (!/^[a-zA-Z0-9:_-]{1,160}$/.test(key) || seen.has(key) ||
           !Number.isSafeInteger(limit) || limit < 1 || limit > 100_000 ||
-          !Number.isSafeInteger(windowSeconds) || windowSeconds < 1 || windowSeconds > 172_800)
+          !Number.isSafeInteger(windowSeconds) || windowSeconds < 1 || windowSeconds > 172_800 ||
+          (item.sliding !== undefined && typeof item.sliding !== "boolean"))
         return Response.json({ ok: false, error: "Некорректные параметры квоты." }, { status: 400 });
       seen.add(key);
-      quotas.push({ key, limit, windowSeconds });
+      quotas.push({ key, limit, windowSeconds, sliding: item.sliding === true });
     }
 
     const now = Date.now();
     const exhausted = this.ctx.storage.transactionSync(() => {
       this.ctx.storage.sql.exec("DELETE FROM quota_counters WHERE expires_at <= ?", now);
+      this.ctx.storage.sql.exec("DELETE FROM quota_events WHERE expires_at <= ?", now);
       for (const quota of quotas) {
-        const row = this.ctx.storage.sql.exec(
-          "SELECT count, expires_at FROM quota_counters WHERE key = ?",
-          quota.key,
-        ).toArray()[0] as CounterRow | undefined;
-        const count = row && row.expires_at > now ? row.count : 0;
+        let count = 0;
+        if (quota.sliding) {
+          const row = this.ctx.storage.sql.exec(
+            "SELECT COUNT(*) AS count FROM quota_events WHERE key = ? AND expires_at > ?",
+            quota.key, now,
+          ).toArray()[0] as { count: number } | undefined;
+          count = Number(row?.count || 0);
+        } else {
+          const row = this.ctx.storage.sql.exec(
+            "SELECT count, expires_at FROM quota_counters WHERE key = ?",
+            quota.key,
+          ).toArray()[0] as CounterRow | undefined;
+          count = row && row.expires_at > now ? row.count : 0;
+        }
         if (count >= quota.limit) return { key: quota.key, limit: quota.limit, count };
       }
 
       for (const quota of quotas) {
+        if (quota.sliding) {
+          this.ctx.storage.sql.exec(
+            "INSERT INTO quota_events(key,expires_at) VALUES(?,?)",
+            quota.key, now + quota.windowSeconds * 1000,
+          );
+          continue;
+        }
         const row = this.ctx.storage.sql.exec(
           "SELECT count, expires_at FROM quota_counters WHERE key = ?",
           quota.key,
