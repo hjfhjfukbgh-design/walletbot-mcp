@@ -661,7 +661,7 @@
     $("#kg-ai-file-input").addEventListener("change",event=>{addCompanionFiles(event.target.files||[]);event.target.value="";event.target.setAttribute("accept","image/jpeg,image/png,image/webp,image/gif,audio/*,video/mp4,video/webm");});
     $("#kg-ai-attachments").addEventListener("click",event=>{const button=event.target.closest("[data-remove-attachment]");if(!button)return;state.companionAttachments.splice(Number(button.dataset.removeAttachment),1);renderCompanionAttachments();});
     $("#kg-ai-voice").addEventListener("click",toggleCompanionRecording);
-    $(".kg-gemini-tools [data-ai-tool]").forEach(button=>button.addEventListener("click",()=>{
+    $$(".kg-gemini-tools [data-ai-tool]").forEach(button=>button.addEventListener("click",()=>{
       const tool=button.dataset.aiTool,input=$("#kg-ai-file-input");
       if(tool==="learn"){
         state.companionMode=state.companionMode==="learning"?"general":"learning";
