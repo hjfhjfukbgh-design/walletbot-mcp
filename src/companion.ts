@@ -136,23 +136,38 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     const model = (mode === "research" ? "gemini-2.5-flash-lite" : env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim();
     if (!/^[a-zA-Z0-9._-]{1,80}$/.test(model)) return json({ ok: false, error: "Некорректная настройка модели Gemini." }, 500);
 
-    // Invalid requests must not consume the user's Gemini message quota.
-    const rateKey = "companion:rate:" + Math.floor(Date.now() / (RATE_WINDOW_SECONDS * 1000));
-    const current = (await scoped.STATE.get<number>(rateKey, "json")) ?? 0;
-    if (current >= RATE_LIMIT) return json({ ok: false, error: "Слишком много сообщений. Подождите минуту." }, 429);
-    await scoped.STATE.put(rateKey, JSON.stringify(current + 1), { expirationTtl: RATE_WINDOW_SECONDS + 5 });
-
+    // Reserve all applicable quotas atomically; KV read-modify-write is race-prone.
+    const now = Date.now();
+    const quotaLimits = [{
+      key: "rate:" + userId + ":" + Math.floor(now / (RATE_WINDOW_SECONDS * 1000)),
+      limit: RATE_LIMIT,
+      windowSeconds: RATE_WINDOW_SECONDS + 5,
+    }];
     if (mode === "research") {
-      // Gemini 2.5 grounding is billed per prompt. Stay well below its 500 RPD free allowance.
-      const researchDay = new Date().toISOString().slice(0, 10);
-      const researchGlobalKey = "companion:research:global:" + researchDay;
-      const researchUserKey = "companion:research:user:" + researchDay;
-      const researchGlobalUsed = (await env.STATE.get<number>(researchGlobalKey, "json")) ?? 0;
-      const researchUserUsed = (await scoped.STATE.get<number>(researchUserKey, "json")) ?? 0;
-      if (researchGlobalUsed >= 20 || researchUserUsed >= 5)
-        return json({ ok: false, error: "Дневной бесплатный лимит веб-исследований исчерпан. Попробуйте завтра." }, 429);
-      await env.STATE.put(researchGlobalKey, JSON.stringify(researchGlobalUsed + 1), { expirationTtl: 48 * 60 * 60 });
-      await scoped.STATE.put(researchUserKey, JSON.stringify(researchUserUsed + 1), { expirationTtl: 48 * 60 * 60 });
+      const researchDay = new Date(now).toISOString().slice(0, 10);
+      quotaLimits.push(
+        { key: "research:global:" + researchDay, limit: 20, windowSeconds: 48 * 60 * 60 },
+        { key: "research:user:" + userId + ":" + researchDay, limit: 5, windowSeconds: 48 * 60 * 60 },
+      );
+    }
+    let quotaResponse: Response;
+    try {
+      const quotaId = env.COMPANION_QUOTA.idFromName("global");
+      quotaResponse = await env.COMPANION_QUOTA.get(quotaId).fetch("https://companion-quota/consume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quotas: quotaLimits }),
+      });
+    } catch (error) {
+      console.error("[companion] quota coordinator unavailable:", error instanceof Error ? error.name : "unknown");
+      return json({ ok: false, error: "Лимитер временно недоступен. Запрос не отправлен; попробуйте позже." }, 503);
+    }
+    const quotaResult = await quotaResponse.json().catch(() => ({})) as { exhausted?: { key?: string } };
+    if (!quotaResponse.ok) {
+      const researchLimit = String(quotaResult.exhausted?.key ?? "").startsWith("research:");
+      return json({ ok: false, error: researchLimit
+        ? "Дневной бесплатный лимит веб-исследований исчерпан. Попробуйте завтра."
+        : "Слишком много сообщений. Подождите минуту." }, quotaResponse.status);
     }
 
     let response: Response;
