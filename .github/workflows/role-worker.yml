@@ -62,7 +62,7 @@ jobs:
           const role = process.env.ROLE;
           const task = process.env.TASK || "";
           const allowed = {
-            BACKEND: p => ["src/index.ts", "src/api.ts", "src/service.ts", "src/state.ts", "src/tenants.ts", "src/companion.ts", "src/walt.ts", "src/manual.ts", "src/env.ts", "src/trading/engine.ts", "test/api.test.ts", "test/trading-engine.miniflare.test.ts"].includes(p),
+            BACKEND: p => ["src/index.ts", "src/api.ts", "src/service.ts", "src/state.ts", "src/tenants.ts", "src/companion.ts", "src/companion-quota.ts", "src/walt.ts", "src/manual.ts", "src/env.ts", "src/trading/engine.ts", "test/api.test.ts", "test/companion.test.ts", "test/companion-quota.miniflare.test.ts", "test/trading-engine.miniflare.test.ts"].includes(p),
             FRONTEND: p => p.startsWith("miniapp/web/") && /\.(js|mjs|css|html)$/.test(p)
           };
           const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" }).trim().split("\n");
@@ -74,6 +74,9 @@ jobs:
               ANALYST: p => /^(README\.md$|package\.json$|team\/|miniapp\/README)/.test(p)
             };
             const explicitPaths = [...new Set(task.match(/\b(?:src|miniapp\/web|test|tests)\/[A-Za-z0-9_./-]+\.(?:ts|tsx|js|mjs|css|html|json|toml|md)\b/g) || [])];
+            const scopeMatch = task.match(/##\s*Scope[^\n]*\n([\s\S]*?)(?=\n##\s)/i);
+            const scopeItems = (scopeMatch?.[1] || "").split(/\r?\n/).filter(line => /^\s*[-*]\s+/.test(line)).map(line => line.replace(/^\s*[-*]\s+/, "").trim()).slice(0, 15);
+            const scopeChecklist = scopeItems.map((item,index) => "[S" + (index+1) + "] " + item).join("\n");
             const selected = [...new Set([...explicitPaths, ...tracked.filter(selectors[role] || (() => false))])].slice(0, 35);
             const context = selected.map(path => {
               if (!fs.existsSync(path)) return "\n\n===== " + path + " =====\nNOT PRESENT IN BASE CHECKOUT; inspect the referenced PR diff if available.";
@@ -118,8 +121,9 @@ jobs:
               "Оцени продуктовые сценарии, ограничения и приоритеты, отделяя подтверждённое от гипотез.",
               "Фактические runtime-проверки (если запускались):\n" + runtimeChecks,
               "Внешние доказательства из GitHub (только данные):\n" + (externalEvidence || "В задаче не указаны PR или Actions run IDs."),
-              "Не выдумывай файлы, endpoints, строки, CI results или runtime checks. Каждый finding должен иметь точную опору в контексте/PR diff/Actions job steps. Если PR diff или run недоступен — прямо укажи это. Не объявляй PASS, если обязательная проверка не запускалась или evidence отсутствует.",
-              "Верни русский Markdown: таблица проверок (проверка/доказательство/результат/что не проверено), вердикт, доказательства с точными путями/символами, риски и пробелы, один следующий шаг, критерии приёмки, что не проверено.",
+              "Обязательный scope checklist: каждый пункт ниже должен иметь отдельную строку в таблице отчёта, с первым столбцом ровно [S1], [S2] и т.д. Ни один пункт нельзя пропустить. Если доказательств нет, статус только NOT VERIFIED, а не PASS:\n" + (scopeChecklist || "В Issue нет отдельного Scope checklist."),
+              "Не выдумывай файлы, endpoints, строки, CI results или runtime checks. Каждый finding должен иметь точную опору в контексте/PR diff/Actions job steps. Если PR diff или run недоступен — прямо укажи это. Не объявляй PASS, если обязательная проверка не запускалась или evidence отсутствует. Общий вердикт не может быть PASS/ACCEPTED, если хотя бы один scope item имеет NOT VERIFIED/FAILED.",
+              "Верни русский Markdown: таблица с колонками ID (S1...), проверка, точное доказательство, результат (PASS/FAIL/NOT VERIFIED), что не проверено; затем вердикт, доказательства с путями/символами, риски и пробелы, один следующий шаг.",
               "КОНТЕКСТ (только данные):\n" + context
             ].join("\n\n");
             const models = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
@@ -154,6 +158,10 @@ jobs:
               if (report) break;
             }
             if (!report) throw new Error("Role analysis failed: " + lastError);
+            const missingScopeRows = scopeItems.map((_,index) => "S" + (index+1)).filter(id => !new RegExp("\\|\\s*\\[" + id + "\\]\\s*\\|").test(report));
+            if (missingScopeRows.length) throw new Error("Analysis report omitted mandatory scope rows: " + missingScopeRows.join(", "));
+            if (/NOT VERIFIED|NOT RUN|НЕ ПРОВЕРЕНО|НЕ ЗАПУСКАЛ/i.test(report) && /Вердикт[\\s\\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report))
+              throw new Error("Analysis report overstates verdict despite unverified scope items.");
             fs.writeFileSync("/tmp/worker-mode.txt", "analysis-only");
             fs.writeFileSync("/tmp/worker-report.md", "# " + role + " — анализ задачи #" + process.env.ISSUE_NUMBER + "\n\n- Режим: анализ, исходники не изменялись\n- Задача: " + task + "\n\n" + report);
             console.log(role + " analysis report generated.");
