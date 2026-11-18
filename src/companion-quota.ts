@@ -21,6 +21,7 @@ export class CompanionQuota {
         expires_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS quota_events_key_expires ON quota_events(key, expires_at);
+      CREATE INDEX IF NOT EXISTS quota_events_expires ON quota_events(expires_at);
     `);
   }
 
