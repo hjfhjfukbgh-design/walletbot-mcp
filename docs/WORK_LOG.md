@@ -408,3 +408,12 @@
 - **Проверка #241:** профильный UI уже присутствует в main: HTML содержит profile sheet, Telegram name/username/avatar выводятся через textContent/DOM API, есть fallback, закрытие по кнопке/backdrop/Escape и возврат фокуса. Поэтому повторно менять эти же файлы без выявленного дефекта не стал; задача фактически реализована в текущем main, но отдельный acceptance/runtime тест и физический Telegram WebView не подтверждены.
 - **Следующий шаг:** дождаться подтверждения dispatch, продолжать брать независимые незакрытые задачи и отдельно фиксировать ошибки/перезапуски worker. Задача #270 остаётся зависимой от #263.
 - **Безопасность:** реальные Walt operations, сделки, переводы, изменения аккаунтов/secrets, merge и production deploy не выполнялись.
+
+
+### 2026-11-19 — расширение очереди QA/Security и review placeholder-removal patch
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T01:17:34+05:00
+- **Очередь расширена:** к #275 (Team B, независимый release-candidate QA) и #277 (Team A, LIVE security QA) добавлен orchestrator-ready. Итого в очереди: #263/#277 для Team A; #266/#275 для Team B; #254 для Team C. Диспетчер должен забирать по одной задаче за run.
+- **Review #273:** branch fix/remove-placeholder-markets-2026-11-19 сравнен с main: 7 commits ahead, 3 файла, 11 HTML / 13 JS / 7 CSS строк изменений. Проверенный branch удаляет IPO из торгового каталога и оставляет в поиске/категориях только Crypto/Futures; wallet equities markup остаётся в DOM, но скрывается CSS. Это соответствует узкому scope задачи (убрать IPO, Stocks/Funds из торгового меню и поиска), но runtime/screenshot/CI не подтверждены; merge не выполнять на основании одного статического осмотра.
+- **Dispatch evidence:** на момент этой записи не получен новый Actions run, поэтому старт новых worker не заявляется. Проверка branch names выявила только прежние handoff branches по #263/#266/#254, а не подтверждение нового запуска.
+- **Безопасность:** без реальных Walt writes/execute, финансовых действий, secrets, merge и deploy.
