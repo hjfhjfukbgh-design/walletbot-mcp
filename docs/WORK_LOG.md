@@ -825,3 +825,14 @@
 - **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:31:10.338+05:00
 - **Issue #352:** add virtual AI paper→DEMO withdrawal, atomic and idempotent; block withdrawals while open AI paper positions exist.
 - **Scope:** existing TradingEngine DO and AI paper tables only; no new DO, no real transfer, no Walt/LLM, no production deploy.
+### 2026-11-19 — reversible AI paper withdrawal merged
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:38:17.107+05:00
+- **PR #353:** merged squash commit `2fd9ee7b7a98376fda85bc78724444f997c642be`.
+- **API:** POST ai/paper/withdraw requires productMode=ai and uses validated Telegram user ID; amount parsed to integer micro-USD.
+- **Atomicity:** AI paper debit + DEMO credit + both ledger entries in one transactionSync. Per-user idempotency; duplicate same operation returns duplicate; cross-operation/different-amount key reuse and insufficient balance return 409.
+- **Safety:** withdrawals blocked while open AI paper positions exist; no real wallet transfer or LIVE changes.
+- **Tests:** Miniflare/API tests cover normal withdrawal, duplicate, conflict, insufficient funds, cross-kind idempotency, mode gate and Telegram user identity. CI run `44413333496` success (npm ci, syntax, typecheck, npm test).
+- **Test limitation:** direct open-position guard fixture deferred until paper position-open API exists; Miniflare storage inspection RPC unsupported by this DO class. Static guard is present.
+- **Earlier CI failures:** duplicate comparison sign bug corrected; experimental Miniflare storage RPC fixture removed. Final successful head is `26a124ecd9316960857633eb7e469fdce08ed350`.
+- **Issue #352:** closed completed with agent-done. No real transfer, Walt/LLM call or production deploy.
