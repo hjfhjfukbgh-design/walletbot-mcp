@@ -512,3 +512,11 @@
 - **Gap:** the UI's `Автозакрытие` button is disabled, while the backend already accepts TP/SL prices and the Durable Object engine checks triggers on quotes. Existing tests cover a long stop-loss path but not both sides/targets comprehensively.
 - **Scope:** add isolated Miniflare regression tests for long/short take-profit and short stop-loss triggers; no UI edits (Team B is working in the same UI files on LIVE mode).
 - **Safety:** simulated DEMO engine only; no real Walt/Gemini/provider calls, no orders, no deployment.
+
+
+### 2026-11-19 — start: give code workers their exact test/source context
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:08:14.399+05:00
+- **Finding:** BACKEND code workers received only `src/*` paths from the task's explicit path parser; test paths such as `test/api.test.ts` and `test/companion.test.ts` were silently excluded from the patch context even though they are in the allowlist. The implementation prompt also described allowed paths generically instead of listing the actual selected files.
+- **Fix scope:** include `test/` paths in explicit source selection, fail if any explicitly named path is outside the role allowlist, and show the exact selected file list in the implementation prompt.
+- **Goal:** improve bounded code task success without relaxing the three-file/250-line patch limits or any financial/production safety boundary.
