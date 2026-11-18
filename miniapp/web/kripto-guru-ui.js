@@ -64,19 +64,23 @@
     return value || {};
   }
   function setScreen(name){
+    const returningFromSubscreen=!$("#kg-asset-screen").hidden||!$("#kg-ticket-screen").hidden;
     state.screen=name;
     $$(".kg-screen").forEach(node=>node.classList.toggle("is-active",node.id==="kg-"+name+"-screen"));
     $$("#kg-nav button").forEach(node=>node.classList.toggle("is-active",node.dataset.screen===name));
     $("#kg-nav").hidden=false;
     $("#kg-asset-screen").hidden=true;
     $("#kg-ticket-screen").hidden=true;
+    syncMarketPolling(returningFromSubscreen||name==="wallet");
     if(tg?.BackButton){tg.BackButton.hide();tg.BackButton.offClick?.(handleNativeBack);}
   }
   function showSubscreen(name){
-    $$(".kg-screen").forEach(node=>node.classList.remove("is-active"));
+    marketLoadEpoch++;
+    $(".kg-screen").forEach(node=>node.classList.remove("is-active"));
     $("#kg-nav").hidden=true;
     $("#kg-asset-screen").hidden=name!=="asset";
     $("#kg-ticket-screen").hidden=name!=="ticket";
+    syncMarketPolling();
     if(tg?.BackButton){tg.BackButton.show();tg.BackButton.offClick?.(handleNativeBack);tg.BackButton.onClick(handleNativeBack);}
   }
   function handleNativeBack(){
@@ -240,8 +244,19 @@
     const label=$("#kg-market-updated");
     if(label){label.textContent=marketLastUpdatedAt?"Данные устарели · "+new Date(marketLastUpdatedAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"Нет свежих котировок";label.classList.add("is-stale");}
   }
+  function syncMarketPolling(refreshOnStart=false){
+    const marketScreenActive=(state.screen==="wallet"||state.screen==="trading")&&$("#kg-asset-screen").hidden&&$("#kg-ticket-screen").hidden;
+    const shouldPoll=document.visibilityState==="visible"&&marketScreenActive;
+    if(shouldPoll){
+      if(!marketRefreshTimer)marketRefreshTimer=setInterval(refreshMarketData,15000);
+      if(refreshOnStart)void refreshMarketData();
+    }else if(marketRefreshTimer){
+      clearInterval(marketRefreshTimer);
+      marketRefreshTimer=null;
+    }
+  }
   async function refreshMarketData(){
-    if(document.visibilityState!=="visible"||!(state.screen==="wallet"||state.screen==="trading")||$("#kg-market-live").hidden||marketRefreshInFlight)return;
+    if(document.visibilityState!=="visible"||!(state.screen==="wallet"||state.screen==="trading")||!$("#kg-asset-screen").hidden||!$("#kg-ticket-screen").hidden||$("#kg-market-live").hidden||marketRefreshInFlight)return;
     const category=state.category;
     const requestId=marketLoadEpoch;
     marketRefreshInFlight=true;
@@ -751,9 +766,8 @@
       if(event.key==="Enter"){clearTimeout(marketSearchTimer);renderMarketList(currentMarkets());}
       if(event.key==="Escape"){event.currentTarget.value="";clearTimeout(marketSearchTimer);renderMarketList(currentMarkets());}
     });
-    if(!marketRefreshTimer)marketRefreshTimer=setInterval(refreshMarketData,15000);
     if(!marketVisibilityListenerInstalled){
-      document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")refreshMarketData();});
+      document.addEventListener("visibilitychange",()=>syncMarketPolling(true));
       marketVisibilityListenerInstalled=true;
     }
     $$("#kg-search-filters button").forEach(b=>b.addEventListener("click",()=>setSearchFilter(b.dataset.searchFilter)));
@@ -837,7 +851,7 @@
     // immediately instead of waiting for FX, capabilities, history or wallet.
     const marketTask=loadCategory("crypto").catch(error=>{
       console.warn("[Kripto Guru] Initial market load failed",normalizeError(error).code);
-    });
+    }).finally(()=>syncMarketPolling());
     await Promise.all([loadFxRate(),loadCapabilities(),loadHistory()]);
     await Promise.all([loadWallet(),marketTask]);
 
