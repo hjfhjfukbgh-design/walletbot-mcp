@@ -231,3 +231,16 @@
 - **Критическая неточность:** текущий `main` worker автоматически поставил `agent-done` после report-only `analysis-only`, хотя критерии аудита не подтверждены независимой проверкой. Это именно дефект финализации, который исправляется в Draft PR #272, но он ещё не находится в main.
 - **Очередь:** #275 Team B и #277 Team A всё ещё имеют `orchestrator-ready` без dispatch comments на момент проверки; #278 обработана.
 - **Следующий шаг:** вручную перевести #278 из `agent-done` в `agent-review`, добавить явное пояснение; подготовить объединённый automation PR с исправлением статуса и передачей dispatch packet/queue fallback, чтобы не зависеть от двух разрозненных Draft PR.
+
+### 2026-11-19 — объединённый automation fix опубликован в Draft PR #281
+
+- **Время:** 2026-11-19T01:00:23.967+05:00
+- **Событие:** исправлены два связанных дефекта центральной очереди и опубликован единый Draft PR.
+- **Статус:** код опубликован; CI ещё не вернул статусы
+- **Изменения:** `.github/workflows/kripto-guru-orchestrator.yml`: fallback с `orchestrator-ready` на `agent-ready`, передача role-specific `packet` в worker вместо исходного Issue body, сохранение одной задачи на run. `.github/workflows/role-worker.yml`: успешное выполнение переводит Issue в `agent-review`, не `agent-done`; неуспешные/no-safe-patch остаются blocked.
+- **Фактическая проверка:** run `44385734444` обработал Issue #278 Team C, создал dispatch PR #279, worker завершился `analysis-only`. Issue #278 вручную возвращена из ошибочного `agent-done` в `agent-review`; комментарий с объяснением добавлен.
+- **Diff:** 2 workflow files, 9 additions / 5 deletions. Static checks подтверждают queue fallback, передачу packet и отсутствие автоматического agent-done в finalizer.
+- **CI:** combined status и PR workflow runs для head `699d09aa6d79fc2df2b68a46a37afeb630946c62` пустые; CI PASS не заявляется.
+- **Очередь:** #275 Team B и #277 Team A на последней проверке ещё `orchestrator-ready`, без dispatch comments. Schedule настроен каждые 5 минут, но следующая обработка этих задач пока не подтверждена.
+- **Артефакты:** branch `fix/agent-queue-acceptance-guards-2026-11-19`; PR https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/281; head commit `699d09aa6d79fc2df2b68a46a37afeb630946c62`.
+- **Безопасность:** PR Draft; merge/deploy, секреты и финансовые операции не выполнялись.
