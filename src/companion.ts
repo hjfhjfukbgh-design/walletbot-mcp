@@ -163,11 +163,15 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       return json({ ok: false, error: "Лимитер временно недоступен. Запрос не отправлен; попробуйте позже." }, 503);
     }
     const quotaResult = await quotaResponse.json().catch(() => ({})) as { exhausted?: { key?: string } };
-    if (!quotaResponse.ok) {
+    if (quotaResponse.status === 429) {
       const researchLimit = String(quotaResult.exhausted?.key ?? "").startsWith("research:");
       return json({ ok: false, error: researchLimit
         ? "Дневной бесплатный лимит веб-исследований исчерпан. Попробуйте завтра."
-        : "Слишком много сообщений. Подождите минуту." }, quotaResponse.status);
+        : "Слишком много сообщений. Подождите минуту." }, 429);
+    }
+    if (!quotaResponse.ok) {
+      console.error("[companion] quota coordinator rejected request:", quotaResponse.status);
+      return json({ ok: false, error: "Не удалось проверить лимиты. Запрос не отправлен; попробуйте позже." }, 503);
     }
 
     let response: Response;
