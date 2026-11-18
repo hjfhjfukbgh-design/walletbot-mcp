@@ -483,6 +483,24 @@ type LivePreviewRecord = {
   priceUsd: number;
 };
 
+export function livePositionTimestampMatches(
+  raw: Record<string, unknown>,
+  previewAt: number,
+  operationUpdatedAt: number,
+): boolean {
+  // Position open-time is stable; updated_at may change after the position is created.
+  const rawTime = raw.opened_at ?? raw.created_at ?? raw.openedAt ?? raw.createdAt;
+  if (rawTime === undefined || rawTime === null) return false;
+  let positionAt = typeof rawTime === "string" && !/^[0-9]+([.][0-9]+)?$/.test(rawTime)
+    ? Date.parse(rawTime)
+    : Number(rawTime);
+  if (Number.isFinite(positionAt) && positionAt < 1_000_000_000_000) positionAt *= 1_000;
+  const start = Number(previewAt) - 5_000;
+  const end = Number(operationUpdatedAt) + 5_000;
+  return Number.isFinite(positionAt) && Number.isFinite(start) && Number.isFinite(end) &&
+    positionAt >= start && positionAt <= end;
+}
+
 function safeLiveResult(value: unknown): Json {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return { message: typeof value === "string" ? value.slice(0, 240) : "Walt подтвердил вызов." };
@@ -588,10 +606,11 @@ async function liveOperationView(env: Env, scopedEnv: Env, userId: string, handl
           const rawSide = String(raw.side ?? raw.position_side ?? raw.direction ?? "").toLowerCase();
           const expectedSide = String(operation.side ?? "");
           const sideMatches = rawSide === expectedSide || (expectedSide === "long" && rawSide === "buy") || (expectedSide === "short" && rawSide === "sell");
-          const rawTime = raw.updated_at ?? raw.created_at ?? raw.opened_at ?? raw.updatedAt ?? raw.createdAt;
-          let positionAt = typeof rawTime === "string" && !/^[0-9]+([.][0-9]+)?$/.test(rawTime) ? Date.parse(rawTime) : Number(rawTime);
-          if (Number.isFinite(positionAt) && positionAt < 1_000_000_000_000) positionAt *= 1_000;
-          const timeMatches = Number.isFinite(positionAt) && positionAt >= Number(operation.previewAt ?? 0) - 5_000;
+          const timeMatches = livePositionTimestampMatches(
+            raw,
+            Number(operation.previewAt ?? 0),
+            Number(operation.updatedAt ?? Date.now()),
+          );
           const summary = {
             positionDetected: true, sideMatches, timeMatches,
             contractId: position.contractId, avgEntryPrice: position.avgEntryPrice ?? null,
