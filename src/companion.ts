@@ -221,8 +221,10 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
         if (!uri) continue;
         try {
           const parsed = new URL(uri);
-          if (parsed.protocol !== "https:") continue;
-          sourceMap.set(parsed.href, { title: (chunk.web?.title || parsed.hostname).slice(0, 160), url: parsed.href });
+          if (parsed.protocol !== "https:" || !parsed.hostname || parsed.username || parsed.password) continue;
+          parsed.hash = "";
+          const href = parsed.href;
+          if (!sourceMap.has(href)) sourceMap.set(href, { title: (chunk.web?.title || parsed.hostname).slice(0, 160), url: href });
         } catch {}
       }
     }
