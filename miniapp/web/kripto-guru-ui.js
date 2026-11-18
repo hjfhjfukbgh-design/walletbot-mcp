@@ -9,7 +9,7 @@
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
-    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionBusy:false
+    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false
   };
   const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
   const money = (v,d=2) => Number.isFinite(Number(v)) ? "$"+fmt(v,d) : "—";
@@ -348,10 +348,11 @@
     if(!id||state.companionBusy)return;
     state.companionBusy=true;
     try{
+      const removedActive=state.companionId===id;
       await invoke("companion.remove",id);
-      if(state.companionId===id){state.companionId=null;state.companionMessages=[];renderCompanionMessages();}
+      if(removedActive){state.companionId=null;state.companionMessages=[];renderCompanionMessages();}
       await loadCompanionConversations();
-      if(!state.companionId&&state.companionConversations.length)await openCompanionConversation(state.companionConversations[0].id);
+      if(removedActive&&state.companionConversations.length)await openCompanionConversation(state.companionConversations[0].id);
       notify("Диалог удалён.");
     }catch(error){notify(normalizeError(error).message);}
     finally{state.companionBusy=false;}
@@ -423,7 +424,10 @@
       if(state.screen==="bonuses")await loadCapabilities();
       if(state.screen==="companion"){
          await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);
-         if(!state.companionId&&state.companionConversations.length)await openCompanionConversation(state.companionConversations[0].id);
+         if(!state.companionInitialized){
+           state.companionInitialized=true;
+           if(state.companionConversations.length)await openCompanionConversation(state.companionConversations[0].id);
+         }
        }
     }));
     $("#kg-ai-new").addEventListener("click",newCompanionConversation);
