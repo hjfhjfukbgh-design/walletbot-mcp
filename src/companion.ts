@@ -11,6 +11,7 @@ const MAX_CONTEXT_MESSAGES = 12;
 const MAX_OUTPUT_TOKENS = 700;
 const RATE_LIMIT = 8;
 const RATE_WINDOW_SECONDS = 60;
+const MAX_CONVERSATIONS = 50;
 
 export async function handleCompanionApi(req: Request, env: Env): Promise<Response> {
   if (req.method !== "GET" && req.method !== "POST" && req.method !== "DELETE")
@@ -33,7 +34,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
         maxStoredMessages: MAX_STORED_MESSAGES,
         maxContextMessages: MAX_CONTEXT_MESSAGES,
         maxOutputTokens: MAX_OUTPUT_TOKENS,
-        maxConversations: 50,
+        maxConversations: MAX_CONVERSATIONS,
       } });
     }
 
@@ -69,6 +70,12 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
 
     let conversation: Conversation;
     const requestedId = typeof body.conversationId === "string" ? body.conversationId : "";
+    if (!requestedId) {
+      const existingConversations = await scoped.STATE.list({ prefix: PREFIX, limit: MAX_CONVERSATIONS });
+      if (existingConversations.keys.length >= MAX_CONVERSATIONS) {
+        return json({ ok: false, error: "Достигнут лимит в 50 диалогов. Удалите старый диалог, чтобы создать новый." }, 409);
+      }
+    }
     if (requestedId) {
       if (!/^[a-f0-9-]{36}$/i.test(requestedId)) return json({ ok: false, error: "Некорректный ID диалога." }, 400);
       const existing = await scoped.STATE.get<Conversation>(PREFIX + requestedId, "json");
