@@ -606,3 +606,11 @@
 - **CI run:** `44405975138` success — npm ci, JS syntax checks, npm run typecheck, npm test.
 - **Issue #277:** переведена из `agent-blocked` в `agent-review`; не закрыта, так как точный LIVE close contract и полная API-to-Walt integration coverage остаются неподтверждёнными.
 - **Ограничения:** реальных Walt calls, ордеров, переводов, account writes, secret changes и production deploy не было.
+
+
+### 2026-11-19 — Team Lead взял UI release-candidate участок
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:55:00+05:00
+- **Аудит Issue #275:** PR #228 находится на 46 commits позади актуального main; PR #222/#223 — на 48 commits позади. Их прежние CI runs #228 успешны только для старого SHA `b29a5e0`; runs #222/#223 завершились `action_required`. Нельзя вливать эти ветки напрямую.
+- **Текущее состояние UI main:** `app.js` уже выставляет Telegram chrome в тёмный `#0B1018`, но `index.html` по-прежнему объявляет светлую тему (`#f0f0f6`, `color-scheme: light`), а базовые CSS surfaces — светлые. Свежая свечная отрисовка и горизонтальная прокрутка уже присутствуют в main.
+- **Собственная задача Team Lead (начата):** безопасно перенести актуальные dark-surface и mobile leverage modal improvements из устаревшего release PR в свежую ветку от current main, обновить theme metadata, проверить CSS/JS и screenshot CI. Не cherry-pick старой ветки целиком.
