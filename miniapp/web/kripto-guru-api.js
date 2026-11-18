@@ -51,7 +51,7 @@
       try { return new URLSearchParams(String(raw || "").replace(/^#/, "")).get("tgWebAppData") || ""; }
       catch { return ""; }
     };
-    return fromParams(window.location.search) || fromParams(window.location.hash);
+    return fromParams(window.location?.search) || fromParams(window.location?.hash);
   }
 
   async function waitForTelegramInitData(timeoutMs = 3_000) {
