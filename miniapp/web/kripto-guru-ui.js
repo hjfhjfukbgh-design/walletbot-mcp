@@ -342,7 +342,7 @@
   }
   function renderCompanionHistory(){
     const root=$("#kg-ai-history");
-    root.innerHTML=state.companionConversations.map(item=>`<div class="kg-ai-history-entry"><button type="button" class="kg-ai-history-item ${item.id===state.companionId?"is-selected":""}" data-ai-conversation="${esc(item.id)}"><span>${esc(item.title||"Новый диалог")}</span><small>${Number(item.messageCount)||0}</small></button><button type="button" class="kg-ai-history-delete" data-ai-delete="${esc(item.id)}" aria-label="Удалить диалог: ${esc(item.title||"Новый диалог")}" title="Удалить диалог">×</button></div>`).join(""):'<div class="kg-ai-history-empty">Здесь появятся ваши диалоги. Начните новый чат, чтобы сохранить историю.</div>';
+    root.innerHTML=state.companionConversations.length?state.companionConversations.map(item=>`<div class="kg-ai-history-entry"><button type="button" class="kg-ai-history-item ${item.id===state.companionId?"is-selected":""}" data-ai-conversation="${esc(item.id)}"><span>${esc(item.title||"Новый диалог")}</span><small>${Number(item.messageCount)||0}</small></button><button type="button" class="kg-ai-history-delete" data-ai-delete="${esc(item.id)}" aria-label="Удалить диалог: ${esc(item.title||"Новый диалог")}" title="Удалить диалог">×</button></div>`).join(""):'<div class="kg-ai-history-empty">Здесь появятся ваши диалоги. Начните новый чат, чтобы сохранить историю.</div>';
   }
   async function deleteCompanionConversation(id){
     if(!id||state.companionBusy)return;
