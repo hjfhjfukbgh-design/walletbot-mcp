@@ -87,7 +87,11 @@
     const fav=[...state.favorites].map(s=>map.get(s)).filter(Boolean).slice(0,8);
     $("#kg-favorites").innerHTML=fav.length?fav.map(m=>{
       const s=m.symbol||m.market, change=changeOf(m), price=quoteOf(m);
-      return `<button class="kg-favorite" data-open-market="${esc(s)}" type="button"><div class="kg-fav-top"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-badge">${Number(m.maxLeverage||1)}×</span><span class="kg-fav-remove" data-remove-favorite="${esc(s)}" ${state.editFavorites?"":"hidden"}>×</span></div><b>${esc(s)}</b><strong>${priceMoney(price,m)}</strong><small class="${change>=0?"kg-change-up":"kg-change-down"}">${pct(change)}</small><svg class="kg-sparkline" viewBox="0 0 100 22" preserveAspectRatio="none"><path d="M1 15 L14 12 L25 16 L37 8 L49 10 L62 4 L74 12 L86 9 L99 18" fill="none" stroke="${change>=0?"#22ad78":"#e45a65"}" stroke-width="2"/></svg></button>`;
+      const points=Array.isArray(m.sparkline)?m.sparkline.map(Number).filter(Number.isFinite):[];
+      const path=points.length>1?points.map((v,i)=>`${i?"L":"M"}${(i/(points.length-1)*100).toFixed(1)} ${(20-(v-Math.min(...points))/(Math.max(...points)-Math.min(...points)||1)*16).toFixed(1)}`).join(" "):"";
+      const chart=path?`<svg class="kg-sparkline" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true"><path d="${path}" fill="none" stroke="${change>=0?"#32ad70":"#e45a65"}" stroke-width="2"/></svg>`:'<div class="kg-sparkline kg-sparkline-empty" aria-hidden="true"></div>';
+      const changeLabel=Number.isFinite(change)?pct(change):"Изменение н/д";
+      return `<button class="kg-favorite" data-open-market="${esc(s)}" type="button"><div class="kg-fav-top"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-badge">${Number(m.maxLeverage||1)}×</span><span class="kg-fav-remove" data-remove-favorite="${esc(s)}" ${state.editFavorites?"":"hidden"}>×</span></div><b>${esc(s)}</b><strong>${priceMoney(price,m)}</strong><small class="${Number.isFinite(change)?(change>=0?"kg-change-up":"kg-change-down"):"kg-muted"}">${changeLabel}</small>${chart}</button>`;
     }).join(""):'<div class="kg-empty-inline">Добавьте активы в избранное из списка рынка.</div>';
   }
   function renderWalletAssets(){
@@ -95,8 +99,8 @@
     $("#kg-wallet-assets").innerHTML=assets.length?assets.map(a=>{
       const s=a.symbol||a.asset||"";
       const balance=Number(a.valueUsd ?? a.balanceUsd ?? a.usdValue);
-      return `<div class="kg-asset-row" data-open-market="${esc(s)}"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-row-copy"><b>${esc(a.name||symbolName(s))}</b><small>${esc(s)}</small></span><strong class="kg-row-value">${Number.isFinite(balance)?money(balance):"—"}</strong></div>`;
-    }).join(""):'<div class="kg-empty-inline">Активы появятся после пополнения демо-счёта.</div>';
+      return `<div class="kg-asset-row" ${s?`data-open-market="${esc(s)}"`:""}><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-row-copy"><b>${esc(a.name||symbolName(s))}</b><small>${esc(s)}</small></span><strong class="kg-wallet-row-value">${Number.isFinite(balance)?money(balance):"—"}</strong></div>`;
+    }).join(""):'<div class="kg-empty-inline">Активы появятся здесь после зачисления на счёт.</div>';
   }
   function renderRecent(){
     const map=marketMap(), recent=state.recent.map(s=>map.get(s)).filter(Boolean);
@@ -184,6 +188,10 @@
       state.wallet=unwrap(await invoke("wallet.get"),"wallet");
       $("#kg-wallet-balance").textContent=money(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
       $("#kg-wallet-currency-value").textContent=money(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
+      const walletAssets=listOf(state.wallet,["assets","balances"]);
+      const cryptoValues=walletAssets.map(asset=>Number(asset.valueUsd ?? asset.balanceUsd ?? asset.usdValue)).filter(Number.isFinite);
+      const totalNode=$("#kg-wallet-crypto-total");
+      if(totalNode)totalNode.textContent=cryptoValues.length?fmt(cryptoValues.reduce((sum,value)=>sum+value,0))+" $":"—";
       renderWalletAssets();
       const pos=listOf(state.wallet,["positions"]);
       $("#kg-position-count").textContent=String(pos.length);
@@ -589,6 +597,8 @@
     $("#kg-recent-clear").addEventListener("click",()=>{state.recent=[];try{localStorage.removeItem("kg:recent:v1");}catch{}renderRecent();});
     $$("[data-sort]").forEach(b=>b.addEventListener("click",()=>{state.sort=b.dataset.sort;$$("[data-sort]").forEach(x=>x.classList.toggle("is-selected",x===b));renderTopDay(currentMarkets());}));
     document.addEventListener("click",event=>{
+      const historyOpen=event.target.closest("[data-open-history]");
+      if(historyOpen){setScreen("income");loadHistory();return;}
       const remove=event.target.closest("[data-remove-favorite]");
       if(remove){event.preventDefault();event.stopPropagation();state.favorites.delete(remove.dataset.removeFavorite);try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}renderFavorites();return;}
       const open=event.target.closest("[data-open-market]");

@@ -692,45 +692,6 @@ button:disabled{cursor:not-allowed;opacity:.5}
 @keyframes kg-record-pulse{50%{box-shadow:0 0 0 5px rgba(211,59,75,.12)}}
 
 
-/* Kripto Guru dark surface overrides */
-.kg-screen.is-active{background:#0b1018}
-.kg-subscreen{background:#0b1018;color:#eef3fa}
-html,body{background:#0b1018;color:#eef3fa}
-.kg-balance-card,.kg-favorite,.kg-list,.kg-asset-row,.kg-discover-card,.kg-search-toggle,.kg-search-close,#kg-market-search,.kg-recent-chip,.kg-ipo-card,.kg-category,.kg-top-item,.kg-market-row,.kg-unavailable-panel,.kg-empty-inline,.kg-empty-card,.kg-position,.kg-close-position,.kg-bonus-card,.kg-settings-note,.kg-back,.kg-badge,.kg-asset-large-icon,.kg-chart-card,.kg-timeframes,.kg-asset-actions,.kg-modal-card,.kg-asset-about,.kg-ai-history-item,.kg-ai-messages,.kg-ai-form,.kg-ai-menu,.kg-ai-new-chat,.kg-ai-limits,.kg-ai-welcome,.kg-gemini-icon-button,.kg-gemini-tools button{background:#141c27;color:#eef3fa;border-color:rgba(173,190,211,.12)}
-.kg-nav{background:rgba(20,28,39,.88);border-color:rgba(173,190,211,.14)}
-.kg-muted,.kg-page-title p,.kg-card-copy small,.kg-row-copy small,.kg-favorite small,.kg-unavailable-row>strong,.kg-discover-icon,.kg-chevron,.kg-search-toggle,.kg-search-close,#kg-market-search,.kg-market-copy small,.kg-unavailable-icon,.kg-unavailable-panel p,.kg-empty-inline,.kg-empty-card,.kg-position-meta,.kg-history-copy small,.kg-bonus-card p,.kg-settings-note,.kg-nav button,.kg-subscreen .kg-asset-identity small,.kg-detail-row span,.kg-ticket-volume,.kg-ticket-available,.kg-ticket-preview,#kg-lev-warning,.kg-ai-head p,.kg-ai-history-item small,.kg-ai-disclaimer,.kg-ai-menu-head small,.kg-ai-limit-row,.kg-gemini-model,#kg-companion-screen .kg-ai-welcome>p,.kg-gemini-tools button,.kg-gemini-composer-icon,#kg-companion-screen .kg-ai-disclaimer{color:#94a3b8}
-.kg-primary,.kg-ai-new-chat,#kg-companion-screen .kg-ai-form button{background:#3989f4;color:#fff}
-.kg-primary{box-shadow:0 4px 16px rgba(57,137,244,.28)}
-.kg-primary:hover{opacity:.94}
-.kg-currency-icon{background:rgba(25,166,107,.15);color:#19a66b}
-.kg-asset-icon{background:#1b2634;color:#94a3b8}
-.kg-discover-icon.is-green{background:rgba(25,166,107,.15);color:#19a66b}
-.kg-ipo-badge,.kg-category-icon.is-blue{background:rgba(57,137,244,.18);color:#3989f4}
-.kg-category.is-selected{border-color:#3989f4;background:#1b2634}
-.kg-category-icon.is-orange{background:rgba(233,151,25,.18);color:#e99719}
-.kg-category-icon.is-purple{background:rgba(146,100,213,.18);color:#9264d5}
-.kg-category-icon.is-teal{background:rgba(35,168,141,.18);color:#23a88d}
-.kg-sort{background:#1b2634}
-.kg-sort button.is-selected,.kg-timeframes button.is-selected{background:#141c27;color:#3989f4}
-.kg-fav-remove,.kg-close-position{background:rgba(226,83,96,.18);color:#e25360}
-.kg-nav button.is-active{background:rgba(57,137,244,.18);color:#3989f4}
-.kg-ticket{background:#141c27;color:#eef3fa}
-.kg-ticket-close,.kg-ticket-heading,.kg-ticket-actions .kg-badge,.kg-leverage-value button{background:#1b2634;color:#eef3fa}
-.kg-ticket-amount input{color:#eef3fa;caret-color:#3989f4}
-.kg-toast{background:#1b2634;color:#eef3fa}
-.kg-ai-message.is-user>div{background:#3989f4;color:#fff}
-.kg-ai-message.is-assistant>div{background:#1b2634;color:#eef3fa}
-.kg-gemini-home{background:radial-gradient(ellipse 72% 35% at 50% 43%,rgba(57,137,244,.14),transparent 72%),#0b1018}
-.kg-gemini-icon-button{background:rgba(27,38,52,.7);color:#eef3fa;border-color:rgba(173,190,211,.16)}
-.kg-gemini-tools button{background:rgba(27,38,52,.65);color:#eef3fa}
-#kg-companion-screen .kg-ai-form{background:rgba(20,28,39,.82);border-color:rgba(173,190,211,.18)}
-#kg-ai-send{background:#3989f4;color:#fff}
-.kg-ai-menu{background:#141c27;color:#eef3fa}
-.kg-ai-menu-head button{background:#1b2634;color:#eef3fa}
-#kg-companion-screen .kg-ai-message.is-user>div{background:rgba(57,137,244,.25);color:#eef3fa}
-
-
-
 /* Mobile leverage modal: bounded scroll area, safe-area spacing and reliable touch targets. */
 .kg-modal{
   align-items:center;
@@ -763,3 +724,245 @@ html,body{background:#0b1018;color:#eef3fa}
   .kg-leverage-value{margin:10px 0}
 }
 
+
+/* Walt wallet visual parity — presentation only. */
+:root{--kg-bg:#f0eff5;--kg-card:#fff;--kg-ink:#090a0d;--kg-muted:#8b8b94;--kg-line:#dedee4;--kg-blue:#2788ef;--kg-green:#31ae70;--kg-red:#ef5149;--kg-shadow:0 2px 10px rgba(20,24,40,.035)}
+html,body{background:var(--kg-bg);color:var(--kg-ink)}
+body{padding-bottom:calc(94px + var(--kg-safe-bottom))}
+#kg-main{max-width:560px;padding:10px 16px calc(116px + var(--kg-safe-bottom))}
+.kg-wallet-topline{display:flex;align-items:center;gap:12px;min-height:58px;margin:0 0 22px}
+.kg-wallet-avatar{display:grid;place-items:center;width:43px;height:43px;border:4px solid #fff;border-radius:50%;background:linear-gradient(145deg,#dbe8f8,#8ba9cf);color:#fff;font-size:12px;font-weight:800;box-shadow:0 2px 9px #00000012}
+.kg-wallet-bonus{margin-left:auto;min-height:44px;padding:0 19px;border:0;border-radius:999px;background:#fff;color:#090a0d;font-size:15px;font-weight:750;box-shadow:0 2px 12px #1b24400c}
+.kg-wallet-portfolio{display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:50%;background:#fff;color:#24252b}
+.kg-wallet-portfolio svg{width:25px;height:25px;fill:currentColor;stroke:currentColor;stroke-width:1.2}
+.kg-wallet-hero{display:flex;align-items:center;flex-direction:column;margin:0 0 58px;padding:0;text-align:center}
+.kg-wallet-hero>small{font-size:14px;font-weight:700;color:#15161a}
+.kg-wallet-hero>strong{margin-top:9px;color:#050608;font-size:clamp(42px,13vw,54px);line-height:1.08;font-weight:760;letter-spacing:-2px;font-variant-numeric:tabular-nums}
+.kg-wallet-performance{display:flex;align-items:center;gap:8px;margin-top:5px;color:#ef5149;font-size:14px;font-weight:700}
+.kg-wallet-performance span{padding:3px 8px;border-radius:999px;background:#f9dfe1}
+.kg-wallet-performance small{color:#96969d;font-size:12px;font-weight:600}
+.kg-wallet-quick-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 16px}
+.kg-wallet-quick-actions button{display:flex;align-items:center;flex-direction:column;justify-content:center;gap:7px;min-width:0;min-height:77px;padding:8px 3px;border:0;border-radius:18px;background:transparent;color:var(--kg-blue)}
+.kg-wallet-action-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#fff;color:var(--kg-blue)}
+.kg-wallet-action-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.kg-wallet-quick-actions small{font-size:13px;font-weight:650;white-space:nowrap}
+.kg-wallet-currency{display:flex;align-items:center;gap:11px;width:100%;min-height:61px;padding:10px 14px;border:0;border-radius:24px;background:#fff;color:var(--kg-ink);text-align:left}
+.kg-wallet-currency .kg-currency-icon{flex-basis:39px;width:39px;height:39px;border-radius:50%;background:#36bd91;color:#fff;font-size:22px}
+.kg-wallet-currency .kg-card-copy b{font-size:16px}
+.kg-wallet-currency .kg-card-copy small{font-size:12px}
+.kg-wallet-currency-value{margin-left:auto;font-size:16px;font-weight:500;font-variant-numeric:tabular-nums}
+.kg-wallet-currency .kg-chevron{font-size:23px}
+.kg-section-head{margin:28px 2px 11px;min-height:22px}
+.kg-section-head h2{font-size:16px;font-weight:720;letter-spacing:-.3px}
+.kg-section-head .kg-muted{font-size:13px}
+.kg-link{font-size:14px;font-weight:600}
+.kg-favorites{gap:10px;padding-bottom:2px}
+.kg-favorite{flex:0 0 158px;min-width:158px;min-height:164px;padding:12px;border-radius:25px;background:#fff;box-shadow:none}
+.kg-fav-top .kg-asset-icon{width:30px;height:30px}
+.kg-favorite b{margin-top:8px;font-size:13px}
+.kg-favorite strong{margin-top:6px;font-size:20px}
+.kg-favorite small{font-size:11px}
+.kg-sparkline{height:36px;margin-top:8px}
+.kg-list{border-radius:24px;background:#fff;box-shadow:none}
+.kg-asset-row{min-height:72px;gap:12px;padding:11px 15px;border-bottom:1px solid #dedee4;background:#fff}
+.kg-asset-row:last-child{border-bottom:0}
+.kg-asset-icon{flex-basis:40px;width:40px;height:40px;font-size:18px}
+.kg-row-copy{gap:3px}
+.kg-row-copy b{font-size:16px;font-weight:650}
+.kg-row-copy small{font-size:12px}
+.kg-wallet-row-value{font-size:16px;font-weight:500;font-variant-numeric:tabular-nums}
+.kg-brand-apple{background:#17191d;color:#fff}
+.kg-brand-defi{background:#102d58;color:#fff}
+.kg-brand-grok{background:#08090b;color:#fff}
+.kg-discover-list{gap:0;overflow:hidden;border-radius:24px;background:#fff}
+.kg-discover-card{min-height:78px;padding:12px 15px;border-radius:0;background:#fff;box-shadow:none}
+.kg-discover-card+.kg-discover-card{border-top:1px solid #dedee4}
+.kg-discover-icon{flex-basis:40px;width:40px;height:40px;border-radius:50%;font-size:20px}
+.kg-discover-ai{background:#e6f0ff;color:#438ff4}
+.kg-discover-card .kg-row-copy b{font-size:15px}
+.kg-discover-card .kg-row-copy small{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kg-wallet-history{margin-top:24px}
+.kg-history-symbol{background:#969ba6;color:#fff}
+.kg-nav{width:min(270px,calc(100vw - 36px));padding:6px;border:1px solid rgba(255,255,255,.88);border-radius:999px;background:rgba(255,255,255,.88);box-shadow:0 8px 28px rgba(25,30,48,.15);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4)}
+.kg-nav button{min-height:48px;color:#303136}
+.kg-nav button svg{width:21px;height:21px;stroke-width:2}
+.kg-nav button small{font-size:10px}
+.kg-nav button.is-active{background:#e8e9ee;color:#2788ef;box-shadow:none}
+.kg-nav button.is-active svg{stroke:#2788ef}
+.kg-screen.is-active{background:transparent}
+.kg-empty-inline,.kg-empty-card{background:#fff;color:var(--kg-muted)}
+.kg-badge{background:#f3f3f6;color:#85858e}
+@media(max-width:380px){
+ #kg-main{padding-left:14px;padding-right:14px}
+ .kg-wallet-hero{margin-bottom:43px}
+ .kg-wallet-quick-actions small{font-size:11px}
+ .kg-favorite{flex-basis:146px;min-width:146px}
+}
+
+/* Walt parity pass 2: correct iPhone proportions and density. */
+#kg-main{padding-left:15px;padding-right:15px;padding-bottom:calc(190px + var(--kg-safe-bottom))}
+#kg-wallet-screen .kg-wallet-topline{min-height:48px;margin-bottom:20px}
+#kg-wallet-screen .kg-wallet-avatar{width:40px;height:40px}
+#kg-wallet-screen .kg-wallet-bonus{min-height:40px;padding:0 16px;font-size:14px;font-weight:700}
+#kg-wallet-screen .kg-wallet-portfolio{width:40px;height:40px}
+#kg-wallet-screen .kg-wallet-hero{margin-bottom:48px}
+#kg-wallet-screen .kg-wallet-hero>small{font-size:14px}
+#kg-wallet-screen .kg-wallet-hero>strong{font-size:clamp(36px,10.5vw,43px);line-height:1.08;letter-spacing:-1.5px}
+#kg-wallet-screen .kg-wallet-performance{font-size:13px;gap:7px}
+#kg-wallet-screen .kg-wallet-performance small{font-size:11px}
+#kg-wallet-screen .kg-wallet-quick-actions{gap:5px;margin-bottom:14px}
+#kg-wallet-screen .kg-wallet-quick-actions button{min-height:70px;gap:6px}
+#kg-wallet-screen .kg-wallet-action-icon{width:38px;height:38px}
+#kg-wallet-screen .kg-wallet-quick-actions small{font-size:12px;font-weight:650}
+#kg-wallet-screen .kg-wallet-currency{min-height:58px;padding:9px 13px;border-radius:22px}
+#kg-wallet-screen .kg-wallet-currency .kg-currency-icon{flex-basis:36px;width:36px;height:36px;font-size:20px}
+#kg-wallet-screen .kg-wallet-currency .kg-card-copy b{font-size:15px;font-weight:650}
+#kg-wallet-screen .kg-wallet-currency .kg-card-copy small{font-size:11px}
+#kg-wallet-screen .kg-wallet-currency-value{font-size:15px}
+#kg-wallet-screen .kg-section-head{margin:24px 2px 9px;min-height:20px}
+#kg-wallet-screen .kg-section-head h2{font-size:14px;line-height:1.2;font-weight:700;letter-spacing:-.2px}
+#kg-wallet-screen .kg-section-head .kg-muted{font-size:12px}
+#kg-wallet-screen .kg-link{font-size:13px}
+#kg-wallet-screen .kg-favorites{gap:9px}
+#kg-wallet-screen .kg-favorite{flex:0 0 136px;min-width:136px;min-height:140px;padding:10px;border-radius:23px}
+#kg-wallet-screen .kg-favorite b{font-size:12px;margin-top:7px}
+#kg-wallet-screen .kg-favorite strong{font-size:17px;letter-spacing:-.3px}
+#kg-wallet-screen .kg-favorite small{font-size:10px}
+#kg-wallet-screen .kg-sparkline{height:30px;margin-top:6px}
+#kg-wallet-screen .kg-list{border-radius:22px}
+#kg-wallet-screen .kg-asset-row{min-height:58px;padding:8px 13px;gap:10px}
+#kg-wallet-screen .kg-asset-icon{flex-basis:36px;width:36px;height:36px;font-size:16px}
+#kg-wallet-screen .kg-row-copy b{font-size:15px;font-weight:620}
+#kg-wallet-screen .kg-row-copy small{font-size:11px}
+#kg-wallet-screen .kg-wallet-row-value{font-size:15px}
+#kg-wallet-screen .kg-discover-list{border-radius:22px}
+#kg-wallet-screen .kg-discover-card{min-height:68px;padding:10px 13px}
+#kg-wallet-screen .kg-discover-icon{flex-basis:36px;width:36px;height:36px}
+#kg-wallet-screen .kg-discover-card .kg-row-copy b{font-size:14px}
+#kg-wallet-screen .kg-discover-card .kg-row-copy small{font-size:11px}
+#kg-wallet-screen .kg-wallet-history{margin-top:20px}
+#kg-nav{width:min(270px,calc(100vw - 36px));padding:5px}
+#kg-nav button{min-height:46px;gap:2px}
+#kg-nav button span{font-size:18px}
+#kg-nav button small{font-size:10px}
+@media(max-width:380px){
+ #kg-main{padding-left:13px;padding-right:13px}
+ #kg-wallet-screen .kg-favorite{flex-basis:128px;min-width:128px}
+ #kg-wallet-screen .kg-wallet-hero{margin-bottom:40px}
+}
+
+/* Walt parity pass 3: match the reference wallet action tiles and typography. */
+#kg-wallet-screen .kg-wallet-hero{margin-bottom:36px}
+#kg-wallet-screen .kg-wallet-hero>strong{font-size:clamp(40px,11.4vw,47px);font-weight:650;letter-spacing:-1.8px}
+#kg-wallet-screen .kg-wallet-hero>small{font-size:14px;font-weight:600;letter-spacing:0}
+#kg-wallet-screen .kg-wallet-performance{font-size:14px;font-weight:600}
+#kg-wallet-screen .kg-wallet-performance span{padding:3px 9px}
+#kg-wallet-screen .kg-wallet-quick-actions{gap:7px;margin:0 0 14px}
+#kg-wallet-screen .kg-wallet-quick-actions button{min-height:74px;padding:7px 2px 6px;gap:5px;border-radius:18px;background:#fff;color:#2788ef;box-shadow:0 2px 10px rgba(28,34,52,.035)}
+#kg-wallet-screen .kg-wallet-action-icon{width:36px;height:36px;background:#1688e9;color:#fff;box-shadow:none}
+#kg-wallet-screen .kg-wallet-action-icon svg{width:20px;height:20px;stroke-width:2}
+#kg-wallet-screen .kg-wallet-quick-actions small{font-size:12px;font-weight:600;color:#2788ef;letter-spacing:-.2px}
+#kg-wallet-screen .kg-wallet-currency .kg-card-copy b{font-size:15px;font-weight:550}
+#kg-wallet-screen .kg-wallet-currency .kg-card-copy small{font-size:12px}
+#kg-wallet-screen .kg-wallet-currency-value{font-size:16px;font-weight:500}
+#kg-wallet-screen .kg-section-head{margin-top:23px;margin-bottom:9px}
+#kg-wallet-screen .kg-section-head h2{font-size:15px;font-weight:600;letter-spacing:-.3px}
+#kg-wallet-screen .kg-section-head .kg-muted{font-size:13px;font-weight:450}
+#kg-wallet-screen .kg-link{font-size:14px;font-weight:550}
+#kg-wallet-screen .kg-favorite{flex-basis:150px;min-width:150px;min-height:150px;padding:12px;border-radius:25px}
+#kg-wallet-screen .kg-favorite b{font-size:13px;font-weight:600}
+#kg-wallet-screen .kg-favorite strong{font-size:18px;font-weight:550;letter-spacing:-.4px}
+#kg-wallet-screen .kg-favorite small{font-size:11px}
+#kg-wallet-screen .kg-asset-row{min-height:61px;padding:9px 13px}
+#kg-wallet-screen .kg-row-copy b{font-size:16px;font-weight:550}
+#kg-wallet-screen .kg-row-copy small{font-size:12px}
+#kg-wallet-screen .kg-wallet-row-value{font-size:16px;font-weight:450}
+#kg-wallet-screen .kg-discover-card .kg-row-copy b{font-size:15px;font-weight:550}
+#kg-wallet-screen .kg-discover-card .kg-row-copy small{font-size:12px}
+#kg-nav{width:min(270px,calc(100vw - 36px));padding:5px;background:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.88);box-shadow:0 8px 28px rgba(25,30,48,.13)}
+#kg-nav button{min-height:48px;color:#34353a}
+#kg-nav button.is-active{background:#e8e9ee;color:#2788ef;box-shadow:none}
+#kg-nav button small{font-size:11px;font-weight:550}
+@media(max-width:380px){
+ #kg-wallet-screen .kg-wallet-hero{margin-bottom:31px}
+ #kg-wallet-screen .kg-wallet-quick-actions button{min-height:70px}
+ #kg-wallet-screen .kg-wallet-quick-actions small{font-size:11px}
+ #kg-wallet-screen .kg-favorite{flex-basis:142px;min-width:142px}
+}
+
+/* Walt parity pass 4 — consistent light surfaces across wallet, market and AI. */
+:root{--kg-bg:#f0eff5;--kg-card:#fff;--kg-ink:#111216;--kg-muted:#8d8d96;--kg-line:#dedee5;--kg-blue:#2788ef;--kg-green:#32ad70;--kg-red:#ed5149;--kg-shadow:0 2px 12px rgba(24,28,44,.045)}
+html,body{width:100%;overflow-x:hidden;background:var(--kg-bg);color:var(--kg-ink)}
+button{ -webkit-tap-highlight-color:transparent }
+#kg-main{width:100%;max-width:560px;padding:10px 16px calc(150px + var(--kg-safe-bottom))}
+.kg-page-title{margin:10px 3px 18px}
+.kg-page-title h1{font-size:24px;font-weight:720;letter-spacing:-.7px}
+.kg-page-title p{font-size:13px;line-height:1.4}
+.kg-section-head{margin:25px 2px 10px;min-height:22px}
+.kg-section-head h2{font-size:16px;font-weight:650;letter-spacing:-.35px}
+.kg-muted{font-size:12px}
+.kg-link{font-size:14px}
+.kg-search-row{gap:8px;margin:10px 0 14px}
+.kg-search-toggle,.kg-search-close,#kg-market-search{min-height:42px;border:1px solid var(--kg-line);border-radius:14px;background:#fff;color:var(--kg-ink);font-size:14px}
+#kg-market-search{padding:0 14px}
+.kg-category{min-height:38px;padding:8px 14px;border:1px solid var(--kg-line);border-radius:999px;background:#fff;color:#5d6069;font-size:13px;font-weight:600}
+.kg-category.is-selected{border-color:#d9e9ff;background:#eaf3ff;color:var(--kg-blue)}
+.kg-market-list,.kg-market-group{overflow:hidden;border:0;border-radius:22px;background:#fff;box-shadow:var(--kg-shadow)}
+.kg-market-row{min-height:66px;gap:12px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--kg-line)}
+.kg-market-copy b{font-size:15px;font-weight:600}
+.kg-market-copy small{font-size:12px}
+.kg-market-price{font-size:15px;font-weight:550}
+.kg-market-price small{font-size:12px}
+.kg-asset-large-icon{width:48px;height:48px;border-radius:50%}
+.kg-chart-card{overflow:hidden;border:1px solid var(--kg-line);border-radius:22px;background:#fff;box-shadow:var(--kg-shadow)}
+.kg-timeframes{display:flex;gap:5px;padding:6px;border-radius:999px;background:#fff}
+.kg-timeframes button{min-width:36px;min-height:32px;border-radius:999px;background:transparent;color:#777b85;font-size:12px}
+.kg-timeframes button.is-selected{background:#eaf3ff;color:var(--kg-blue)}
+.kg-asset-actions{gap:8px}
+.kg-asset-actions button{min-height:42px;border-radius:14px;font-size:13px;font-weight:650}
+.kg-modal-card{border:1px solid var(--kg-line);border-radius:25px;background:#fff;box-shadow:0 16px 50px rgba(16,22,36,.18)}
+.kg-ticket{background:#f0eff5;color:var(--kg-ink)}
+.kg-ticket-close,.kg-ticket-heading,.kg-ticket-actions .kg-badge,.kg-leverage-value button{background:#fff;color:var(--kg-ink)}
+.kg-ticket-amount input{color:var(--kg-ink)}
+.kg-position,.kg-history-row,.kg-bonus-card,.kg-settings-note{border:1px solid var(--kg-line);border-radius:19px;background:#fff;box-shadow:var(--kg-shadow)}
+.kg-ai-head{background:transparent}
+.kg-ai-messages{border:1px solid var(--kg-line);border-radius:22px;background:#fff;box-shadow:var(--kg-shadow)}
+.kg-ai-message.is-user>div{background:#2788ef;color:#fff}
+.kg-ai-message.is-assistant>div{background:#f1f2f6;color:var(--kg-ink)}
+.kg-ai-form{border:1px solid var(--kg-line);border-radius:24px;background:rgba(255,255,255,.94);box-shadow:0 5px 22px rgba(24,28,44,.07)}
+.kg-ai-form textarea{color:var(--kg-ink)}
+.kg-ai-menu,.kg-ai-history-item,.kg-ai-limits,.kg-ai-welcome,.kg-gemini-icon-button,.kg-gemini-tools button{border-color:var(--kg-line);background:#fff;color:var(--kg-ink)}
+.kg-gemini-home{background:radial-gradient(ellipse 72% 35% at 50% 43%,rgba(39,136,239,.09),transparent 72%),var(--kg-bg)}
+.kg-nav{width:min(270px,calc(100vw - 40px));padding:5px;border:1px solid rgba(255,255,255,.94);background:rgba(255,255,255,.91);box-shadow:0 8px 28px rgba(25,30,48,.13);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4)}
+.kg-nav button{min-height:47px;color:#33343a}
+.kg-nav button small{font-size:11px;font-weight:550}
+.kg-nav button.is-active{background:#e8e9ee;color:#2788ef;box-shadow:none}
+.kg-nav button.is-active svg{stroke:#2788ef}
+.kg-toast{border:1px solid rgba(0,0,0,.05);border-radius:16px;background:#22242a;color:#fff;box-shadow:0 8px 26px rgba(0,0,0,.18)}
+@media(max-width:380px){
+ #kg-main{padding-left:13px;padding-right:13px}
+ .kg-market-row{min-height:61px;padding:9px 11px}
+ .kg-page-title h1{font-size:22px}
+ .kg-nav{width:min(258px,calc(100vw - 42px))}
+}
+
+/* Walt wallet brand marks and asset rows. */
+#kg-wallet-screen .kg-brand-apple{background:#17191d;color:#fff}
+#kg-wallet-screen .kg-brand-defi{background:#0d2e60;color:#fff}
+#kg-wallet-screen .kg-brand-grok{background:#08090b;color:#fff}
+#kg-wallet-screen .kg-brand-apple svg{width:22px;height:22px}
+#kg-wallet-screen .kg-brand-defi svg{width:21px;height:21px}
+#kg-wallet-screen .kg-brand-grok svg{width:22px;height:22px}
+#kg-wallet-screen .kg-wallet-currency .kg-card-copy small{letter-spacing:.1px}
+#kg-wallet-screen .kg-wallet-currency{box-shadow:0 2px 10px rgba(20,24,40,.025)}
+#kg-wallet-screen .kg-favorite-static{cursor:default}
+#kg-wallet-screen .kg-asset-row[data-open-market]{cursor:pointer}
+
+/* Final wallet polish: no synthetic chart, native button reset for history row. */
+#kg-wallet-screen .kg-sparkline-empty{height:36px;margin-top:8px;border-bottom:1px solid #e8e8ed;opacity:.65}
+#kg-wallet-screen .kg-history-open{width:100%;font:inherit;color:inherit;text-align:left;cursor:pointer}
+#kg-wallet-screen .kg-history-open:active{background:#f7f8fb}
+#kg-wallet-screen .kg-wallet-equities .kg-asset-row,
+#kg-wallet-screen .kg-wallet-defi .kg-asset-row{min-height:68px}
+#kg-wallet-screen .kg-wallet-row-value{margin-left:auto;white-space:nowrap}
+#kg-wallet-screen .kg-discover-card:disabled{opacity:.65}
