@@ -689,3 +689,8 @@
 - **Playwright harness:** добавлены mock productMode.get/set и сценарий переключения AI/DEMO, проверки статуса и блокировки LIVE.
 - **CI:** deploy run `44408863535` выполняет npm ci, JS syntax и typecheck success; npm test ещё выполняется. Screenshot run `44408863557` выполняет Playwright capture.
 - **Safety:** selector не запускает AI engine и не создаёт виртуальные/реальные позиции; LIVE не включается.
+
+### 2026-11-19 — UI screenshot review and paper-signal CI follow-up (started)
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:02:00+05:00
+- **Начато:** проверка финального screenshot artifact PR #337 и CI для PR #338. Цель — выявить mobile overflow/visual regressions и проверить новый DEMO-only paper signal. Никакого merge/deploy или LIVE execution без проверки.
