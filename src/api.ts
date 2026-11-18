@@ -599,13 +599,14 @@ async function priceView(env: Env, market: string, leverage: number) {
   // The Mini App always displays the same verified public DEMO quote source.
   const contract = findContract(await publicContracts(), market);
   if (!contract) throw new Error(`рынок ${market} не найден`);
+  if (!Number.isFinite(contract.maxLeverage) || contract.maxLeverage < 1) throw new Error("Для контракта не получен допустимый лимит плеча.");
   const price = await publicMid(market);
-  const lev = Math.max(1, Math.min(Math.trunc(leverage) || 1, contract.maxLeverage, riskLimits(env).maxLeverage));
+  const lev = Math.max(1, Math.min(Math.trunc(leverage) || 1, contract.maxLeverage));
   return {
     market: market.toUpperCase(),
     price,
     leverage: lev,
-    maxDemoLeverage: riskLimits(env).maxLeverage,
+    maxDemoLeverage: contract.maxLeverage,
     minMargin: Number(minMargin(contract, price * 1.02, lev).toFixed(2)),
     suggestion: { low: Number((price * 0.94).toFixed(contract.priceDecimals)), high: Number((price * 1.02).toFixed(contract.priceDecimals)) },
   };
