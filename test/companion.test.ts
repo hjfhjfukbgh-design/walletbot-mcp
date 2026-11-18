@@ -132,7 +132,7 @@ describe("AI Companion API", () => {
     const seed: Record<string, string> = {};
     for (let i = 0; i < 50; i++) {
       const id = `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`;
-      seed[`companion:conversation:${id}`] = JSON.stringify({
+      seed[`tenant:111:companion:conversation:${id}`] = JSON.stringify({
         id, title: "Старый диалог", createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(), messages: [],
       });
