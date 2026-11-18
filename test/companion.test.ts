@@ -100,6 +100,43 @@ describe("AI Companion API", () => {
     expect(await otherHistory.json()).toMatchObject({ conversations: [] });
   });
 
+  it("sends image and audio attachments to Gemini as inline media", async () => {
+    const e = isolatedEnv();
+    let sentBody: any;
+    vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      sentBody = JSON.parse(String(init?.body));
+      return Response.json({ candidates: [{ content: { parts: [{ text: "Файл получен." }] } }] });
+    });
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Посмотри вложения", attachments: [
+        { name: "photo.png", mimeType: "image/png", dataBase64: "aGVsbG8=" },
+        { name: "voice.webm", mimeType: "audio/webm", dataBase64: "d29ybGQ=" },
+      ] }),
+    });
+    expect(response.status).toBe(200);
+    const parts = sentBody.contents.at(-1).parts;
+    expect(parts).toContainEqual({ inlineData: { mimeType: "image/png", data: "aGVsbG8=" } });
+    expect(parts).toContainEqual({ inlineData: { mimeType: "audio/webm", data: "d29ybGQ=" } });
+    const result = await response.json() as { conversation: { messages: Array<{ content: string }> } };
+    expect(result.conversation.messages[0].content).toContain("photo.png");
+    expect(result.conversation.messages[0].content).toContain("voice.webm");
+  });
+
+  it("rejects unsupported attachment types before calling Gemini", async () => {
+    const e = isolatedEnv();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Файл", attachments: [
+        { name: "payload.exe", mimeType: "application/octet-stream", dataBase64: "aGVsbG8=" },
+      ] }),
+    });
+    expect(response.status).toBe(415);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("does not let another Telegram user read or delete a conversation", async () => {
     const e = isolatedEnv();
     vi.stubGlobal("fetch", async () => Response.json({ candidates: [{ content: { parts: [{ text: "Ответ" }] } }] }));
