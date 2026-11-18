@@ -190,7 +190,7 @@ try{
     await page.locator("#kg-ai-input").focus();
     await page.waitForFunction(()=>document.querySelector("#kg-companion-screen").classList.contains("kg-composer-expanded"));
     await page.evaluate(()=>document.querySelector("#kg-companion-screen").classList.add("kg-keyboard-open"));
-    if(getComputedStyle(await page.locator(".kg-gemini-tools").elementHandle()).display!=="none")throw new Error("Gemini tool shortcuts must hide while the keyboard is open");
+    if(await page.locator(".kg-gemini-tools").evaluate(el=>getComputedStyle(el).display)!=="none")throw new Error("Gemini tool shortcuts must hide while the keyboard is open");
     if(await page.locator("#kg-nav").evaluate(el=>getComputedStyle(el).display)!=="none")throw new Error("bottom navigation must stay hidden while the keyboard is open");
     await page.screenshot({path:`clean-companion-keyboard-${device.width}x${device.height}.png`,fullPage:false});
     await page.evaluate(()=>{document.querySelector("#kg-companion-screen").classList.remove("kg-keyboard-open");document.querySelector("#kg-ai-input").blur();});
