@@ -148,7 +148,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     if (!answer) return json({ ok: false, error: "ИИ вернул пустой ответ. Попробуйте переформулировать вопрос." }, 502);
 
     const now = new Date().toISOString();
-    const attachmentLabel = attachments.length ? "\\n[Вложения: " + attachments.map(file => file.name).join(", ") + "]" : "";
+    const attachmentLabel = attachments.length ? "\n[Вложения: " + attachments.map(file => file.name).join(", ") + "]" : "";
     const updatedMessages: ChatMessage[] = [...conversation.messages, { role: "user", content: userContent + attachmentLabel, createdAt: now }, { role: "assistant", content: answer, createdAt: now }];
     conversation.messages = updatedMessages.slice(-MAX_STORED_MESSAGES);
     conversation.updatedAt = now;
