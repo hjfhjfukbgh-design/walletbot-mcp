@@ -577,3 +577,12 @@
 - **Issue #332 (Team A / SECURITY)** queued to verify the exact Walt LIVE close operation contract from repository evidence only; no real Walt calls or tool discovery calls allowed.
 - **Issue #330 (Team C)** queued for Companion attachment count/size validation tests.
 - **Safety:** no real Walt calls, no real orders/closes, no account/position mutations, no Gemini calls, no production deploy.
+
+
+### 2026-11-19 — продолжение интенсивного цикла (контрольная точка)
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:49:00+05:00
+- **Актуальное состояние очереди:** #263/#266/#254 находятся в `agent-review`, #275/#277/#332 — `agent-blocked`, #290 — `agent-review`, #330 — `agent-review`. Нельзя считать их исполненными без review артефактов.
+- **Проверка fan-out:** последний run `44404843368` завершился success на этапе claim, но matrix worker job skipped — фактических исполнителей в этом run не было. Ранее run `44401776151` запускал Team B (report-only handoff) и Team A завершился ошибкой на генерации патча. Это подтверждает, что dispatcher/worker throughput нестабилен.
+- **Собственная задача Team Lead:** провести review актуального implementation PR #335 для Issue #330, включая diff, проверки и регрессии Companion attachment validation; отдельно проверить CI/typecheck и безопасность вложений.
+- **Не выполнено:** никакой merge/deploy и никаких реальных финансовых операций.
