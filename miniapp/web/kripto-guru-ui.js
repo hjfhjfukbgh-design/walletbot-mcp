@@ -4,7 +4,7 @@
   const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
   const tg = window.Telegram?.WebApp || null;
   const state = {
-    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, currencyMode:"RUB", productMode:"demo", aiPaperStatus:null, aiPaperBusy:false, aiPaperPendingTransfer:(()=>{try{const pending=JSON.parse(localStorage.getItem("kg:ai-paper-pending:v1")||"null");if(pending&&Date.now()-Number(pending.createdAt)<86400000)return pending;localStorage.removeItem("kg:ai-paper-pending:v1");}catch{}return null;})(), sparklineCache:{},
+    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, currencyMode:"RUB", productMode:"demo", aiPaperStatus:null, aiPaperBusy:false, aiPaperPendingTransfer:(()=>{try{const pending=JSON.parse(localStorage.getItem("kg:ai-paper-pending:v1")||"null");if(pending&&["fund","withdraw"].includes(pending.direction)&&/^\\d+(?:\\.\\d{1,2})?$/.test(String(pending.amount))&&/^[A-Za-z0-9._:-]{8,128}$/.test(String(pending.key)))return pending;localStorage.removeItem("kg:ai-paper-pending:v1");}catch{}return null;})(), sparklineCache:{},
     favorites:(()=>{try{return new Set(JSON.parse(localStorage.getItem("kg:favorites:v1")||'["BTC","ETH","SOL"]'));}catch{return new Set(["BTC","ETH","SOL"]);}})(),
     equities:(()=>{try{const saved=JSON.parse(localStorage.getItem("kg:equities:v1"));return Array.isArray(saved)?saved.filter(x=>x&&typeof x.symbol==="string"&&typeof x.name==="string"):[{symbol:"AAPL",name:"Apple",kind:"Акция"}];}catch{return[{symbol:"AAPL",name:"Apple",kind:"Акция"}];}})(),
     editEquities:false,
@@ -782,6 +782,7 @@
     $("#kg-ai-paper-fund").disabled=state.aiPaperBusy;
     $("#kg-ai-paper-withdraw").disabled=state.aiPaperBusy;
     if(!status){
+      if(state.aiPaperPendingTransfer)$("#kg-ai-paper-note").textContent="Предыдущий перевод не получил подтверждения. Повторите то же действие с той же суммой для безопасной сверки.";
       $("#kg-ai-paper-balance").textContent="—";
       $("#kg-ai-paper-demo").textContent="—";
       $("#kg-ai-paper-state").textContent="Загрузка";
@@ -794,10 +795,32 @@
     $("#kg-ai-paper-open").textContent=String(Number(status.openPositions||0));
     if(state.aiPaperPendingTransfer&&!state.aiPaperBusy)$("#kg-ai-paper-note").textContent="Предыдущий перевод не получил подтверждения. Повторите то же действие с той же суммой для безопасной сверки.";
   }
+  function amountUsdToMicro(amount){
+    const [whole,fraction=""]=String(amount).split(".");
+    return BigInt(whole||"0")*1000000n+BigInt((fraction+"000000").slice(0,6));
+  }
+  function clearPendingAiPaperTransfer(){
+    state.aiPaperPendingTransfer=null;
+    try{localStorage.removeItem("kg:ai-paper-pending:v1");}catch{}
+  }
   async function loadAiPaperStatus(){
     if(state.productMode!=="ai")return;
     try{
       state.aiPaperStatus=await invoke("aiPaper.status");
+      const pending=state.aiPaperPendingTransfer;
+      if(pending){
+        try{
+          const amount=amountUsdToMicro(pending.amount);
+          const beforeDemo=BigInt(pending.beforeDemoMicro||"0");
+          const beforeAi=BigInt(pending.beforeAiMicro||"0");
+          const expectedDemo=beforeDemo+(pending.direction==="fund"?-amount:amount);
+          const expectedAi=beforeAi+(pending.direction==="fund"?amount:-amount);
+          if(BigInt(state.aiPaperStatus.demoBalanceMicro)===expectedDemo&&BigInt(state.aiPaperStatus.aiBalanceMicro)===expectedAi){
+            clearPendingAiPaperTransfer();
+            $("#kg-ai-paper-note").textContent="Перевод подтверждён по балансу виртуальных счетов.";
+          }
+        }catch{}
+      }
       renderAiPaperPanel();
     }catch(error){
       state.aiPaperStatus=null;
@@ -830,23 +853,25 @@
     if(!await confirmVirtualTransfer(message))return;
     const idempotencyKey=pending?.key||("kg-ai-paper-"+direction+"-"+(window.crypto?.randomUUID?.()||Date.now()+"-"+Math.random().toString(36).slice(2)));
     if(!pending){
-      state.aiPaperPendingTransfer={direction,amount,key:idempotencyKey,createdAt:Date.now()};
+      state.aiPaperPendingTransfer={
+        direction,amount,key:idempotencyKey,createdAt:Date.now(),
+        beforeDemoMicro:String(state.aiPaperStatus?.demoBalanceMicro??"0"),
+        beforeAiMicro:String(state.aiPaperStatus?.aiBalanceMicro??"0"),
+      };
       try{localStorage.setItem("kg:ai-paper-pending:v1",JSON.stringify(state.aiPaperPendingTransfer));}catch{}
     }
     state.aiPaperBusy=true;
     renderAiPaperPanel();
     try{
       state.aiPaperStatus=await invoke(isFund?"aiPaper.fund":"aiPaper.withdraw",amount,idempotencyKey);
-      state.aiPaperPendingTransfer=null;
-      try{localStorage.removeItem("kg:ai-paper-pending:v1");}catch{}
+      clearPendingAiPaperTransfer();
       $("#kg-ai-paper-note").textContent="Перевод выполнен внутри виртуальных счетов. Автоматическая стратегия не запускалась.";
       renderAiPaperPanel();
       notify(isFund?"Средства переведены на AI PAPER.":"Средства возвращены на DEMO.");
     }catch(error){
       const normalized=normalizeError(error);
       if(!normalized.retryable&&normalized.status>=400&&normalized.status<500){
-        state.aiPaperPendingTransfer=null;
-        try{localStorage.removeItem("kg:ai-paper-pending:v1");}catch{}
+        clearPendingAiPaperTransfer();
       }else{
         $("#kg-ai-paper-note").textContent="Результат перевода неизвестен. Повторите то же действие с той же суммой: ключ операции сохранён, повтор не спишет средства дважды.";
       }
