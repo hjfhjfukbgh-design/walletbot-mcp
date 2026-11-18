@@ -14,13 +14,12 @@ permissions:
   pull-requests: write
   issues: write
 
-concurrency:
-  group: kripto-guru-queue-claim
-  cancel-in-progress: false
-
 jobs:
   claim-team-tasks:
     if: github.event_name != 'issues' || github.event.label.name == 'agent-ready'
+    concurrency:
+      group: kripto-guru-queue-claim
+      cancel-in-progress: false
     name: Claim up to one ready task per team
     runs-on: ubuntu-latest
     timeout-minutes: 6
