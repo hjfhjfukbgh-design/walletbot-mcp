@@ -31,6 +31,27 @@
           <button type="button" data-product-mode="live" aria-pressed="false" disabled aria-disabled="true" title="LIVE заблокирован до проверки полного торгового контракта"><b>LIVE</b><small>Заблокирован</small></button>
         </div>
         <p id="kg-product-mode-status" class="kg-product-mode-status" aria-live="polite">DEMO · Виртуальный счёт. Реальные средства не используются.</p>
+        <section id="kg-ai-paper-panel" class="kg-ai-paper-panel" hidden aria-labelledby="kg-ai-paper-title">
+          <div class="kg-ai-paper-head">
+            <div>
+              <strong id="kg-ai-paper-title">AI Trading · PAPER</strong>
+              <span>Отдельный виртуальный счёт</span>
+            </div>
+            <span id="kg-ai-paper-state" class="kg-ai-paper-state">Остановлен</span>
+          </div>
+          <div class="kg-ai-paper-balances">
+            <div><span>AI PAPER</span><strong id="kg-ai-paper-balance">$0.00</strong></div>
+            <div><span>Доступно в DEMO</span><strong id="kg-ai-paper-demo">$0.00</strong></div>
+          </div>
+          <div class="kg-ai-paper-position">Открытых paper-позиций: <strong id="kg-ai-paper-open">0</strong></div>
+          <label class="kg-ai-paper-label" for="kg-ai-paper-amount">Сумма, USD</label>
+          <input id="kg-ai-paper-amount" class="kg-ai-paper-amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="50.00" autocomplete="off">
+          <div class="kg-ai-paper-actions">
+            <button id="kg-ai-paper-fund" type="button">Пополнить из DEMO</button>
+            <button id="kg-ai-paper-withdraw" type="button">Вернуть в DEMO</button>
+          </div>
+          <p id="kg-ai-paper-note" class="kg-ai-paper-note">Средства виртуальные. Перевод не затрагивает кошелёк и не запускает стратегию. Автоматическая торговля пока отключена.</p>
+        </section>
       </div>
       <div id="kg-wallet-quick-actions" class="kg-wallet-quick-actions" aria-label="Быстрые действия">
         <button type="button" data-wallet-action="transfer"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 8 4-4 4 4M8 4v11M20 16l-4 4-4-4m4 4V9"/></svg></span><small>Перевести</small></button>
