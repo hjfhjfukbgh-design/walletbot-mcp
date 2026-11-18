@@ -751,3 +751,14 @@
 - **Regression:** Playwright dispatches visibilitychange while wallet is active and asserts markets.list is called again. Search remains client-side 120ms debounce.
 - **CI:** run `44409939223` success — npm ci, JS syntax, typecheck, npm test; screenshot run `44409939408` success.
 - **Issue #266:** closed completed with agent-done.
+### 2026-11-19 — закрыты дополнительные QA/UX задачи; команда dispatch audit
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:18:39.626+05:00
+- **Issue #254:** interactive Companion learning mode принят и закрыт после проверки general/learning/research modes и тестов dedicated teaching prompt/control question/no research tools.
+- **Issue #278:** AI Companion / AI Trading boundary audit принят и закрыт. Подтверждено: legacy bot runTick немедленно блокирует LIVE, Companion не имеет Walt/trading tools, buildPaperSignal — pure paper calculation, LIVE productMode server-side locked.
+- **Issue #290:** atomic Companion quota audit принят и закрыт с оговоркой: global DO serialization/provider error quota consumption documented; production migration remains blocked until zero-cost allowance confirmed.
+- **Issue #218:** active account context на главном экране закрыт через PR #343; текущие продуктовые названия DEMO/AI Trading/LIVE заменили устаревшее E-account.
+- **Issue #266:** market refresh bug fixed and closed via PR #345.
+- **A/B/C fan-out:** run `44409697475` successfully bootstrapped queue but worker matrix was skipped; only parent #203 has agent-ready and it lacks required child-task metadata/team labels. No eligible child tasks for A/B/C.
+- **Cost gate:** dispatcher/worker call Gemini 3.5 Flash-Lite / 3.1 Flash-Lite. Official pricing lists free-tier no-charge, but paid-tier token prices apply if API key project is billed; project tier for existing secrets cannot be verified from GitHub. No new agent dispatch until free-tier-only/billing-disabled configuration is confirmed.
+- **No production deploy or real financial actions.**
