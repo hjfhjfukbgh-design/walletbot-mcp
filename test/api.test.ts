@@ -100,6 +100,36 @@ describe("API da Mini App", () => {
 
 
 
+  it("persists AI product mode per Telegram user without changing execution mode", async () => {
+    const e = env();
+    const saved = await call(e, "product-mode", "chave-teste", {
+      method: "POST", body: JSON.stringify({ productMode: "ai" }),
+    }, "111");
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toMatchObject({ ok: true, productMode: "ai", executionMode: "paper" });
+    const alice = await call(e, "state", "chave-teste", {}, "111");
+    const bob = await call(e, "state", "chave-teste", {}, "222");
+    expect(await alice.json()).toMatchObject({ productMode: "ai", mode: "paper" });
+    expect(await bob.json()).toMatchObject({ productMode: "demo", mode: "paper" });
+  });
+
+  it("refuses LIVE product mode until full LIVE capability is available", async () => {
+    const e = env();
+    const response = await call(e, "product-mode", "chave-teste", {
+      method: "POST", body: JSON.stringify({ productMode: "live" }),
+    });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ ok: false, error: expect.stringContaining("LIVE пока заблокирован") });
+    expect(await (await call(e, "state", "chave-teste")).json()).toMatchObject({ productMode: "demo", mode: "paper" });
+  });
+
+  it("rejects unknown product modes instead of silently accepting them", async () => {
+    const response = await call(env(), "product-mode", "chave-teste", {
+      method: "POST", body: JSON.stringify({ productMode: "autotrade" }),
+    });
+    expect(response.status).toBe(400);
+  });
+
   it("returns a safe disconnected LIVE status without contacting Walt", async () => {
     const e = env();
     const fetchMock = vi.fn();
