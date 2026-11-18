@@ -472,3 +472,13 @@
 - **Причина:** PR #295 added read-only `gh pr view/diff` and `gh api` evidence retrieval, but the reusable worker step did not export GH_TOKEN. Team B report #297 confirmed `GH_TOKEN missing`; PR evidence retrieval therefore failed despite the workflow change.
 - **Scope:** expose the existing workflow GITHUB_TOKEN as GH_TOKEN only to the worker analysis step; no new permissions beyond current workflow permissions. Requeue QA tasks after CI verification.
 - **Безопасность:** token remains masked by GitHub Actions; no token value is written to files or report; no production operations.
+
+
+### 2026-11-19 — start: candlestick horizontal history + live refresh
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T01:48:03.054+05:00
+- **Gap confirmed in main:** candlestick rendering is fixed at SVG width 340px with chart container overflow hidden; asset candles load once on open/timeframe change and do not refresh in real time.
+- **Goal:** preserve 1m–1d intervals, render a readable candle width with horizontal scroll history, keep the viewport pinned to latest candles unless the user has scrolled back, and refresh candles every 15s only while asset screen is visible (pause on ticket/hidden page; resume with one refresh).
+- **Scope:** miniapp/web/kripto-guru-ui.js, kripto-guru-ui.css, index.html, capture-clean-ui.mjs. No API or paid data source changes.
+- **Validation:** extend Playwright clean UI scenario to assert horizontal overflow and live refresh pause/resume with a shortened test-only interval; require CI typecheck/tests and screenshots.
+- **Safety:** mock-only screenshot API; no Walt/Gemini writes, no real trades, no merge/deploy until checks pass.
