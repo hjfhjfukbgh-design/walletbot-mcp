@@ -330,9 +330,10 @@ jobs:
                 signal:AbortSignal.timeout(90000)
               });
               const payload=await response.json().catch(()=>({}));
-              if(!response.ok){last="HTTP "+response.status; continue;}
+              if(!response.ok){last="HTTP "+response.status+": "+String(payload?.error?.message||"provider error"); continue;}
               repaired=(payload?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("").trim();
               if(repaired) break;
+              last="empty candidate; finishReason="+String(payload?.candidates?.[0]?.finishReason||"none")+"; blockReason="+String(payload?.promptFeedback?.blockReason||"none");
             } catch(e) { last=e.message; }
           }
           if(!repaired || repaired==="NO_SAFE_PATCH") throw new Error("Patch repair unavailable: "+last);
@@ -379,8 +380,8 @@ jobs:
           for path in "${changed[@]}"; do
             git ls-files --error-unmatch "$path" >/dev/null 2>&1 || { echo "::error::New files are not allowed: $path"; exit 1; }
             case "${ROLE}" in
-              BACKEND) [[ "$path" == "src/index.ts" || "$path" == "src/api.ts" || "$path" == "src/service.ts" || "$path" == "src/state.ts" || "$path" == "src/tenants.ts" || "$path" == "src/companion.ts" || "$path" == "src/walt.ts" || "$path" == "src/manual.ts" || "$path" == "src/env.ts" || "$path" == "src/trading/engine.ts" || "$path" == "test/api.test.ts" || "$path" == "test/trading-engine.miniflare.test.ts" ]] || { echo "::error::Forbidden backend path: $path"; exit 1; } ;;
-              FRONTEND) [[ "$path" == miniapp/web/*.js || "$path" == miniapp/web/*.mjs || "$path" == miniapp/web/*.css || "$path" == miniapp/web/*.html ]] || { echo "::error::Forbidden path: $path"; exit 1; } ;;
+              BACKEND) [[ "$path" == "src/index.ts" || "$path" == "src/api.ts" || "$path" == "src/service.ts" || "$path" == "src/state.ts" || "$path" == "src/tenants.ts" || "$path" == "src/companion.ts" || "$path" == "src/companion-quota.ts" || "$path" == "src/walt.ts" || "$path" == "src/manual.ts" || "$path" == "src/env.ts" || "$path" == "src/trading/engine.ts" || "$path" == "test/api.test.ts" || "$path" == "test/companion.test.ts" || "$path" == "test/companion-quota.miniflare.test.ts" || "$path" == "test/trading-engine.miniflare.test.ts" ]] || { echo "::error::Forbidden backend path: $path"; exit 1; } ;;
+              FRONTEND) [[ "$path" == miniapp/web/*.js || "$path" == miniapp/web/*.mjs || "$path" == miniapp/web/*.css || "$path" == miniapp/web/*.html || "$path" == "test/kripto-guru-api.test.mjs" ]] || { echo "::error::Forbidden path: $path"; exit 1; } ;;
               *) echo "::error::Role is not allowed to modify source."; exit 1 ;;
             esac
           done
