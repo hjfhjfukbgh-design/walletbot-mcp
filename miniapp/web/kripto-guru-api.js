@@ -314,11 +314,11 @@
           body: { handle: String(handle || ""), confirm: confirm === true },
         });
       } catch (error) {
-        if (error?.status === 202) return { ok: false, status: "unknown", error: error.message };
+        if (error?.status === 202) return { ok: true, status: "unknown", error: error.message };
         throw error;
       }
     },
-    async operation(handle) {
+    async operation({ handle } = {}) {
       const data = await request("/api/live/operation?handle=" + encodeURIComponent(String(handle || "")));
       return data;
     },
