@@ -287,6 +287,10 @@
     async remove(conversationId) {
       return request("/api/companion/conversations/" + encodeURIComponent(String(conversationId)), { method: "DELETE" });
     },
+    async limits() {
+      const data = await request("/api/companion/limits");
+      return data.limits || {};
+    },
   };
 
   const capabilities = {
