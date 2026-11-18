@@ -431,10 +431,20 @@
        }
     }));
     $("#kg-ai-new").addEventListener("click",newCompanionConversation);
+    $("#kg-ai-new-menu").addEventListener("click",newCompanionConversation);
     $("#kg-ai-menu-open").addEventListener("click",()=>setCompanionMenu(true));
     $("#kg-ai-menu-close").addEventListener("click",()=>setCompanionMenu(false));
     $("#kg-ai-menu-backdrop").addEventListener("click",()=>setCompanionMenu(false));
     $("#kg-ai-form").addEventListener("submit",sendCompanionMessage);
+    const aiScreen=$("#kg-companion-screen"), aiInput=$("#kg-ai-input");
+    const syncComposer=()=>{const focused=document.activeElement===aiInput;aiScreen.classList.toggle("kg-composer-expanded",focused||Boolean(aiInput.value));};
+    aiInput.addEventListener("focus",()=>{syncComposer();});
+    aiInput.addEventListener("blur",()=>{window.setTimeout(syncComposer,120);});
+    aiInput.addEventListener("input",()=>{aiInput.style.height="auto";aiInput.style.height=Math.min(aiInput.scrollHeight,130)+"px";syncComposer();});
+    if(window.visualViewport){const syncViewport=()=>aiScreen.classList.toggle("kg-keyboard-open",document.activeElement===aiInput&&window.visualViewport.height<window.innerHeight-120);window.visualViewport.addEventListener("resize",syncViewport);window.visualViewport.addEventListener("scroll",syncViewport);aiInput.addEventListener("focus",syncViewport);aiInput.addEventListener("blur",()=>aiScreen.classList.remove("kg-keyboard-open"));}
+    $("#kg-ai-attach").addEventListener("click",()=>notify("Добавление файлов появится в следующем обновлении."));
+    $("#kg-ai-voice").addEventListener("click",()=>notify("Голосовой ввод пока не подключён."));
+    $(".kg-gemini-tools [data-ai-tool]").forEach(button=>button.addEventListener("click",()=>notify("Инструмент «"+button.textContent.trim()+"» пока недоступен.")));
     $("#kg-ai-input").addEventListener("keydown",event=>{
       if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();$("#kg-ai-form").requestSubmit();}
     });
