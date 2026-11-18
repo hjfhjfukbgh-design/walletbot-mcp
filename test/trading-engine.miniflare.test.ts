@@ -164,6 +164,49 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(String(blocked.body.error)).toContain("дневной лимит убытка");
   });
 
+  it("automatically closes LONG and SHORT positions when take-profit targets are crossed", async () => {
+    const stub = await boot();
+    const openWithTargets = (side: "long" | "short", takeProfit: bigint, stopLoss: bigint) => post(stub, "/open", {
+      userId, mode: "demo", symbol: "BTC", side,
+      marginMicro: (100n * U).toString(), leverage: "2",
+      takeProfitPrice: (takeProfit * P).toString(), stopLossPrice: (stopLoss * P).toString(),
+      feePpm: "350", slippagePpm: "1000",
+      maxOrderBps: "10000", maxTotalExposureBps: "10000", maxDailyLossBps: "500",
+    });
+    await quote(stub, 50_000n * P);
+    const long = await openWithTargets("long", 52_000n, 49_000n);
+    expect(long.body.ok).toBe(true);
+    await quote(stub, 51_000n * P);
+    let account = await stub.fetch("https://engine.test/account?userId=" + userId);
+    expect((await account.json() as { positions: unknown[] }).positions).toHaveLength(1);
+    await quote(stub, 52_000n * P);
+    account = await stub.fetch("https://engine.test/account?userId=" + userId);
+    expect((await account.json() as { positions: unknown[] }).positions).toHaveLength(0);
+
+    await quote(stub, 50_000n * P);
+    const short = await openWithTargets("short", 48_000n, 51_000n);
+    expect(short.body.ok).toBe(true);
+    await quote(stub, 48_000n * P);
+    account = await stub.fetch("https://engine.test/account?userId=" + userId);
+    expect((await account.json() as { positions: unknown[] }).positions).toHaveLength(0);
+  });
+
+  it("automatically closes SHORT positions when stop-loss is crossed", async () => {
+    const stub = await boot();
+    await quote(stub, 50_000n * P);
+    const opened = await post(stub, "/open", {
+      userId, mode: "demo", symbol: "BTC", side: "short",
+      marginMicro: (100n * U).toString(), leverage: "2",
+      takeProfitPrice: (48_000n * P).toString(), stopLossPrice: (51_000n * P).toString(),
+      feePpm: "350", slippagePpm: "1000",
+      maxOrderBps: "10000", maxTotalExposureBps: "10000", maxDailyLossBps: "500",
+    });
+    expect(opened.body.ok).toBe(true);
+    await quote(stub, 51_000n * P);
+    const account = await stub.fetch("https://engine.test/account?userId=" + userId);
+    expect((await account.json() as { positions: unknown[] }).positions).toHaveLength(0);
+  });
+
   it("allows a manual close before TP or SL is reached", async () => {
     const stub = await boot();
     await quote(stub, 50_000n * P);
