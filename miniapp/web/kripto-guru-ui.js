@@ -189,7 +189,7 @@
     try{
       state.wallet=unwrap(await invoke("wallet.get"),"wallet");
       $("#kg-wallet-balance").textContent=moneyRub(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
-      $("#kg-wallet-currency-value").textContent=moneyRub(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));
+      $("#kg-wallet-currency-value").textContent=moneyRub(Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN));const currencySubtitle=$("#kg-wallet-currency .kg-card-copy small");if(currencySubtitle)currencySubtitle.textContent=Number.isFinite(state.fxRateRub)?"USDT · 1 $ = "+fmt(state.fxRateRub,2)+" ₽":"USDT · курс недоступен";
       const walletAssets=listOf(state.wallet,["assets","balances"]);
       const cryptoValues=walletAssets.map(asset=>Number(asset.valueUsd ?? asset.balanceUsd ?? asset.usdValue)).filter(Number.isFinite);
       const totalNode=$("#kg-wallet-crypto-total");
