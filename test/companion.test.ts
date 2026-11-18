@@ -101,6 +101,62 @@ describe("AI Companion API", () => {
     expect(await otherHistory.json()).toMatchObject({ conversations: [] });
   });
 
+  it("uses the dedicated learning instruction and persists learning mode", async () => {
+    const e = isolatedEnv();
+    let sentBody: any;
+    vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      sentBody = JSON.parse(String(init?.body));
+      return Response.json({ candidates: [{ content: { parts: [{ text: "Начнём со свечей. Что показывает тело свечи?" }] } }] });
+    });
+
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Научи меня читать свечи", mode: "learning" }),
+    });
+    expect(response.status).toBe(200);
+    const result = await response.json() as { conversation: { mode: string } };
+    const instruction = sentBody.systemInstruction.parts[0].text as string;
+    expect(instruction).toContain("интерактивный преподаватель");
+    expect(instruction).toContain("контрольный вопрос");
+    expect(instruction).toContain("Не обещай доходность");
+    expect(sentBody.tools).toBeUndefined();
+    expect(result.conversation.mode).toBe("learning");
+  });
+
+  it("rejects changing a conversation from learning to general mode", async () => {
+    const e = isolatedEnv();
+    const fetchMock = vi.fn(async () => Response.json({ candidates: [{ content: { parts: [{ text: "Учебный ответ." }] } }] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Начинаем урок", mode: "learning" }),
+    });
+    expect(first.status).toBe(200);
+    const { conversationId } = await first.json() as { conversationId: string };
+
+    const switched = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Обычный вопрос", conversationId, mode: "general" }),
+    });
+    expect(switched.status).toBe(409);
+    expect(await switched.json()).toMatchObject({ error: expect.stringContaining("нельзя менять в середине истории") });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects unknown Companion modes before calling Gemini", async () => {
+    const e = isolatedEnv();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Проверка", mode: "autotrade" }),
+    });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining("Неизвестный режим") });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("uses real Google Search grounding and persists verified source links in research mode", async () => {
     const e = isolatedEnv();
     let sentBody: any;
