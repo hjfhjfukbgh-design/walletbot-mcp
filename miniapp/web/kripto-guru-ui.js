@@ -76,7 +76,7 @@
   }
   function showSubscreen(name){
     marketLoadEpoch++;
-    $(".kg-screen").forEach(node=>node.classList.remove("is-active"));
+    document.querySelectorAll(".kg-screen").forEach(node=>node.classList.remove("is-active"));
     $("#kg-nav").hidden=true;
     $("#kg-asset-screen").hidden=name!=="asset";
     $("#kg-ticket-screen").hidden=name!=="ticket";
