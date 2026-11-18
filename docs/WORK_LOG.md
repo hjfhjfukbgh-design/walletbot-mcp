@@ -564,3 +564,16 @@
 - **Merged PR #324** as `1d1fd5d3d9fcc9a74fe1cea959739ca674fa74cf`; CI run 44399790098 passed. BACKEND shell validation now permits only the additional Companion quota/source test files already present in the JS role map; FRONTEND shell validation permits only `test/kripto-guru-api.test.mjs` in addition to UI files.
 - **Root cause verified:** Team C's patch for `test/companion.test.ts` passed `git apply --check` but was rejected by stale shell allowlist; Team B's adapter patch could not update its contract test because that test path was not allowlisted. Team A/B patch repair returned empty candidates; no source patch was applied.
 - **Requeued:** #312 Team A LIVE position-by-symbol endpoint, #313 Team B LIVE API adapter, #314 Team C AI Research grounding tests. Fan-out run 44399895248 is claiming the tasks. No implementation is considered complete until source diff, checks and review are verified.
+
+
+### 2026-11-19 — LIVE adapter + read-only position API merged; close-flow review queued
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T02:28:20.212+05:00
+- **Merged PR #327** as `302963080bd4f4edf88d62001031326292cdad77`: research grounding sources now normalize URL fragments, reject non-HTTPS/hostless/credential URLs, preserve the first/highest-ranked title for duplicates, and are never inferred from model text. CI run 44400415224 passed.
+- **Merged PR #328** as `1537ceaf84e68311f21fdfc79619700e8e11b64c`: browser adapter now exposes authenticated LIVE status/position/preview/execute/operation methods. Capability gating requires connected + readiness + contracts + balance + no issues; execute rejects without explicit `confirm:true`, sends one request, and has no retry. CI 44401403365 and screenshot/contract run 44401403376 passed. Deploy job skipped.
+- **Merged PR #331** as `1d17c153935abff9428958a85e46e28a5c67bc1b`: read-only `GET /api/live/position?symbol=` using tenant-scoped Walt reads; returns only safe normalized fields and never raw MCP payload. CI 44401505307 passed; deploy job skipped.
+- **Issue #312 (Team A)** accepted/closed after Team Lead implementation in PR #331; **#313 (Team B)** accepted/closed after PR #328. Both dependency keys are now satisfied.
+- **Issue #326 (Team B)** DEMO/LIVE mode selector + safe LIVE open UX is now agent-ready, dependent on the accepted position and adapter tasks. It must not expose LIVE close until a separate safe close contract is verified.
+- **Issue #332 (Team A / SECURITY)** queued to verify the exact Walt LIVE close operation contract from repository evidence only; no real Walt calls or tool discovery calls allowed.
+- **Issue #330 (Team C)** queued for Companion attachment count/size validation tests.
+- **Safety:** no real Walt calls, no real orders/closes, no account/position mutations, no Gemini calls, no production deploy.
