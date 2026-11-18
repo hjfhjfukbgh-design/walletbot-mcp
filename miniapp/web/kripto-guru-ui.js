@@ -255,7 +255,7 @@
     if(document.visibilityState!=="visible"||$("#kg-market-live").hidden||marketRefreshInFlight)return;
     const category=state.category;
     if(category==="stocks"||category==="funds")return;
-    const requestId=++marketLoadEpoch;
+    const requestId=marketLoadEpoch;
     marketRefreshInFlight=true;
     try{
       if(category==="all"){
