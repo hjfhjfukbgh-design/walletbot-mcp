@@ -225,7 +225,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const handle = "a".repeat(32);
     const now = Date.now();
     const claimBody = {
-      userId, handle, contractId: 7, symbol: "BTC", side: "long",
+      userId, handle, contractId: 0, symbol: "BTC", side: "long",
       leverage: 20, marginUsd: 25, notionalUsd: 500,
       previewAt: now, expiresAt: now + 120_000,
     };
