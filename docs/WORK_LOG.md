@@ -735,3 +735,10 @@
 - **CI:** deploy run `44409118147` success — npm ci, JS syntax, typecheck, npm test; screenshot run `44409457221` success — clean UI capture. Artifact `14476267553` visually reviewed at 390×844 and 430×932.
 - **Test correction:** initial screenshot run `44408863557` failed due wrong `$()` helper; fixed in `b2f5ee07e867af1879c50d2e56fa5026568158e`. Workflow artifact allowlist updated to include `clean-product-mode-ai-*.png`.
 - **Issue #66:** closed completed, labels `team-b`, `agent-done`; note that AI engine integration and LIVE execution remain separate incomplete tasks.
+### 2026-11-19 — market quote refresh regression fix (active checkpoint)
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:16:36.312+05:00
+- **Issue #266 finding:** refreshMarketData incorrectly returned whenever #kg-market-live was hidden. Since this list is inside the Trading screen, wallet home did not receive its intended 15-second market refresh even though syncMarketPolling scheduled it for wallet and trading.
+- **PR #345:** Draft opened; branch fix/market-refresh-on-wallet-screen-2026-11-19. Guard now checks #kg-market-live only while Trading screen is active; wallet screen refresh remains allowed, asset/ticket subscreens still pause polling.
+- **Regression:** capture-clean-ui.mjs increments mock markets.list counter and dispatches visibilitychange while wallet is active, asserting a fresh market request.
+- **CI:** deploy run `44409939223` and screenshot run `44409939408` are in progress; no merge yet.
