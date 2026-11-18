@@ -77,6 +77,7 @@ jobs:
           TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
           OWNER_CHAT_ID: ${{ secrets.OWNER_CHAT_ID }}
           API_SECRET: ${{ secrets.API_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Setup Telegram webhook
         run: |
