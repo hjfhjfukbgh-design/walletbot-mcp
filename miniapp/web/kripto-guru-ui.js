@@ -386,7 +386,16 @@
       if(state.screen==="bonuses")await loadCapabilities();
       if(state.screen==="companion")await loadCompanionConversations();
     }));
-    $$("[data-open-trading]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("crypto");}));
+    $("#kg-ai-new").addEventListener("click",newCompanionConversation);
+    $("#kg-ai-form").addEventListener("submit",sendCompanionMessage);
+    $("#kg-ai-input").addEventListener("keydown",event=>{
+      if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();$("#kg-ai-form").requestSubmit();}
+    });
+    $("#kg-ai-history").addEventListener("click",event=>{
+      const item=event.target.closest("[data-ai-conversation]");
+      if(item?.dataset.aiConversation)openCompanionConversation(item.dataset.aiConversation);
+    });
+    $("[data-open-trading]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("crypto");}));
     $$("[data-open-futures]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("futures");}));
     $$(".kg-category").forEach(b=>b.addEventListener("click",()=>loadCategory(b.dataset.category)));
     $("#kg-search-open").addEventListener("click",()=>{$("#kg-trading-screen").classList.add("kg-search-mode");$("#kg-search-open").hidden=true;$("#kg-market-search").hidden=false;$("#kg-search-close").hidden=false;$("#kg-search-filters").hidden=false;setSearchFilter("all");$("#kg-market-search").focus();});
