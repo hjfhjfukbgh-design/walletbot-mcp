@@ -51,11 +51,21 @@
       try { return new URLSearchParams(String(raw || "").replace(/^#/, "")).get("tgWebAppData") || ""; }
       catch { return ""; }
     };
-    return fromParams(window.location.search) || fromParams(window.location.hash);
+    return fromParams(window.location?.search) || fromParams(window.location?.hash);
+  }
+
+  async function waitForTelegramInitData(timeoutMs = 3_000) {
+    const startedAt = Date.now();
+    let value = telegramInitData();
+    while (!value && Date.now() - startedAt < timeoutMs) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      value = telegramInitData();
+    }
+    return value;
   }
 
   async function request(path, { method = "GET", body, timeoutMs = 12_000 } = {}) {
-    const initData = telegramInitData();
+    const initData = await waitForTelegramInitData();
     if (!initData) {
       throw new KriptoGuruApiError({
         code: "TELEGRAM_AUTH_REQUIRED",

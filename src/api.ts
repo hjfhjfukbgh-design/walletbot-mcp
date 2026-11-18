@@ -396,31 +396,31 @@ async function paperEquityWithManual(env: Env, s: Awaited<ReturnType<typeof load
 
 async function contractsView(env: Env) {
   const limits = riskLimits(env);
-  const state = await loadState(env);
-  const list = state.mode === "live"
-    ? await cachedContracts(env, async () => (await walt(env)).contracts())
-    : await publicContracts();
+  // Kripto Guru Mini App is DEMO-only. Its public market catalogue must not
+  // depend on the legacy Telegram bot's global LIVE/PAPER mode or Walt OAuth.
+  const list = await publicContracts();
   return list
     .map((c) => {
       const market = c.name.replace(/-USDC?$/i, "");
+      const liquid = (c.volume24hUsd ?? 0) >= limits.minVolume24hUsd;
       return {
         market,
         ...c,
-        source: state.mode === "live" ? "walt" : "hyperliquid",
-        liquid: (c.volume24hUsd ?? 0) >= limits.minVolume24hUsd,
-        allowed: (state.mode === "paper" || marketAllowed(limits, market)) && (c.volume24hUsd ?? 0) >= limits.minVolume24hUsd,
+        source: "hyperliquid",
+        liquid,
+        // Display public quotes even when a market is below the trading
+        // liquidity threshold; the order preview enforces eligibility.
+        allowed: liquid && marketAllowed(limits, market),
       };
     })
     .sort((a, b) => (b.volume24hUsd ?? 0) - (a.volume24hUsd ?? 0));
 }
 
 async function priceView(env: Env, market: string, leverage: number) {
-  const state = await loadState(env);
-  const contract = state.mode === "live"
-    ? findContract(await cachedContracts(env, async () => (await walt(env)).contracts()), market)
-    : findContract(await publicContracts(), market);
+  // The Mini App always displays the same verified public DEMO quote source.
+  const contract = findContract(await publicContracts(), market);
   if (!contract) throw new Error(`рынок ${market} не найден`);
-  const price = state.mode === "live" ? await (await walt(env)).rate(contract) : await publicMid(market);
+  const price = await publicMid(market);
   const lev = Math.max(1, Math.min(Math.trunc(leverage) || 1, contract.maxLeverage, riskLimits(env).maxLeverage));
   return {
     market: market.toUpperCase(),
