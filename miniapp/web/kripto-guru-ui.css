@@ -1195,3 +1195,34 @@ html,body{background:#0b1018;color:#eef3fa}
   .kg-leverage-value{margin:10px 0}
 }
 
+/* Dark theme QA corrections: cover the current wallet and Companion markup. */
+:root{
+  --kg-bg:#0b1018;
+  --kg-card:#141c27;
+  --kg-ink:#eef3fa;
+  --kg-muted:#94a3b8;
+  --kg-line:rgba(173,190,211,.12);
+  --kg-shadow:0 8px 28px rgba(0,0,0,.22);
+}
+html,body{background:#0b1018!important;color:#eef3fa}
+#kg-wallet-screen .kg-wallet-hero{color:#eef3fa}
+#kg-wallet-screen .kg-wallet-hero small{color:#94a3b8}
+#kg-wallet-screen .kg-wallet-hero strong{color:#f3f7fc}
+#kg-wallet-screen .kg-wallet-quick-actions button{background:#141c27;color:#eef3fa;border:1px solid rgba(173,190,211,.12);box-shadow:none}
+#kg-wallet-screen .kg-wallet-quick-actions button small{color:#eef3fa}
+#kg-wallet-screen .kg-wallet-action-icon{background:#1b2634;color:#3989f4;box-shadow:none}
+#kg-wallet-screen .kg-wallet-currency{background:#141c27;color:#eef3fa;border:1px solid rgba(173,190,211,.12)}
+#kg-wallet-screen .kg-wallet-portfolio{background:#141c27;color:#eef3fa;border:1px solid rgba(173,190,211,.12)}
+#kg-nav.kg-nav{background:rgba(20,28,39,.94);border-color:rgba(173,190,211,.16);box-shadow:0 8px 30px rgba(0,0,0,.35)}
+#kg-nav.kg-nav button{color:#94a3b8}
+#kg-nav.kg-nav button.is-active{background:rgba(57,137,244,.18);color:#3989f4}
+#kg-companion-screen.kg-gemini-home{background:radial-gradient(ellipse 72% 35% at 50% 43%,rgba(57,137,244,.14),transparent 72%),#0b1018;color:#eef3fa}
+#kg-companion-screen .kg-ai-messages{background:transparent;border-color:transparent;box-shadow:none}
+#kg-companion-screen .kg-ai-welcome{background:transparent}
+#kg-companion-screen .kg-ai-welcome>b{color:#eef3fa}
+#kg-companion-screen .kg-ai-welcome>p{color:#94a3b8}
+#kg-companion-screen .kg-gemini-tools button{background:#141c27;color:#eef3fa;border:1px solid rgba(173,190,211,.12)}
+#kg-companion-screen .kg-ai-form{background:rgba(20,28,39,.92);border-color:rgba(173,190,211,.18)}
+#kg-companion-screen .kg-ai-disclaimer{color:#94a3b8}
+#kg-companion-screen .kg-gemini-model{color:#eef3fa}
+#kg-companion-screen .kg-gemini-icon-button{background:#141c27;color:#eef3fa}
