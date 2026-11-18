@@ -15,7 +15,8 @@ export function memoryKV(): KVNamespace {
 export function memoryQuota(seed: Record<string, number> = {}): DurableObjectNamespace {
   const counters = new Map<string, { count: number; expiresAt: number }>();
   for (const [key, count] of Object.entries(seed)) counters.set(key, { count, expiresAt: Date.now() + 48 * 60 * 60 * 1000 });
-  const stub = { fetch: async (request: Request) => {
+  const stub = { fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = input instanceof Request ? input : new Request(input, init);
     const body = await request.json() as { quotas: Array<{ key: string; limit: number; windowSeconds: number }> };
     const now = Date.now();
     for (const quota of body.quotas) {
