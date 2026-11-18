@@ -20,7 +20,8 @@ async function signedInitData(botToken: string, userId: string): Promise<string>
     const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
     return new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
   };
-  const secret = await hmac(encoder.encode(botToken), "WebAppData");
+  // Telegram Web Apps test signature: HMAC-SHA256(key="WebAppData", message=botToken).
+  const secret = await hmac(encoder.encode("WebAppData"), botToken);
   const checkString = [...params.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `${key}=${value}`).join("\n");
   const hash = [...await hmac(secret, checkString)].map((value) => value.toString(16).padStart(2, "0")).join("");
   params.set("hash", hash);
