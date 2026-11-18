@@ -1123,3 +1123,124 @@ button.kg-wallet-avatar{padding:0;appearance:none;cursor:pointer}
 .kg-ticket-autoclose-fields input{width:100%;min-width:0;height:39px;padding:0 10px;border:1px solid var(--kg-line);border-radius:10px;background:#f8f9fc;color:var(--kg-ink);font-size:14px;font-weight:700}
 .kg-ticket-autoclose-fields p{grid-column:1/-1;margin:0;color:var(--kg-muted);font-size:10px;line-height:1.4}
 @media(max-width:360px){.kg-ticket-autoclose-fields{grid-template-columns:1fr}}
+
+/* Kripto Guru dark surface overrides */
+.kg-screen.is-active{background:#0b1018}
+.kg-subscreen{background:#0b1018;color:#eef3fa}
+html,body{background:#0b1018;color:#eef3fa}
+.kg-balance-card,.kg-favorite,.kg-list,.kg-asset-row,.kg-discover-card,.kg-search-toggle,.kg-search-close,#kg-market-search,.kg-recent-chip,.kg-ipo-card,.kg-category,.kg-top-item,.kg-market-row,.kg-unavailable-panel,.kg-empty-inline,.kg-empty-card,.kg-position,.kg-close-position,.kg-bonus-card,.kg-settings-note,.kg-back,.kg-badge,.kg-asset-large-icon,.kg-chart-card,.kg-timeframes,.kg-asset-actions,.kg-modal-card,.kg-asset-about,.kg-ai-history-item,.kg-ai-messages,.kg-ai-form,.kg-ai-menu,.kg-ai-new-chat,.kg-ai-limits,.kg-ai-welcome,.kg-gemini-icon-button,.kg-gemini-tools button{background:#141c27;color:#eef3fa;border-color:rgba(173,190,211,.12)}
+.kg-nav{background:rgba(20,28,39,.88);border-color:rgba(173,190,211,.14)}
+.kg-muted,.kg-page-title p,.kg-card-copy small,.kg-row-copy small,.kg-favorite small,.kg-unavailable-row>strong,.kg-discover-icon,.kg-chevron,.kg-search-toggle,.kg-search-close,#kg-market-search,.kg-market-copy small,.kg-unavailable-icon,.kg-unavailable-panel p,.kg-empty-inline,.kg-empty-card,.kg-position-meta,.kg-history-copy small,.kg-bonus-card p,.kg-settings-note,.kg-nav button,.kg-subscreen .kg-asset-identity small,.kg-detail-row span,.kg-ticket-volume,.kg-ticket-available,.kg-ticket-preview,#kg-lev-warning,.kg-ai-head p,.kg-ai-history-item small,.kg-ai-disclaimer,.kg-ai-menu-head small,.kg-ai-limit-row,.kg-gemini-model,#kg-companion-screen .kg-ai-welcome>p,.kg-gemini-tools button,.kg-gemini-composer-icon,#kg-companion-screen .kg-ai-disclaimer{color:#94a3b8}
+.kg-primary,.kg-ai-new-chat,#kg-companion-screen .kg-ai-form button{background:#3989f4;color:#fff}
+.kg-primary{box-shadow:0 4px 16px rgba(57,137,244,.28)}
+.kg-primary:hover{opacity:.94}
+.kg-currency-icon{background:rgba(25,166,107,.15);color:#19a66b}
+.kg-asset-icon{background:#1b2634;color:#94a3b8}
+.kg-discover-icon.is-green{background:rgba(25,166,107,.15);color:#19a66b}
+.kg-category-icon.is-blue{background:rgba(57,137,244,.18);color:#3989f4}
+.kg-category.is-selected{border-color:#3989f4;background:#1b2634}
+.kg-category-icon.is-orange{background:rgba(233,151,25,.18);color:#e99719}
+.kg-category-icon.is-purple{background:rgba(146,100,213,.18);color:#9264d5}
+.kg-category-icon.is-teal{background:rgba(35,168,141,.18);color:#23a88d}
+.kg-sort{background:#1b2634}
+.kg-sort button.is-selected,.kg-timeframes button.is-selected{background:#141c27;color:#3989f4}
+.kg-fav-remove,.kg-close-position{background:rgba(226,83,96,.18);color:#e25360}
+.kg-nav button.is-active{background:rgba(57,137,244,.18);color:#3989f4}
+.kg-ticket{background:#141c27;color:#eef3fa}
+.kg-ticket-close,.kg-ticket-heading,.kg-ticket-actions .kg-badge,.kg-leverage-value button{background:#1b2634;color:#eef3fa}
+.kg-ticket-amount input{color:#eef3fa;caret-color:#3989f4}
+.kg-toast{background:#1b2634;color:#eef3fa}
+.kg-ai-message.is-user>div{background:#3989f4;color:#fff}
+.kg-ai-message.is-assistant>div{background:#1b2634;color:#eef3fa}
+.kg-gemini-home{background:radial-gradient(ellipse 72% 35% at 50% 43%,rgba(57,137,244,.14),transparent 72%),#0b1018}
+.kg-gemini-icon-button{background:rgba(27,38,52,.7);color:#eef3fa;border-color:rgba(173,190,211,.16)}
+.kg-gemini-tools button{background:rgba(27,38,52,.65);color:#eef3fa}
+#kg-companion-screen .kg-ai-form{background:rgba(20,28,39,.82);border-color:rgba(173,190,211,.18)}
+#kg-ai-send{background:#3989f4;color:#fff}
+.kg-ai-menu{background:#141c27;color:#eef3fa}
+.kg-ai-menu-head button{background:#1b2634;color:#eef3fa}
+#kg-companion-screen .kg-ai-message.is-user>div{background:rgba(57,137,244,.25);color:#eef3fa}
+
+
+
+/* Mobile leverage modal: bounded scroll area, safe-area spacing and reliable touch targets. */
+.kg-modal{
+  align-items:center;
+  padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px));
+}
+.kg-modal-card{
+  box-sizing:border-box;
+  width:min(100%,520px);
+  max-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 24px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:clamp(14px,4vw,20px);
+  border-radius:22px;
+}
+.kg-modal-head{gap:12px;margin-bottom:clamp(12px,3vh,18px)}
+.kg-leverage-value{gap:8px;flex-wrap:wrap;margin:clamp(14px,4vh,22px) 0}
+.kg-leverage-value strong{font-variant-numeric:tabular-nums;white-space:nowrap}
+.kg-leverage-value button{min-width:44px;min-height:40px}
+#kg-lev-slider{display:block;min-height:32px;touch-action:pan-y}
+#kg-lev-warning{margin:12px 0;line-height:1.5}
+#kg-lev-apply{position:sticky;bottom:0;min-height:48px;margin-top:12px}
+@media(max-width:360px){
+  .kg-modal{padding-right:8px;padding-left:8px}
+  .kg-modal-card{padding:14px}
+  .kg-leverage-value strong{font-size:27px}
+}
+@media(max-height:600px){
+  .kg-modal{align-items:flex-start}
+  .kg-modal-card{max-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 16px)}
+  .kg-leverage-value{margin:10px 0}
+}
+
+/* Dark theme QA corrections: cover the current wallet and Companion markup. */
+:root{
+  --kg-bg:#0b1018;
+  --kg-card:#141c27;
+  --kg-ink:#eef3fa;
+  --kg-muted:#94a3b8;
+  --kg-line:rgba(173,190,211,.12);
+  --kg-shadow:0 8px 28px rgba(0,0,0,.22);
+}
+html,body{background:#0b1018!important;color:#eef3fa}
+#kg-wallet-screen .kg-wallet-hero{color:#eef3fa}
+#kg-wallet-screen .kg-wallet-hero small{color:#94a3b8}
+#kg-wallet-screen .kg-wallet-hero strong{color:#f3f7fc}
+#kg-wallet-screen .kg-wallet-quick-actions button{background:#141c27;color:#eef3fa;border:1px solid rgba(173,190,211,.12);box-shadow:none}
+#kg-wallet-screen .kg-wallet-quick-actions button small{color:#eef3fa}
+#kg-wallet-screen .kg-wallet-action-icon{background:#1b2634;color:#3989f4;box-shadow:none}
+#kg-wallet-screen .kg-wallet-currency{background:#141c27;color:#eef3fa;border:1px solid rgba(173,190,211,.12)}
+#kg-wallet-screen .kg-wallet-portfolio{background:#141c27;color:#eef3fa;border:1px solid rgba(173,190,211,.12)}
+#kg-nav.kg-nav{background:rgba(20,28,39,.94);border-color:rgba(173,190,211,.16);box-shadow:0 8px 30px rgba(0,0,0,.35)}
+#kg-nav.kg-nav button{color:#94a3b8}
+#kg-nav.kg-nav button.is-active{background:rgba(57,137,244,.18);color:#3989f4}
+#kg-companion-screen.kg-gemini-home{background:radial-gradient(ellipse 72% 35% at 50% 43%,rgba(57,137,244,.14),transparent 72%),#0b1018;color:#eef3fa}
+#kg-companion-screen .kg-ai-messages{background:transparent;border-color:transparent;box-shadow:none}
+#kg-companion-screen .kg-ai-welcome{background:transparent}
+#kg-companion-screen .kg-ai-welcome>b{color:#eef3fa}
+#kg-companion-screen .kg-ai-welcome>p{color:#94a3b8}
+#kg-companion-screen .kg-gemini-tools button{background:#141c27;color:#eef3fa;border:1px solid rgba(173,190,211,.12)}
+#kg-companion-screen .kg-ai-form{background:rgba(20,28,39,.92);border-color:rgba(173,190,211,.18)}
+#kg-companion-screen .kg-ai-disclaimer{color:#94a3b8}
+#kg-companion-screen .kg-gemini-model{color:#eef3fa}
+#kg-companion-screen .kg-gemini-icon-button{background:#141c27;color:#eef3fa}
+
+/* Companion chat QA: override expanded composer and message bubble selectors. */
+#kg-companion-screen .kg-ai-message>div{background:#1b2634;color:#eef3fa;box-shadow:0 2px 12px rgba(0,0,0,.18)}
+#kg-companion-screen .kg-ai-message.is-user>div{background:rgba(57,137,244,.25);color:#eef3fa}
+#kg-companion-screen .kg-ai-form textarea{color:#eef3fa}
+#kg-companion-screen .kg-ai-form textarea::placeholder{color:#94a3b8}
+#kg-companion-screen.kg-composer-expanded .kg-ai-form{background:rgba(20,28,39,.96);border-color:rgba(173,190,211,.18);box-shadow:0 8px 30px rgba(0,0,0,.28),inset 0 1px 0 rgba(173,190,211,.08)}
+
+/* Dark trading ticket surfaces and inputs. */
+#kg-ticket-screen .kg-ticket-settings{background:#141c27;color:#eef3fa;border-color:rgba(173,190,211,.14);box-shadow:none}
+#kg-ticket-screen .kg-ticket-settings input{background:#1b2634;color:#eef3fa;border-color:rgba(173,190,211,.16);caret-color:#3989f4}
+#kg-ticket-screen .kg-ticket-settings label,
+#kg-ticket-screen .kg-ticket-preview,
+#kg-ticket-screen .kg-ticket-volume,
+#kg-ticket-screen .kg-ticket-available{color:#94a3b8}
+#kg-ticket-screen .kg-ticket-actions{border-top-color:rgba(173,190,211,.14)}
+#kg-ticket-screen .kg-ticket-actions .kg-badge{background:#1b2634;color:#eef3fa}
+#kg-ticket-screen .kg-ticket-heading{background:#141c27;color:#eef3fa}
