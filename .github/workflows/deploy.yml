@@ -34,7 +34,7 @@ jobs:
   deploy:
     needs: test
     # Deploy only after a successful push to main; PR checks never touch production.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: TELEGRAM_BOT_TOKEN
     steps:
