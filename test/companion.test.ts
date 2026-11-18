@@ -395,4 +395,78 @@ describe("AI Companion API", () => {
     expect(body).toContain("Лимит запросов Gemini");
     expect(body).not.toContain("private provider detail");
   });
+
+  it("rejects 5 or more attachments with HTTP 400 before calling Gemini", async () => {
+    const e = isolatedEnv();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        message: "Много файлов",
+        attachments: Array(5).fill({ name: "file.png", mimeType: "image/png", dataBase64: "aGVsbG8=" }),
+      }),
+    });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining("не больше 4 файлов") });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an attachment exceeding 5 MB with HTTP 413 before calling Gemini", async () => {
+    const e = isolatedEnv();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    // Base64 string that decodes to > 5MB (e.g. 7MB of 'A's -> 4 base64 chars per 3 bytes)
+    const largeBase64 = "A".repeat(Math.ceil((5 * 1024 * 1024 + 100) / 3) * 4);
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        message: "Большой файл",
+        attachments: [{ name: "huge.png", mimeType: "image/png", dataBase64: largeBase64 }],
+      }),
+    });
+    expect(response.status).toBe(413);
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining("не больше 5 МБ") });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects total attachments size exceeding 8 MB with HTTP 413 before calling Gemini", async () => {
+    const e = isolatedEnv();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    // Each file is 3MB, total 9MB > 8MB, but each <= 5MB
+    const chunkBase64 = "A".repeat(Math.ceil((3 * 1024 * 1024) / 3) * 4);
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        message: "Суммарно большой объем",
+        attachments: [
+          { name: "file1.png", mimeType: "image/png", dataBase64: chunkBase64 },
+          { name: "file2.png", mimeType: "image/png", dataBase64: chunkBase64 },
+          { name: "file3.png", mimeType: "image/png", dataBase64: chunkBase64 },
+        ],
+      }),
+    });
+    expect(response.status).toBe(413);
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining("максимум 8 МБ") });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed base64 and unsupported MIME types with appropriate status before calling Gemini", async () => {
+    const e = isolatedEnv();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Malformed base64 (invalid length / padding)
+    const resMalformed = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        message: "Битый base64",
+        attachments: [{ name: "bad.png", mimeType: "image/png", dataBase64: "abc!@#" }],
+      }),
+    });
+    expect(resMalformed.status).toBe(400);
+    expect(await resMalformed.json()).toMatchObject({ error: expect.stringContaining("Файл повреждён") });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
