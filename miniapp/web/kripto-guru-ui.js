@@ -260,10 +260,8 @@
     const marketScreenActive=(state.screen==="wallet"||state.screen==="trading")&&$("#kg-asset-screen").hidden&&$("#kg-ticket-screen").hidden;
     const shouldPoll=document.visibilityState==="visible"&&marketScreenActive;
     if(shouldPoll){
-      if(!marketRefreshTimer){
-        marketRefreshTimer=setInterval(refreshMarketData,15000);
-        if(refreshOnStart)void refreshMarketData();
-      }
+      if(!marketRefreshTimer)marketRefreshTimer=setInterval(refreshMarketData,15000);
+      if(refreshOnStart)void refreshMarketData();
     }else if(marketRefreshTimer){
       clearInterval(marketRefreshTimer);
       marketRefreshTimer=null;
