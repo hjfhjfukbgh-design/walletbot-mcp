@@ -770,3 +770,9 @@
 - **Team C:** Issue #348 — isolated AI paper ledger + atomic virtual DEMO→AI funding, no new DO class, no real transfers.
 - **Dispatch status:** issues have team/priority labels and required child-task metadata, but intentionally do not have agent-ready. They will not trigger Gemini workers until free-tier-only/billing-disabled status is confirmed.
 - **No worker dispatch or Gemini API request triggered by creating these issues.**
+### 2026-11-19 — Team Lead started AI paper ledger foundation
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:21:22.919+05:00
+- **Issue #348:** Team Lead takes the first implementation slice: separate AI paper account + atomic, idempotent virtual funding from DEMO; no new DO class, no real funds, no LLM dependency.
+- **Planned files:** `src/trading/engine.ts`, `src/api.ts`, Miniflare and API tests.
+- **Dispatch:** issue #348 remains without agent-ready; no Gemini worker call triggered.
