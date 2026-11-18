@@ -11,6 +11,7 @@
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
+    tradeMode:"demo", liveStatus:null, liveOperation:null, liveExecuteStarted:false, livePollActive:false,
     autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[]
   };
   let marketLoadEpoch=0,marketRefreshInFlight=false,marketLastUpdatedAt=0,marketSearchTimer=0,marketVisibilityListenerInstalled=false;
