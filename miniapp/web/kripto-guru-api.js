@@ -390,6 +390,16 @@
     },
   };
 
+  const productMode = {
+    async get() {
+      const data = await request("/api/state");
+      return data.productMode === "ai" ? "ai" : "demo";
+    },
+    async set(mode) {
+      return request("/api/product-mode", { method: "POST", body: { productMode: mode } });
+    },
+  };
+
   const api = Object.freeze({
     version: API_VERSION,
     wallet,
@@ -400,6 +410,7 @@
     companion,
     live,
     capabilities,
+    productMode,
     errors: Object.freeze({ ApiError: KriptoGuruApiError }),
   });
 
