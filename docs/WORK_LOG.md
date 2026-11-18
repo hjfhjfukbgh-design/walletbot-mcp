@@ -727,3 +727,11 @@
 - **Изменение:** README больше не утверждает искусственный глобальный лимит 3x; описано ограничение максимумом конкретного контракта и отдельные лимиты маржи, общей экспозиции и дневного убытка.
 - **CI run:** `44409321739` success — npm ci, JS syntax checks, typecheck, npm test.
 - **Runtime code не менялся.**
+### 2026-11-19 — Product mode selector UI merged
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:15:01.157+05:00
+- **PR #343:** merged squash commit `2266e380eab7af9e21146cb03d1111bada10b20c`.
+- **UI:** wallet home now displays DEMO, AI Trading (PAPER), and disabled LIVE. DEMO/AI selection persists through tenant-scoped productMode API. AI mode explicitly states that automatic trades are not active; LIVE remains locked in UI and returns server-side HTTP 409.
+- **CI:** deploy run `44409118147` success — npm ci, JS syntax, typecheck, npm test; screenshot run `44409457221` success — clean UI capture. Artifact `14476267553` visually reviewed at 390×844 and 430×932.
+- **Test correction:** initial screenshot run `44408863557` failed due wrong `$()` helper; fixed in `b2f5ee07e867af1879c50d2e56fa5026568158e`. Workflow artifact allowlist updated to include `clean-product-mode-ai-*.png`.
+- **Issue #66:** closed completed, labels `team-b`, `agent-done`; note that AI engine integration and LIVE execution remain separate incomplete tasks.
