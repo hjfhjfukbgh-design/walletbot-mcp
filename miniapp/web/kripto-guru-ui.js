@@ -9,7 +9,7 @@
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
-    autoclose:false, busy:false
+    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionBusy:false
   };
   const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
   const money = (v,d=2) => Number.isFinite(Number(v)) ? "$"+fmt(v,d) : "—";
@@ -331,6 +331,52 @@
     catch(error){notify(normalizeError(error).message);}
     finally{state.busy=false;}
   }
+  function renderCompanionMessages(){
+    const root=$("#kg-ai-messages");
+    if(!state.companionMessages.length){
+      root.innerHTML='<div class="kg-ai-empty">Привет! Я AI Companion. Могу помочь с вопросами, обучением, технологиями и планированием.</div>';
+      return;
+    }
+    root.innerHTML=state.companionMessages.map(message=>`<div class="kg-ai-message ${message.role==="user"?"is-user":"is-assistant"}"><div>${esc(message.content).replace(/\n/g,"<br>")}</div></div>`).join("");
+    root.scrollTop=root.scrollHeight;
+  }
+  function renderCompanionHistory(){
+    const root=$("#kg-ai-history");
+    root.innerHTML=state.companionConversations.map(item=>`<button type="button" class="kg-ai-history-item ${item.id===state.companionId?"is-selected":""}" data-ai-conversation="${esc(item.id)}"><span>${esc(item.title||"Новый диалог")}</span><small>${Number(item.messageCount)||0}</small></button>`).join("");
+  }
+  async function loadCompanionConversations(){
+    try{
+      state.companionConversations=await invoke("companion.list");
+      renderCompanionHistory();
+    }catch(error){notify(normalizeError(error).message);}
+  }
+  async function openCompanionConversation(id){
+    if(state.companionBusy)return;
+    try{
+      const conversation=await invoke("companion.get",id);
+      state.companionId=conversation.id;
+      state.companionMessages=conversation.messages||[];
+      renderCompanionMessages();renderCompanionHistory();
+    }catch(error){notify(normalizeError(error).message);}
+  }
+  function newCompanionConversation(){
+    state.companionId=null;state.companionMessages=[];
+    renderCompanionMessages();renderCompanionHistory();
+    $("#kg-ai-input").focus();
+  }
+  async function sendCompanionMessage(event){
+    event?.preventDefault();
+    const input=$("#kg-ai-input"), message=input.value.trim();
+    if(!message||state.companionBusy)return;
+    state.companionBusy=true;$("#kg-ai-send").disabled=true;input.disabled=true;
+    try{
+      const result=await invoke("companion.send",message,state.companionId);
+      state.companionId=result.conversationId;
+      state.companionMessages=result.conversation?.messages||[...state.companionMessages,{role:"user",content:message},{role:"assistant",content:result.answer}];
+      input.value="";renderCompanionMessages();await loadCompanionConversations();
+    }catch(error){notify(normalizeError(error).message);}
+    finally{state.companionBusy=false;$("#kg-ai-send").disabled=false;input.disabled=false;input.focus();}
+  }
   function bind(){
     $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
       setScreen(button.dataset.screen);
@@ -338,6 +384,7 @@
       if(state.screen==="trading")await (state.category==="all"?setSearchFilter("all"):loadCategory(state.category));
       if(state.screen==="income"){await loadWallet();await loadHistory();}
       if(state.screen==="bonuses")await loadCapabilities();
+      if(state.screen==="companion")await loadCompanionConversations();
     }));
     $$("[data-open-trading]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("crypto");}));
     $$("[data-open-futures]").forEach(b=>b.addEventListener("click",()=>{setScreen("trading");loadCategory("futures");}));
