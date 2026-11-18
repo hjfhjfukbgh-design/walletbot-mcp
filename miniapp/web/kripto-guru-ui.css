@@ -677,3 +677,5 @@ button:disabled{cursor:not-allowed;opacity:.5}
  .kg-gemini-spark{animation:kg-gemini-glow 5s ease-in-out infinite}
  @keyframes kg-gemini-glow{0%,100%{transform:scale(1);filter:drop-shadow(0 4px 12px rgba(115,145,255,.16))}50%{transform:scale(1.045);filter:drop-shadow(0 7px 19px rgba(115,145,255,.32))}}
 }
+
+#kg-companion-screen.is-active~#kg-nav{display:none}
