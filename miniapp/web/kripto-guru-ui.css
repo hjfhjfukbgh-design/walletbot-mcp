@@ -1032,3 +1032,28 @@ button{ -webkit-tap-highlight-color:transparent }
  #kg-wallet-screen .kg-wallet-hero{margin-bottom:34px}
  #kg-wallet-screen .kg-favorite{flex-basis:142px;min-width:142px}
 }
+
+
+/* Telegram-style portfolio list editor */
+#kg-wallet-screen .kg-equities-heading{display:flex;align-items:center;justify-content:space-between}
+#kg-wallet-screen #kg-edit-equities{border:0;background:transparent;color:#2487f5;font:500 15px/1.2 inherit;padding:8px 2px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#kg-wallet-equities .kg-equity-row{position:relative;min-height:76px;gap:12px;padding:12px 15px}
+#kg-wallet-equities .kg-equity-generic{background:#e9effb;color:#4b83db;font-weight:700}
+#kg-wallet-equities .kg-equity-row .kg-wallet-row-value{margin-left:auto}
+#kg-wallet-equities.is-editing .kg-equity-row{padding-right:52px}
+#kg-wallet-equities .kg-equity-remove{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:0;border-radius:50%;background:#fce8e8;color:#e34b55;font-size:24px;line-height:24px;cursor:pointer}
+.kg-equities-add-wrap{padding:10px 4px 2px}
+.kg-equities-add{width:100%;min-height:48px;border:0;border-radius:15px;background:rgba(36,135,245,.09);color:#2487f5;font:600 15px inherit;cursor:pointer}
+.kg-equities-editor[hidden]{display:none!important}
+.kg-equities-editor{position:fixed;inset:0;z-index:120;display:flex;align-items:flex-end;justify-content:center}
+.kg-equities-editor-backdrop{position:absolute;inset:0;background:rgba(20,24,35,.38);backdrop-filter:blur(3px)}
+.kg-equities-editor-card{position:relative;width:min(100%,520px);max-height:min(78dvh,680px);overflow:auto;padding:20px 18px calc(22px + env(safe-area-inset-bottom));border-radius:25px 25px 0 0;background:#f4f4f8;box-shadow:0 -8px 36px rgba(0,0,0,.12)}
+.kg-equities-editor-head{display:flex;align-items:center;justify-content:space-between;font-size:20px}
+.kg-equities-editor-head button{width:34px;height:34px;border:0;border-radius:50%;background:#e7e8ed;color:#333;font-size:23px}
+.kg-equities-editor-card>p{margin:9px 0 14px;color:#858894;font-size:14px;line-height:1.4}
+.kg-equity-preset{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:56px;padding:9px 12px;border:0;border-bottom:1px solid #e4e5eb;background:#fff;text-align:left;color:#16171b}
+.kg-equity-preset:first-child{border-radius:14px 14px 0 0}.kg-equity-preset:last-child{border-radius:0 0 14px 14px;border-bottom:0}
+.kg-equity-preset span{display:grid;gap:3px}.kg-equity-preset small{color:#92949e}.kg-equity-preset strong{color:#2487f5;font-size:22px}
+.kg-equities-custom-form{margin-top:18px}.kg-equities-custom-form label{display:block;margin-bottom:8px;color:#858894;font-size:13px}
+.kg-equities-custom-form>div{display:flex;gap:8px}.kg-equities-custom-form input{flex:1;min-width:0;height:46px;padding:0 12px;border:1px solid #e0e1e7;border-radius:12px;background:#fff;font:inherit;text-transform:uppercase}
+.kg-equities-custom-form button{padding:0 15px;border:0;border-radius:12px;background:#2487f5;color:#fff;font:600 14px inherit}
