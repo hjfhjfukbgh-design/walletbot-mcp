@@ -41,8 +41,21 @@
   const fromPrice = (value) => Number(BigInt(value ?? "0")) / Number(PRICE_SCALE);
   const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
 
+  function telegramInitData() {
+    const fromSdk = window.Telegram?.WebApp?.initData;
+    if (typeof fromSdk === "string" && fromSdk.length) return fromSdk;
+    // Telegram normally exposes initData through the SDK. Read the signed raw
+    // launch parameter as a fallback for WebViews where the SDK bridge races
+    // page initialization. The server still verifies its HMAC before use.
+    const fromParams = (raw) => {
+      try { return new URLSearchParams(String(raw || "").replace(/^#/, "")).get("tgWebAppData") || ""; }
+      catch { return ""; }
+    };
+    return fromParams(window.location.search) || fromParams(window.location.hash);
+  }
+
   async function request(path, { method = "GET", body, timeoutMs = 12_000 } = {}) {
-    const initData = window.Telegram?.WebApp?.initData;
+    const initData = telegramInitData();
     if (!initData) {
       throw new KriptoGuruApiError({
         code: "TELEGRAM_AUTH_REQUIRED",
