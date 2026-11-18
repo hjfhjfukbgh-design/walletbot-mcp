@@ -694,3 +694,10 @@
 
 - **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:02:00+05:00
 - **Начато:** проверка финального screenshot artifact PR #337 и CI для PR #338. Цель — выявить mobile overflow/visual regressions и проверить новый DEMO-only paper signal. Никакого merge/deploy или LIVE execution без проверки.
+
+### 2026-11-19 — Product mode selector visual test caught and fixed runtime defect
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T03:11:34.000+05:00
+- **PR #343 initial screenshot run:** `44408863557` failed. Root cause: single-element `$()` helper was incorrectly used as a collection before `.forEach`, aborting UI startup.
+- **Correction:** branch commit `b2f5ee07e867af1879c50d2e56fa5026568158e` changes the selector iteration to `$$()`; PR comment records the failure. A fresh screenshot run is required before merge.
+- **No merge/deploy.
