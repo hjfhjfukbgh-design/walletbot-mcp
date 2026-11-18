@@ -7,7 +7,7 @@
   <meta name="color-scheme" content="light">
   <title>Kripto Guru</title>
   <script src="https://telegram.org/js/telegram-web-app.js?65"></script>
-  <link rel="stylesheet" href="/kripto-guru-ui.css?v=20261118-walt-layout-parity-3">
+  <link rel="stylesheet" href="/kripto-guru-ui.css?v=20261118-equities-management-1">
 </head>
 <body>
   <main id="kg-main">
@@ -39,10 +39,11 @@
       <div id="kg-favorites" class="kg-favorites"><div class="kg-empty-inline">Загрузка избранного…</div></div>
       <div class="kg-section-head"><h2>Крипто</h2><span class="kg-muted">Всего: <span id="kg-wallet-crypto-total">—</span></span></div>
       <div id="kg-wallet-assets" class="kg-list"><div class="kg-skeleton"></div></div>
-      <div class="kg-section-head"><h2>Акции и фонды</h2><span class="kg-muted">Всего: —</span></div>
-      <div class="kg-list kg-wallet-equities">
-        <div class="kg-asset-row"><span class="kg-asset-icon kg-brand-apple" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16.7 12.8c0-2.1 1.7-3.1 1.8-3.2-1-1.5-2.6-1.7-3.2-1.7-1.4-.2-2.8.9-3.5.9-.7 0-1.8-.9-3-.9-1.6 0-3.1.9-3.9 2.3-1.7 2.9-.4 7.2 1.2 9.5.8 1.1 1.7 2.3 2.9 2.2 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.3-2.5 1.3-2.6-.1 0-2.4-.9-2.4-3.6ZM14.4 6.4c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2Z" fill="currentColor"/></svg></span><span class="kg-row-copy"><b>Apple</b><small>AAPL · котировка недоступна</small></span><span class="kg-wallet-row-value">—</span></div>
+      <div id="kg-equities-section">
+        <div class="kg-section-head kg-equities-heading"><h2>Акции и фонды</h2><button id="kg-edit-equities" class="kg-link" type="button">Изменить</button></div>
+        <div id="kg-wallet-equities" class="kg-list kg-wallet-equities" aria-live="polite"></div>
       </div>
+      <div id="kg-equities-hidden" class="kg-equities-hidden" hidden><span>Акции и фонды скрыты</span><button id="kg-show-equities" class="kg-link" type="button">Показать</button></div>
       <div class="kg-list kg-wallet-defi"><div class="kg-asset-row"><span class="kg-asset-icon kg-brand-defi" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5v14M10 5l4 14M15 5l4 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></span><span class="kg-row-copy"><b>DeFi Счёт</b></span><span class="kg-wallet-row-value">—</span></div></div>
       <div class="kg-section-head"><h2>Аккаунты ИИ-агента</h2></div>
       <div class="kg-list"><div class="kg-asset-row"><span class="kg-asset-icon kg-brand-grok" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 18.5 18.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span><span class="kg-row-copy"><b>Агент Grok</b></span><span class="kg-wallet-row-value">—</span></div></div>
@@ -122,6 +123,17 @@
       <div class="kg-page-title"><h1>Бонусы</h1><p>Привилегии и специальные предложения Kripto Guru.</p></div><div class="kg-bonus-card"><span class="kg-bonus-icon">✦</span><div><small>ПРОГРАММА ГОТОВИТСЯ</small><b>Бонусы Kripto Guru</b><p id="kg-bonus-reason">Бонусная программа пока недоступна. Никакие начисления не имитируются.</p></div></div><div class="kg-settings-note">Режим: <b>ДЕМО</b>. LIVE заблокирован.</div>
     </section>
   </main>
+  <section id="kg-equities-modal" class="kg-modal kg-equities-modal" hidden aria-label="Управление акциями и фондами">
+    <div class="kg-modal-backdrop" data-equities-close></div>
+    <div class="kg-modal-card kg-equities-card" role="dialog" aria-modal="true" aria-labelledby="kg-equities-title">
+      <div class="kg-modal-head"><div><b id="kg-equities-title">Акции и фонды</b><small>Настройте список активов на главном экране</small></div><button id="kg-equities-close" type="button" aria-label="Закрыть">×</button></div>
+      <label class="kg-equities-search"><span aria-hidden="true">⌕</span><input id="kg-equities-search" type="search" placeholder="Найти акцию или фонд" autocomplete="off"></label>
+      <div class="kg-equities-list-head"><b>Доступные активы</b><span>Добавляйте и убирайте в любой момент</span></div>
+      <div id="kg-equities-catalog" class="kg-equities-catalog"></div>
+      <form id="kg-equities-custom-form" class="kg-equities-custom"><input id="kg-equities-custom-symbol" maxlength="12" placeholder="Тикер, например AMD" aria-label="Тикер своего актива"><button type="submit">Добавить</button></form>
+      <button id="kg-equities-hide" class="kg-equities-hide" type="button">Скрыть раздел на главном экране</button>
+    </div>
+  </section>
   <section id="kg-asset-screen" class="kg-subscreen" hidden aria-label="Актив">
     <div class="kg-asset-top"><button id="kg-asset-back" class="kg-back" type="button" aria-label="Назад">‹</button><span id="kg-asset-product" class="kg-badge">Фьючерс</span><span id="kg-asset-leverage" class="kg-badge">—×</span><button id="kg-asset-favorite" class="kg-link" type="button">☆ В избранное</button></div>
     <div class="kg-asset-identity"><span id="kg-asset-icon" class="kg-asset-large-icon">₿</span><div><h1 id="kg-asset-name">Bitcoin</h1><small id="kg-asset-symbol">BTC · DEMO</small></div></div><div id="kg-asset-price" class="kg-asset-price">—</div><div id="kg-asset-change" class="kg-asset-change">—</div>
