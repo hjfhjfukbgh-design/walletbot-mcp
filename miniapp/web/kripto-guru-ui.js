@@ -4,7 +4,7 @@
   const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
   const tg = window.Telegram?.WebApp || null;
   const state = {
-    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, currencyMode:"RUB", productMode:"demo", aiPaperStatus:null, aiPaperBusy:false, sparklineCache:{},
+    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, currencyMode:"RUB", productMode:"demo", aiPaperStatus:null, aiPaperBusy:false, aiPaperPendingTransfer:(()=>{try{const pending=JSON.parse(localStorage.getItem("kg:ai-paper-pending:v1")||"null");if(pending&&Date.now()-Number(pending.createdAt)<86400000)return pending;localStorage.removeItem("kg:ai-paper-pending:v1");}catch{}return null;})(), sparklineCache:{},
     favorites:(()=>{try{return new Set(JSON.parse(localStorage.getItem("kg:favorites:v1")||'["BTC","ETH","SOL"]'));}catch{return new Set(["BTC","ETH","SOL"]);}})(),
     equities:(()=>{try{const saved=JSON.parse(localStorage.getItem("kg:equities:v1"));return Array.isArray(saved)?saved.filter(x=>x&&typeof x.symbol==="string"&&typeof x.name==="string"):[{symbol:"AAPL",name:"Apple",kind:"Акция"}];}catch{return[{symbol:"AAPL",name:"Apple",kind:"Акция"}];}})(),
     editEquities:false,
@@ -39,7 +39,7 @@
   const notify = (message) => { const node=$("#kg-toast"); node.textContent=message; node.classList.add("is-visible"); clearTimeout(notify.timer); notify.timer=setTimeout(()=>node.classList.remove("is-visible"),2600); };
   const normalizeError = (error) => {
     const source=error?.error || error || {};
-    return {code:String(source.code || "REQUEST_FAILED"),message:String(source.message || source.detail || "Не удалось выполнить запрос."),retryable:Boolean(source.retryable)};
+    return {code:String(source.code || "REQUEST_FAILED"),message:String(source.message || source.detail || "Не удалось выполнить запрос."),retryable:Boolean(source.retryable),status:Number(source.status||0)};
   };
   const api = () => window.KriptoGuruAPI || null;
   async function invoke(path,...args){
@@ -792,6 +792,7 @@
     $("#kg-ai-paper-demo").textContent=formatMicroUsd(status.demoBalanceMicro);
     $("#kg-ai-paper-state").textContent=status.status==="running"?"Запущен":status.status==="paused"?"Пауза":status.status==="killed"?"Остановлен · блокировка":"Остановлен";
     $("#kg-ai-paper-open").textContent=String(Number(status.openPositions||0));
+    if(state.aiPaperPendingTransfer&&!state.aiPaperBusy)$("#kg-ai-paper-note").textContent="Предыдущий перевод не получил подтверждения. Повторите то же действие с той же суммой для безопасной сверки.";
   }
   async function loadAiPaperStatus(){
     if(state.productMode!=="ai")return;
@@ -817,21 +818,39 @@
       notify("Введите сумму больше нуля, максимум два знака после запятой.");
       return;
     }
+    const pending=state.aiPaperPendingTransfer;
+    if(pending&&(pending.direction!==direction||pending.amount!==amount)){
+      notify("Сначала повторите предыдущий перевод с тем же направлением и суммой для безопасной сверки.");
+      return;
+    }
     const isFund=direction==="fund";
     const message=isFund
       ?"Перевести $"+amount+" виртуальных средств со счёта DEMO на AI PAPER?"
       :"Вернуть $"+amount+" виртуальных средств с AI PAPER на DEMO?";
     if(!await confirmVirtualTransfer(message))return;
-    const idempotencyKey="kg-ai-paper-"+direction+"-"+(window.crypto?.randomUUID?.()||Date.now()+"-"+Math.random().toString(36).slice(2));
+    const idempotencyKey=pending?.key||("kg-ai-paper-"+direction+"-"+(window.crypto?.randomUUID?.()||Date.now()+"-"+Math.random().toString(36).slice(2)));
+    if(!pending){
+      state.aiPaperPendingTransfer={direction,amount,key:idempotencyKey,createdAt:Date.now()};
+      try{localStorage.setItem("kg:ai-paper-pending:v1",JSON.stringify(state.aiPaperPendingTransfer));}catch{}
+    }
     state.aiPaperBusy=true;
     renderAiPaperPanel();
     try{
       state.aiPaperStatus=await invoke(isFund?"aiPaper.fund":"aiPaper.withdraw",amount,idempotencyKey);
+      state.aiPaperPendingTransfer=null;
+      try{localStorage.removeItem("kg:ai-paper-pending:v1");}catch{}
       $("#kg-ai-paper-note").textContent="Перевод выполнен внутри виртуальных счетов. Автоматическая стратегия не запускалась.";
       renderAiPaperPanel();
       notify(isFund?"Средства переведены на AI PAPER.":"Средства возвращены на DEMO.");
     }catch(error){
-      notify(normalizeError(error).message);
+      const normalized=normalizeError(error);
+      if(!normalized.retryable&&normalized.status>=400&&normalized.status<500){
+        state.aiPaperPendingTransfer=null;
+        try{localStorage.removeItem("kg:ai-paper-pending:v1");}catch{}
+      }else{
+        $("#kg-ai-paper-note").textContent="Результат перевода неизвестен. Повторите то же действие с той же суммой: ключ операции сохранён, повтор не спишет средства дважды.";
+      }
+      notify(normalized.message);
       await loadAiPaperStatus();
     }finally{
       state.aiPaperBusy=false;
