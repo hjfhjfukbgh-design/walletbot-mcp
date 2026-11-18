@@ -464,7 +464,15 @@ async function executeLiveTrade(env: Env, scopedEnv: Env, userId: string, body: 
     const prior = await engineRequest(env, "/live/status?userId=" + encodeURIComponent(userId) + "&handle=" + encodeURIComponent(handle));
     if (prior.ok) {
       const data = await prior.json() as { operation?: Json };
-      return json({ ok: true, alreadyProcessed: true, operation: data.operation ?? null });
+      const priorOperation = data.operation ?? {};
+      return json({
+        ok: true, alreadyProcessed: true,
+        operation: {
+          handle: priorOperation.handle, market: priorOperation.symbol, side: priorOperation.side,
+          leverage: priorOperation.leverage, marginUsd: priorOperation.marginUsd,
+          status: priorOperation.status, result: priorOperation.result ?? null,
+        },
+      });
     }
     return fail("Подготовка ордера не найдена или срок подтверждения истёк.", 410);
   }
