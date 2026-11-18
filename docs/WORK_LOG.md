@@ -155,3 +155,13 @@
 - **Цель:** независимая проверка UI release candidate PR #228 и исходных PR #222/#223: scope, конфликты/актуальность, typecheck/tests/screenshot evidence, соответствие требованиям dark UI, OHLC и mobile modal; перечислить точные блокеры и безопасные следующие шаги.
 - **Роль/команда:** QA, Team B (Product); только read-only аудит и отчёт, без source changes, merge, deploy или LIVE операций.
 - **Очередь:** `orchestrator-ready`; за один workflow run диспетчер должен брать максимум одну задачу.
+
+### 2026-11-19 — QA Issue #275 добавлена в очередь
+
+- **Время:** 2026-11-19T00:54:05.369+05:00
+- **Событие:** создана и повторно проверена ограниченная QA-задача для независимой проверки release candidate.
+- **Статус:** поставлена в очередь
+- **Issue:** https://github.com/hjfhjfukbgh-design/walletbot-mcp/issues/275
+- **Назначение:** Team B; labels фактически подтверждены: `team-b`, `orchestrator-ready`.
+- **Scope:** read-only QA PR #228/#222/#223; проверить CI, артефакты, source diff и release readiness. Никаких source changes, merge/deploy, Walt writes или финансовых действий.
+- **Ожидаемое выполнение:** действующий scheduled orchestrator в main проверяет `orchestrator-ready` каждые 5 минут и обрабатывает максимум одну Issue за запуск. Фактический запуск/выделение runner пока не подтверждён; не считать задачу выполненной до workflow run и артефакта.
