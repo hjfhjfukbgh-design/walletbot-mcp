@@ -123,6 +123,55 @@ describe("LIVE execute safety", () => {
     expect(client.call).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects an expired preview before connecting to Walt", async () => {
+    const e = env();
+    const records = installEngine(e);
+    const handle = "c".repeat(32);
+    const expired = { ...previewRecord(), expiresAt: Date.now() - 1 };
+    await tenantEnv(e, "12345").STATE.put("live:preview:12345:" + handle, JSON.stringify(expired), { expirationTtl: 120 });
+    const client = {
+      call: vi.fn(async () => ({ ok: true, orderId: "must-not-run" })),
+      openPosition: vi.fn(async () => null),
+    };
+    vi.mocked(bot.connectWalt).mockResolvedValue(client as any);
+
+    const response = await callApi(e, "live/execute", {
+      method: "POST", body: JSON.stringify({ handle, confirm: true }),
+    });
+    expect(response.status).toBe(410);
+    expect(await response.json()).toMatchObject({ ok: false });
+    expect(bot.connectWalt).not.toHaveBeenCalled();
+    expect(client.call).not.toHaveBeenCalled();
+    expect(records.size).toBe(0);
+  });
+
+  it("does not expose or execute another tenant's LIVE preview", async () => {
+    const e = env();
+    const records = installEngine(e);
+    const handle = "d".repeat(32);
+    await tenantEnv(e, "111").STATE.put("live:preview:111:" + handle, JSON.stringify(previewRecord()), { expirationTtl: 120 });
+    const client = {
+      call: vi.fn(async () => ({ ok: true, orderId: "must-not-run" })),
+      openPosition: vi.fn(async () => null),
+    };
+    vi.mocked(bot.connectWalt).mockResolvedValue(client as any);
+
+    const otherTenant = await callApi(e, "live/execute", {
+      method: "POST", body: JSON.stringify({ handle, confirm: true }),
+    }, "222");
+    expect(otherTenant.status).toBe(410);
+    expect(await otherTenant.json()).toMatchObject({ ok: false });
+    expect(bot.connectWalt).not.toHaveBeenCalled();
+    expect(client.call).not.toHaveBeenCalled();
+    expect(records.size).toBe(0);
+
+    const owner = await callApi(e, "live/execute", {
+      method: "POST", body: JSON.stringify({ handle, confirm: true }),
+    }, "111");
+    expect(owner.status).toBe(200);
+    expect(client.call).toHaveBeenCalledTimes(1);
+  });
+
   it("marks an uncertain Walt response UNKNOWN and never retries the execute call", async () => {
     const e = env();
     const records = installEngine(e);
