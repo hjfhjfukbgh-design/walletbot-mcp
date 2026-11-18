@@ -494,3 +494,22 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .kg-ai-history-entry .kg-ai-history-item{min-width:0;max-width:180px}
 .kg-ai-history-delete{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;border:1px solid var(--kg-line);border-radius:9px;background:#fff;color:#9aa2af;font-size:17px;line-height:1}
 .kg-ai-history-delete:active{background:#fff0f0;color:#d64545}
+
+
+/* Final navigation fit: size the capsule to the three existing actions only.
+   Intrinsic button widths prevent unused columns or reserved future space. */
+.kg-nav{
+  display:flex!important;
+  align-items:stretch;
+  justify-content:center;
+  gap:2px;
+  width:max-content!important;
+  max-width:calc(100vw - 28px);
+  padding:6px;
+}
+.kg-nav button{
+  flex:0 0 auto;
+  width:auto;
+  min-width:0;
+  padding:5px 12px;
+}
