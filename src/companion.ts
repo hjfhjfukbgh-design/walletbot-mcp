@@ -137,14 +137,14 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     if (!/^[a-zA-Z0-9._-]{1,80}$/.test(model)) return json({ ok: false, error: "Некорректная настройка модели Gemini." }, 500);
 
     // Reserve all applicable quotas atomically; KV read-modify-write is race-prone.
-    const now = Date.now();
+    const quotaNow = Date.now();
     const quotaLimits = [{
-      key: "rate:" + userId + ":" + Math.floor(now / (RATE_WINDOW_SECONDS * 1000)),
+      key: "rate:" + userId + ":" + Math.floor(quotaNow / (RATE_WINDOW_SECONDS * 1000)),
       limit: RATE_LIMIT,
       windowSeconds: RATE_WINDOW_SECONDS + 5,
     }];
     if (mode === "research") {
-      const researchDay = new Date(now).toISOString().slice(0, 10);
+      const researchDay = new Date(quotaNow).toISOString().slice(0, 10);
       quotaLimits.push(
         { key: "research:global:" + researchDay, limit: 20, windowSeconds: 48 * 60 * 60 },
         { key: "research:user:" + userId + ":" + researchDay, limit: 5, windowSeconds: 48 * 60 * 60 },
