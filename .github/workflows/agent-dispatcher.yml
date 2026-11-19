@@ -28,6 +28,9 @@ concurrency:
 
 jobs:
   select:
+    concurrency:
+      group: kripto-guru-queue-claim
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.queue.outputs.matrix }}
