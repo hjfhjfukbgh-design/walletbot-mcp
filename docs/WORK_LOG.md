@@ -1406,3 +1406,9 @@
 - **CI run `44529533129`:** npm ci, JS syntax, typecheck and all unit tests PASS; deploy skipped.
 - **Screenshot run `44530138386`:** Playwright capture/contract PASS at 360×800, 375×812, 390×844 and 430×932. The test checks no document-level horizontal overflow and verifies the right price-axis labels remain inside the chart viewport after scrolling to the latest candles.
 - Artifacts contain all major screens at each viewport, including wallet, catalog, chart, ticket, Agents and Companion.
+
+### 2026-11-19T18:09:34+05:00 — AI paper mode terminology localized
+
+- **PR #438:** replaces visible mixed-language `AI Trading`, `PAPER`, `Paper-счёт`, `Баланс AI` and agent copy with Russian labels (`ИИ`, `СЧЁТ`, `Счёт ИИ`, `Виртуальные`) while preserving the technical API/state identifiers and DEMO/LIVE names.
+- The virtual-only and automatic-execution-disabled disclosures remain explicit. Added Playwright assertions for Russian mode labels.
+- Current head `03bd7b2203550f2aaf0862e3b80e2fdb25cf9d34`; CI `44530627457` and screenshot run `44530627423` in progress.
