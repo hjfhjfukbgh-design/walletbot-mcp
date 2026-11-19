@@ -68,7 +68,7 @@ describe("buildPaperSignal", () => {
     expect(parseAiPaperDecision(JSON.stringify({ signal: "hold", symbol: "BTC", rationale: " ", confidence: 0.5 }), ["BTC"]).ok).toBe(false);
     expect(parseAiPaperDecision(JSON.stringify({ signal: "hold", symbol: "BTC", rationale: "ok", confidence: 0.5 }), []).ok).toBe(false);
     expect(parseAiPaperDecision(JSON.stringify({ signal: "hold", symbol: "BTC", rationale: "ok", confidence: 0.5 }), null as unknown as string[]).ok).toBe(false);
-    expect(parseAiPaperDecision(JSON.stringify({ signal: "hold", symbol: "BTC", rationale: "bad\\u0001text", confidence: 0.5 }), ["BTC"]).ok).toBe(false);
+    expect(parseAiPaperDecision(JSON.stringify({ signal: "hold", symbol: "BTC", rationale: "bad\u0001text", confidence: 0.5 }), ["BTC"]).ok).toBe(false);
   });
 
 });
