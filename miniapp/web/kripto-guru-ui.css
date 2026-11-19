@@ -1753,3 +1753,5 @@ html[data-theme="dark"] #kg-ai-form{background:rgba(28,28,30,.76)!important;bord
 #kg-ai-menu .kg-ai-menu-head{min-height:48px;padding:0 0 14px;border-bottom:1px solid var(--kg-line)}
 #kg-ai-menu .kg-ai-history{flex:1;min-height:0;overflow-y:auto;padding:12px 0}
 .kg-ai-menu-profile{width:100%;min-height:48px;margin-top:14px;padding:0 15px;border:1px solid var(--kg-line);border-radius:16px;background:var(--kg-card);color:var(--kg-ink);font:inherit;font-size:13px;font-weight:700;text-align:left}
+
+.kg-agents-funding-link{width:100%;min-height:46px;margin:12px 0 2px;border:1px solid var(--kg-line);border-radius:16px;background:var(--kg-ai-soft);color:var(--kg-ink);font:inherit;font-size:12px;font-weight:750}
