@@ -158,9 +158,12 @@
   function renderHeatmap(markets){
     const ranked=[...markets].filter(m=>Number.isFinite(quoteOf(m))).sort((a,b)=>(Number(b.volume24hUsd||0)-Number(a.volume24hUsd||0))).slice(0,12);
     $("#kg-heatmap").innerHTML=ranked.length?ranked.map((m,i)=>{
-      const s=m.symbol||m.market, ch=changeOf(m), strength=Math.min(1,Math.abs(ch||0)/8), hue=ch>=0?145:0, light=36-strength*8;
+      const s=m.symbol||m.market, ch=changeOf(m), valid=Number.isFinite(ch);
+      const strength=valid?Math.min(1,Math.abs(ch)/8):0;
+      const tone=!valid||ch===0?"neutral":ch>0?"positive":"negative";
+      const level=strength<.2?"mild":strength<.55?"medium":"strong";
       const span=i===0?3:((i%4===0)?2:1), row=i===0?2:1;
-      return `<button class="kg-heat-cell" style="grid-column:span ${span};grid-row:span ${row};background:hsl(${hue} 62% ${light}%)" data-open-market="${esc(s)}" type="button"><b>${esc(s)}</b><small>${pct(ch)}</small></button>`;
+      return `<button class="kg-heat-cell kg-heat-cell--${tone} kg-heat-cell--${level}" style="grid-column:span ${span};grid-row:span ${row}" data-open-market="${esc(s)}" type="button"><b>${esc(s)}</b><small>${pct(ch)}</small></button>`;
     }).join(""):'<div class="kg-empty-inline">Тепловая карта недоступна: нет проверенных котировок.</div>';
   }
   function renderTopDay(markets){
