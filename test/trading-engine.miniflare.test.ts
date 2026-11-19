@@ -510,8 +510,12 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const stub = await boot();
     const userId = "555555555";
     const otherUser = "666666666";
+    const zeroUser = "777777777";
     const missing = await post(stub, "/ai/paper/session/start", { userId });
     expect(missing.status).toBe(404);
+    await post(stub, "/ai/paper/fund", { userId: zeroUser, amountMicro: (10n * U).toString(), idempotencyKey: "fund-zero-session-01" });
+    await post(stub, "/ai/paper/withdraw", { userId: zeroUser, amountMicro: (10n * U).toString(), idempotencyKey: "withdraw-zero-session-01" });
+    expect((await post(stub, "/ai/paper/session/start", { userId: zeroUser })).status).toBe(409);
     await post(stub, "/ai/paper/fund", { userId, amountMicro: (50n * U).toString(), idempotencyKey: "fund-session-start-01" });
     await post(stub, "/ai/paper/fund", { userId: otherUser, amountMicro: (20n * U).toString(), idempotencyKey: "fund-session-other-01" });
     await startAiPaper(stub, otherUser);
