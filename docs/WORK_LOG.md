@@ -883,3 +883,13 @@
 - CI run 44437997298: test job passed; deploy job skipped (pull request). PR #357 squash-merged as 44dda2744267d9b0b5a4aa549867e774f1b2dbea.
 - PR #356 screenshot gate still failed at the AI paper recovery assertion after the first fixture adjustment. Refined the scenario to verify the final virtual ledger balances and only retry when a pending idempotency key remains, rather than requiring one exact UI message. Commit 4e5912b12a2384bbf59624cb62892df979a70dfd. New workflow run was not yet visible at log time.
 - No production deployment performed; Cloudflare zero-cost allowance remains unverified.
+
+
+### 2026-11-19 — глобальный UI redesign, этап 0
+
+- **Время:** 2026-11-19T07:12:00+05:00
+- **Событие:** начат этап 0: изучение референсов Walt, Mira, Gemini и аудит текущего Mini App без изменения кода.
+- **Статус:** начато
+- **Объект:** `miniapp/web/*`; UX reference research
+- **Результат:** собраны первичные публичные источники и скриншоты Walt; выполняется аудит обработчиков и доступности функций для таблицы «кнопка → работает / заглушка / удалить».
+- **Доказательство:** Google I/O / Gemini UI: https://blog.google/innovation-and-ai/products/gemini-app/next-evolution-gemini-app/ ; Telegram Mini Apps: https://core.telegram.org/bots/webapps ; Walt screenshots: https://tg.app/apps/wallet-1/ ; Mira: https://mira.tg/ и https://skills.mira.tg/ .
