@@ -102,6 +102,7 @@ try{
       };
     });
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
+    if(await page.locator("#kg-companion-screen .kg-gemini-model").evaluate(node=>node.tagName)!=="SPAN")throw new Error("Single available AI model must be a static label, not an inert selector");
     await page.waitForSelector("#kg-wallet-balance");
     if(await page.evaluate(()=>document.documentElement.dataset.theme)!=="dark")throw new Error("New installs must default to dark theme");
     if(await page.evaluate(()=>document.documentElement.dataset.themePreference)!=="dark")throw new Error("Default theme preference must be dark");
