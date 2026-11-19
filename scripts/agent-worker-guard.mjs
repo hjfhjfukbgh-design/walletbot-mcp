@@ -6,7 +6,7 @@ export function extractScopeItems(task) {
     .split(/\r?\n/)
     .filter(line => /^\s*[-*]\s+/.test(line))
     .map(line => line.replace(/^\s*[-*]\s+/, "").trim());
-  return (bulletItems.length ? bulletItems : scopeText.split(/[;\n]+/).map(item => item.trim()).filter(Boolean)).slice(0, 15);
+  return (bulletItems.length ? bulletItems : scopeText.split(/[;\n]+/).map(item => item.trim()).filter(Boolean)).slice(0, 40);
 }
 
 export function normalizeAnalysisReport(input) {
