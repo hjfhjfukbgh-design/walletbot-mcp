@@ -91,3 +91,11 @@
 - В PR #452 дополнительно переставлен selector режимов над балансом, как задано в wallet hierarchy.
 - Верхняя правая кнопка агента получила собственную четырёхконечную звезду Kripto Guru в фирменном сине-фиолетовом градиенте; существующий click handler не менялся и ведёт в «Агенты».
 - PR #452 description обновлён. Предыдущие checks прошли на CSS-only revision; после HTML/CSS follow-up PR reopened для повторного screenshot run. Финальную ревизию принимать только после новых checks.
+
+
+### Финальная проверка Stage 1 — 2026-11-19 23:22 EKB
+- Финальный head PR #452: `97fdf493958839116741777a5f09ef25ff7b8d68`.
+- `npm ci`, JS syntax, `npm run typecheck`, `npm test`: success.
+- Playwright clean UI screenshots после перестановки mode selector и брендирования кнопки агента: success; артефакт run #44586699592, 360/375/390/430 px.
+- Просмотрены финальные wallet captures 390×844 light/dark: selector стоит выше баланса; DEMO aura amber, AI aura purple (AI variant в том же артефакте); agent shortcut — брендовая звезда; nav 4 tabs. Это браузерная эмуляция, не физический iPhone.
+- PR #452 остаётся Draft/unmerged. Production deploy job skipped.
