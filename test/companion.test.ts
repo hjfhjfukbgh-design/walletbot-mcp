@@ -490,7 +490,7 @@ describe("CompanionQuota Durable Object SQLite integration", () => {
       format: "esm",
       write: false,
     });
-    source = bundle.outputFiles[0].text + "\\nexport default { fetch() { return new Response('ok'); } };";
+    source = bundle.outputFiles[0].text + "\nexport default { fetch() { return new Response('ok'); } };";
   });
 
   afterAll(async () => {
