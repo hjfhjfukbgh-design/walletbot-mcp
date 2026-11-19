@@ -165,7 +165,7 @@ jobs:
             // Reject unsupported file paths, selectors and API routes before assigning a report verdict.
             const evidenceWarnings = findUnverifiedReferences(report, selected, context);
             if (evidenceWarnings.length) {
-              report += "\\n\\n### Автоматическая проверка ссылок\\n" + evidenceWarnings.map(item => "- NOT VERIFIED: " + item).join("\\n");
+              report += "\n\n### Автоматическая проверка ссылок\n" + evidenceWarnings.map(item => "- NOT VERIFIED: " + item).join("\\n");
             }
             // Use a unit-tested helper so report validation cannot silently diverge from tests.
             const guarded = normalizeAnalysisReport(report);
