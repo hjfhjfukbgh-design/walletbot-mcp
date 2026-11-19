@@ -771,7 +771,7 @@
   }
   function renderProfileSettings(){
     const mode=$("#kg-profile-mode");
-    if(mode)mode.textContent=state.productMode==="ai"?"AI Trading · PAPER":"DEMO";
+    if(mode)mode.textContent=state.productMode==="ai"?"ИИ · ВИРТУАЛЬНЫЙ":"DEMO";
     const wallet=$("#kg-profile-wallet-status");
     const live=state.capabilities?.live;
     if(wallet){
@@ -822,7 +822,7 @@
   function renderProductMode(){
     const descriptions={
       demo:"DEMO · Виртуальный счёт. Реальные средства не используются.",
-      ai:"AI Trading · PAPER-контекст. Автоматические сделки пока отключены.",
+      ai:"ИИ · виртуальный счёт. Автоматические сделки пока отключены.",
       live:"LIVE заблокирован до проверки полного торгового и close-контракта.",
     };
     $$("#kg-product-mode [data-product-mode]").forEach(button=>{
@@ -872,7 +872,7 @@
     }finally{state.aiPaperLoading=false;}
   }
   async function transferAiPaper(kind){
-    if(state.productMode!=="ai")return notify("Сначала выберите AI Trading · PAPER.");
+    if(state.productMode!=="ai")return notify("Сначала выберите режим ИИ.");
     const input=$("#kg-ai-paper-amount"),note=$("#kg-ai-paper-transfer-note");
     const amountUsd=String(input?.value??"").trim();
     if(!/^(?:\d+)(?:\.\d{1,2})?$/.test(amountUsd)||Number(amountUsd)<=0){if(note)note.textContent="Введите сумму больше нуля, максимум два знака после запятой.";return;}
