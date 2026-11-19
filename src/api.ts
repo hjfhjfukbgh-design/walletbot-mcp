@@ -355,6 +355,7 @@ async function previewDemoTrade(env: Env, userId: string, body: Json): Promise<R
  * margin, balance, and contract limits without executing.
  */
 async function previewLiveTrade(env: Env, userId: string, body: Json): Promise<Response> {
+  if (env.LIVE_TRADING_ENABLED !== "true") return fail("LIVE отключён серверным feature gate.", 409);
   const symbol = String(body.market ?? body.symbol ?? "").trim().toUpperCase();
   const side = String(body.side ?? "").toLowerCase();
   const leverage = Number(body.leverage);
@@ -525,6 +526,7 @@ function safeLiveResult(value: unknown): Json {
 }
 
 async function executeLiveTrade(env: Env, scopedEnv: Env, userId: string, body: Json): Promise<Response> {
+  if (scopedEnv.LIVE_TRADING_ENABLED !== "true") return fail("LIVE отключён серверным feature gate.", 409);
   if (body.confirm !== true) return fail("Требуется отдельное явное подтверждение LIVE-ордера.", 400);
   const handle = String(body.handle ?? "").trim();
   if (!/^[a-f0-9]{32}$/.test(handle)) return fail("Некорректный идентификатор подготовки ордера.");
