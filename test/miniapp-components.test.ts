@@ -28,9 +28,9 @@ describe("Kripto Guru UI primitives", () => {
   });
 
   it("keeps PnL states separate from neutral values", () => {
-    expect(pnlChipMarkup("+1.2").toContain("positive")).toBe(true);
-    expect(pnlChipMarkup("-1.2").toContain("negative")).toBe(true);
-    expect(pnlChipMarkup("—").toContain("neutral")).toBe(true);
+    expect(pnlChipMarkup("+1.2").includes("positive")).toBe(true);
+    expect(pnlChipMarkup("-1.2").includes("negative")).toBe(true);
+    expect(pnlChipMarkup("—").includes("neutral")).toBe(true);
   });
 
   it("bounds skeleton count and escapes component classes", () => {
