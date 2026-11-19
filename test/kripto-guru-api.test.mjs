@@ -169,6 +169,18 @@ describe("window.KriptoGuruAPI contract", () => {
     ]);
   });
 
+  it("exposes virtual AI paper funding and withdrawal with idempotency keys", async () => {
+    const fetchMock = vi.fn(async () => json({ ok: true, balanceMicro: "150000000", demoBalanceMicro: "850000000" }));
+    const api = loadApi(fetchMock);
+    await api.aiPaper.fund({ amountUsd: "25.50", idempotencyKey: "fund-test-key-0001" });
+    await api.aiPaper.withdraw({ amountUsd: "10", idempotencyKey: "withdraw-test-key-01" });
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/ai/paper/fund", expect.objectContaining({
+      method: "POST", body: JSON.stringify({ amountUsd: "25.50", idempotencyKey: "fund-test-key-0001" }),
+    }));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/ai/paper/withdraw", expect.objectContaining({
+      method: "POST", body: JSON.stringify({ amountUsd: "10", idempotencyKey: "withdraw-test-key-01" }),
+    }));
+  });
   it("requires explicit confirmation before a LIVE execute request", async () => {
     const fetchMock = vi.fn(async () => json({ ok: true, status: "completed" }));
     const api = loadApi(fetchMock);
