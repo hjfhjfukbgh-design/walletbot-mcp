@@ -16,7 +16,7 @@ export interface SegmentedItem { value?: string; label?: string }
 export interface SegmentedOptions { label?: string }
 export type ButtonVariant = "primary" | "long" | "short" | "ghost" | "destructive";
 export interface ButtonOptions {
-  label?: string; action?: string; variant?: ButtonVariant; disabled?: boolean; reason?: string;
+  label?: string; action?: string; variant?: string; disabled?: boolean; reason?: string;
 }
 export declare function modeBadgeMarkup(mode: string, options?: ModeBadgeOptions): string;
 export declare function islandMarkup(content: string, options?: IslandOptions): string;
