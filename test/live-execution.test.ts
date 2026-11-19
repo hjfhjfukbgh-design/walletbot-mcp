@@ -198,3 +198,98 @@ describe("LIVE execute safety", () => {
     expect(client.call).toHaveBeenCalledTimes(1);
   });
 });
+
+function liveContract(overrides: Record<string, unknown> = {}) {
+  return {
+    contractId: 0,
+    name: "BTC-USDC",
+    priceDecimals: 2,
+    minSizeBase: 0.0001,
+    minSizeQuote: 10,
+    maxSizeQuote: 1_000_000,
+    maxLeverage: 50,
+    takerFeePct: 0.09,
+    priceSlippage: 0.01,
+    volume24hUsd: 1_000_000_000,
+    fundingRateHourly: 0,
+    ...overrides,
+  };
+}
+
+describe("LIVE preview safety", () => {
+  afterEach(() => { vi.clearAllMocks(); });
+
+  it("prepares a contractId 0 order with Walt risk preview and never executes it", async () => {
+    const e = env();
+    const client = {
+      contracts: vi.fn(async () => [liveContract()]),
+      openPosition: vi.fn(async () => null),
+      rate: vi.fn(async () => 50_000),
+      balanceUsd: vi.fn(async () => 1_000),
+      preview: vi.fn(async (tool: string, args: Record<string, unknown>) => ({
+        ok: true, confirmationToken: "mock-live-preview-token",
+        risk: { checks: [{ name: "contract", ok: true }] }, warnings: [],
+      })),
+      call: vi.fn(),
+    };
+    vi.mocked(bot.connectWalt).mockResolvedValue(client as any);
+
+    const response = await callApi(e, "live/preview", {
+      method: "POST",
+      body: JSON.stringify({ market: "BTC", side: "long", leverage: 10, marginUsd: 25 }),
+    });
+    const body = await response.json() as Record<string, any>;
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({ ok: true, market: "BTC", side: "long", leverage: 10, marginUsd: 25, notionalUsd: 250 });
+    expect(body.handle).toMatch(/^[a-f0-9]{32}$/);
+    expect(client.preview).toHaveBeenCalledTimes(1);
+    expect(client.preview).toHaveBeenCalledWith("perps_prepare_order_place", {
+      contractId: 0, side: "long", type: "market", leverage: 10, amount: "25.00", price: "50000.00",
+    });
+    expect(client.call).not.toHaveBeenCalled();
+    const saved = await tenantEnv(e, "12345").STATE.get<Record<string, any>>("live:preview:12345:" + body.handle, "json");
+    expect(saved).toMatchObject({ confirmationToken: "mock-live-preview-token", contractId: 0, symbol: "BTC", side: "long" });
+  });
+
+  it("rejects an unsupported market before preparing an order", async () => {
+    const e = env();
+    const client = {
+      contracts: vi.fn(async () => [liveContract()]),
+      preview: vi.fn(),
+      call: vi.fn(),
+    };
+    vi.mocked(bot.connectWalt).mockResolvedValue(client as any);
+
+    const response = await callApi(e, "live/preview", {
+      method: "POST",
+      body: JSON.stringify({ market: "DOGE", side: "long", leverage: 2, marginUsd: 10 }),
+    });
+    expect(response.status).toBe(400);
+    expect(client.preview).not.toHaveBeenCalled();
+    expect(client.call).not.toHaveBeenCalled();
+  });
+
+  it("blocks a second LIVE open on a contract with an existing position", async () => {
+    const e = env();
+    const client = {
+      contracts: vi.fn(async () => [liveContract()]),
+      openPosition: vi.fn(async () => ({ contractId: 0, valueBase: 0.01, raw: { side: "long" } })),
+      rate: vi.fn(),
+      balanceUsd: vi.fn(),
+      preview: vi.fn(),
+      call: vi.fn(),
+    };
+    vi.mocked(bot.connectWalt).mockResolvedValue(client as any);
+
+    const response = await callApi(e, "live/preview", {
+      method: "POST",
+      body: JSON.stringify({ market: "BTC", side: "short", leverage: 2, marginUsd: 10 }),
+    });
+    expect(response.status).toBe(409);
+    expect(client.openPosition).toHaveBeenCalledWith(0);
+    expect(client.rate).not.toHaveBeenCalled();
+    expect(client.preview).not.toHaveBeenCalled();
+    expect(client.call).not.toHaveBeenCalled();
+  });
+});
