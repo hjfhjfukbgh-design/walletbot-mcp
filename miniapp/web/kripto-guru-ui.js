@@ -937,7 +937,7 @@
       void selectProductMode(button.dataset.productMode,button);
     });
     $("#kg-wallet-ai").addEventListener("click",()=>{setScreen("agents");});
-    $("#kg-wallet-quick-actions").addEventListener("click",event=>{const button=event.target.closest("[data-wallet-shortcut]");if(!button)return;const screen=button.dataset.walletShortcut;setScreen(screen);if(screen==="income"){void loadWallet();void loadHistory();}if(screen==="trading")void loadCategory("crypto");if(screen==="agents")void loadAiPaperSummary(true);if(screen==="companion"){void Promise.all([loadCompanionConversations(),loadCompanionLimits()]);}});
+    $("#kg-wallet-quick-actions").addEventListener("click",async event=>{const button=event.target.closest("[data-wallet-shortcut]");if(!button)return;const screen=button.dataset.walletShortcut;if(screen==="virtual-transfer"){if(state.productMode!=="ai")await selectProductMode("ai",null);if(state.productMode==="ai")$("#kg-ai-paper-amount").focus({preventScroll:true});return;}setScreen(screen);if(screen==="income"){void loadWallet();void loadHistory();}if(screen==="trading")void loadCategory("crypto");if(screen==="agents")void loadAiPaperSummary(true);});
     $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
       setScreen(button.dataset.screen);
       if(state.screen==="wallet")await loadWallet();
