@@ -1252,3 +1252,9 @@
 - **PR #426:** merged to main as `9fb2bf49f73622141bd09e4a92219d4770c5aacc`.
 - **Screenshot run `44521760668`:** Playwright install, syntax check and clean UI iPhone previews/contract scenarios PASS. The refreshed AI mode screenshot now shows actual fixture balances (`$115` AI paper / `$985` DEMO), 0 positions, `Остановлен`, and a successful virtual return message; no API unavailable error.
 - The clean UI harness now verifies both virtual funding directions and resulting balances on 390×844 and 430×932 viewports. All fixture transfers remain local to Playwright.
+
+### 2026-11-19T17:16:19+05:00 — Agents browser test added; first assertion corrected
+
+- **PR #427:** extends iPhone Playwright coverage to open the Agents tab and assert paper balance, DEMO source balance, open-position count, stopped state and virtual-only notice; adds `clean-agents` artifacts.
+- **Initial run `44522121720`:** screenshot job failed only because the assertion expected initial balances after the same test had already funded $25 and withdrawn $10. The UI correctly showed the updated $115 AI / $985 DEMO balances. Corrected expected values to reflect preceding actions.
+- **Current head:** `6e21dd56076b2efc084770a1e404d018dbdcb453`; rerun `44522305636` in progress.
