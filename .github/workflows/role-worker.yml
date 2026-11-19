@@ -260,8 +260,8 @@ jobs:
           // Gemini sometimes omits conventional a/ and b/ prefixes. Normalize only
           // the file headers; explicit path allowlisting and git apply --check remain mandatory.
           patch = patch
-            .replace(/^--- (?!a\/)([^\r\n]+)$/m, "--- a/$1")
-            .replace(/^\+\+\+ (?!b\/)([^\r\n]+)$/m, "+++ b/$1");
+            .replace(/^--- (?!a\/)([^\r\n]+)$/gm, "--- a/$1")
+            .replace(/^\+\+\+ (?!b\/)([^\r\n]+)$/gm, "+++ b/$1");
           if (/^NO_SAFE_PATCH(?:\\s*:|$)/i.test(patch)) {
             const reason = patch.replace(/^NO_SAFE_PATCH\\s*: ?/i, "").trim();
             fs.writeFileSync("/tmp/worker-mode.txt", "no-safe-patch");
