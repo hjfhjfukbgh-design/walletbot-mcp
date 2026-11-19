@@ -98,6 +98,20 @@ try{
     });
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     await page.waitForSelector("#kg-wallet-balance");
+    if(await page.evaluate(()=>document.documentElement.dataset.theme)!=="dark")throw new Error("New installs must default to dark theme");
+    if(await page.evaluate(()=>document.documentElement.dataset.themePreference)!=="dark")throw new Error("Default theme preference must be dark");
+    await page.locator("#kg-wallet-profile").click();
+    await page.waitForSelector("#kg-profile-sheet:not([hidden])");
+    await page.locator("#kg-profile-theme-select").selectOption("light");
+    if(await page.evaluate(()=>document.documentElement.dataset.theme)!=="light")throw new Error("Light theme selection must apply immediately");
+    await page.locator("#kg-profile-theme-select").selectOption("system");
+    await page.emulateMedia({colorScheme:"dark"});
+    await page.waitForFunction(()=>document.documentElement.dataset.theme==="dark");
+    await page.emulateMedia({colorScheme:"light"});
+    await page.waitForFunction(()=>document.documentElement.dataset.theme==="light");
+    await page.locator("#kg-profile-theme-select").selectOption("light");
+    await page.locator("#kg-profile-close").click();
+    await page.waitForFunction(()=>!document.querySelector("#kg-toast")?.classList.contains("is-visible"));
     try{
       await page.waitForFunction(()=>document.querySelector("#kg-wallet-balance")?.textContent.includes("₽"),null,{timeout:6000});
     }catch(error){

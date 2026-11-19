@@ -3,6 +3,35 @@
   const $ = (selector, root=document) => root.querySelector(selector);
   const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
   const tg = window.Telegram?.WebApp || null;
+  const THEME_KEY="kg:theme:v1";
+  function normalizeThemePreference(value){return value==="dark"||value==="light"||value==="system"?value:"dark";}
+  function getThemePreference(){try{return normalizeThemePreference(localStorage.getItem(THEME_KEY));}catch{return "dark";}}
+  function getResolvedTheme(preference=getThemePreference()){
+    const pref=normalizeThemePreference(preference);
+    const media=window.matchMedia?.("(prefers-color-scheme: dark)");
+    return pref==="system"?(media?(media.matches?"dark":"light"):"dark"):pref;
+  }
+  function applyThemePreference(preference=getThemePreference()){
+    const pref=normalizeThemePreference(preference),resolved=getResolvedTheme(pref);
+    document.documentElement.dataset.theme=resolved;
+    document.documentElement.dataset.themePreference=pref;
+    document.documentElement.style.colorScheme=resolved;
+    const meta=document.querySelector("meta[name=theme-color]");
+    const scheme=document.querySelector("meta[name=color-scheme]");
+    if(scheme)scheme.content=resolved;
+    if(meta){meta.content=resolved==="dark"?"#000000":"#EFEFF4";try{tg?.setHeaderColor?.(meta.content);tg?.setBackgroundColor?.(meta.content);}catch{}}
+    return resolved;
+  }
+  function setThemePreference(value){
+    const pref=normalizeThemePreference(value);
+    try{localStorage.setItem(THEME_KEY,pref);}catch{}
+    applyThemePreference(pref);
+    return pref;
+  }
+  applyThemePreference();
+  const themeMedia=window.matchMedia?.("(prefers-color-scheme: dark)");
+  if(themeMedia?.addEventListener)themeMedia.addEventListener("change",()=>{if(getThemePreference()==="system")applyThemePreference("system");});
+  else themeMedia?.addListener?.(()=>{if(getThemePreference()==="system")applyThemePreference("system");});
   const state = {
     screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, currencyMode:"RUB", productMode:"demo", sparklineCache:{},
     favorites:(()=>{try{return new Set(JSON.parse(localStorage.getItem("kg:favorites:v1")||'["BTC","ETH","SOL"]'));}catch{return new Set(["BTC","ETH","SOL"]);}})(),
@@ -751,8 +780,8 @@
       else if(live?.status?.connected===false)wallet.textContent="Не подключён";
       else wallet.textContent="Нет подтверждённых данных";
     }
-    const theme=$("#kg-profile-theme");
-    if(theme)theme.textContent=tg?.colorScheme==="dark"?"Тёмная":tg?.colorScheme==="light"?"Светлая":"По теме Telegram";
+    const theme=$("#kg-profile-theme-select");
+    if(theme)theme.value=getThemePreference();
     const ai=$("#kg-profile-ai-status");
     const labels={stopped:"Остановлен",running:"Работает",paused:"Приостановлен"};
     if(ai)ai.textContent=labels[state.aiPaper?.status]||"Нет данных";
@@ -894,6 +923,7 @@
     $("#kg-profile-backdrop").addEventListener("click",closeProfile);
     $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
     $("#kg-ai-paper-fund").addEventListener("click",()=>void transferAiPaper("fund"));
+    $("#kg-profile-theme-select").addEventListener("change",event=>{setThemePreference(event.target.value);renderProfileSettings();notify("Настройка темы сохранена.");});
     $("#kg-ai-paper-withdraw").addEventListener("click",()=>void transferAiPaper("withdraw"));
     $("#kg-product-mode").addEventListener("click",event=>{
       const button=event.target.closest("[data-product-mode]");
@@ -1056,7 +1086,7 @@
   async function start(){
     if(started)return;
     started=true;
-    try{tg?.ready?.();tg?.expand?.();const bg=tg?.themeParams?.bg_color||"#EFEFF4";tg?.setHeaderColor?.(bg);tg?.setBackgroundColor?.(bg);}catch{}
+    try{tg?.ready?.();tg?.expand?.();const bg=getResolvedTheme()==="dark"?"#000000":"#EFEFF4";tg?.setHeaderColor?.(bg);tg?.setBackgroundColor?.(bg);}catch{}
     bind();
     // Market quotes are the first screen's primary content. Start this request
     // immediately instead of waiting for FX, capabilities, history or wallet.
@@ -1074,5 +1104,5 @@
     $("#kg-wallet-assets").innerHTML='<div class="kg-empty-inline">Подключаем демо-сервис…</div>';
     setTimeout(()=>{if(api())start();else notify("Демо API ещё не подключён.");},800);
   }
-  window.KriptoGuruUI={state,reload:()=>Promise.all([loadWallet(),loadHistory(),loadCategory(state.category)]),openAsset,closeAsset};
+  window.KriptoGuruUI={getThemePreference,setThemePreference,getResolvedTheme,state,reload:()=>Promise.all([loadWallet(),loadHistory(),loadCategory(state.category)]),openAsset,closeAsset};
 })();
