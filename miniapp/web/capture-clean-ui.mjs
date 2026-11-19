@@ -57,7 +57,7 @@ try{
     const consoleErrors=[];
     page.on("pageerror",error=>pageErrors.push(error.message));
     page.on("console",message=>{if(message.type()==="warning"||message.type()==="error")consoleErrors.push(message.text());});
-    await page.route("https://telegram.org/js/telegram-web-app.js",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
+    await page.route("**/telegram-web-app.js*",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.route("**/kripto-guru-api.js*",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.addInitScript(()=>{
       try{
