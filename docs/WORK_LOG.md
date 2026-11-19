@@ -1094,3 +1094,14 @@
 - **Причина:** два отдельных Team C UI dispatches (#360 and focused #409) завершились `no-safe-patch`; no source PR produced. Team Lead takes the narrow CSS-only slice from #409.
 - **Scope:** only scoped `#kg-agents-screen` CSS; no JS/HTML/backend or global tokens.
 - **QA target:** light/dark, 360/375/390/430 px; respect reduced motion; no fake agents or controls.
+
+
+### 2026-11-19T08:19:00+05:00 — Agents navigation and hero merged; AI paper summary takeover started
+
+- **PR #406:** merged to main; merge commit `8fa4f8cc3334703559878c4968d8243f97bbdfb3`.
+- **PR #415:** merged to main; merge commit `3b8d8575b62d9bcb4476db11f79dc12a7f658751`.
+- **QA #406:** run `44448610503` — npm ci, JavaScript syntax, typecheck and tests PASS; deploy skipped. Run `44448610521` — clean UI Playwright screenshot/contract scenarios PASS.
+- **QA #415:** run `44448816686` — npm ci, JavaScript syntax, typecheck and tests PASS; deploy skipped. Run `44448816755` — clean UI Playwright screenshot/contract scenarios PASS.
+- **Team B #411:** executor completed `no-safe-patch`; issue blocked. Inspection confirms current public API exposes no AI paper-account balance/status/positions endpoint; `wallet.get` is explicitly DEMO and cannot be repurposed as AI funds.
+- **Team Lead takeover:** PR #416 `feat(ai): add honest paper account summary panel`, branch `feat/ai-paper-account-summary-2026-11-19`, head `683eb43d111dcd4186893cdeacd658ae47237a07`. Read-only summary appears only in AI mode. Missing paper balance, DEMO funding balance and position count render `—`; status says API does not expose paper-account state and explicitly states virtual funds/no LIVE access. No API calls, fake zeros, funding actions, backend or LIVE changes.
+- **PR #416 validation:** pending; do not merge until CI and clean UI screenshot checks pass.
