@@ -326,8 +326,11 @@
       const totalNode=$("#kg-wallet-crypto-total");
       if(totalNode)totalNode.textContent=cryptoValues.length?moneyRub(cryptoValues.reduce((sum,value)=>sum+value,0)):"—";
       renderWalletAssets();
-      renderWalletEquities();
       const pos=listOf(state.wallet,["positions"]);
+      const pnlValues=pos.map(p=>Number(p.unrealizedPnlUsd ?? p.pnlUsd ?? NaN)).filter(Number.isFinite);
+      const pnlNode=$("#kg-wallet-pnl-value");
+      if(pnlNode){const pnl=pnlValues.length?pnlValues.reduce((a,b)=>a+b,0):NaN;pnlNode.textContent=Number.isFinite(pnl)?money(pnl):"—";pnlNode.classList.toggle("kg-change-up",Number.isFinite(pnl)&&pnl>=0);pnlNode.classList.toggle("kg-change-down",Number.isFinite(pnl)&&pnl<0);}
+      const pnlNote=$("#kg-wallet-pnl-note");if(pnlNote)pnlNote.textContent=pnlValues.length?("По "+pnlValues.length+" открытым позициям"):"Нет подтверждённых данных PnL";
       $("#kg-position-count").textContent=String(pos.length);
       renderPositions(pos);
     }catch(error){
@@ -831,6 +834,8 @@
       button.setAttribute("aria-pressed",String(selected));
     });
     $("#kg-product-mode-status").textContent=descriptions[state.productMode]||descriptions.demo;
+    const modeBadge=$("#kg-wallet-mode-badge");
+    if(modeBadge){modeBadge.className="kg-mode-badge "+(state.productMode==="ai"?"kg-mode-badge--ai":"kg-mode-badge--demo");modeBadge.textContent=state.productMode==="ai"?"ИИ · виртуальный счёт":"DEMO · виртуальные деньги";}
     renderProfileSettings();
     const paperSummary=$("#kg-ai-paper-summary");
     if(paperSummary)paperSummary.hidden=state.productMode!=="ai";
@@ -931,6 +936,7 @@
       void selectProductMode(button.dataset.productMode,button);
     });
     $("#kg-wallet-ai").addEventListener("click",()=>{setScreen("agents");});
+    $("#kg-wallet-quick-actions").addEventListener("click",event=>{const button=event.target.closest("[data-wallet-shortcut]");if(!button)return;const screen=button.dataset.walletShortcut;setScreen(screen);if(screen==="income"){void loadWallet();void loadHistory();}if(screen==="trading")void loadCategory("crypto");if(screen==="agents")void loadAiPaperSummary(true);if(screen==="companion"){void Promise.all([loadCompanionConversations(),loadCompanionLimits()]);}});
     $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
       setScreen(button.dataset.screen);
       if(state.screen==="wallet")await loadWallet();
@@ -1019,14 +1025,8 @@
       const close=event.target.closest("[data-close-position]");
       if(close)closePosition(close.dataset.closePosition);
     });
-    document.querySelectorAll("[data-wallet-action]").forEach(button=>button.addEventListener("click",()=>notify("Операции с переводом и реальными средствами отключены. Доступен только демо-режим.")));
     $("#kg-edit-favorites").addEventListener("click",()=>{state.editFavorites=!state.editFavorites;$("#kg-edit-favorites").textContent=state.editFavorites?"Готово":"Изменить";renderFavorites();});
-    $("#kg-edit-equities").addEventListener("click",()=>{state.editEquities=!state.editEquities;renderWalletEquities();});
-    $("#kg-add-equity").addEventListener("click",openEquitiesEditor);
-    $("#kg-equities-presets").addEventListener("click",event=>{const button=event.target.closest("[data-add-equity]");if(button){const preset=equityPresets.find(x=>x.symbol===button.dataset.addEquity);if(preset)addEquity(preset.symbol,preset.name,preset.kind);}});
     $("#kg-equities-custom-form").addEventListener("submit",event=>{event.preventDefault();const symbol=$("#kg-equities-symbol").value;addEquity(symbol,symbol.trim().toUpperCase());$("#kg-equities-symbol").value="";});
-    $("#kg-equities-editor").addEventListener("click",event=>{if(event.target.closest("[data-close-equities]"))$("#kg-equities-editor").hidden=true;});
-    $("#kg-wallet-equities").addEventListener("click",event=>{const button=event.target.closest("[data-remove-equity]");if(!button)return;state.equities=state.equities.filter(x=>x.symbol!==button.dataset.removeEquity);saveEquities();renderWalletEquities();});
 
     $("#kg-asset-back").addEventListener("click",closeAsset);
     $("#kg-asset-favorite").addEventListener("click",()=>{const s=state.selectedMarket;if(!s)return;state.favorites.has(s)?state.favorites.delete(s):state.favorites.add(s);renderFavorites();try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}$("#kg-asset-favorite").textContent=state.favorites.has(s)?"★ В избранном":"☆ В избранное";});
