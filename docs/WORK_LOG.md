@@ -952,3 +952,11 @@
 - **Исправления после предыдущего failure:** string assertions используют `.includes()`; declaration принимает неизвестный variant, чтобы runtime fallback на primary был типобезопасным.
 - **Дополнение:** создана витрина `miniapp/web/components-preview.html`; добавлены dark-theme overrides в `miniapp/web/kripto-guru-components.css` на commit `d4529c54e025052634b5bde517f2935922a5c680`. Эти последние CSS-изменения ещё требуют CI проверки.
 - **Deploy:** job `deploy` skipped; production deploy не выполнялся.
+
+
+### 2026-11-19T07:24:41.078+05:00 — повторный CI после dark theme overrides
+
+- **Статус:** build/test PASS на актуальном head `d4529c54e025052634b5bde517f2935922a5c680`.
+- **Run:** `44444020562`; job `test` success: npm ci, node --check, TypeScript typecheck, npm test.
+- **Deploy:** job `deploy` имеет conclusion `skipped`; никаких production изменений.
+- **Визуальная проверка:** screenshot run `44444020564` ещё выполняет Playwright capture на момент записи.
