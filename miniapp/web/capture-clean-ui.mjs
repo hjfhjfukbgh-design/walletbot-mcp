@@ -111,7 +111,11 @@ try{
     await page.waitForFunction(()=>document.documentElement.dataset.theme==="light");
     await page.locator("#kg-profile-theme-select").selectOption("light");
     await page.locator("#kg-profile-close").click();
-    await page.waitForFunction(()=>!document.querySelector("#kg-toast")?.classList.contains("is-visible"));
+    // Theme preference changes intentionally show a transient confirmation toast.
+    // Dismiss it in the screenshot harness so it cannot obscure the wallet preview.
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
+    await page.waitForTimeout(200);
+    if(await page.locator("#kg-toast.is-visible").count())throw new Error("Transient toast must not cover clean UI screenshots");
     try{
       await page.waitForFunction(()=>document.querySelector("#kg-wallet-balance")?.textContent.includes("₽"),null,{timeout:6000});
     }catch(error){
