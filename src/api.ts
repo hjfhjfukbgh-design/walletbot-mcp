@@ -26,7 +26,6 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
   const key = req.headers.get("X-Api-Key") ?? "";
   const url = new URL(req.url);
   const route = `${req.method} ${url.pathname.replace(/^\/api\//, "")}`;
-  const body = req.method === "POST" ? ((await req.json().catch(() => ({}))) as Json) : {};
   let telegramUserId = "";
 
   if (route === "POST telegram") {
@@ -38,6 +37,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
     }
     if (!/^\d{1,20}$/.test(telegramUserId)) return fail("Требуется открыть приложение через Telegram.", 401);
   }
+  // Do not consume or parse an unauthenticated request body.
+  const body = req.method === "POST" ? ((await req.json().catch(() => ({}))) as Json) : {};
   const scopedEnv = telegramUserId ? tenantEnv(env, telegramUserId) : env;
   try {
     if (telegramUserId) {
