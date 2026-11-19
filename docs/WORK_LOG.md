@@ -1393,3 +1393,9 @@
 
 - Updated issue #203 with PR #435 reload-persistence QA and PR #436 unavailable-action UX, including exact CI/screenshot run IDs and inspected 390×844 visual artifact.
 - No change to LIVE/strategy/deploy blockers; no real Walt operations or production deployment.
+
+### 2026-11-19T18:02:44+05:00 — iPhone viewport matrix expanded
+
+- **PR #437:** extends clean UI screenshot/contract coverage from 390/430px to 360×800, 375×812, 390×844 and 430×932.
+- Added a document-level horizontal-overflow assertion at every viewport. This is an automated responsive check, not a substitute for final Telegram iOS WebView testing.
+- Current head `9920d610580a4366f9dd2a33ce43c4d69746c7dd`; CI run `44529533129` and screenshot run `44529533128` in progress.
