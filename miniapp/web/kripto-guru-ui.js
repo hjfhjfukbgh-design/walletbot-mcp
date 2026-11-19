@@ -11,7 +11,7 @@
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
-    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[]
+    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[], aiPaper:null, aiPaperLoading:false
   };
   let marketLoadEpoch=0,marketRefreshInFlight=false,marketLastUpdatedAt=0,marketSearchTimer=0,marketVisibilityListenerInstalled=false;
   const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
@@ -785,6 +785,30 @@
     const paperSummary=$("#kg-ai-paper-summary");
     if(paperSummary)paperSummary.hidden=state.productMode!=="ai";
   }
+  async function loadAiPaperSummary(){
+    const root=$("#kg-ai-paper-summary");
+    if(!root||state.productMode!=="ai"||state.aiPaperLoading)return;
+    state.aiPaperLoading=true;
+    const statusNote=$("#kg-ai-paper-status-note");
+    if(statusNote)statusNote.textContent="Обновляем данные счёта…";
+    try{
+      const data=await invoke("aiPaper.status");
+      state.aiPaper=data;
+      $("#kg-ai-paper-balance").textContent=data.balanceUsd==null?"—":money(data.balanceUsd);
+      $("#kg-ai-paper-demo-balance").textContent=data.demoBalanceUsd==null?"—":money(data.demoBalanceUsd);
+      $("#kg-ai-paper-positions").textContent=Number.isSafeInteger(data.openPositions)?String(data.openPositions):"—";
+      const labels={stopped:"Остановлен",running:"Работает",paused:"Приостановлен"};
+      $("#kg-ai-paper-status").textContent=labels[data.status]||"—";
+      if(statusNote)statusNote.textContent="Состояние из защищённого API";
+    }catch(error){
+      state.aiPaper=null;
+      $("#kg-ai-paper-balance").textContent="—";
+      $("#kg-ai-paper-demo-balance").textContent="—";
+      $("#kg-ai-paper-positions").textContent="—";
+      $("#kg-ai-paper-status").textContent="—";
+      if(statusNote)statusNote.textContent=normalizeError(error).message;
+    }finally{state.aiPaperLoading=false;}
+  }
   async function loadProductMode(){
     try{
       const mode=await invoke("productMode.get");
@@ -794,6 +818,7 @@
       state.productMode="demo";
     }
     renderProductMode();
+    if(state.productMode==="ai")await loadAiPaperSummary();
   }
   async function selectProductMode(mode,button){
     if(mode==="live")return notify("LIVE пока заблокирован: не подтверждён полный торговый и close-контракт.");
@@ -804,6 +829,7 @@
       const result=await invoke("productMode.set",mode);
       state.productMode=result?.productMode==="ai"?"ai":"demo";
       renderProductMode();
+      if(state.productMode==="ai")await loadAiPaperSummary();
     }catch(error){notify(normalizeError(error).message);}
     finally{button.disabled=false;}
   }

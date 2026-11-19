@@ -390,6 +390,18 @@
     },
   };
 
+  const aiPaper = {
+    async status() {
+      const data = await request("/api/ai/paper/status");
+      const count = Number(data.openPositions);
+      return {
+        demoBalanceUsd: data.demoBalanceMicro == null ? null : fromMicro(data.demoBalanceMicro),
+        balanceUsd: data.aiBalanceMicro == null ? null : fromMicro(data.aiBalanceMicro),
+        status: typeof data.status === "string" ? data.status : null,
+        openPositions: Number.isSafeInteger(count) && count >= 0 ? count : null,
+      };
+    },
+  };
   const productMode = {
     async get() {
       const data = await request("/api/state");
@@ -410,6 +422,7 @@
     companion,
     live,
     capabilities,
+    aiPaper,
     productMode,
     errors: Object.freeze({ ApiError: KriptoGuruApiError }),
   });
