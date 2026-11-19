@@ -2,6 +2,7 @@
 # Second dispatch pulse after team fan-out queue was serialized.
 # Third pulse: priority issues restored to ready after prior worker finalizers.
 # Fourth pulse: retry #498 with reviewer fallback enabled.
+# Fifth pulse: re-run tenant isolation with bounded patch-apply repair.
 name: Kripto Guru — continuous agent dispatcher
 # Keep scheduled queue active; push on this file triggers an immediate dispatch pass.
 # Queue pass: drain prioritized product queue; max three workers per pass. Retry fix verified on main; requeued #526 design, #332 LIVE close audit, #498 tenant isolation 2026-11-20 EKB. UI trading refinement #526 narrowed to CSS-only patch 2026-11-20 EKB.
