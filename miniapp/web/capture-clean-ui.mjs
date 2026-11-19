@@ -125,6 +125,10 @@ try{
     await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
     await page.waitForTimeout(200);
     if(await page.locator("#kg-toast.is-visible").count())throw new Error("Transient toast must not cover clean UI screenshots");
+    await page.reload({waitUntil:"networkidle"});
+    await page.waitForSelector("#kg-wallet-balance");
+    const persistedTheme=await page.evaluate(()=>({theme:document.documentElement.dataset.theme,preference:document.documentElement.dataset.themePreference,saved:localStorage.getItem("kg:theme:v1")}));
+    if(persistedTheme.theme!=="light"||persistedTheme.preference!=="light"||persistedTheme.saved!=="light")throw new Error("Theme preference must persist after reload: "+JSON.stringify(persistedTheme));
     try{
       await page.waitForFunction(()=>document.querySelector("#kg-wallet-balance")?.textContent.includes("₽"),null,{timeout:6000});
     }catch(error){
