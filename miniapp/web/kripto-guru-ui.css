@@ -1698,3 +1698,17 @@ body.kg-keyboard-open .kg-nav{transform:translate(-50%,130%);opacity:0;pointer-e
 .kg-ticket{top:15vh;right:0;bottom:0;left:0;height:85vh;height:85dvh;min-height:85vh;min-height:85dvh;border-radius:var(--kg-radius-sheet) var(--kg-radius-sheet) 0 0;box-shadow:0 -16px 48px rgba(0,0,0,.12)}
 .kg-ticket .kg-ticket-amount{margin:clamp(48px,10vh,100px) 0 6px}
 @media(max-height:720px){.kg-ticket{top:8vh;height:92vh;height:92dvh;min-height:92vh;min-height:92dvh}.kg-ticket .kg-ticket-amount{margin:40px 0 6px}}
+
+
+/* Positions and history: structured, compact data islands with explicit source. */
+.kg-position-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:13px 0 12px;padding:12px;border-radius:16px;background:var(--kg-surface-2)}
+.kg-position-details>span{display:flex;flex-direction:column;gap:4px;min-width:0}
+.kg-position-details small{font-size:10px;color:var(--kg-muted)}
+.kg-position-details b{font-size:12px;font-weight:700;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.kg-history-group{margin:0 0 16px}
+.kg-history-group>h3{margin:0 4px 8px;color:var(--kg-muted);font-size:12px;font-weight:700}
+.kg-history-group .kg-list{border-radius:20px}
+.kg-history-dot.is-open{background:color-mix(in srgb,var(--kg-green) 14%,var(--kg-card));color:var(--kg-green);font-weight:800}
+.kg-history-dot.is-close{background:color-mix(in srgb,var(--kg-red) 13%,var(--kg-card));color:var(--kg-red);font-weight:800}
+.kg-history-copy b{line-height:1.35}
+@media(max-width:360px){.kg-position-details{gap:8px;padding:10px}.kg-position-details b{font-size:11px}}
