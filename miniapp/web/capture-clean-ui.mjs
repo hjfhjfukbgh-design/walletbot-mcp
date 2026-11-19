@@ -257,7 +257,7 @@ try{
     await page.mouse.down();
     await page.waitForTimeout(460);
     const crosshairVisible=await page.locator(".kg-chart-crosshair").getAttribute("opacity");
-    const crosshairLabel=await page.locator(".kg-crosshair-label").innerText();
+    const crosshairLabel=await page.locator(".kg-crosshair-label").textContent();
     if(crosshairVisible!=="1"||!["O","H","L","C"].every(label=>crosshairLabel.includes(label)))throw new Error("Long-press chart crosshair must show OHLC: "+JSON.stringify({crosshairVisible,crosshairLabel}));
     await page.mouse.up();
     const axisLabels=await page.locator("#kg-chart svg text").evaluateAll(nodes=>{const svg=nodes[0]?.ownerSVGElement;const width=Number(svg?.getAttribute("viewBox")?.split(" ")[2]||0);return nodes.filter(node=>Number(node.getAttribute("x"))>width-61).map(node=>{const r=node.getBoundingClientRect();return {text:node.textContent,left:r.left,right:r.right};});});
