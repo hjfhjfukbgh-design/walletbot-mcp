@@ -83,6 +83,6 @@ it("rejects PASS rows that name files but provide no exact line-range evidence",
 it("validates cited line ranges against inspected files and requires evidence in PASS rows", () => {
   const report = "| [S1] | Wallet | `miniapp/web/index.html:L1-L2` | PASS | — |";
   expect(findUnverifiedReferences(report, ["miniapp/web/index.html"], "<main>\n</main>")).toEqual([]);
-  const invalid = "| [S1] | Wallet | `miniapp/web/index.html:L1-L9` | PASS | — |";
-  expect(findUnverifiedReferences(invalid, ["miniapp/web/index.html"], "<main>\n</main>").some(item => item.includes("выходит за пределы"))).toBe(true);
+  const invalid = "| [S1] | Wallet | `miniapp/web/index.html:L9-L2` | PASS | — |";
+  expect(findUnverifiedReferences(invalid, ["miniapp/web/index.html"], "<main>\n</main>").some(item => item.includes("Некорректный диапазон строк"))).toBe(true);
 });
