@@ -49,4 +49,9 @@ describe("Kripto Guru UI primitives", () => {
     expect(emptyStateMarkup({ title: "<script>", description: "safe" })).not.toContain("<script>");
     expect(buttonMarkup({ label: "<x>", variant: "unknown" })).toContain("&lt;x&gt;");
   });
+  it("tokenizes multiple island classes and escapes each class", () => {
+    const html = islandMarkup("content", { className: "alpha beta <unsafe>" });
+    expect(html).toContain('class="kg-island alpha beta &lt;unsafe&gt;"');
+  });
+
 });
