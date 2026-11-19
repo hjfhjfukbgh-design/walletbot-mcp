@@ -424,12 +424,14 @@
     const rawHigh = Array.isArray(c) ? c[2] : c?.high;
     const rawLow = Array.isArray(c) ? c[3] : c?.low;
     const rawClose = Array.isArray(c) ? c[4] : c?.close;
+    const rawVolume = Array.isArray(c) ? c[5] : c?.volume;
 
     const time = Number(rawTime);
     const open = Number(rawOpen);
     const high = Number(rawHigh);
     const low = Number(rawLow);
     const close = Number(rawClose);
+    const volume = rawVolume===null||rawVolume===undefined||rawVolume===""?null:Number(rawVolume);
 
     if (!Number.isFinite(time) || time <= 0) return null;
     if (![open, high, low, close].every(Number.isFinite)) return null;
@@ -437,7 +439,7 @@
     if (high < Math.max(open, close) || low > Math.min(open, close)) return null;
     if (high < low) return null;
 
-    return { time, open, high, low, close };
+    return { time, open, high, low, close, volume:Number.isFinite(volume)&&volume>=0?volume:null };
   }
   function drawCandles(candles){
     const byTimestamp = new Map();
@@ -486,6 +488,10 @@
       return `<line x1="${x}" y1="${y(c.high)}" x2="${x}" y2="${y(c.low)}" stroke="${color}" stroke-width="1.2"/><rect data-time="${c.timeMs}" data-index="${i}" x="${x - body / 2}" y="${yt}" width="${body}" height="${bodyHeight}" rx=".7" fill="${color}"/>`;
     }).join("");
 
+    const volumeValues=data.map(c=>c.volume).filter(v=>Number.isFinite(v)&&v>=0),volumeMax=volumeValues.length?Math.max(...volumeValues):0;
+    const volumeMarks=volumeMax>0?data.map((c,i)=>{if(!Number.isFinite(c.volume))return "";const x=i*step+step/2,h=Math.max(1,(c.volume/volumeMax)*10),color=c.close>=c.open?"rgba(63,174,90,.42)":"rgba(229,83,75,.42)";return `<rect class="kg-volume-bar" x="${x-body/2}" y="${190-h}" width="${body}" height="${h}" rx=".5" fill="${color}"/>`;}).join(""):"";
+    const currentPriceY=y(data[data.length-1].close);
+    const currentPriceLine=`<line class="kg-current-price-line" x1="0" y1="${currentPriceY}" x2="${chartWidth}" y2="${currentPriceY}"/><text class="kg-current-price-label" x="${chartWidth+6}" y="${currentPriceY-4}" font-size="9">${esc(new Intl.NumberFormat("ru-RU",{maximumFractionDigits:4}).format(data[data.length-1].close))}</text>`;
     const grid = [0, 0.25, 0.5, 0.75, 1].map(p => {
       const val = max - p * range;
       const yPos = top + (bottom - top) * p;
@@ -503,7 +509,7 @@
       return `<text x="${xPos}" y="${H - 4}" fill="#8e919b" font-size="9" font-family="sans-serif" text-anchor="middle">${esc(timeStr)}</text>`;
     }).join("");
 
-    chart.innerHTML = `<svg width="${W}" height="${H}" style="width:${W}px;min-width:${W}px;max-width:none" viewBox="0 0 ${W} ${H}" role="img" aria-label="Свечной график">${grid}${marks}${timeLabels}<g class="kg-chart-crosshair" opacity="0" pointer-events="none"><line class="kg-crosshair-v" x1="0" y1="${top}" x2="0" y2="${bottom}"/><line class="kg-crosshair-h" x1="0" y1="0" x2="${chartWidth}" y2="0"/><circle class="kg-crosshair-dot" cx="0" cy="0" r="3.5"/><rect class="kg-crosshair-label-bg" x="8" y="8" width="250" height="18" rx="5"/><text class="kg-crosshair-label" x="14" y="20">O — H — L — C —</text></g></svg>`;
+    chart.innerHTML = `<svg width="${W}" height="${H}" style="width:${W}px;min-width:${W}px;max-width:none" viewBox="0 0 ${W} ${H}" role="img" aria-label="Свечной график">${grid}${currentPriceLine}${marks}${volumeMarks}${timeLabels}<g class="kg-chart-crosshair" opacity="0" pointer-events="none"><line class="kg-crosshair-v" x1="0" y1="${top}" x2="0" y2="${bottom}"/><line class="kg-crosshair-h" x1="0" y1="0" x2="${chartWidth}" y2="0"/><circle class="kg-crosshair-dot" cx="0" cy="0" r="3.5"/><rect class="kg-crosshair-label-bg" x="8" y="8" width="250" height="18" rx="5"/><text class="kg-crosshair-label" x="14" y="20">O — H — L — C —</text></g></svg>`;
     chart.__kgCrosshairContext={data,step,chartWidth,top,bottom,y};
     bindChartCrosshair(chart);
     chart.scrollLeft = wasAtEnd ? chart.scrollWidth : Math.min(previousScrollLeft, Math.max(0, chart.scrollWidth - chart.clientWidth));
