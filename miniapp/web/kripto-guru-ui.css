@@ -1586,3 +1586,16 @@ html[data-theme="dark"]{
   #kg-wallet-screen .kg-wallet-quick-actions button small{font-size:10px}
   #kg-nav.kg-nav{width:calc(100vw - 24px)}
 }
+
+
+/* Wallet header order and branded agent shortcut. */
+#kg-wallet-screen .kg-product-mode-wrap{margin:0 0 16px}
+#kg-wallet-screen .kg-wallet-hero{margin:0 0 22px}
+#kg-wallet-screen .kg-wallet-portfolio{
+  display:grid;place-items:center;
+  background:linear-gradient(135deg,#3E86F0 0%,#7B61FF 100%);
+  border:2px solid color-mix(in srgb,#fff 78%,transparent);
+  color:#fff;
+  box-shadow:0 5px 16px rgba(91,104,226,.22);
+}
+#kg-wallet-screen .kg-wallet-portfolio svg{width:23px;height:23px;fill:#fff;stroke:none}
