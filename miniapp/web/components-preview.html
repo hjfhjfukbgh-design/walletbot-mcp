@@ -77,6 +77,17 @@
     <h2>Загрузка</h2>
     <div class="kg-island" id="skeleton"></div>
   </section>
+  <section class="section">
+    <h2>Дополнительные компоненты</h2>
+    <div class="kg-island" id="settings-rows"></div>
+    <div class="button-row" id="sparkline-row"></div>
+    <div class="button-row" id="glass-row"></div>
+    <div class="button-row" id="heatmap-row"></div>
+    <div class="kg-island" id="feedback"></div>
+    <div id="tabbar" style="margin-top:16px"></div>
+    <div id="sheet" style="margin-top:16px"></div>
+  </section>
+
 </main>
 <script type="module">
   import "./kripto-guru-components.js";
@@ -118,6 +129,36 @@
     ui.buttonMarkup({label:"Недоступно",disabled:true,reason:"Требуется подключение"})
   ].join("");
   document.querySelector("#skeleton").innerHTML = ui.skeletonMarkup({rows:3});
+
+  document.querySelector("#settings-rows").innerHTML = [
+    ui.settingsRowMarkup({title:"Уведомления",value:"Вкл.",icon:"●",iconColor:"#3e86f0",action:"notifications"}),
+    ui.settingsRowMarkup({title:"Кошелёк Walt",value:"—",icon:"◇",iconColor:"#8e8e93",disabled:true})
+  ].join("");
+  document.querySelector("#sparkline-row").innerHTML = [
+    ui.sparklineMarkup([2,3,2.5,4,5,4.5,6]),
+    ui.sparklineMarkup([6,5,5.5,3,4,2],{positive:false}),
+    ui.sparklineMarkup([])
+  ].join(" ");
+  document.querySelector("#glass-row").innerHTML = [
+    ui.glassPillMarkup({label:"Выбрать модель",icon:"✧",action:"model"}),
+    ui.roundIconButtonMarkup({label:"Новый чат",icon:"＋",action:"new-chat"})
+  ].join(" ");
+  document.querySelector("#heatmap-row").innerHTML = [
+    ui.heatmapTileMarkup({symbol:"BTC",changePct:2.4,volume:1200000000}),
+    ui.heatmapTileMarkup({symbol:"ETH",changePct:-0.8,volume:350000000}),
+    ui.heatmapTileMarkup({symbol:"—"})
+  ].join("");
+  document.querySelector("#feedback").innerHTML = [
+    ui.toastMarkup("Состояние загружено",{variant:"success"}),
+    ui.errorBannerMarkup("Не удалось обновить данные",{action:"retry"})
+  ].join("");
+  document.querySelector("#tabbar").innerHTML = ui.floatingTabBarMarkup([
+    {value:"wallet",label:"Кошелёк",icon:"▣"},
+    {value:"trade",label:"Торговля",icon:"↗"},
+    {value:"ai",label:"ИИ",icon:"✧"}
+  ],"wallet");
+  document.querySelector("#sheet").innerHTML = ui.bottomSheetMarkup("<p>Доверенное содержимое шторки</p>",{title:"Пример шторки",open:true});
+
 </script>
 </body>
 </html>
