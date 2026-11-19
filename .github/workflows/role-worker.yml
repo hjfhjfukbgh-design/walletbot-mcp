@@ -156,8 +156,9 @@ jobs:
                 }
                 report = (payload?.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("").trim();
                 if (report) break;
-                lastError = "empty response";
-                break;
+                lastError = "empty candidate; finishReason=" + String(payload?.candidates?.[0]?.finishReason || "none") + "; blockReason=" + String(payload?.promptFeedback?.blockReason || "none") + "; feedback=" + JSON.stringify(payload?.promptFeedback || {});
+                if (attempt < 2) await new Promise(r => setTimeout(r, 2500));
+                continue;
               }
               if (report) break;
             }
@@ -173,8 +174,11 @@ jobs:
             report = guarded.report;
             const missingScopeRows = findMissingScopeRows(report, scopeItems);
             if (missingScopeRows.length) throw new Error("Analysis report omitted mandatory scope rows: " + missingScopeRows.join(", "));
-            if (guarded.optimisticVerdict)
-              throw new Error("Analysis report overstates verdict despite unverified scope items.");
+            if (guarded.optimisticVerdict) {
+              const conservative = "Вердикт: NOT VERIFIED — автоматическая проверка обнаружила непроверенные пункты; PASS/ACCEPTED не подтверждён.";
+              const rewritten = report.replace(/(^|\\n)([^\\n]*Вердикт[^\\n]*)(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)([^\\n]*)/ig, "$1" + conservative);
+              report = rewritten === report ? report + "\\n\\n" + conservative : rewritten;
+            }
             fs.writeFileSync("/tmp/worker-mode.txt", "analysis-only");
             fs.writeFileSync("/tmp/worker-report.md", "# " + role + " — анализ задачи #" + process.env.ISSUE_NUMBER + "\n\n- Режим: анализ, исходники не изменялись\n- Задача: " + task + "\n\n" + report);
             console.log(role + " analysis report generated.");
@@ -245,8 +249,9 @@ jobs:
               }
               patch = (payload?.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("").trim();
               if (patch) break;
-              lastError = "empty response";
-              break;
+              lastError = "empty candidate; finishReason=" + String(payload?.candidates?.[0]?.finishReason || "none") + "; blockReason=" + String(payload?.promptFeedback?.blockReason || "none") + "; feedback=" + JSON.stringify(payload?.promptFeedback || {});
+              if (attempt < 2) await new Promise(r => setTimeout(r, 2500));
+              continue;
             }
             if (patch) break;
           }
@@ -334,24 +339,42 @@ jobs:
             "Текущие точные файлы:\n"+context
           ].join("\n\n");
           let repaired = "", last = "";
+          const retryable = new Set([408,429,500,502,503,504]);
           for (const model of ["gemini-3.5-flash-lite","gemini-3.1-flash-lite"]) {
-            try {
-              const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent", {
-                method:"POST",
-                headers:{"content-type":"application/json","x-goog-api-key":process.env.GEMINI_API_KEY},
-                body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature:0,maxOutputTokens:3500}}),
-                signal:AbortSignal.timeout(90000)
-              });
-              const payload=await response.json().catch(()=>({}));
-              if(!response.ok){last="HTTP "+response.status+": "+String(payload?.error?.message||"provider error"); continue;}
-              repaired=(payload?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("").trim();
-              if(repaired) break;
-              last="empty candidate; finishReason="+String(payload?.candidates?.[0]?.finishReason||"none")+"; blockReason="+String(payload?.promptFeedback?.blockReason||"none");
-            } catch(e) { last=e.message; }
+            for (let attempt = 1; attempt <= 2; attempt++) {
+              try {
+                const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent", {
+                  method:"POST",
+                  headers:{"content-type":"application/json","x-goog-api-key":process.env.GEMINI_API_KEY},
+                  body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature:0,maxOutputTokens:3500}}),
+                  signal:AbortSignal.timeout(90000)
+                });
+                const payload=await response.json().catch(()=>({}));
+                if(!response.ok){
+                  last="HTTP "+response.status+": "+String(payload?.error?.message||"provider error");
+                  if(retryable.has(response.status) && attempt < 2) { await new Promise(r=>setTimeout(r,2500)); continue; }
+                  break;
+                }
+                repaired=(payload?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("").trim();
+                if(repaired) break;
+                last="empty candidate; finishReason="+String(payload?.candidates?.[0]?.finishReason||"none")+"; blockReason="+String(payload?.promptFeedback?.blockReason||"none")+"; feedback="+JSON.stringify(payload?.promptFeedback||{});
+                if(attempt < 2) await new Promise(r=>setTimeout(r,2500));
+              } catch(e) {
+                last=e.message;
+                if(attempt < 2) await new Promise(r=>setTimeout(r,2500));
+              }
+            }
+            if(repaired) break;
           }
-          if(!repaired || repaired==="NO_SAFE_PATCH") throw new Error("Patch repair unavailable: "+last);
+          if(repaired==="NO_SAFE_PATCH") {
+            fs.writeFileSync("/tmp/worker-mode.txt","no-safe-patch");
+            fs.writeFileSync("/tmp/worker-report.md","# Исполнитель остановлен безопасно\\n\\nМодель не смогла восстановить patch. Исходники не изменены.\\n");
+            console.log("Repair model declined patch safely.");
+            process.exit(0);
+          }
+          if(!repaired) throw new Error("Patch repair unavailable after bounded retries: "+last);
           if(repaired.includes("```") || !repaired.startsWith("--- a/") || !repaired.includes("\n+++ b/")) {
-            throw new Error("Repair model did not return a clean unified diff.");
+            throw new Error("Repair model did not return a clean unified diff: "+repaired.slice(0,200).replace(/\\s+/g," "));
           }
           fs.writeFileSync("/tmp/worker.patch",repaired+"\n");
           execFileSync("git",["apply","--recount","--check","/tmp/worker.patch"],{stdio:"inherit"});
