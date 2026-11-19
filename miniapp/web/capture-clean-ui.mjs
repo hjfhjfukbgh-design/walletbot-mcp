@@ -153,6 +153,8 @@ try{
     await page.waitForFunction(before=>window.__marketListCalls>before,marketCallsBefore);
 
     if(!(await page.locator("#kg-product-mode").isVisible()))throw new Error("product mode selector must be visible on wallet home");
+    if(await page.locator('[data-product-mode="ai"] b').innerText()!=="ИИ")throw new Error("AI mode label must be Russian");
+    if(await page.locator('[data-product-mode="ai"] small').innerText()!=="СЧЁТ")throw new Error("AI mode subtitle must be Russian");
     if(!(await page.locator('[data-product-mode="live"]').isDisabled()))throw new Error("LIVE selector must remain disabled until full close contract is verified");
     await page.locator('[data-product-mode="ai"]').click();
     await page.waitForFunction(()=>document.querySelector('[data-product-mode="ai"]')?.classList.contains("is-active"));
