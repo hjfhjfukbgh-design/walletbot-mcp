@@ -934,3 +934,12 @@
 - **Статус:** начато
 - **Событие:** после указания пользователя отчёты остаются только в `docs/WORK_LOG.md`; продолжена проверка фактического запуска A/B/C и выбран следующий самостоятельный участок Team Lead.
 - **Ограничение:** GitHub connector не предоставляет list-workflow-runs для scheduled dispatcher; `fetch_commit_workflow_runs` ограничен PR-triggered runs. Не выдавать очередь за фактический запуск агентов.
+
+
+### 2026-11-19T07:20:56.882+05:00 — исправлена маршрутизация команд и CI компонента
+
+- **Статус:** завершено
+- **Маршрутизация:** аудит dispatcher выявил fallback назначения команды по `issue.number % 3`; номера #358/#359/#360 без явных team labels попадали бы не в назначенные команды. Добавлены точные `team-a`, `team-b`, `team-c` соответственно; labels подтверждены API.
+- **CI PR #361:** workflow run `44443477672`, job `test` завершился failure на `npm run typecheck`: TS7016 для JS-модуля без declaration file. `npm ci` и все node --check шаги прошли; `npm test` пропущен из-за fail-fast. Добавлен `miniapp/web/kripto-guru-components.d.ts` на commit `106f407407647c6822e2b3bff677669aef47c394`.
+- **Screenshot workflow:** run `44443477688`, job `screenshots` — success; он не доказывает прохождение unit tests.
+- **Ограничение:** новый CI run для declaration commit пока не вернулся через PR-filtered workflow endpoint; тестовый PASS не заявляется.
