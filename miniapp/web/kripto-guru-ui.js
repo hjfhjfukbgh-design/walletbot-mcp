@@ -46,7 +46,8 @@
     autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[], aiPaper:null, aiPaperLoading:false, aiPaperTransfer:(()=>{try{const v=JSON.parse(sessionStorage.getItem("kg:ai-paper-transfer:v1")||"null");return v&&["fund","withdraw"].includes(v.kind)&&typeof v.amountUsd==="string"&&typeof v.key==="string"?v:null;}catch{return null;}})()
   };
   let marketLoadEpoch=0,marketRefreshInFlight=false,marketLastUpdatedAt=0,marketSearchTimer=0,marketVisibilityListenerInstalled=false;
-  const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
+  const hasNumericValue = value => value!==null&&value!==undefined&&value!==""&&Number.isFinite(Number(value));
+  const fmt = (v, digits=2) => hasNumericValue(v) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
   const priceDigits = (value, metadata) => {
     const candidates = [metadata?.priceDecimals, metadata?.raw?.priceDecimals, metadata?.raw?.contract?.priceDecimals];
     const declared = candidates.find(v => Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) <= 12);
@@ -60,11 +61,11 @@
       ? { maximumSignificantDigits: 7, useGrouping: true }
       : { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: true }).format(number);
   };
-  const money = (v,d=2) => Number.isFinite(Number(v)) ? (Number(v)<0?"-$":"$")+fmt(Math.abs(Number(v)),d) : "—";
-  const moneyRub = (v,d=2) => Number.isFinite(Number(v)) && Number.isFinite(state.fxRateRub) ? fmt(Number(v)*state.fxRateRub,d)+" ₽" : "—";
-  const priceMoney = (v, metadata) => Number.isFinite(Number(v)) ? "$"+formatPrice(v, metadata) : "—";
+  const money = (v,d=2) => hasNumericValue(v) ? (Number(v)<0?"-$":"$")+fmt(Math.abs(Number(v)),d) : "—";
+  const moneyRub = (v,d=2) => hasNumericValue(v) && Number.isFinite(state.fxRateRub) ? fmt(Number(v)*state.fxRateRub,d)+" ₽" : "—";
+  const priceMoney = (v, metadata) => hasNumericValue(v) ? "$"+formatPrice(v, metadata) : "—";
   async function loadFxRate(){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),5000);try{const response=await fetch("https://open.er-api.com/v6/latest/USD",{signal:controller.signal,cache:"no-store"});if(!response.ok)throw new Error("FX HTTP "+response.status);const data=await response.json();const rate=Number(data?.rates?.RUB);if(data?.result!=="success"||!Number.isFinite(rate)||rate<=0)throw new Error("Invalid USD/RUB rate");state.fxRateRub=rate;return rate;}catch(error){console.warn("[Kripto Guru] USD/RUB rate unavailable",error);state.fxRateRub=null;return null;}finally{clearTimeout(timer);}}
-  const pct = (v) => Number.isFinite(Number(v)) ? (Number(v)>=0?"+":"")+fmt(v,2)+"%" : "—";
+  const pct = (v) => hasNumericValue(v) ? (Number(v)>=0?"+":"")+fmt(v,2)+"%" : "—";
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const symbolName = (m) => ({BTC:"Bitcoin",ETH:"Ethereum",SOL:"Solana",GRAM:"Gram",XAUT:"Золото",BNB:"BNB",DOGE:"Dogecoin",XRP:"XRP"}[m] || m);
   const iconFor = (m) => ({BTC:"₿",ETH:"Ξ",SOL:"◎",GRAM:"◆",XAUT:"◈",BNB:"◆",DOGE:"Ð",XRP:"✕"}[m] || String(m||"?").slice(0,1));
