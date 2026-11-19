@@ -1688,3 +1688,13 @@ body.kg-keyboard-open .kg-nav{transform:translate(-50%,130%);opacity:0;pointer-e
 .kg-ticket>.kg-mode-badge{align-self:center;margin:4px auto 0}
 .kg-ticket-risk-note{margin:14px 0 0;padding:11px 13px;border:1px solid var(--kg-line);border-radius:14px;background:var(--kg-card);color:var(--kg-muted);font-size:11px;line-height:1.45}
 .kg-asset-top .kg-mode-badge{margin-left:auto}
+
+/* Final responsive refinements for the AI composer and the 85% trade sheet. */
+#kg-companion-screen .kg-ai-form{min-height:64px;padding:10px 12px;border-radius:32px;background:var(--kg-glass);border-color:var(--kg-glass-border);box-shadow:var(--kg-glass-shadow)}
+#kg-companion-screen .kg-ai-form textarea{color:var(--kg-ink);font-size:16px!important}
+#kg-companion-screen .kg-ai-form textarea::placeholder{color:var(--kg-muted)}
+.kg-gemini-composer-icon{min-width:44px;min-height:44px;flex-basis:44px;color:var(--kg-muted)}
+#kg-companion-screen .kg-ai-form #kg-ai-send{width:44px;height:44px;flex-basis:44px;border-radius:50%;background:linear-gradient(135deg,#7B61FF,#3E86F0)}
+.kg-ticket{top:15vh;right:0;bottom:0;left:0;height:85vh;height:85dvh;min-height:85vh;min-height:85dvh;border-radius:var(--kg-radius-sheet) var(--kg-radius-sheet) 0 0;box-shadow:0 -16px 48px rgba(0,0,0,.12)}
+.kg-ticket .kg-ticket-amount{margin:clamp(48px,10vh,100px) 0 6px}
+@media(max-height:720px){.kg-ticket{top:8vh;height:92vh;height:92dvh;min-height:92vh;min-height:92dvh}.kg-ticket .kg-ticket-amount{margin:40px 0 6px}}
