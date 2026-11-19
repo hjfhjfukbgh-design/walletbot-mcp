@@ -141,7 +141,7 @@ try{
     await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
     const walletScrollCheck=await page.evaluate(()=>{
       const nav=document.querySelector("#kg-nav").getBoundingClientRect();
-      const finalCard=document.querySelector("#kg-wallet-screen .kg-discover-list .kg-discover-card:last-child").getBoundingClientRect();
+      const finalCard=document.querySelector("#kg-wallet-screen .kg-wallet-history .kg-asset-row").getBoundingClientRect();
       return {scrollY:window.scrollY,navTop:nav.top,navBottom:nav.bottom,cardBottom:finalCard.bottom,viewportHeight:window.innerHeight};
     });
     if(walletScrollCheck.scrollY<=0)throw new Error("wallet screen should scroll to the final section");
