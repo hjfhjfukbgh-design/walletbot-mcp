@@ -1240,3 +1240,9 @@
 - **Issue #242:** closed as completed after checking `src/companion.ts` and `test/companion.test.ts` on main. Backend accepts only MP4/WebM with matching extension and container signature (MP4 `ftyp`, WebM EBML), validates base64 and 5 MB per-file / 8 MB total limits, and sends inline media to Gemini.
 - **Regression evidence:** tests cover valid MP4/WebM, MIME/container mismatch, unsupported formats, malformed base64 and payload limits. Latest full `npm test` run `44520872808` passed.
 - **Research mode:** source inspection confirms Gemini Google Search grounding is enabled only for research mode; only returned HTTPS grounding chunks are surfaced, and the API rejects research responses with no verifiable sources. No fabricated sources are substituted.
+
+### 2026-11-19T17:12:53+05:00 — Clean UI preview audit found and fixed missing AI paper fixture
+
+- Reviewed actual Playwright artifact `kripto-guru-clean-ui-previews` from run `44520872698`. The AI mode screenshot exposed an error state (`aiPaper.status` unavailable) because the clean UI harness mocked `KriptoGuruAPI` without the `aiPaper` methods, even though the production facade implemented them.
+- **PR #426:** updates `miniapp/web/capture-clean-ui.mjs` with deterministic local AI paper status/funding/withdrawal fixtures. The scenario now waits for real-looking account status and tests DEMO → AI paper transfer and return, asserting both balances update. This is a test harness only; no live backend/Walt access.
+- **Head:** `bd2632e0eb7ce4d33b6b2548d57eb7a8105cc327`; screenshot run `44521760668` in progress. No merge until it passes.
