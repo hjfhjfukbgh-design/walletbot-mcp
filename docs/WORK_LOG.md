@@ -1227,3 +1227,10 @@
 - **PR #424:** test-only legacy LIVE cron regression check passed in run `44520219760` (test job PASS; deploy skipped). It confirms persisted LIVE state is paused before any market fetch or Walt operation. Merge pending.
 - **PR #425:** adds virtual-only DEMO → AI paper funding and AI paper → DEMO return controls to the AI account panel, using existing authenticated backend routes, idempotency keys, retry-key retention, and post-transfer refresh. The UI explicitly says funding does not start a strategy and does not touch Walt.
 - **PR #425 head:** `708e964b04ddc78694ff9a829b0dd6e7e4060bfc`; run `44520713607` (npm install, JS syntax and typecheck passed; npm tests running); clean UI screenshot run `44520713591` running at Playwright install.
+
+### 2026-11-19T17:08:17+05:00 — Legacy LIVE cron test and AI paper funding controls merged
+
+- **PR #424:** merged to main as `f6bed780ea563ee4743d315dd0ef90d214b2091b`. CI run `44520219760`: npm ci, syntax, typecheck and tests PASS; deploy skipped. Regression test confirms persisted legacy LIVE state is paused before market fetch/Walt.
+- **PR #425:** merged to main as `091ea49a1077ae6b58f8023030ce00c1008812e4`. Current-head run `44520872808`: npm ci, JS syntax, typecheck and tests PASS; deploy skipped. Screenshot run `44520872698`: Playwright install, clean UI syntax and iPhone preview/contract scenarios PASS.
+- **AI paper controls:** user can move virtual funds DEMO → AI paper and return them AI paper → DEMO. Existing server-side AI-mode validation and atomic ledger/idempotency are used. Retry key is retained in sessionStorage for same action/amount after uncertain response. These transfers do not access Walt or start an AI strategy.
+- **Issue #355:** closed as completed after PR #425. AI strategy runner remains a separate, not-yet-implemented capability.
