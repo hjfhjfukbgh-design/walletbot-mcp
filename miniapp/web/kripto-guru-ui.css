@@ -1431,3 +1431,12 @@ html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--strong{background:
 @media(prefers-reduced-motion:reduce){
   .kg-profile-close{transition:none}
 }
+
+/* Profile settings islands: read-only, backed only by confirmed app state. */
+.kg-profile-islands{display:grid;gap:9px;margin-top:20px;text-align:left}
+.kg-profile-island{min-width:0;padding:12px 14px;border:1px solid var(--kg-line);border-radius:16px;background:var(--kg-card)}
+.kg-profile-island h3{margin:0 0 8px;color:var(--kg-muted);font-size:10px;font-weight:750;letter-spacing:.08em;text-transform:uppercase}
+.kg-profile-island p{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin:0;padding:5px 0;font-size:12px;line-height:1.4}
+.kg-profile-island p span{color:var(--kg-muted)}
+.kg-profile-island p strong{max-width:62%;color:var(--kg-ink);font-weight:650;text-align:right;font-variant-numeric:tabular-nums}
+@media(max-width:360px){.kg-profile-island{padding:11px 12px}.kg-profile-island p{font-size:11px}}
