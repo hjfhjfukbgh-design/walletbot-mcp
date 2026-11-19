@@ -57,7 +57,7 @@
       ? { maximumSignificantDigits: 7, useGrouping: true }
       : { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: true }).format(number);
   };
-  const money = (v,d=2) => Number.isFinite(Number(v)) ? "$"+fmt(v,d) : "—";
+  const money = (v,d=2) => Number.isFinite(Number(v)) ? (Number(v)<0?"-$":"$")+fmt(Math.abs(Number(v)),d) : "—";
   const moneyRub = (v,d=2) => Number.isFinite(Number(v)) && Number.isFinite(state.fxRateRub) ? fmt(Number(v)*state.fxRateRub,d)+" ₽" : "—";
   const priceMoney = (v, metadata) => Number.isFinite(Number(v)) ? "$"+formatPrice(v, metadata) : "—";
   async function loadFxRate(){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),5000);try{const response=await fetch("https://open.er-api.com/v6/latest/USD",{signal:controller.signal,cache:"no-store"});if(!response.ok)throw new Error("FX HTTP "+response.status);const data=await response.json();const rate=Number(data?.rates?.RUB);if(data?.result!=="success"||!Number.isFinite(rate)||rate<=0)throw new Error("Invalid USD/RUB rate");state.fxRateRub=rate;return rate;}catch(error){console.warn("[Kripto Guru] USD/RUB rate unavailable",error);state.fxRateRub=null;return null;}finally{clearTimeout(timer);}}
