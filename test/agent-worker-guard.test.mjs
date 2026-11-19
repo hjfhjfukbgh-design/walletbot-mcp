@@ -72,3 +72,17 @@ it("loads full UI controller and explicit audit files into context", () => {
   expect(contextLimit("src/companion.ts", ["src/companion.ts"])).toBe(50000);
   expect(contextLimit("README.md", [])).toBe(9000);
 });
+
+
+it("rejects PASS rows that name files but provide no exact line-range evidence", () => {
+  const report = "| [S1] | Wallet and navigation | `miniapp/web/index.html` | PASS | — |";
+  const warnings = findUnverifiedReferences(report, ["miniapp/web/index.html"], "<main></main>");
+  expect(warnings.some(item => item.includes("PASS без точной ссылки"))).toBe(true);
+});
+
+it("validates cited line ranges against the actual inspected file contents", () => {
+  const report = "| [S1] | Wallet | `miniapp/web/index.html:L1-L2` | PASS | — |";
+  expect(findUnverifiedReferences(report, ["miniapp/web/index.html"], "===== miniapp/web/index.html =====\n<main>\n</main>")).toEqual([]);
+  const invalid = "| [S1] | Wallet | `miniapp/web/index.html:L1-L9` | PASS | — |";
+  expect(findUnverifiedReferences(invalid, ["miniapp/web/index.html"], "===== miniapp/web/index.html =====\n<main>\n</main>").some(item => item.includes("не соответствует исходнику"))).toBe(true);
+});
