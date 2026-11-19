@@ -22,6 +22,7 @@ export function modeBadgeMarkup(mode, { compact = false } = {}) {
   return `<span class="kg-mode-badge kg-mode-badge--${item.className}" data-mode="${item.className}"><span class="kg-mode-badge__label">${item.label}</span>${detail}</span>`;
 }
 
+/** `content` is a trusted HTML slot; escape all untrusted text before composing it. */
 export function islandMarkup(content, { className = "", label = "" } = {}) {
   const classes = ["kg-island", ...String(className).split(/\s+/).filter(Boolean)].map(escapeHTML).join(" ");
   const aria = label ? ` aria-label="${escapeHTML(label)}"` : "";
