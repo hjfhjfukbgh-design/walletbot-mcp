@@ -88,6 +88,11 @@ try{
         history:{async list(){return {events:mockHistory.map(x=>({...x}))};}},
         capabilities:{async get(){return {ipo:{available:false,reason:"Нет источника IPO"},stocks:{available:false},funds:{available:false},bonuses:{available:false},live:{available:false}};}},
         productMode:{async get(){return window.__productMode||"demo";},async set(mode){if(mode!=="demo"&&mode!=="ai")throw {code:"MODE_LOCKED",message:"LIVE заблокирован"};window.__productMode=mode;return {ok:true,productMode:mode};}},
+        aiPaper:{
+          async status(){return {demoBalanceUsd:window.__aiDemoBalance??1000,balanceUsd:window.__aiPaperBalance??100,openPositions:0,status:"stopped"};},
+          async fund({amountUsd,idempotencyKey}){const amount=Number(amountUsd);if(!(amount>0)||amount>(window.__aiDemoBalance??1000))throw {code:"VALIDATION_ERROR",message:"Недостаточно виртуальных средств DEMO"};const keys=window.__aiTransferKeys??(window.__aiTransferKeys={});if(keys[idempotencyKey])return keys[idempotencyKey];window.__aiDemoBalance=(window.__aiDemoBalance??1000)-amount;window.__aiPaperBalance=(window.__aiPaperBalance??100)+amount;return keys[idempotencyKey]={ok:true};},
+          async withdraw({amountUsd,idempotencyKey}){const amount=Number(amountUsd);if(!(amount>0)||amount>(window.__aiPaperBalance??100))throw {code:"VALIDATION_ERROR",message:"Недостаточно средств на AI paper-счёте"};const keys=window.__aiTransferKeys??(window.__aiTransferKeys={});if(keys[idempotencyKey])return keys[idempotencyKey];window.__aiPaperBalance=(window.__aiPaperBalance??100)-amount;window.__aiDemoBalance=(window.__aiDemoBalance??1000)+amount;return keys[idempotencyKey]={ok:true};}
+        },
         companion:{async list(){return companionHistory.map(x=>({...x}));},async get(id){return {id,messages:[{role:"user",content:"Привет"},{role:"assistant",content:"Здравствуйте!"}]};},async send(message,id){const conversationId=id||"preview-conversation-1";companionHistory.unshift({id:conversationId,title:message.slice(0,32),messageCount:2});return {conversationId,answer:"Тестовый ответ ИИ",conversation:{id:conversationId,messages:[{role:"user",content:message},{role:"assistant",content:"Тестовый ответ ИИ"}]}};},async remove(id){const index=companionHistory.findIndex(x=>x.id===id);if(index>=0)companionHistory.splice(index,1);return {ok:true};}},
       };
     });
@@ -116,6 +121,18 @@ try{
     await page.locator('[data-product-mode="ai"]').click();
     await page.waitForFunction(()=>document.querySelector('[data-product-mode="ai"]')?.classList.contains("is-active"));
     if(!(await page.locator("#kg-product-mode-status").innerText()).includes("Автоматические сделки пока отключены"))throw new Error("AI Trading selector must disclose paper-only/no-auto-execution status");
+    await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-status-note")?.textContent.includes("Состояние из защищённого API"));
+    if(!(await page.locator(".kg-ai-paper-transfer").isVisible()))throw new Error("AI paper virtual funding controls should be visible in AI mode");
+    await page.locator("#kg-ai-paper-amount").fill("25");
+    await page.locator("#kg-ai-paper-fund").click();
+    await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-transfer-note")?.textContent.includes("перевод из DEMO выполнен"));
+    if(!(await page.locator("#kg-ai-paper-balance").innerText()).includes("125"))throw new Error("AI paper balance did not update after virtual funding");
+    if(!(await page.locator("#kg-ai-paper-demo-balance").innerText()).includes("975"))throw new Error("DEMO balance did not decrease after virtual funding");
+    await page.locator("#kg-ai-paper-amount").fill("10");
+    await page.locator("#kg-ai-paper-withdraw").click();
+    await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-transfer-note")?.textContent.includes("возвращены в DEMO"));
+    if(!(await page.locator("#kg-ai-paper-balance").innerText()).includes("115"))throw new Error("AI paper balance did not update after virtual withdrawal");
+    if(!(await page.locator("#kg-ai-paper-demo-balance").innerText()).includes("985"))throw new Error("DEMO balance did not increase after virtual withdrawal");
     await page.screenshot({path:`clean-product-mode-ai-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator('[data-product-mode="demo"]').click();
     await page.waitForFunction(()=>document.querySelector('[data-product-mode="demo"]')?.classList.contains("is-active"));
