@@ -413,8 +413,10 @@ try{
     await page.locator("#kg-ai-history [data-ai-delete]").first().click();
     await page.waitForFunction(()=>document.querySelectorAll("#kg-ai-history [data-ai-conversation]").length===0);
     if(!(await page.locator("#kg-ai-messages").innerText()).includes("Привет! Я Kripto Guru AI."))throw new Error("deleting the active AI conversation should reset the chat view");
+    const backBefore=await page.evaluate(()=>({handler:typeof window.Telegram.WebApp.BackButton.handler,visible:window.Telegram.WebApp.BackButton.isVisible,profileHidden:document.querySelector("#kg-profile-sheet").hidden,menuOpen:document.querySelector("#kg-ai-menu").classList.contains("is-open")}));
     await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
-    if(await page.locator("#kg-ai-menu").evaluate(el=>el.classList.contains("is-open")))throw new Error("AI history drawer must close with Telegram BackButton");
+    const backAfter=await page.evaluate(()=>({handler:typeof window.Telegram.WebApp.BackButton.handler,visible:window.Telegram.WebApp.BackButton.isVisible,profileHidden:document.querySelector("#kg-profile-sheet").hidden,menuOpen:document.querySelector("#kg-ai-menu").classList.contains("is-open")}));
+    if(backAfter.menuOpen)throw new Error("AI history drawer must close with Telegram BackButton: "+JSON.stringify({backBefore,backAfter}));
     await page.locator("#kg-ai-menu-open").click();
     await page.waitForSelector("#kg-ai-menu.is-open");
     await page.locator("#kg-ai-menu-profile").click();
