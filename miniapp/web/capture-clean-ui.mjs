@@ -103,9 +103,9 @@ try{
     });
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     if(await page.locator("#kg-companion-screen .kg-gemini-model").evaluate(node=>node.tagName)!=="SPAN")throw new Error("Single available AI model must be a static label, not an inert selector");
-    const walletActions=await page.locator("#kg-wallet-quick-actions button").evaluateAll(nodes=>nodes.map(node=>node.getAttribute("aria-disabled")));
-    if(walletActions.length!==4||walletActions.some(value=>value!=="true"))throw new Error("Unsupported real-wallet actions must be explicitly marked unavailable");
-    if(!(await page.locator(".kg-wallet-actions-note").innerText()).includes("пока недоступны"))throw new Error("Wallet must explain why real-fund actions are unavailable");
+    const walletShortcuts=await page.locator("#kg-wallet-quick-actions button").evaluateAll(nodes=>nodes.map(node=>node.dataset.walletShortcut));
+    if(walletShortcuts.join(",")!=="trading,income,agents,companion")throw new Error("Wallet quick actions must be real navigation shortcuts, not fake money operations: "+walletShortcuts.join(","));
+    if(await page.locator("#kg-wallet-quick-actions [data-wallet-action]").count())throw new Error("Fake real-money actions must not be rendered");
     const viewport=await page.evaluate(()=>({width:window.innerWidth,scrollWidth:document.documentElement.scrollWidth}));
     if(viewport.scrollWidth>viewport.width+1)throw new Error("Unexpected horizontal page overflow at "+device.width+"px: "+JSON.stringify(viewport));
     await page.waitForSelector("#kg-wallet-balance");
@@ -124,7 +124,7 @@ try{
     await page.emulateMedia({colorScheme:"light"});
     await page.waitForFunction(()=>document.documentElement.dataset.theme==="light");
     await page.locator("#kg-profile-theme-select").selectOption("light");
-    await page.locator("#kg-profile-close").click();
+    await page.locator("#kg-profile-backdrop").click();
     // Theme preference changes intentionally show a transient confirmation toast.
     // Dismiss it in the screenshot harness so it cannot obscure the wallet preview.
     await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
