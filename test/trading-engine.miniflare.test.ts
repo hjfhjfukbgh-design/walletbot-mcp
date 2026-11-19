@@ -217,6 +217,78 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     });
   });
 
+  it("stores AI paper decisions per tenant and makes same-tick retries idempotent", async () => {
+    const stub = await boot();
+    const base = {
+      tickId: "tick-btc-0001",
+      strategyId: "ma-crossover",
+      strategyVersion: "1",
+      marketSnapshotHash: "a".repeat(64),
+      symbol: "BTC",
+      signal: "buy",
+      rationale: "Fast average crossed above slow average.",
+      confidence: 0.82,
+      observedPrice: "50000.00000000",
+      riskPass: true,
+    };
+    const userA = "111111111";
+    const userB = "222222222";
+    const firstA = await post(stub, "/ai/paper/decision", { ...base, userId: userA });
+    expect(firstA.status).toBe(201);
+    expect(firstA.body).toMatchObject({ ok: true, duplicate: false });
+    const retryA = await post(stub, "/ai/paper/decision", { ...base, userId: userA });
+    expect(retryA.status).toBe(200);
+    expect(retryA.body).toMatchObject({ ok: true, duplicate: true, id: firstA.body.id });
+    const conflictA = await post(stub, "/ai/paper/decision", { ...base, userId: userA, signal: "hold" });
+    expect(conflictA.status).toBe(409);
+
+    const firstB = await post(stub, "/ai/paper/decision", { ...base, userId: userB });
+    expect(firstB.status).toBe(201);
+    expect(firstB.body).toMatchObject({ ok: true, duplicate: false });
+    expect(firstB.body.id).not.toBe(firstA.body.id);
+
+    const historyA = await stub.fetch("https://engine.test/ai/paper/decisions?userId=" + userA);
+    const historyB = await stub.fetch("https://engine.test/ai/paper/decisions?userId=" + userB);
+    const bodyA = await historyA.json() as { decisions: Array<{ id: string; userId?: string; tickId: string }> };
+    const bodyB = await historyB.json() as { decisions: Array<{ id: string; tickId: string }> };
+    expect(bodyA.decisions).toHaveLength(1);
+    expect(bodyB.decisions).toHaveLength(1);
+    expect(bodyA.decisions[0]).toMatchObject({ id: firstA.body.id, tickId: base.tickId });
+    expect(bodyB.decisions[0]).toMatchObject({ id: firstB.body.id, tickId: base.tickId });
+    expect(bodyA.decisions[0].id).not.toBe(bodyB.decisions[0].id);
+  });
+
+  it("rejects malformed AI paper decisions without inserting rows", async () => {
+    const stub = await boot();
+    const valid = {
+      userId: "111111111", tickId: "tick-btc-0002", strategyId: "ma-crossover",
+      strategyVersion: "1", marketSnapshotHash: "b".repeat(64), symbol: "BTC",
+      signal: "buy", rationale: "Valid rationale", confidence: 0.5,
+      observedPrice: "50000", riskPass: true,
+    };
+    const cases = [
+      { ...valid, userId: "not-a-user" },
+      { ...valid, signal: "short" },
+      { ...valid, rationale: " " },
+      { ...valid, confidence: 1.5 },
+      { ...valid, observedPrice: "0" },
+      { ...valid, riskPass: false, rejectionReason: "" },
+    ];
+    for (const input of cases) {
+      const result = await post(stub, "/ai/paper/decision", input);
+      expect(result.status).toBe(400);
+      expect(result.body.ok).toBe(false);
+    }
+    const history = await stub.fetch("https://engine.test/ai/paper/decisions?userId=111111111");
+    expect((await history.json() as { decisions: unknown[] }).decisions).toHaveLength(0);
+  });
+
+  it("bounds AI paper decision history queries", async () => {
+    const stub = await boot();
+    const response = await stub.fetch("https://engine.test/ai/paper/decisions?userId=111111111&limit=1000");
+    expect(response.status).toBe(400);
+  });
+
   it("rejects stale quotes for both market updates and trade entry", async () => {
     const stub = await boot();
     const stale = await post(stub, "/quote", { symbol: "BTC", price: (50_000n * P).toString(), observedAt: Date.now() - 20_000 });
