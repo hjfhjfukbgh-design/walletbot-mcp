@@ -1744,3 +1744,7 @@ html[data-theme="dark"] #kg-ai-form{background:rgba(28,28,30,.76)!important;bord
 .kg-income-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:16px 0 20px;padding:5px;border:1px solid var(--kg-line);border-radius:18px;background:var(--kg-surface-2)}
 .kg-income-tabs button{min-height:44px;border:0;border-radius:13px;background:transparent;color:var(--kg-muted);font-size:13px;font-weight:700}
 .kg-income-tabs button.is-active{background:var(--kg-card);color:var(--kg-ink);box-shadow:0 2px 9px rgba(18,24,40,.08)}
+
+.kg-ai-history-group{margin:0 0 16px}
+.kg-ai-history-group h4{margin:0 4px 7px;color:var(--kg-muted);font-size:11px;font-weight:700}
+.kg-ai-history-group .kg-ai-history-entry{border-radius:12px}
