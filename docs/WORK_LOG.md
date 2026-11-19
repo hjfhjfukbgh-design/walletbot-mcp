@@ -1112,3 +1112,10 @@
 - **PR #416:** merged to main; merge commit `8fcc011fb949697eb74233775f5c9b811121fd88`.
 - **QA #416:** run `44450791657` — npm ci, JS syntax, typecheck and npm tests PASS; deploy skipped. Run `44450791630` — Playwright clean UI screenshots and contract scenarios PASS.
 - **PR #417:** opened for theme-aware Telegram profile sheet styling; CSS-only, read-only profile content unchanged. Head `ee49e89e82a92f8406b96caec6d76a0ba31456bc`. CI not yet reported; merge pending.
+
+
+### 2026-11-19T08:19:00+05:00 — Profile sheet styling merged
+
+- **PR #417:** merged to main; merge commit `f80e11976cceebd163f987e558741f3cf5562903`.
+- **QA #417:** run `44450890120` — npm ci, JS syntax, typecheck and tests PASS; deploy skipped. Run `44450890116` — Playwright clean UI screenshot/contract scenarios PASS.
+- **Change:** CSS-only profile sheet refinement using existing theme tokens, safe-area spacing, small-screen and reduced-motion support. Profile remains read-only; no fictitious settings controls were added.
