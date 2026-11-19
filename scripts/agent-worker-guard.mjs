@@ -1,6 +1,6 @@
 export function extractScopeItems(task) {
   const text = String(task || "");
-  const match = text.match(/##\s*(?:Scope|Области|Область|Проверки|Checks|Объём|Объем)[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i);
+  const match = text.match(/##\s*(?:Scope|Области|Область|Проверки|Проверить|Checks|Объём|Объем)[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i);
   const scopeText = match?.[1] || "";
   const bulletItems = scopeText
     .split(/\r?\n/)
@@ -98,4 +98,11 @@ export function findUnverifiedReferences(report, selectedPaths, sourceText) {
   }
 
   return [...warnings];
+}
+
+export function contextLimit(path, explicitPaths = []) {
+  if (path.endsWith("kripto-guru-ui.js")) return 100000;
+  if (path.endsWith("index.html")) return 50000;
+  if (explicitPaths.includes(path)) return 50000;
+  return 9000;
 }
