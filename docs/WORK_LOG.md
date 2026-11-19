@@ -1264,3 +1264,9 @@
 - **PR #427:** first browser run `44522121720` failed because a test expected the safety note inside the account card when it is correctly rendered separately; corrected selector. Second run `44522305636` failed because the safety assertion still targeted the account card; corrected to `.kg-agents-safety-note`.
 - Visual review of artifact `14529405450` confirmed the Agents screen layout and real paper account values. It also exposed misleading hero copy (“Автоматизированные стратегии…”), despite no active strategy runner. Changed to “Баланс paper-счёта, позиции и подтверждённая активность агентов.”
 - Added browser assertion that the Agents hero does not imply an active strategy runner. Current PR #427 head `b086be5b2913e7a9aaa3bfb3543155c93559c448`; screenshot run `44522877277` in progress.
+
+### 2026-11-19T17:21:10+05:00 — Agents hub and Companion redesign acceptance closed
+
+- **PR #427:** merged to main as `4a6e0a15a4629112c223e13cfea61de9597b5c47`.
+- **Latest UI QA:** run `44522877277` passed clean UI Playwright screenshot/contract scenarios. Artifacts include dedicated Agents screen captures at 390×844 and 430×932, verifying AI paper balance, DEMO source balance, positions, stopped status, virtual-only disclosure, and honest hero copy.
+- **Issue #360:** closed as completed. Scope spans Agents navigation/hero/paper overview, Gemini-inspired Companion and keyboard/history flows, verified image/video/research/learning paths, and virtual funding controls. Strategy runner remains unimplemented and clearly shown as empty/stopped.
