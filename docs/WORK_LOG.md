@@ -1399,3 +1399,10 @@
 - **PR #437:** extends clean UI screenshot/contract coverage from 390/430px to 360×800, 375×812, 390×844 and 430×932.
 - Added a document-level horizontal-overflow assertion at every viewport. This is an automated responsive check, not a substitute for final Telegram iOS WebView testing.
 - Current head `9920d610580a4366f9dd2a33ce43c4d69746c7dd`; CI run `44529533129` and screenshot run `44529533128` in progress.
+
+### 2026-11-19T18:07:38+05:00 — Four-width iPhone responsive matrix merged
+
+- **PR #437:** merged to main as `7e501f8df5d71a2986c8f151f0ef49fe41e65765`.
+- **CI run `44529533129`:** npm ci, JS syntax, typecheck and all unit tests PASS; deploy skipped.
+- **Screenshot run `44530138386`:** Playwright capture/contract PASS at 360×800, 375×812, 390×844 and 430×932. The test checks no document-level horizontal overflow and verifies the right price-axis labels remain inside the chart viewport after scrolling to the latest candles.
+- Artifacts contain all major screens at each viewport, including wallet, catalog, chart, ticket, Agents and Companion.
