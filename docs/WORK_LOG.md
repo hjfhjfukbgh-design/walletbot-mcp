@@ -1180,3 +1180,9 @@
 
 - **Issue #379:** closed as completed after PR #406 merged the Agents bottom navigation.
 - **Issue #409:** closed as completed after PR #415 merged the Agents hero styling.
+
+### 2026-11-19T08:19:00+05:00 — Agents paper account overview merged
+
+- **PR #422:** merged to main; merge commit `3be02fc7525a3dba1738b55352a59939cf78f004`.
+- **QA #422:** run `44452088922` — npm ci, JS syntax, typecheck and tests PASS; deploy skipped. Run `44452088945` — clean UI Playwright screenshots/contract scenarios PASS.
+- **Agents tab:** now shows real AI paper balance, DEMO funding balance, open positions and status from the authenticated read-only API, even when product mode is DEMO. Active agents and strategy catalog remain honest empty states; no automatic strategy execution exists in the current backend.
