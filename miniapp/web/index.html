@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0b1018">
   <meta name="color-scheme" content="dark">
-  <script>(function(){try{var saved=localStorage.getItem("kg:theme:v1");var preference=["dark","light","system"].includes(saved)?saved:"dark";var resolved=preference==="system"?(window.matchMedia?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):"dark"):preference;document.documentElement.dataset.theme=resolved;document.documentElement.dataset.themePreference=preference;var color=resolved==="dark"?"#000000":"#EFEFF4";var meta=document.querySelector("meta[name=theme-color]");if(meta)meta.content=color;var scheme=document.querySelector("meta[name=color-scheme]");if(scheme)scheme.content=resolved;}catch(error){document.documentElement.dataset.theme="dark";document.documentElement.dataset.themePreference="dark";}})();</script>
+  <script>(function(){try{var saved=localStorage.getItem("kg:theme:v1");var preference=["dark","light","system"].includes(saved)?saved:"system";var resolved=preference==="system"?(window.matchMedia?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):"dark"):preference;document.documentElement.dataset.theme=resolved;document.documentElement.dataset.themePreference=preference;var color=resolved==="dark"?"#000000":"#EFEFF4";var meta=document.querySelector("meta[name=theme-color]");if(meta)meta.content=color;var scheme=document.querySelector("meta[name=color-scheme]");if(scheme)scheme.content=resolved;}catch(error){document.documentElement.dataset.theme="dark";document.documentElement.dataset.themePreference="dark";}})();</script>
   <title>Kripto Guru</title>
   <script src="https://telegram.org/js/telegram-web-app.js?65"></script>
   <link rel="stylesheet" href="/kripto-guru-ui.css?v=20261119-premium-dark-5">
@@ -172,24 +172,20 @@
     </section>
   </main>
   <section id="kg-asset-screen" class="kg-subscreen" hidden aria-label="Актив">
-    <div class="kg-asset-top"><span id="kg-asset-product" class="kg-badge">Фьючерс</span><span id="kg-asset-leverage" class="kg-badge">—×</span><button id="kg-asset-favorite" class="kg-link" type="button">☆ В избранное</button></div>
+    <div class="kg-asset-top"><span id="kg-asset-product" class="kg-badge">Фьючерс</span><span id="kg-asset-mode-badge" class="kg-mode-badge kg-mode-badge--demo">DEMO</span><span id="kg-asset-leverage" class="kg-badge">—×</span><button id="kg-asset-favorite" class="kg-link" type="button">☆ В избранное</button></div>
     <div class="kg-asset-identity"><span id="kg-asset-icon" class="kg-asset-large-icon">₿</span><div><h1 id="kg-asset-name">Bitcoin</h1><small id="kg-asset-symbol">BTC · DEMO</small></div></div><div id="kg-asset-price" class="kg-asset-price">—</div><div id="kg-asset-change" class="kg-asset-change">—</div>
     <div class="kg-chart-card"><div class="kg-chart-head"><b>График цены</b><span id="kg-chart-state" class="kg-muted">Рыночные данные</span></div><div id="kg-chart" class="kg-chart" role="region" aria-label="Свечной график. Прокручивайте по горизонтали для просмотра истории." tabindex="0"></div><div id="kg-timeframes" class="kg-timeframes"><button data-interval="1m">1м</button><button data-interval="5m">5м</button><button data-interval="15m" class="is-selected">15м</button><button data-interval="1h">1ч</button><button data-interval="4h">4ч</button><button data-interval="1d">1д</button></div></div>
     <div class="kg-section-head"><h2>Детали</h2></div><div id="kg-market-details" class="kg-list"></div><div class="kg-section-head"><h2>История транзакций</h2><button id="kg-asset-history-all" class="kg-link" type="button">Показать все</button></div><div id="kg-asset-history" class="kg-list"></div><div class="kg-section-head"><h2>Подробнее</h2></div><div class="kg-asset-about"><p>В демо-режиме используются публичные рыночные данные, но все сделки совершаются только виртуальными средствами.</p><p>Изменение цены за 24 часа не гарантирует дальнейшего движения рынка.</p></div><div class="kg-asset-actions"><button id="kg-long" class="kg-primary" type="button">↗ Лонг</button><button id="kg-short" class="kg-primary" type="button">↘ Шорт</button></div>
   </section>
-  <section id="kg-ticket-screen" class="kg-subscreen kg-ticket" hidden aria-label="Демо-сделка">
-    
+  <section id="kg-ticket-screen" class="kg-subscreen kg-ticket" hidden aria-label="Виртуальная сделка">
+    <span id="kg-ticket-mode-badge" class="kg-mode-badge kg-mode-badge--demo">DEMO · виртуальные деньги</span>
     <div id="kg-ticket-heading" class="kg-ticket-heading">Лонг BTC · —</div>
     <div class="kg-ticket-amount"><input id="kg-ticket-margin" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0"><span>$</span><button id="kg-ticket-leverage" class="kg-badge" type="button">1×</button></div>
     <div id="kg-ticket-volume" class="kg-ticket-volume">Объём: —</div>
     <div class="kg-ticket-available"><span id="kg-ticket-available">Доступно: —</span><button id="kg-ticket-max" class="kg-ticket-max" type="button">Макс.</button></div>
     <div class="kg-ticket-settings">
-      <div class="kg-ticket-actions"><span class="kg-badge">Оплата в долларах</span><button id="kg-ticket-autoclose" class="kg-badge kg-ticket-autoclose" type="button" aria-pressed="false">Автозакрытие: выкл</button></div>
-      <div id="kg-ticket-autoclose-fields" class="kg-ticket-autoclose-fields" hidden>
-        <label>Тейк-профит, %<input id="kg-ticket-tp" type="number" inputmode="decimal" min="0.1" max="90" step="0.1" value="5"></label>
-        <label>Стоп-лосс, %<input id="kg-ticket-sl" type="number" inputmode="decimal" min="0.1" max="90" step="0.1" value="2"></label>
-        <p>Позиция закроется автоматически при достижении одного из уровней.</p>
-      </div>
+      <div class="kg-ticket-actions"><span class="kg-badge">Оплата в долларах</span></div>
+      <p class="kg-ticket-risk-note">TP/SL появятся после подтверждения поддержки этих параметров торговым API.</p>
       <div id="kg-ticket-preview" class="kg-ticket-preview"></div>
     </div>
     <button id="kg-ticket-check" class="kg-primary kg-ticket-check" type="button" disabled>Проверить</button>
@@ -207,7 +203,7 @@
     <div class="kg-profile-islands">
       <section class="kg-profile-island" aria-label="Аккаунт и режим">
         <h3>Аккаунт и режим</h3>
-        <p><span>Режим продукта</span><strong id="kg-profile-mode">—</strong></p>
+        <p><span>Режим продукта</span><strong id="kg-profile-mode">—</strong></p><div id="kg-profile-mode-switch" class="kg-profile-mode-switch" role="group" aria-label="Выбор режима"><button type="button" data-profile-mode="demo">DEMO</button><button type="button" data-profile-mode="ai">ИИ</button><button type="button" data-profile-mode="live" disabled aria-disabled="true">LIVE</button></div>
       </section>
       <section class="kg-profile-island" aria-label="Кошелёк Walt">
         <h3>Кошелёк Walt</h3>
