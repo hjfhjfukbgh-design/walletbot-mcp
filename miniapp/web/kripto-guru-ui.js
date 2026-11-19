@@ -351,7 +351,7 @@
     root.innerHTML=positions.length?positions.slice(0,3).map(p=>{
       const side=String(p.side||"").toLowerCase(),symbol=p.symbol||p.market||"—";
       const pnl=Number(p.unrealizedPnlUsd??p.pnlUsd??NaN),pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
-      const margin=p.marginUsd!==null&&p.marginUsd!==undefined?money(Number(p.marginUsd)):"—";
+      const margin=p.marginUsd!==null&&p.marginUsd!==undefined?money(p.marginUsd):"—";
       const leverage=p.leverage!==null&&p.leverage!==undefined&&Number.isFinite(Number(p.leverage))?Number(p.leverage)+"×":"—";
       return `<div class="kg-asset-row kg-wallet-position-row"><span class="kg-row-copy"><b>${esc(symbol)} · ${side==="short"?"Шорт":side==="long"?"Лонг":"Позиция"}</b><small>Маржа ${margin} · Плечо ${leverage}</small></span><strong class="kg-wallet-row-value ${pnlClass}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
     }).join(""):'<div class="kg-empty-inline">Открытых позиций пока нет.</div>';
@@ -649,7 +649,7 @@
     $("#kg-ticket-heading").textContent=(side==="long"?"Лонг ":"Шорт ")+state.selectedMarket+" · "+$("#kg-asset-price").textContent;
     $("#kg-ticket-margin").value="";
     $("#kg-ticket-leverage").textContent="1×";
-    $("#kg-ticket-available").textContent="Доступно: "+money(Number(state.wallet?.balanceUsd??state.wallet?.balance??0))+" USDT";
+    $("#kg-ticket-available").textContent="Доступно: "+money(state.wallet?.balanceUsd??state.wallet?.balance)+" USDT";
     $("#kg-ticket-volume").textContent="Объём: —";
     $("#kg-ticket-preview").textContent="";
     showSubscreen("ticket");
@@ -670,8 +670,8 @@
       const volume=Number(result.volumeUsd??result.notionalUsd);
       $("#kg-ticket-volume").textContent="Объём: "+money(volume);
       const fees=[];
-      if(result.entryFeeUsd!==undefined)fees.push("Комиссия открытия "+money(Number(result.entryFeeUsd)));
-      if(result.exitFeeUsd!==undefined)fees.push("Комиссия закрытия "+money(Number(result.exitFeeUsd)));
+      if(hasNumericValue(result.entryFeeUsd))fees.push("Комиссия открытия "+money(result.entryFeeUsd));
+      if(hasNumericValue(result.exitFeeUsd))fees.push("Комиссия закрытия "+money(result.exitFeeUsd));
       $("#kg-ticket-preview").textContent=fees.join(" · ");
       $("#kg-ticket-check").disabled=!(result.valid!==false && result.available!==false);
     }catch(error){if(seq!==state.previewSeq)return;$("#kg-ticket-preview").textContent=normalizeError(error).message;}
@@ -1161,7 +1161,7 @@
       if(!state.preview)return;
       const targets=getAutoCloseTargets(state.preview?.priceUsd);
       const autoCloseRows=targets?`<div class="kg-detail-row"><span>Тейк-профит</span><b>${money(targets.takeProfitUsd)}</b></div><div class="kg-detail-row"><span>Стоп-лосс</span><b>${money(targets.stopLossUsd)}</b></div>`:"";
-      $("#kg-confirm-details").innerHTML=`<div class="kg-detail-row"><span>Направление</span><b>${state.side==="long"?"Лонг":"Шорт"} ${esc(state.selectedMarket)}</b></div><div class="kg-detail-row"><span>Маржа</span><b>${money(state.margin)}</b></div><div class="kg-detail-row"><span>Плечо</span><b>${state.leverage}×</b></div><div class="kg-detail-row"><span>Объём</span><b>${money(Number(state.preview.volumeUsd??state.preview.notionalUsd))}</b></div>${autoCloseRows}`;
+      $("#kg-confirm-details").innerHTML=`<div class="kg-detail-row"><span>Направление</span><b>${state.side==="long"?"Лонг":"Шорт"} ${esc(state.selectedMarket)}</b></div><div class="kg-detail-row"><span>Маржа</span><b>${money(state.margin)}</b></div><div class="kg-detail-row"><span>Плечо</span><b>${state.leverage}×</b></div><div class="kg-detail-row"><span>Объём</span><b>${money(state.preview.volumeUsd??state.preview.notionalUsd)}</b></div>${autoCloseRows}`;
       showModal("#kg-confirm-screen");
     });
     $("#kg-trade-confirm").addEventListener("click",confirmTrade);
