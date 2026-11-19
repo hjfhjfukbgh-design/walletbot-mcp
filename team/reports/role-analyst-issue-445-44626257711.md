@@ -52,3 +52,11 @@
 ## Verdict
 
 **PARTIAL.** Core wallet, market, DEMO trade, AI paper balance transfer and Companion code paths have identifiable handlers and routes. The matrix is not a full release sign-off: several UI interactions lack dedicated end-to-end tests; native Telegram WebView and media permissions are unverified; support/legal UI is absent; AI strategy execution is not implemented; LIVE remains gated by #332.
+
+## Backend-only AI PAPER lifecycle note (updated 2026-11-20 EKB)
+
+After this UI capability matrix was merged, internal Durable Object storage operations were added:
+- POST/GET /ai/paper/decision(s): tenant-scoped decision ledger, unique per user/tick/symbol.
+- POST /ai/paper/position/open and GET /ai/paper/positions: position-open persistence linked to a same-user risk-approved decision, atomic margin/fee/slippage reservation and ledger update.
+- These are internal DO routes only. There is still no public Mini App API route, UI action, strategy runner or position-close/PnL operation. Close/PnL is tracked in #572.
+- Relevant merges: #566 and #571. This does not change the 31-row active UI matrix above.
