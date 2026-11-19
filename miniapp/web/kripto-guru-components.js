@@ -23,7 +23,7 @@ export function modeBadgeMarkup(mode, { compact = false } = {}) {
 }
 
 export function islandMarkup(content, { className = "", label = "" } = {}) {
-  const classes = ["kg-island", ...String(className).split(/\\s+/).filter(Boolean)].map(escapeHTML).join(" ");
+  const classes = ["kg-island", ...String(className).split(/\s+/).filter(Boolean)].map(escapeHTML).join(" ");
   const aria = label ? ` aria-label="${escapeHTML(label)}"` : "";
   return `<section class="${classes}"${aria}>${String(content ?? "")}</section>`;
 }
