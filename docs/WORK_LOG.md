@@ -1317,3 +1317,9 @@
 - **Screenshot run `44525758117`:** Playwright clean UI previews PASS, including default dark, profile-selected light, system dark/light switching, and 390×844 / 430×932 viewports.
 - New installs default to dark before CSS loads; profile offers Тёмная / Светлая / Системная; system mode tracks `prefers-color-scheme`; meta color-scheme, theme-color and Telegram header/background stay synchronized. Storage failures fall back safely.
 - **Issues closed:** #177, #182, #184, #187, #215, #216, #219 after current main and CI evidence were reviewed. #195 Companion independent QA remains open because preview is not production.
+
+### 2026-11-19T17:42:12+05:00 — Legacy E-account selector task superseded; Companion QA evidence recorded
+
+- **Issue #204:** closed as superseded by the later product brief's DEMO / LIVE / AI Trading · PAPER selector. Explicitly documented that E-account semantics are not implemented or inferred.
+- **Issue #195:** added independent QA findings (comment `7009426994`). Current unit suite covers Telegram auth expiry, tenant isolation, CRUD/modes, research grounding/no fabricated sources, free-tier quota, image/audio/video validation, attachment limits, provider-error sanitization and no trading-tool binding.
+- **Issue #195 remains open:** isolated preview Worker smoke has not been run; physical iPhone Telegram WebView and production are unverified. Preview ≠ production.
