@@ -222,6 +222,11 @@ describe("API da Mini App", () => {
         },
       }),
     } as unknown as DurableObjectNamespace;
+    const blockedDemoStart = await call(e, "ai/paper/session/start", "chave-teste", {
+      method: "POST", body: JSON.stringify({ userId: "999" }),
+    }, "111");
+    expect(blockedDemoStart.status).toBe(409);
+    expect(calls).toHaveLength(0);
     await call(e, "product-mode", "chave-teste", { method: "POST", body: JSON.stringify({ productMode: "ai" }) }, "111");
 
     const started = await call(e, "ai/paper/session/start", "chave-teste", {
