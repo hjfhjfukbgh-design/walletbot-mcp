@@ -337,7 +337,8 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const rowsB = await historyB.json() as { positions: Array<{ id: string; status: string }> };
     expect(rowsA.positions).toHaveLength(1);
     expect(rowsB.positions).toHaveLength(1);
-    expect(rowsA.positions[0]).toMatchObject({ id: openedA.body.positionId, user_id: userA, status: "open" });
+    expect(rowsA.positions[0]).toMatchObject({ id: openedA.body.positionId, status: "open" });
+    expect(rowsA.positions[0]).not.toHaveProperty("user_id");
     expect(rowsB.positions[0].id).toBe(openedB.body.positionId);
     const statusA = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userA);
     const statusB = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userB);
