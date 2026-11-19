@@ -11,7 +11,7 @@
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
-    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[], aiPaper:null, aiPaperLoading:false
+    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[], aiPaper:null, aiPaperLoading:false, aiPaperTransfer:null
   };
   let marketLoadEpoch=0,marketRefreshInFlight=false,marketLastUpdatedAt=0,marketSearchTimer=0,marketVisibilityListenerInstalled=false;
   const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
@@ -842,6 +842,26 @@
       const agentNote=$("#kg-agents-paper-note");if(agentNote)agentNote.textContent=normalizeError(error).message;
     }finally{state.aiPaperLoading=false;}
   }
+  async function transferAiPaper(kind){
+    if(state.productMode!=="ai")return notify("Сначала выберите AI Trading · PAPER.");
+    const input=$("#kg-ai-paper-amount"),note=$("#kg-ai-paper-transfer-note");
+    const amountUsd=String(input?.value??"").trim();
+    if(!/^(?:\\d+)(?:\\.\\d{1,2})?$/.test(amountUsd)||Number(amountUsd)<=0){if(note)note.textContent="Введите сумму больше нуля, максимум два знака после запятой.";return;}
+    const keyState=state.aiPaperTransfer;
+    const idempotencyKey=keyState&&keyState.kind===kind&&keyState.amountUsd===amountUsd?keyState.key:(crypto.randomUUID?crypto.randomUUID():"kg-"+Date.now()+"-"+Math.random().toString(36).slice(2));
+    state.aiPaperTransfer={kind,amountUsd,key:idempotencyKey};
+    const fund=$("#kg-ai-paper-fund"),withdraw=$("#kg-ai-paper-withdraw");
+    if(fund)fund.disabled=true;if(withdraw)withdraw.disabled=true;
+    if(note)note.textContent=kind==="fund"?"Переводим виртуальные средства из DEMO…":"Возвращаем виртуальные средства в DEMO…";
+    try{
+      await invoke(kind==="fund"?"aiPaper.fund":"aiPaper.withdraw",{amountUsd,idempotencyKey});
+      state.aiPaperTransfer=null;
+      if(note)note.textContent=kind==="fund"?"Виртуальный перевод из DEMO выполнен. Стратегия не запущена.":"Виртуальные средства возвращены в DEMO.";
+      await loadAiPaperSummary(true);
+    }catch(error){
+      if(note)note.textContent=normalizeError(error).message+" Повторная попытка с той же суммой использует тот же ключ операции.";
+    }finally{if(fund)fund.disabled=false;if(withdraw)withdraw.disabled=false;}
+  }
   async function loadProductMode(){
     try{
       const mode=await invoke("productMode.get");
@@ -871,6 +891,8 @@
     $("#kg-profile-close").addEventListener("click",closeProfile);
     $("#kg-profile-backdrop").addEventListener("click",closeProfile);
     $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
+    $("#kg-ai-paper-fund").addEventListener("click",()=>void transferAiPaper("fund"));
+    $("#kg-ai-paper-withdraw").addEventListener("click",()=>void transferAiPaper("withdraw"));
     $("#kg-product-mode").addEventListener("click",event=>{
       const button=event.target.closest("[data-product-mode]");
       if(!button||button.disabled)return;
