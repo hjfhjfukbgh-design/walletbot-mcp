@@ -73,3 +73,15 @@
 - PR #452: GitHub Actions typecheck/tests и clean UI screenshots запущены; до завершения CI и просмотра артефактов не считать принятым. Физический iPhone Telegram WebView не проверен.
 - Дедлайн задач скорректирован на 2026-11-19 23:30 EKB по 20-минутному окну владельца.
 - LIVE остаётся disabled; AI paper-only. Merge/deploy/реальные торговые операции не выполнялись.
+
+
+### CI и визуальный smoke-check PR #452 — 2026-11-19 23:19 EKB
+- `npm ci`: success.
+- JavaScript syntax checks: success.
+- `npm run typecheck`: success.
+- `npm test`: success.
+- Playwright screenshot workflow: success на 360×800, 375×812, 390×844, 430×932; light/dark variants, AI Companion keyboard/chat scenarios.
+- Артефакт: https://github.com/hjfhjfukbgh-design/walletbot-mcp/actions/runs/44586236989 (`kripto-guru-clean-ui-previews`).
+- Deploy job skipped. Production не затронут.
+- Проверены скриншоты wallet light/dark и AI mode: DEMO/AI tint/aura видны, 4-tab navigation рендерится. Это Chromium emulation, не физический iPhone Telegram WebView.
+- PR #452 остаётся Draft для review; merge не выполнялся.
