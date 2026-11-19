@@ -568,6 +568,29 @@ async function executeLiveTrade(env: Env, scopedEnv: Env, userId: string, body: 
   // Durable Object claim is the atomic replay guard; KV deletion is cleanup only.
   try { await scopedEnv.STATE.delete(key); } catch (error) { console.error("[live] preview token cleanup failed", error); }
 
+  // Re-check immediately before the only LIVE write. A manual/external position
+  // may have appeared after preview; never stack a second position on the contract.
+  try {
+    const existingPosition = await client.openPosition(preview.contractId);
+    if (existingPosition) {
+      const message = "После подготовки по этому контракту появилась открытая позиция. Новый ордер не отправлен; требуется ручная сверка.";
+      const finished = await engineRequest(env, "/live/finish", {
+        userId, handle, status: "unknown",
+        result: { message, reason: "position_exists_before_execute" },
+      });
+      if (!finished.ok) console.error("[live] pre-execute position guard status persistence failed", await finished.text());
+      return json({ ok: false, status: "unknown", error: message }, 202);
+    }
+  } catch (error) {
+    const message = "Не удалось повторно проверить открытые позиции Walt. Ордер не отправлен; требуется ручная сверка.";
+    const finished = await engineRequest(env, "/live/finish", {
+      userId, handle, status: "unknown",
+      result: { message, reason: "position_check_failed", detail: String((error as Error)?.message ?? "unknown").slice(0, 200) },
+    });
+    if (!finished.ok) console.error("[live] pre-execute position check status persistence failed", await finished.text());
+    return json({ ok: false, status: "unknown", error: message }, 202);
+  }
+
   try {
     const result = await client.call("perps_execute_operation", { confirmationToken: preview.confirmationToken });
     if (result && typeof result === "object" && !Array.isArray(result) && (result as Record<string, unknown>).ok === false)
