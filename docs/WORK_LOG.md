@@ -1056,3 +1056,12 @@
 - **Изменения:** правый аватар кошелька открывает Agents, а не AI chat; нижняя вкладка AI не менялась. Telegram header/background используют themeParams.bg_color с light fallback. Убрано плечо из wallet favorite cards, контрактное плечо в trade flow сохранено.
 - **Проверки:** run `44447585017` — npm ci, node syntax, typecheck, npm test PASS; run `44447585016` — Playwright clean UI PASS; deploy skipped.
 - **Issues:** #380/#385/#392 закрыты как выполненные через TL PR.
+
+
+### 2026-11-19T07:58:10.225+05:00 — убраны фиктивный AI agent и legacy discovery
+
+- **PR #399:** merged to main; merge commit `aafc49dd2d8761ad62e65390be8d1244295203f6`.
+- **Изменения:** удалён статический «Агент Grok» и placeholder balance; «Аккаунты ИИ-агента» оставлены с честным empty state; удалён блок «Попробуйте» и неработающие agent/futures tiles; история транзакций сохранена.
+- **QA:** run `44447909112` — npm ci, node syntax, typecheck, tests PASS; run `44447909127` — Playwright screenshot/scroll PASS. Deploy skipped.
+- **Тест harness:** bottom scroll assertion перенесён с удалённой discovery tile на финальную строку истории.
+- **PR #397:** закрыт как superseded Team Lead PR #399.
