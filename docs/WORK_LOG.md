@@ -1105,3 +1105,10 @@
 - **Team B #411:** executor completed `no-safe-patch`; issue blocked. Inspection confirms current public API exposes no AI paper-account balance/status/positions endpoint; `wallet.get` is explicitly DEMO and cannot be repurposed as AI funds.
 - **Team Lead takeover:** PR #416 `feat(ai): add honest paper account summary panel`, branch `feat/ai-paper-account-summary-2026-11-19`, head `683eb43d111dcd4186893cdeacd658ae47237a07`. Read-only summary appears only in AI mode. Missing paper balance, DEMO funding balance and position count render `—`; status says API does not expose paper-account state and explicitly states virtual funds/no LIVE access. No API calls, fake zeros, funding actions, backend or LIVE changes.
 - **PR #416 validation:** pending; do not merge until CI and clean UI screenshot checks pass.
+
+
+### 2026-11-19T08:19:00+05:00 — AI paper summary validated and merged; profile polish in review
+
+- **PR #416:** merged to main; merge commit `8fcc011fb949697eb74233775f5c9b811121fd88`.
+- **QA #416:** run `44450791657` — npm ci, JS syntax, typecheck and npm tests PASS; deploy skipped. Run `44450791630` — Playwright clean UI screenshots and contract scenarios PASS.
+- **PR #417:** opened for theme-aware Telegram profile sheet styling; CSS-only, read-only profile content unchanged. Head `ee49e89e82a92f8406b96caec6d76a0ba31456bc`. CI not yet reported; merge pending.
