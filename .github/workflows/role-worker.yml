@@ -160,13 +160,13 @@ jobs:
             if (!report) throw new Error("Role analysis failed: " + lastError);
             // Preserve the evidence gate while preventing an overconfident model verdict from blocking the whole report.
             const hasUnverifiedEvidence = /NOT VERIFIED|NOT RUN|НЕ ПРОВЕРЕНО|НЕ ЗАПУСКАЛ/i.test(report);
-            if (hasUnverifiedEvidence && /Вердикт[\\s\\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report)) {
-              report = report.replace(/(Вердикт[^\\n]{0,160})(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/gi, "$1PARTIAL — есть непроверенные пункты");
-              if (/Вердикт[\\s\\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report)) {
-                report += "\\n\\nВердикт: PARTIAL — обязательные проверки не завершены; пункты NOT VERIFIED не считаются пройденными.";
+            if (hasUnverifiedEvidence && /Вердикт[\s\\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report)) {
+              report = report.replace(/(Вердикт[^\n]{0,160})(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/gi, "$1PARTIAL — есть непроверенные пункты");
+              if (/Вердикт[\s\\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report)) {
+                report += "\n\nВердикт: PARTIAL — обязательные проверки не завершены; пункты NOT VERIFIED не считаются пройденными.";
               }
             }
-            const missingScopeRows = scopeItems.map((_,index) => "S" + (index+1)).filter(id => !new RegExp("\\|\\s*\\[" + id + "\\]\\s*\\|").test(report));
+            const missingScopeRows = scopeItems.map((_,index) => "S" + (index+1)).filter(id => !new RegExp("\\|\s*\\[" + id + "\\]\s*\\|").test(report));
             if (missingScopeRows.length) throw new Error("Analysis report omitted mandatory scope rows: " + missingScopeRows.join(", "));
             if (/NOT VERIFIED|NOT RUN|НЕ ПРОВЕРЕНО|НЕ ЗАПУСКАЛ/i.test(report) && /Вердикт[\s\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report))
               throw new Error("Analysis report overstates verdict despite unverified scope items.");
@@ -249,7 +249,7 @@ jobs:
           patch = patch.replace(/^\x60\x60\x60(?:css|diff)?\s*/, "").replace(/\s*\x60\x60\x60$/, "").trim();
           if (patch === "NO_SAFE_PATCH") {
             fs.writeFileSync("/tmp/worker-mode.txt", "no-safe-patch");
-            fs.writeFileSync("/tmp/worker-report.md", "# Исполнитель остановлен безопасно\\n\\nМодель не смогла сформировать безопасный patch. Исходники не изменены.\\n");
+            fs.writeFileSync("/tmp/worker-report.md", "# Исполнитель остановлен безопасно\n\nМодель не смогла сформировать безопасный patch. Исходники не изменены.\n");
             console.log("Model declined to create a safe patch.");
             process.exit(0);
           }
@@ -325,8 +325,8 @@ jobs:
             "Не меняй цель задачи и не расширяй scope. Используй только перечисленные существующие файлы.",
             "Верни только чистый unified diff, без Markdown fences и объяснений. Если исправить безопасно нельзя, верни NO_SAFE_PATCH.",
             "Задача: "+process.env.TASK,
-            "Исходный diff, который не применился:\\n"+original,
-            "Текущие точные файлы:\\n"+context
+            "Исходный diff, который не применился:\n"+original,
+            "Текущие точные файлы:\n"+context
           ].join("\n\n");
           let repaired = "", last = "";
           for (const model of ["gemini-3.5-flash-lite","gemini-3.1-flash-lite"]) {
