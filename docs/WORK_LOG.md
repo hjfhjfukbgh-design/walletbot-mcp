@@ -1119,3 +1119,10 @@
 - **PR #417:** merged to main; merge commit `f80e11976cceebd163f987e558741f3cf5562903`.
 - **QA #417:** run `44450890120` — npm ci, JS syntax, typecheck and tests PASS; deploy skipped. Run `44450890116` — Playwright clean UI screenshot/contract scenarios PASS.
 - **Change:** CSS-only profile sheet refinement using existing theme tokens, safe-area spacing, small-screen and reduced-motion support. Profile remains read-only; no fictitious settings controls were added.
+
+
+### 2026-11-19T08:19:00+05:00 — Correction: AI paper read-only status endpoint exists
+
+- The previous #416 log entry incorrectly stated that no paper-account status endpoint exists. Further source inspection found authenticated `GET /api/ai/paper/status` in `src/api.ts`, backed by `TradingEngine.aiPaperStatus()` in `src/trading/engine.ts`.
+- The endpoint returns actual DEMO balance, AI paper balance, account status and open paper-position count. The frontend API facade did not yet expose it.
+- #416's placeholder-only panel is therefore incomplete. A follow-up will connect this existing read-only endpoint; no backend or financial write changes are needed.
