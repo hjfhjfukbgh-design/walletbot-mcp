@@ -984,3 +984,12 @@
 - **Источник:** `clean-catalog-390x844.png` из artifact `kripto-guru-clean-ui-previews`.
 - **Подтверждено:** рынок показывает только 2 product tiles вместо Crypto/Futures/Favorites; heatmap слишком насыщенная и контрастная относительно Walt; bottom navigation перекрывает нижние строки списка активов; строка плеча видна в каталоге, хотя wallet favorites по новому ТЗ должны показывать цену/PnL/sparkline без плеча.
 - **Маршрут:** #359 — палитра/продукты; #358 — safe-area и bottom navigation; #359 — wallet favorites card styling.
+
+
+### 2026-11-19T07:27:28.492+05:00 — корректировка задачи Team C под реальную роль worker
+
+- **Статус:** завершено
+- **Изменение:** #360 переопределена из QA-only в FRONTEND implementation: Agents hub + Gemini-inspired AI chat.
+- **Причина:** reusable worker для роли QA работает в analysis-only режиме и не создаёт UI-код; исходная постановка не обеспечивала бы реализацию экрана агентов и чата.
+- **Разделение файлов:** Team A — верхняя навигация/кошелёк/профиль; Team C — только AI/Agents регионы `miniapp/web/index.html` и `miniapp/web/kripto-guru-ui.js`; Team B — общий CSS/design system. В issue прописаны непересекающиеся участки.
+- **Маршрутизация:** label `team-c` сохранён, `orchestrator-ready` сохранён.
