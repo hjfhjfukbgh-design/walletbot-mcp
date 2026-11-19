@@ -28,17 +28,17 @@
       <div class="kg-product-mode-wrap">
         <div id="kg-product-mode" class="kg-product-mode" role="group" aria-label="Режим продукта">
           <button type="button" data-product-mode="demo" class="is-active" aria-pressed="true"><b>DEMO</b><small>Счёт</small></button>
-          <button type="button" data-product-mode="ai" aria-pressed="false"><b>AI Trading</b><small>PAPER</small></button>
+          <button type="button" data-product-mode="ai" aria-pressed="false"><b>ИИ</b><small>СЧЁТ</small></button>
           <button type="button" data-product-mode="live" aria-pressed="false" disabled aria-disabled="true" title="LIVE заблокирован до проверки полного торгового контракта"><b>LIVE</b><small>Заблокирован</small></button>
         </div>
         <p id="kg-product-mode-status" class="kg-product-mode-status" aria-live="polite">DEMO · Виртуальный счёт. Реальные средства не используются.</p>
       </div>
-      <section id="kg-ai-paper-summary" class="kg-ai-paper-summary" aria-label="Состояние AI paper-счёта" hidden>
-        <div class="kg-section-head"><h2>AI paper-счёт</h2><span class="kg-muted">Виртуальный</span></div>
+      <section id="kg-ai-paper-summary" class="kg-ai-paper-summary" aria-label="Состояние виртуального счёта ИИ" hidden>
+        <div class="kg-section-head"><h2>Счёт ИИ</h2><span class="kg-muted">Виртуальный</span></div>
         <div class="kg-list">
-          <div class="kg-asset-row"><span class="kg-row-copy"><b>Баланс paper-счёта</b><small>Отдельный виртуальный счёт</small></span><strong id="kg-ai-paper-balance" class="kg-wallet-row-value">—</strong></div>
+          <div class="kg-asset-row"><span class="kg-row-copy"><b>Баланс ИИ</b><small>Отдельный виртуальный счёт</small></span><strong id="kg-ai-paper-balance" class="kg-wallet-row-value">—</strong></div>
           <div class="kg-asset-row"><span class="kg-row-copy"><b>Доступный DEMO-баланс</b><small>Источник виртуального пополнения</small></span><strong id="kg-ai-paper-demo-balance" class="kg-wallet-row-value">—</strong></div>
-          <div class="kg-asset-row"><span class="kg-row-copy"><b>Открытые paper-позиции</b><small>Только подтверждённые данные</small></span><strong id="kg-ai-paper-positions" class="kg-wallet-row-value">—</strong></div>
+          <div class="kg-asset-row"><span class="kg-row-copy"><b>Открытые позиции ИИ</b><small>Только подтверждённые данные</small></span><strong id="kg-ai-paper-positions" class="kg-wallet-row-value">—</strong></div>
           <div class="kg-asset-row"><span class="kg-row-copy"><b>Статус счёта</b><small id="kg-ai-paper-status-note">Загрузка состояния…</small></span><strong id="kg-ai-paper-status" class="kg-wallet-row-value">—</strong></div>
         </div>
         <div class="kg-ai-paper-transfer">
@@ -73,7 +73,7 @@
       <div id="kg-equities-add-wrap" class="kg-equities-add-wrap" hidden><button id="kg-add-equity" class="kg-equities-add" type="button">＋ Добавить акцию или фонд</button></div>
       <div class="kg-list kg-wallet-defi"><div class="kg-asset-row"><span class="kg-asset-icon kg-brand-defi" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5v14M10 5l4 14M15 5l4 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></span><span class="kg-row-copy"><b>DeFi Счёт</b></span><span class="kg-wallet-row-value">—</span></div></div>
       <div class="kg-section-head"><h2>Аккаунты ИИ-агента</h2></div>
-      <div class="kg-list kg-wallet-ai-accounts"><div class="kg-empty-card">Подключённых paper-агентов пока нет. Здесь отображаются только реальные аккаунты и подтверждённые данные.</div></div>
+      <div class="kg-list kg-wallet-ai-accounts"><div class="kg-empty-card">Подключённых ИИ-агентов пока нет. Здесь отображаются только реальные аккаунты и подтверждённые данные.</div></div>
       <div class="kg-list kg-wallet-history"><button class="kg-asset-row kg-history-open" type="button" data-open-history><span class="kg-asset-icon kg-history-symbol">☷</span><span class="kg-row-copy"><b>История транзакций</b></span><span class="kg-chevron">›</span></button></div>
       <section id="kg-equities-editor" class="kg-equities-editor" hidden aria-label="Добавить актив"><div class="kg-equities-editor-backdrop" data-close-equities></div><div class="kg-equities-editor-card" role="dialog" aria-modal="true" aria-labelledby="kg-equities-editor-title"><div class="kg-equities-editor-head"><b id="kg-equities-editor-title">Добавить актив</b><button type="button" data-close-equities aria-label="Закрыть">×</button></div><p>Выберите акцию или фонд. Список можно менять в любой момент.</p><div id="kg-equities-presets" class="kg-equities-presets"></div><form id="kg-equities-custom-form" class="kg-equities-custom-form"><label for="kg-equities-symbol">Свой тикер</label><div><input id="kg-equities-symbol" maxlength="12" autocomplete="off" placeholder="Например, NVDA"><button type="submit">Добавить</button></div></form></div></section>
     </section>
@@ -105,23 +105,23 @@
     <section id="kg-agents-screen" class="kg-screen kg-agents-screen" aria-label="Агенты">
       <header class="kg-agents-hero">
         <div class="kg-agents-hero-copy">
-          <p class="kg-agents-eyebrow">KRIPTO GURU · PAPER MODE</p>
+          <p class="kg-agents-eyebrow">KRIPTO GURU · ВИРТУАЛЬНЫЙ РЕЖИМ</p>
           <h1>Торгующие агенты</h1>
-          <p>Баланс paper-счёта, позиции и подтверждённая активность агентов.</p>
+          <p>Баланс виртуального счёта, позиции и подтверждённая активность агентов.</p>
         </div>
       </header>
       <section id="kg-agents-paper-account" class="kg-agents-paper-account" aria-label="Виртуальный счёт агента">
-        <div class="kg-section-head"><h2>Paper-счёт</h2><span class="kg-muted">Только виртуальные средства</span></div>
+        <div class="kg-section-head"><h2>Счёт ИИ</h2><span class="kg-muted">Только виртуальные средства</span></div>
         <div class="kg-list">
-          <div class="kg-asset-row"><span class="kg-row-copy"><b>Баланс AI</b><small>Виртуальный счёт</small></span><strong id="kg-agents-paper-balance" class="kg-wallet-row-value">—</strong></div>
+          <div class="kg-asset-row"><span class="kg-row-copy"><b>Баланс ИИ</b><small>Виртуальный счёт</small></span><strong id="kg-agents-paper-balance" class="kg-wallet-row-value">—</strong></div>
           <div class="kg-asset-row"><span class="kg-row-copy"><b>Доступно в DEMO</b><small>Источник виртуального пополнения</small></span><strong id="kg-agents-demo-balance" class="kg-wallet-row-value">—</strong></div>
-          <div class="kg-asset-row"><span class="kg-row-copy"><b>Открытые позиции</b><small>Paper</small></span><strong id="kg-agents-paper-positions" class="kg-wallet-row-value">—</strong></div>
+          <div class="kg-asset-row"><span class="kg-row-copy"><b>Открытые позиции</b><small>Виртуальные</small></span><strong id="kg-agents-paper-positions" class="kg-wallet-row-value">—</strong></div>
           <div class="kg-asset-row"><span class="kg-row-copy"><b>Состояние</b><small id="kg-agents-paper-note">Загрузка данных…</small></span><strong id="kg-agents-paper-status" class="kg-wallet-row-value">—</strong></div>
         </div>
       </section>
       <div class="kg-section-head"><h2>Мои агенты</h2></div>
       <div id="kg-agents-list" class="kg-list">
-        <div class="kg-empty-card">Активных paper-агентов пока нет. Здесь появятся только реально подключённые агенты и подтверждённые результаты.</div>
+        <div class="kg-empty-card">Активных ИИ-агентов пока нет. Здесь появятся только реально подключённые агенты и подтверждённые результаты.</div>
       </div>
       <div class="kg-section-head"><h2>Стратегии</h2></div>
       <div id="kg-agent-strategies" class="kg-list">
@@ -228,7 +228,7 @@
       </section>
       <section class="kg-profile-island" aria-label="ИИ">
         <h3>ИИ</h3>
-        <p><span>Paper-счёт</span><strong id="kg-profile-ai-status">—</strong></p>
+        <p><span>Счёт ИИ</span><strong id="kg-profile-ai-status">—</strong></p>
       </section>
     </div>
   </section>
