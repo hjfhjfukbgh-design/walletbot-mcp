@@ -931,14 +931,7 @@
     $("#kg-profile-backdrop").hidden=true;
     $("#kg-wallet-profile").setAttribute("aria-expanded","false");
     $("#kg-wallet-profile").focus();
-    const backButton=window.Telegram?.WebApp?.BackButton||tg?.BackButton;
-    if(backButton){
-      backButton.offClick?.(handleNativeBack);
-      if($("#kg-ai-menu").classList.contains("is-open")){
-        backButton.show();
-        backButton.onClick(handleNativeBack);
-      }else backButton.hide();
-    }
+    if(tg?.BackButton){tg.BackButton.hide();tg.BackButton.offClick?.(handleNativeBack);}
   }
   function renderProductMode(){
     const descriptions={
