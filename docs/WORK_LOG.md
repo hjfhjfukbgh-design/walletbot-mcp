@@ -1295,3 +1295,10 @@
 - **Screenshot run `44524641358`:** Playwright keyboard and clean UI scenarios PASS.
 - The production UI already hides `#kg-nav` when `visualViewport` indicates the AI composer keyboard is open. The old test harness manually added the keyboard CSS class but incorrectly asserted that the tabbar remain visible. Fixed the emulator to set `hidden=true`, assert the tabbar is hidden, then restore it after the fixture.
 - No production runtime changes in this PR; test now matches the product requirement.
+
+### 2026-11-19T17:38:58+05:00 — Theme preference implementation opened
+
+- **PR #430:** implements persistent `dark | light | system` preference with dark default before CSS load, profile selector, `prefers-color-scheme` live updates, Telegram header/background and color-scheme metadata sync, and public preference getters/setter.
+- **Browser coverage:** default dark, immediate light selection, dynamic system dark/light changes; screenshot workflow includes both themes.
+- Initial CI on the pre-final head `bfa0440099df7cb31b12f4e8e78249bea1271e24`: typecheck/unit tests PASS, screenshot scenario PASS. Added a wait for the profile toast to disappear before screenshot and dark fallback if `matchMedia` is unavailable.
+- **Current head:** `09c2c18d510b1ac19854d2f1b3a72bfd06b93072`; screenshot run `44525758117` in progress.
