@@ -3,8 +3,7 @@
  *
  * These renderers intentionally emit semantic markup only. All dynamic text and
  * attributes are escaped; icons are text glyphs supplied by trusted callers.
- * Visual styling lives in kripto-guru-ui.css and is owned by the design-system
- * workstream.
+ * Visual styling lives in the companion kripto-guru-components.css file.
  */
 const escapeHTML = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
