@@ -11,7 +11,7 @@
 | S1 | Telegram authentication before body parsing | `src/api.ts:L25-L47`; `test/live-execution.test.ts:L18-L40` | PASS | Signed Telegram initData is validated before POST body parsing; user ID is server-derived. |
 | S2 | Tenant-scoped OAuth/KV and operation ownership | `src/tenants.ts:L12-L45`; `src/api.ts:L40-L65`; `src/trading/engine.ts:L199-L258`; `test/live-execution.test.ts:L151-L174` | PARTIAL | Preview token is stored under tenant-prefixed KV; DO operation is bound to user_id and foreign handle returns 404. However, the LIVE preview path does not explicitly compare a Walt account identifier/owner returned by Walt to a user-selected account identity. Token namespace binding is present; exact provider-account ownership evidence is incomplete. |
 | S3 | Market allowlist, order sizing, leverage, exposure, daily loss, fees | `src/api.ts:L354-L463`; `src/env.ts:L34-L55`; `src/risk.ts:L14-L39`; `src/walt.ts:L40-L72` | **FAIL / NOT VERIFIED** | LIVE preview enforces allowed market, contract max leverage, contract min/max quote size, positive balance, margin ≤ balance, and no existing position on the selected contract. It does **not** apply configured `maxOrderPct`, `maxTotalExposurePct`, or `maxDailyLossPct`; it checks only the selected contract, not aggregate exposure across all contracts. No local fee cap/fee affordability check is made; Walt preview risk/warnings are returned but warnings are not independently evaluated. |
-| S4 | Preview confirmation token, per-order confirmation, expiry | `src/api.ts:L354-L480,L527-L558`; `test/live-execution.test.ts:L129-L149,L271-L306`; `test/api.test.ts:L180-L194` | PASS | Opaque random handle is user-scoped; Walt confirmation token is held server-side; 120-second TTL/expiry is checked; execute requires `confirm === true`. |
+| S4 | Server-side LIVE feature gate, preview token, per-order confirmation, expiry | `src/env.ts:L11`; `src/api.ts:L357,L528-L530`; `test/live-execution.test.ts:L96-L129,L163-L206` | PASS (gate + mocked flow) | Both preview and execute reject with 409 before connecting to Walt unless `LIVE_TRADING_ENABLED === \"true\"`. The variable is absent from production config, so default is disabled. When explicitly enabled in tests, opaque handle remains tenant-scoped, confirmation token stays server-side, 120-second expiry is checked, and execute requires `confirm === true`. |
 | S5 | Idempotency and exactly-one execute attempt | `src/api.ts:L559-L610`; `src/trading/engine.ts:L199-L258`; `test/live-execution.test.ts:L85-L126` | PASS (mocked) | Durable Object SQLite transaction claims a handle once; concurrent/replayed execute requests do not call Walt a second time. |
 | S6 | Recheck position immediately before execute | `src/api.ts:L559-L595`; `test/live-execution.test.ts:L176-L229,L330-L340` | PARTIAL | A read-only position check occurs immediately before the only execute call and fails closed if unavailable. It checks only the selected contract; an external/manual position can still appear in the small interval between this check and the Walt write. |
 | S7 | UNKNOWN handling and reconciliation | `src/api.ts:L612-L691`; `src/api.ts:L600-L610`; `test/live-execution.test.ts:L176-L260` | PARTIAL | Uncertain execute outcomes become UNKNOWN; reconciliation uses read-only `perps_list_positions` and compares contract/side/open-time. It does not reconcile by a verified provider order ID; side/time matching can be ambiguous if another position appears in the same window. |
@@ -25,7 +25,8 @@
 
 - `handleApi` validates signed Telegram initData and derives `telegramUserId` before reading the request body (`src/api.ts:L25-L47`).
 - `tenantEnv` prefixes user KV state and OAuth token keys (`src/tenants.ts:L12-L45`).
-- Preview handles are stored as `live:preview:<userId>:<handle>`; a different Telegram user cannot retrieve the owner's preview (`src/api.ts:L440-L480`; test `test/live-execution.test.ts:L151-L174`).
+- Preview handles are stored as `live:preview:<userId>:<handle>`; a different Telegram user cannot retrieve the owner's preview (`src/api.ts:L440-L480`; test `test/live-execution.test.ts:L185-L208`).
+- PR #557 is merged: server-side `LIVE_TRADING_ENABLED` now gates both POST `/live/preview` and POST `/live/execute` before any Walt connection/write. The flag is optional and absent by default; direct API calls cannot bypass the disabled Mini App selector. Tests cover both blocked routes (`test/live-execution.test.ts:L96-L129`).
 - Durable operation rows store `user_id`; cross-user status/claim lookup returns not found (`src/trading/engine.ts:L199-L258`).
 
 ### Open risk checks — confirmed gap
@@ -67,3 +68,9 @@ But the configured risk policy also contains max order %, max total exposure %, 
 - Tests use mocks. No real Walt writes, orders, transfers, account mutations, secret changes or production deploy were performed.
 
 **Final verdict: NOT VERIFIED / BLOCKED.** The manual LIVE open path has meaningful auth, preview, confirmation, atomic claim and no-retry safeguards, but configured risk limits are not fully enforced, account identity and reconciliation are partial, and the LIVE close contract is absent. AI LIVE is not implemented.
+
+
+### Remediation merged after audit
+
+- PR #557 (`35d3c20949a2f1d0d0bf0cd5551c09efcc90f619`) added the server-side `LIVE_TRADING_ENABLED` gate to preview and execute. With the flag unset, both return 409 before any Walt connection or write. The production config does not set the flag. CI run 44632876784 passed npm ci, syntax, typecheck and npm test; deploy skipped.
+- Remaining risk-cap, account-identity, fee, aggregate exposure, daily-loss, reconciliation and close-contract findings in S3/S6/S7/S9 are still open. This gate does not make LIVE ready.
