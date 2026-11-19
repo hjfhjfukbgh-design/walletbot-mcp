@@ -51,7 +51,7 @@
 - PR #191 уже merged: Gemini-backed AI Companion backend. Это не означает, что все желаемые функции Gemini UI уже реализованы.
 - PR #333 — handoff-only по issue #326; LIVE selector task остаётся заблокированной зависимостями.
 
-### Поставлены задачи с дедлайном 2026-11-20 00:10 EKB
+### Поставлены задачи с дедлайном 2026-11-19 23:30 EKB
 - #444 Team B / FRONTEND: первый премиальный iPhone-first инкремент Wallet/theme-safe layout. Scope ограничен CSS и максимум одним HTML-файлом.
 - #445 Team A / ANALYST: фактическая матрица «кнопка → UI handler → API/backend capability → статус».
 - #446 Team C / QA: независимая мобильная регрессия 360/375/390/430 px, темы, safe areas, клавиатура и BackButton.
