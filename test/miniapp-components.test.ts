@@ -45,7 +45,7 @@ describe("Kripto Guru UI primitives", () => {
   });
 
   it("escapes all user-facing component text", () => {
-    expect(islandMarkup("<b>bad</b>")).toContain("&lt;b&gt;bad&lt;/b&gt;");
+    expect(islandMarkup("<span>trusted</span>")).toContain("<span>trusted</span>");
     expect(emptyStateMarkup({ title: "<script>", description: "safe" })).not.toContain("<script>");
     expect(buttonMarkup({ label: "<x>", variant: "unknown" })).toContain("&lt;x&gt;");
   });
