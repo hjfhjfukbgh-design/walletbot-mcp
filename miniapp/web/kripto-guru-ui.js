@@ -11,7 +11,7 @@
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
-    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[], aiPaper:null, aiPaperLoading:false, aiPaperTransfer:null
+    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[], aiPaper:null, aiPaperLoading:false, aiPaperTransfer:(()=>{try{const v=JSON.parse(sessionStorage.getItem("kg:ai-paper-transfer:v1")||"null");return v&&["fund","withdraw"].includes(v.kind)&&typeof v.amountUsd==="string"&&typeof v.key==="string"?v:null;}catch{return null;}})()
   };
   let marketLoadEpoch=0,marketRefreshInFlight=false,marketLastUpdatedAt=0,marketSearchTimer=0,marketVisibilityListenerInstalled=false;
   const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
@@ -850,12 +850,14 @@
     const keyState=state.aiPaperTransfer;
     const idempotencyKey=keyState&&keyState.kind===kind&&keyState.amountUsd===amountUsd?keyState.key:(crypto.randomUUID?crypto.randomUUID():"kg-"+Date.now()+"-"+Math.random().toString(36).slice(2));
     state.aiPaperTransfer={kind,amountUsd,key:idempotencyKey};
+    try{sessionStorage.setItem("kg:ai-paper-transfer:v1",JSON.stringify(state.aiPaperTransfer));}catch{}
     const fund=$("#kg-ai-paper-fund"),withdraw=$("#kg-ai-paper-withdraw");
     if(fund)fund.disabled=true;if(withdraw)withdraw.disabled=true;
     if(note)note.textContent=kind==="fund"?"Переводим виртуальные средства из DEMO…":"Возвращаем виртуальные средства в DEMO…";
     try{
       await invoke(kind==="fund"?"aiPaper.fund":"aiPaper.withdraw",{amountUsd,idempotencyKey});
       state.aiPaperTransfer=null;
+      try{sessionStorage.removeItem("kg:ai-paper-transfer:v1");}catch{}
       if(note)note.textContent=kind==="fund"?"Виртуальный перевод из DEMO выполнен. Стратегия не запущена.":"Виртуальные средства возвращены в DEMO.";
       await loadAiPaperSummary(true);
     }catch(error){
