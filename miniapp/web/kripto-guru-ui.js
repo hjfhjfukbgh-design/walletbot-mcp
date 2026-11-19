@@ -831,7 +831,7 @@
     const modeClass=state.productMode==="ai"?"kg-mode-badge kg-mode-badge--ai":"kg-mode-badge kg-mode-badge--demo";
     if(assetBadge){assetBadge.className=modeClass;assetBadge.textContent=state.productMode==="ai"?"ИИ":"DEMO";}
     if(ticketBadge){ticketBadge.className=modeClass;ticketBadge.textContent=state.productMode==="ai"?"ИИ · виртуальный счёт":"DEMO · виртуальные деньги";}
-    $("#kg-profile-mode-switch [data-profile-mode]").forEach(button=>{const active=button.dataset.profileMode===state.productMode;button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));});
+    $$("#kg-profile-mode-switch [data-profile-mode]").forEach(button=>{const active=button.dataset.profileMode===state.productMode;button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));});
     const modeBadge=$("#kg-wallet-mode-badge");
     if(modeBadge){modeBadge.className="kg-mode-badge "+(state.productMode==="ai"?"kg-mode-badge--ai":"kg-mode-badge--demo");modeBadge.textContent=state.productMode==="ai"?"ИИ · виртуальный счёт":"DEMO · виртуальные деньги";}
     renderProfileSettings();
