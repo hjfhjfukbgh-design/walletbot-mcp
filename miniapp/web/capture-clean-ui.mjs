@@ -252,6 +252,12 @@ try{
     try{await page.waitForSelector("#kg-asset-screen:not([hidden])",{timeout:10000});}
     catch(error){const debug=await page.evaluate(()=>({toast:document.querySelector("#kg-toast")?.textContent,assetHidden:document.querySelector("#kg-asset-screen")?.hidden,selected:window.KriptoGuruUI?.state?.selectedMarket,screen:window.KriptoGuruUI?.state?.screen}));throw new Error("Asset open failed: "+JSON.stringify({debug,consoleErrors,pageErrors})+" "+error.message);}
     await page.waitForSelector("#kg-chart svg");
+    await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
+    if(await page.locator("#kg-asset-screen:not([hidden])").count())throw new Error("native BackButton must close the instrument screen");
+    if(!(await page.locator("#kg-nav").evaluate(el=>!el.hidden)))throw new Error("native BackButton from instrument must restore bottom navigation");
+    await page.locator('#kg-market-list [data-open-market="BTC"]').first().click();
+    await page.waitForSelector("#kg-asset-screen:not([hidden])");
+    await page.waitForSelector("#kg-chart svg");
     const candleChart=await page.locator("#kg-chart").evaluate(el=>({scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,svgWidth:el.querySelector("svg")?.getBoundingClientRect().width,times:[...el.querySelectorAll("rect[data-time]")].map(node=>Number(node.dataset.time))}));
     if(!(candleChart.svgWidth>candleChart.clientWidth&&candleChart.scrollWidth>candleChart.clientWidth))throw new Error("candlestick history must scroll horizontally: "+JSON.stringify(candleChart));
     if(candleChart.times.length!==30||candleChart.times.some((time,index)=>index>0&&time<=candleChart.times[index-1]))throw new Error("candles must be valid, unique and sorted ascending: "+JSON.stringify(candleChart.times));
@@ -295,6 +301,11 @@ try{
     await page.screenshot({path:`clean-asset-about-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-long").click();
     await page.waitForSelector("#kg-ticket-screen:not([hidden])");
+    await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
+    if(await page.locator("#kg-ticket-screen:not([hidden])").count())throw new Error("native BackButton must close the trade ticket");
+    if(!(await page.locator("#kg-asset-screen:not([hidden])").count()))throw new Error("closing trade ticket must return to the instrument screen");
+    await page.locator("#kg-long").click();
+    await page.waitForSelector("#kg-ticket-screen:not([hidden])");
     await page.waitForTimeout(250);
     const pausedCandleCalls=await page.evaluate(()=>window.__candleCalls);
     await page.waitForTimeout(250);
@@ -313,9 +324,19 @@ try{
     await page.screenshot({path:`clean-ticket-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-ticket-leverage").click();
     await page.waitForSelector("#kg-leverage-screen:not([hidden])");
+    await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
+    if(await page.locator("#kg-leverage-screen:not([hidden])").count())throw new Error("native BackButton must dismiss the leverage modal first");
+    if(!(await page.locator("#kg-ticket-screen:not([hidden])").count()))throw new Error("dismissing leverage modal must preserve the trade ticket");
+    await page.locator("#kg-ticket-leverage").click();
+    await page.waitForSelector("#kg-leverage-screen:not([hidden])");
     await page.screenshot({path:`clean-leverage-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-lev-max").click();
     await page.locator("#kg-lev-apply").click();
+    await page.locator("#kg-ticket-check").click();
+    await page.waitForSelector("#kg-confirm-screen:not([hidden])");
+    await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
+    if(await page.locator("#kg-confirm-screen:not([hidden])").count())throw new Error("native BackButton must dismiss trade confirmation first");
+    if(!(await page.locator("#kg-ticket-screen:not([hidden])").count()))throw new Error("dismissing trade confirmation must preserve the ticket");
     await page.locator("#kg-ticket-check").click();
     await page.waitForSelector("#kg-confirm-screen:not([hidden])");
     await page.screenshot({path:`clean-confirm-${device.width}x${device.height}.png`,fullPage:false});
@@ -423,6 +444,10 @@ try{
     await page.waitForFunction(()=>!document.querySelector("#kg-profile-sheet").hidden);
     await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
     if(!await page.locator("#kg-profile-sheet").evaluate(el=>el.hidden))throw new Error("profile entry from AI drawer must use native BackButton to dismiss");
+    const restoredBack=await page.evaluate(()=>({visible:window.Telegram.WebApp.BackButton.isVisible,handler:typeof window.Telegram.WebApp.BackButton.handler,menuOpen:document.querySelector("#kg-ai-menu").classList.contains("is-open")}));
+    if(!restoredBack.visible||restoredBack.handler!=="function"||!restoredBack.menuOpen)throw new Error("closing profile over AI history must restore native BackButton for the underlying drawer: "+JSON.stringify(restoredBack));
+    await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
+    if(await page.locator("#kg-ai-menu.is-open").count())throw new Error("second native BackButton press must close the restored AI history drawer");
     if(pageErrors.length)throw new Error("browser errors: "+pageErrors.join("; "));
     await page.close();
   }
