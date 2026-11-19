@@ -252,6 +252,14 @@ try{
     if(!(candleChart.svgWidth>candleChart.clientWidth&&candleChart.scrollWidth>candleChart.clientWidth))throw new Error("candlestick history must scroll horizontally: "+JSON.stringify(candleChart));
     if(candleChart.times.length!==30||candleChart.times.some((time,index)=>index>0&&time<=candleChart.times[index-1]))throw new Error("candles must be valid, unique and sorted ascending: "+JSON.stringify(candleChart.times));
     await page.locator("#kg-chart").evaluate(el=>{el.scrollLeft=el.scrollWidth;});
+    const chartBox=await page.locator("#kg-chart").boundingBox();
+    await page.mouse.move(chartBox.x+chartBox.width*.52,chartBox.y+chartBox.height*.5);
+    await page.mouse.down();
+    await page.waitForTimeout(460);
+    const crosshairVisible=await page.locator(".kg-chart-crosshair").getAttribute("opacity");
+    const crosshairLabel=await page.locator(".kg-crosshair-label").innerText();
+    if(crosshairVisible!=="1"||!["O","H","L","C"].every(label=>crosshairLabel.includes(label)))throw new Error("Long-press chart crosshair must show OHLC: "+JSON.stringify({crosshairVisible,crosshairLabel}));
+    await page.mouse.up();
     const axisLabels=await page.locator("#kg-chart svg text").evaluateAll(nodes=>{const svg=nodes[0]?.ownerSVGElement;const width=Number(svg?.getAttribute("viewBox")?.split(" ")[2]||0);return nodes.filter(node=>Number(node.getAttribute("x"))>width-61).map(node=>{const r=node.getBoundingClientRect();return {text:node.textContent,left:r.left,right:r.right};});});
     const chartBounds=await page.locator("#kg-chart").evaluate(el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right};});
     if(axisLabels.some(label=>label.left<chartBounds.left-1||label.right>chartBounds.right+1))throw new Error("Right price-axis labels must remain fully visible at "+device.width+"px: "+JSON.stringify({axisLabels,chartBounds}));
