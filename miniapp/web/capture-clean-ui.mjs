@@ -168,8 +168,8 @@ try{
     await page.locator('#kg-nav button[data-screen="agents"]').click();
     await page.waitForSelector("#kg-agents-paper-account");
     await page.waitForFunction(()=>document.querySelector("#kg-agents-paper-note")?.textContent==="Состояние из защищённого API");
-    if(!(await page.locator("#kg-agents-paper-balance").innerText()).includes("100"))throw new Error("Agents screen must show the real AI paper balance");
-    if(!(await page.locator("#kg-agents-demo-balance").innerText()).includes("1 000"))throw new Error("Agents screen must show the DEMO funding balance");
+    if(!(await page.locator("#kg-agents-paper-balance").innerText()).includes("115"))throw new Error("Agents screen must show the real AI paper balance");
+    if(!(await page.locator("#kg-agents-demo-balance").innerText()).includes("985"))throw new Error("Agents screen must show the DEMO funding balance");
     if((await page.locator("#kg-agents-paper-positions").innerText()).trim()!=="0")throw new Error("Agents screen must show the confirmed paper position count");
     if(!(await page.locator("#kg-agents-paper-status").innerText()).includes("Остановлен"))throw new Error("Agents screen must show the real stopped status");
     if(!(await page.locator("#kg-agents-paper-account").innerText()).includes("Виртуальные средства"))throw new Error("Agents screen must disclose virtual-only funds");
