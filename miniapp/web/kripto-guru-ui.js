@@ -911,14 +911,14 @@
     if(mode==="live")return notify("LIVE пока заблокирован: не подтверждён полный торговый и close-контракт.");
     if(mode!=="demo"&&mode!=="ai")return;
     if(mode===state.productMode)return;
-    button.disabled=true;
+    if(button)button.disabled=true;
     try{
       const result=await invoke("productMode.set",mode);
       state.productMode=result?.productMode==="ai"?"ai":"demo";
       renderProductMode();
       if(state.productMode==="ai")await loadAiPaperSummary();
     }catch(error){notify(normalizeError(error).message);}
-    finally{button.disabled=false;}
+    finally{if(button)button.disabled=false;}
   }
   function bind(){
     $("#kg-wallet-profile").addEventListener("click",openProfile);
