@@ -1468,3 +1468,121 @@ html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--strong{background:
 /* Wallet actions are visible for discoverability but clearly unavailable until real-fund flows are supported. */
 .kg-wallet-quick-actions button[aria-disabled="true"]{opacity:.48;cursor:not-allowed;filter:saturate(.55)}
 .kg-wallet-actions-note{margin:-7px 2px 12px;color:var(--kg-muted);font-size:10px;line-height:1.4;text-align:center}
+
+
+/* Premium wallet pass — Stage 1. CSS-only; preserves existing DOM and handlers. */
+:root{
+  --kg-surface-2:#F3F3F6;
+  --kg-island-radius:26px;
+  --kg-tile-radius:22px;
+  --kg-control-radius:18px;
+  --kg-floating-shadow:0 8px 28px rgba(16,24,40,.12);
+  --kg-mode-demo:#F5A623;
+  --kg-mode-demo-soft:#FFF3DC;
+  --kg-mode-ai:#7B61FF;
+  --kg-mode-ai-blue:#3E86F0;
+  --kg-mode-ai-soft:#EEEAFF;
+  --kg-mode-live:#1C1D22;
+}
+html[data-theme="dark"]{
+  --kg-surface-2:#2C2C2E;
+  --kg-mode-demo-soft:rgba(245,166,35,.16);
+  --kg-mode-ai-soft:rgba(123,97,255,.18);
+}
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --kg-surface-2:#2C2C2E;
+    --kg-mode-demo-soft:rgba(245,166,35,.16);
+    --kg-mode-ai-soft:rgba(123,97,255,.18);
+  }
+}
+
+/* Wallet: clearer balance hierarchy and a restrained mode aura. */
+#kg-wallet-screen .kg-wallet-topline{min-height:52px;margin:0 0 18px}
+#kg-wallet-screen .kg-wallet-hero{
+  position:relative;isolation:isolate;overflow:visible;
+  margin:0 0 22px;padding:8px 0 12px;
+}
+#kg-wallet-screen .kg-wallet-hero::before{
+  content:"";position:absolute;z-index:-1;pointer-events:none;
+  width:230px;height:130px;left:50%;top:50%;transform:translate(-50%,-43%);
+  border-radius:50%;filter:blur(34px);opacity:.12;
+  background:var(--kg-blue);transition:background .24s ease,opacity .24s ease;
+}
+#kg-wallet-screen:has(#kg-product-mode [data-product-mode="demo"].is-active) .kg-wallet-hero::before{background:var(--kg-mode-demo)}
+#kg-wallet-screen:has(#kg-product-mode [data-product-mode="ai"].is-active) .kg-wallet-hero::before{background:linear-gradient(110deg,var(--kg-mode-ai),var(--kg-mode-ai-blue))}
+#kg-wallet-screen .kg-wallet-hero>small{font-size:14px;font-weight:650;color:var(--kg-muted)}
+#kg-wallet-screen .kg-wallet-hero>strong{font-size:clamp(42px,12vw,52px);font-weight:750;letter-spacing:-1.8px;font-variant-numeric:tabular-nums}
+
+/* Mode selector communicates virtual account type without implying LIVE readiness. */
+#kg-wallet-screen .kg-product-mode{
+  gap:4px;padding:5px;border-radius:20px;
+  background:var(--kg-card);border:1px solid var(--kg-line);box-shadow:none;
+}
+#kg-wallet-screen .kg-product-mode button{min-height:50px;border-radius:15px}
+#kg-wallet-screen .kg-product-mode button[data-product-mode="demo"].is-active{
+  color:#8A5700;background:var(--kg-mode-demo-soft);border-color:rgba(245,166,35,.28)
+}
+#kg-wallet-screen .kg-product-mode button[data-product-mode="demo"].is-active b{color:#B97708}
+#kg-wallet-screen .kg-product-mode button[data-product-mode="ai"].is-active{
+  color:#5942C4;background:var(--kg-mode-ai-soft);border-color:rgba(123,97,255,.28)
+}
+#kg-wallet-screen .kg-product-mode button[data-product-mode="ai"].is-active b{color:var(--kg-mode-ai)}
+#kg-wallet-screen .kg-product-mode button[data-product-mode="live"]{opacity:.42}
+#kg-wallet-screen .kg-product-mode-status{font-size:11px;font-weight:550}
+
+/* Walt-inspired islands: consistent radius, flat surfaces, inset dividers. */
+#kg-wallet-screen .kg-wallet-currency,
+#kg-wallet-screen .kg-favorite,
+#kg-wallet-screen .kg-list,
+#kg-wallet-screen .kg-position,
+#kg-wallet-screen .kg-wallet-quick-actions button{
+  border-radius:var(--kg-island-radius);
+  background:var(--kg-card);border:1px solid var(--kg-line);
+  box-shadow:none;color:var(--kg-ink);
+}
+#kg-wallet-screen .kg-asset-row{
+  min-height:60px;border:0;
+  background-color:var(--kg-card);
+  background-image:linear-gradient(var(--kg-line),var(--kg-line));
+  background-repeat:no-repeat;background-size:calc(100% - 66px) 1px;background-position:right bottom;
+}
+#kg-wallet-screen .kg-asset-row:last-child{background-image:none}
+#kg-wallet-screen .kg-wallet-quick-actions{gap:9px}
+#kg-wallet-screen .kg-wallet-quick-actions button{
+  min-height:88px;border-radius:var(--kg-tile-radius);gap:8px;
+  color:var(--kg-blue);background:var(--kg-card)
+}
+#kg-wallet-screen .kg-wallet-quick-actions button small{color:var(--kg-blue);font-size:11px;font-weight:650}
+#kg-wallet-screen .kg-wallet-quick-actions button[aria-disabled="true"]{opacity:.46}
+
+/* Floating tab bar: exactly four tabs, 64pt target height and safe-area clearance. */
+#kg-nav.kg-nav{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  width:min(380px,calc(100vw - 24px));min-height:64px;padding:6px;
+  bottom:calc(12px + var(--kg-safe-bottom));
+  background:color-mix(in srgb,var(--kg-card) 88%,transparent);
+  border:1px solid color-mix(in srgb,var(--kg-line) 70%,transparent);
+  box-shadow:var(--kg-floating-shadow);
+  backdrop-filter:blur(24px) saturate(1.4);
+  -webkit-backdrop-filter:blur(24px) saturate(1.4);
+}
+#kg-nav.kg-nav button{min-height:50px;gap:3px;border-radius:999px}
+#kg-nav.kg-nav button.is-active{
+  background:var(--kg-surface-2);color:var(--kg-blue);box-shadow:none
+}
+#kg-main{padding-bottom:calc(104px + var(--kg-safe-bottom))}
+.kg-screen{scroll-margin-top:12px}
+
+/* Touch feedback stays subtle and respects reduced-motion preferences. */
+#kg-wallet-screen button:active,#kg-nav button:active{transform:scale(.985)}
+@media(prefers-reduced-motion:reduce){
+  #kg-wallet-screen .kg-wallet-hero::before{transition:none}
+  #kg-wallet-screen button:active,#kg-nav button:active{transform:none}
+}
+@media(max-width:380px){
+  #kg-wallet-screen .kg-wallet-quick-actions{gap:6px}
+  #kg-wallet-screen .kg-wallet-quick-actions button{min-height:78px}
+  #kg-wallet-screen .kg-wallet-quick-actions button small{font-size:10px}
+  #kg-nav.kg-nav{width:calc(100vw - 24px)}
+}
