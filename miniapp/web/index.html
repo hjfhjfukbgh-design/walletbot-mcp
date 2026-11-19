@@ -40,6 +40,15 @@
           <div class="kg-asset-row"><span class="kg-row-copy"><b>Открытые paper-позиции</b><small>Только подтверждённые данные</small></span><strong id="kg-ai-paper-positions" class="kg-wallet-row-value">—</strong></div>
           <div class="kg-asset-row"><span class="kg-row-copy"><b>Статус счёта</b><small id="kg-ai-paper-status-note">Загрузка состояния…</small></span><strong id="kg-ai-paper-status" class="kg-wallet-row-value">—</strong></div>
         </div>
+        <div class="kg-ai-paper-transfer">
+          <label for="kg-ai-paper-amount">Сумма виртуального перевода, USD</label>
+          <input id="kg-ai-paper-amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="10.00" autocomplete="off">
+          <div class="kg-ai-paper-transfer-actions">
+            <button id="kg-ai-paper-fund" type="button" class="kg-primary">Перевести из DEMO</button>
+            <button id="kg-ai-paper-withdraw" type="button" class="kg-ghost">Вернуть в DEMO</button>
+          </div>
+          <p id="kg-ai-paper-transfer-note" role="status" aria-live="polite">Переводы только виртуальные. Они не запускают стратегию и не затрагивают Walt.</p>
+        </div>
         <p class="kg-empty-card">Виртуальные средства. Агент не имеет доступа к LIVE.</p>
       </section>
       <div id="kg-wallet-quick-actions" class="kg-wallet-quick-actions" aria-label="Быстрые действия">
