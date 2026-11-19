@@ -50,10 +50,6 @@ const marketData=[
   {symbol:"ETH",name:"Ethereum",priceUsd:3120.2,change24hPct:-0.83,volume24hUsd:5200000000,openInterestUsd:92000000,fundingRateHourlyPct:-0.002,maxLeverage:30,takerFeePct:0.035,tradeable:true},
   {symbol:"SOL",name:"Solana",priceUsd:142.8,change24hPct:4.16,volume24hUsd:1900000000,openInterestUsd:61000000,fundingRateHourlyPct:0.001,maxLeverage:20,takerFeePct:0.04,tradeable:true}
 ];
-const candles=Array.from({length:30},(_,i)=>{
-  const base=91200+Math.sin(i*.55)*125+i*2.3;
-  return {time:1700000000+i*900,open:base,high:base+38,low:base-31,close:base+(i%2?18:-12),volume:1200+i*35};
-});
 try{
   for(const device of [{width:360,height:800},{width:375,height:812},{width:390,height:844},{width:430,height:932}]){
     const page=await browser.newPage({viewport:device,deviceScaleFactor:3,isMobile:true,hasTouch:true});
