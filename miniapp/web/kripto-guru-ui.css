@@ -1730,3 +1730,9 @@ html[data-theme="dark"] #kg-ai-form{background:rgba(28,28,30,.76)!important;bord
 
 .kg-wallet-portfolio{display:grid;place-items:center;background:linear-gradient(140deg,#7B61FF,#3E86F0);border:0;color:#fff;box-shadow:0 6px 18px rgba(82,99,230,.22)}
 .kg-wallet-portfolio svg{width:21px;height:21px;fill:currentColor;stroke:none}
+
+#kg-chart{position:relative;touch-action:pan-x pan-y}
+.kg-chart-crosshair-v,.kg-chart-crosshair-h{stroke:var(--kg-muted);stroke-width:1;stroke-dasharray:3 3;opacity:.9}
+.kg-crosshair-dot{fill:var(--kg-blue);stroke:var(--kg-card);stroke-width:2}
+.kg-crosshair-label-bg{fill:var(--kg-card);stroke:var(--kg-line);stroke-width:.7}
+.kg-crosshair-label{fill:var(--kg-ink);font-size:8px;font-family:var(--kg-font);font-weight:650;font-variant-numeric:tabular-nums}
