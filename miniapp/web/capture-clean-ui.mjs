@@ -224,6 +224,9 @@ try{
     if(!(await page.locator("#kg-agents-paper-status").innerText()).includes("Остановлен"))throw new Error("Agents screen must show the real stopped status");
     if(!(await page.locator(".kg-agents-safety-note").innerText()).includes("виртуальные средства"))throw new Error("Agents screen must disclose virtual-only funds");
     await page.screenshot({path:`clean-agents-${device.width}x${device.height}.png`,fullPage:false});
+    await page.locator("#kg-agents-open-funding").click();
+    await page.waitForFunction(()=>document.querySelector("#kg-wallet-screen").classList.contains("is-active")&&document.querySelector('#kg-product-mode [data-product-mode="ai"]').classList.contains("is-active"));
+    if(await page.evaluate(()=>document.activeElement?.id)!=="kg-ai-paper-amount")throw new Error("Agents virtual funding entry must focus the AI paper amount field");
     await page.locator('#kg-nav button[data-screen="trading"]').click();
     await page.waitForSelector("#kg-market-list .kg-market-row");
     await page.screenshot({path:`clean-catalog-${device.width}x${device.height}.png`,fullPage:false});
