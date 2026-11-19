@@ -98,6 +98,15 @@ export function findUnverifiedReferences(report, selectedPaths, sourceText) {
   }
 
 
+  const fileSections = new Map();
+  for (const path of available) {
+    const marker = "===== " + path + " =====\n";
+    const sectionStart = source.indexOf(marker);
+    if (sectionStart < 0) continue;
+    const contentStart = sectionStart + marker.length;
+    const nextSection = source.indexOf("\n=====", contentStart);
+    fileSections.set(path, source.slice(contentStart, nextSection < 0 ? source.length : nextSection));
+  }
   const citationPattern = /\b((?:miniapp|src|test|tests)\/[A-Za-z0-9_./-]+):L(\d+)(?:-L?(\d+))?\b/g;
   for (const match of String(report || "").matchAll(citationPattern)) {
     const path = match[1];
@@ -107,8 +116,14 @@ export function findUnverifiedReferences(report, selectedPaths, sourceText) {
       warnings.add("Диапазон строк ссылается на файл вне прочитанного контекста: " + path);
       continue;
     }
-    if (!Number.isSafeInteger(firstLine) || !Number.isSafeInteger(lastLine) || firstLine < 1 || lastLine < firstLine) {
-      warnings.add("Некорректный диапазон строк: " + path + ":L" + firstLine + "-L" + lastLine);
+    const fileSource = fileSections.get(path);
+    if (!fileSource) {
+      warnings.add("Нет содержимого файла для проверки диапазона строк: " + path);
+      continue;
+    }
+    const lineCount = fileSource.split(/\r?\n/).length;
+    if (!Number.isSafeInteger(firstLine) || !Number.isSafeInteger(lastLine) || firstLine < 1 || lastLine < firstLine || lastLine > lineCount) {
+      warnings.add("Диапазон строк не соответствует исходнику: " + path + ":L" + firstLine + "-L" + lastLine);
     }
   }
 
