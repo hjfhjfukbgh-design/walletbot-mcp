@@ -483,6 +483,7 @@ jobs:
           fi
 
       - name: Second-model AI review of patch
+        id: review
         if: steps.checks.outputs.mode == 'code'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
