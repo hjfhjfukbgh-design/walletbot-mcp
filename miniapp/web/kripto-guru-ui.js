@@ -334,11 +334,22 @@
       const pnlNote=$("#kg-wallet-pnl-note");if(pnlNote)pnlNote.textContent=pnlValues.length?("По "+pnlValues.length+" открытым позициям"):"Нет подтверждённых данных PnL";
       $("#kg-position-count").textContent=String(pos.length);
       renderPositions(pos);
+      renderWalletOpenPositions(pos);
     }catch(error){
       $("#kg-wallet-balance").textContent="—";
       $("#kg-wallet-assets").innerHTML=`<div class="kg-empty-inline">${esc(normalizeError(error).message)}</div>`;
       $("#kg-positions").innerHTML=`<div class="kg-empty-card">${esc(normalizeError(error).message)}</div>`;
     }
+  }
+  function renderWalletOpenPositions(positions){
+    const root=$("#kg-wallet-open-positions");if(!root)return;
+    root.innerHTML=positions.length?positions.slice(0,3).map(p=>{
+      const side=String(p.side||"").toLowerCase(),symbol=p.symbol||p.market||"—";
+      const pnl=Number(p.unrealizedPnlUsd??p.pnlUsd??NaN),pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
+      const margin=p.marginUsd!==null&&p.marginUsd!==undefined?money(Number(p.marginUsd)):"—";
+      const leverage=p.leverage!==null&&p.leverage!==undefined&&Number.isFinite(Number(p.leverage))?Number(p.leverage)+"×":"—";
+      return `<div class="kg-asset-row kg-wallet-position-row"><span class="kg-row-copy"><b>${esc(symbol)} · ${side==="short"?"Шорт":side==="long"?"Лонг":"Позиция"}</b><small>Маржа ${margin} · Плечо ${leverage}</small></span><strong class="kg-wallet-row-value ${pnlClass}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
+    }).join(""):'<div class="kg-empty-inline">Открытых позиций пока нет.</div>';
   }
   function renderPositions(positions){
     const value=(raw)=>{if(raw===null||raw===undefined||raw==="")return "—";const n=Number(raw);return Number.isFinite(n)?money(n):"—";};
@@ -950,6 +961,7 @@
     document.addEventListener("focusout",event=>{if(event.target.matches("input,textarea,select,[contenteditable=true]")){window.setTimeout(()=>{if(!document.activeElement?.matches("input,textarea,select,[contenteditable=true]"))document.body.classList.remove("kg-keyboard-open");},120);}});
 
     $("#kg-profile-backdrop").addEventListener("click",closeProfile);
+    $("#kg-wallet-positions-all").addEventListener("click",()=>{setScreen("income");void loadWallet();void loadHistory();});
     $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
     $("#kg-ai-paper-fund").addEventListener("click",()=>void transferAiPaper("fund"));
     $("#kg-profile-theme-select").addEventListener("change",event=>{setThemePreference(event.target.value);renderProfileSettings();notify("Настройка темы сохранена.");});
