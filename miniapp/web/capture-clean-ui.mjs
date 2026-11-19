@@ -122,7 +122,7 @@ try{
     await page.waitForFunction(()=>document.querySelector('[data-product-mode="ai"]')?.classList.contains("is-active"));
     if(!(await page.locator("#kg-product-mode-status").innerText()).includes("Автоматические сделки пока отключены"))throw new Error("AI Trading selector must disclose paper-only/no-auto-execution status");
     await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-status-note")?.textContent.includes("Состояние из защищённого API"));
-    if(!(await page.locator("#kg-ai-paper-transfer").isVisible()))throw new Error("AI paper virtual funding controls should be visible in AI mode");
+    if(!(await page.locator(".kg-ai-paper-transfer").isVisible()))throw new Error("AI paper virtual funding controls should be visible in AI mode");
     await page.locator("#kg-ai-paper-amount").fill("25");
     await page.locator("#kg-ai-paper-fund").click();
     await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-transfer-note")?.textContent.includes("перевод из DEMO выполнен"));
