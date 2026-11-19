@@ -1074,3 +1074,15 @@
 - **Team C:** #360 — Agents hub + Gemini-inspired AI chat, scoped to agent/companion surfaces and renderers.
 - **Team Lead:** review and finish PR #401 muted heatmap palette; then take an independent UI task.
 - Dispatch labels are being applied now; actual worker execution must be verified from Actions/branch/PR evidence. No LIVE orders, account mutations, paid services, merge or deploy without checks.
+
+
+### 2026-11-19T08:02:11.517+05:00 — reference review + muted heatmap palette merged
+
+- **Reference review:** Walt Telegram mini app screenshots/gallery at `https://tg.app/apps/wallet-1/`; Google official Neural Expressive announcement (19 May 2026) at `https://blog.google/innovation-and-ai/products/gemini-app/next-evolution-gemini-app/`; Mira Skills catalog at `https://skills.mira.tg/`; Telegram Mini Apps docs at `https://core.telegram.org/bots/webapps`.
+- **Findings:** Walt reference confirms crypto/earn/perpetual trading context; Gemini Neural Expressive confirms animated gradients, typography and haptics; Telegram docs confirm themeParams, viewport stable height/safe areas and native BackButton APIs. Visual claims about Mira's agent home screen were not independently confirmed from public material; use user-provided live observations as primary design brief.
+- **PR #403:** merged to main; commit `4b10e11c834b58ebb5bad93ef01d5190869fa10c`.
+- **Changes:** muted semantic heatmap palette for light/dark; preserves real market change/volume ordering, tile sizing and click behavior; missing values neutral.
+- **QA:** run `44448254119` — npm ci, JS syntax, typecheck and tests PASS; deploy job skipped. Run `44448254143` — clean UI Playwright screenshot PASS. Old diverged PR #401 closed as superseded.
+- **Team A #379:** two specialist runs failed during second-model review; no source PR. Team Lead has implemented replacement PR #406 (Agents tab, accessible avatar label, four-column capsule); validation pending.
+- **Team C #360:** second run ended `no-safe-patch`; no application patch. Do not treat dispatch packet #404 as completed work.
+- **Team B #355:** priority queue label refreshed; no worker branch/run observed yet.
