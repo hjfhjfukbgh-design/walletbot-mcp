@@ -167,6 +167,8 @@ export function parseAiPaperDecision(
 ): { ok: true; decision: AiPaperDecision } | { ok: false; reason: string } {
   if (typeof raw !== "string" || raw.length === 0 || raw.length > 4_000)
     return { ok: false, reason: "Ответ модели пустой или превышает допустимый размер." };
+  if (!Array.isArray(allowedSymbols) || allowedSymbols.length === 0)
+    return { ok: false, reason: "Нет подтверждённого списка разрешённых рынков." };
   const allowed = new Set(allowedSymbols.map(symbol => String(symbol).trim().toUpperCase()).filter(Boolean));
   if (allowed.size === 0)
     return { ok: false, reason: "Нет подтверждённого списка разрешённых рынков." };
@@ -190,7 +192,7 @@ export function parseAiPaperDecision(
     return { ok: false, reason: "Недопустимый сигнал модели." };
   if (!/^[A-Z0-9]{2,20}$/.test(symbol) || !allowed.has(symbol))
     return { ok: false, reason: "Модель выбрала рынок вне серверного allowlist." };
-  if (!rationale || rationale.length > 500 || /[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/.test(rationale))
+  if (!rationale || rationale.length > 500 || /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(rationale))
     return { ok: false, reason: "Обоснование модели пустое или некорректное." };
   if (typeof confidence !== "number" || !Number.isFinite(confidence) || confidence < 0 || confidence > 1)
     return { ok: false, reason: "Уверенность модели должна быть числом от 0 до 1." };
