@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark"><title>Kripto Guru — Design System</title>
+<link rel="stylesheet" href="./kripto-guru-ui.css">
+<style>
+body{margin:0;padding:24px 16px 48px;background:var(--kg-bg);color:var(--kg-ink);font-family:var(--kg-font)}
+.preview{max-width:760px;margin:auto}.preview-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:28px}
+.preview h1{font-size:28px;letter-spacing:-.8px;margin:0}.preview h2{font-size:18px;margin:28px 0 12px}
+.preview-card{padding:18px;border-radius:var(--kg-radius-island);background:var(--kg-card);border:1px solid var(--kg-line);margin:12px 0}
+.preview-muted{color:var(--kg-muted);font-size:13px}.preview-balance{font-size:42px;font-weight:750;letter-spacing:-1.8px;margin:8px 0}
+.preview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.preview-tile{min-height:86px;border-radius:var(--kg-radius-tile);background:var(--kg-surface-2);display:grid;place-content:center;text-align:center;font-weight:650}
+.preview-button{border:0;border-radius:var(--kg-radius-button);background:var(--kg-blue);color:white;padding:15px 20px;font-size:15px;font-weight:700;min-height:52px}
+.preview-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.preview-swatch{width:28px;height:28px;border-radius:9px;border:1px solid var(--kg-line)}
+.preview-toggle{border:1px solid var(--kg-line);background:var(--kg-card);color:var(--kg-ink);border-radius:999px;padding:10px 14px}
+@media(max-width:420px){body{padding:18px 12px 36px}.preview-grid{gap:7px}.preview-tile{font-size:12px}.preview-balance{font-size:36px}}
+</style></head>
+<body><main class="preview">
+<header class="preview-head"><div><div class="preview-muted">KRIPTO GURU / UI KIT</div><h1>Дизайн-система</h1></div><button class="preview-toggle" id="theme">Тёмная тема</button></header>
+<div class="preview-card"><div class="preview-muted">DEMO · виртуальные деньги</div><div class="preview-balance">12 480,50 $</div><div class="preview-row"><span class="kg-mode-badge kg-mode-badge--demo">DEMO</span><span class="kg-mode-badge kg-mode-badge--ai">ИИ</span><span class="kg-mode-badge kg-mode-badge--live">LIVE</span></div></div>
+<h2>Быстрые действия</h2><div class="preview-grid"><div class="preview-tile">Перевести</div><div class="preview-tile">Пополнить</div><div class="preview-tile">История</div></div>
+<h2>Компоненты</h2><div class="preview-card"><div class="preview-row"><button class="preview-button">Основное действие</button><button class="preview-toggle">Вторичное</button></div><p class="preview-muted">Вспомогательный текст · 13 px · вторичный цвет</p><div class="preview-row"><div class="preview-swatch" style="background:var(--kg-bg)"></div><div class="preview-swatch" style="background:var(--kg-card)"></div><div class="preview-swatch" style="background:var(--kg-blue)"></div><div class="preview-swatch" style="background:var(--kg-green)"></div><div class="preview-swatch" style="background:var(--kg-red)"></div></div></div>
+</main><script>document.getElementById("theme").addEventListener("click",()=>{const dark=document.documentElement.dataset.theme!=="dark";document.documentElement.dataset.theme=dark?"dark":"light";document.getElementById("theme").textContent=dark?"Светлая тема":"Тёмная тема";});</script></body></html>
