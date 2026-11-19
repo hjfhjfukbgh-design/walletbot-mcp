@@ -135,6 +135,23 @@ export class TradingEngine {
         const userId = url.searchParams.get("userId") ?? "";
         return jsonResponse(this.aiPaperStatus(userId));
       }
+      if (request.method === "GET" && url.pathname === "/ai/paper/decisions") {
+        const userId = url.searchParams.get("userId") ?? "";
+        const limit = Number(url.searchParams.get("limit") ?? "50");
+        if (!/^\d{1,20}$/.test(userId) || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+          return Response.json({ ok: false, error: "Некорректные параметры истории AI paper решений." }, { status: 400 });
+        const rows = this.ctx.storage.sql.exec(
+          "SELECT id, tick_id, strategy_id, strategy_version, market_snapshot_hash, symbol, signal, rationale, confidence, observed_price, risk_pass, rejection_reason, position_id, created_at FROM ai_paper_decisions WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
+          userId, limit,
+        ).toArray() as Array<Record<string, unknown>>;
+        return jsonResponse({ ok: true, decisions: rows.map(row => ({
+          id: row.id, tickId: row.tick_id, strategyId: row.strategy_id, strategyVersion: row.strategy_version,
+          marketSnapshotHash: row.market_snapshot_hash, symbol: row.symbol, signal: row.signal,
+          rationale: row.rationale, confidence: row.confidence, observedPrice: row.observed_price,
+          riskPass: Number(row.risk_pass) === 1, rejectionReason: row.rejection_reason,
+          positionId: row.position_id, createdAt: row.created_at,
+        })) });
+      }
       if (request.method === "GET" && url.pathname === "/account") {
         const userId = url.searchParams.get("userId") ?? "";
         if (!/^\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
@@ -184,6 +201,7 @@ export class TradingEngine {
       const body = await request.json() as Record<string, unknown>;
       if (url.pathname === "/ai/paper/fund") return this.fundAiPaper(body);
       if (url.pathname === "/ai/paper/withdraw") return this.withdrawAiPaper(body);
+      if (url.pathname === "/ai/paper/decision") return this.recordAiPaperDecision(body);
       if (url.pathname === "/live/claim") return this.claimLive(body);
       if (url.pathname === "/live/finish") return this.finishLive(body);
       if (url.pathname === "/open") return jsonResponse(this.open(body));
@@ -284,6 +302,76 @@ export class TradingEngine {
     const ids = this.bySymbol.get(position.symbol) ?? new Set<string>();
     ids.add(position.id);
     this.bySymbol.set(position.symbol, ids);
+  }
+
+  private recordAiPaperDecision(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    const tickId = String(body.tickId ?? "");
+    const strategyId = String(body.strategyId ?? "");
+    const strategyVersion = String(body.strategyVersion ?? "");
+    const marketSnapshotHash = String(body.marketSnapshotHash ?? "");
+    let symbol = "";
+    try { symbol = safeSymbol(body.symbol); } catch (error) {
+      return Response.json({ ok: false, error: error instanceof Error ? error.message : "Некорректный инструмент." }, { status: 400 });
+    }
+    const signal = String(body.signal ?? "");
+    const rationale = String(body.rationale ?? "").trim();
+    const confidence = body.confidence === undefined || body.confidence === null ? null : Number(body.confidence);
+    const observedPrice = String(body.observedPrice ?? "");
+    const riskPass = body.riskPass;
+    const rejectionReason = body.rejectionReason === undefined || body.rejectionReason === null ? null : String(body.rejectionReason).trim();
+    const positionId = body.positionId === undefined || body.positionId === null ? null : String(body.positionId);
+    if (!/^\d{1,20}$/.test(userId) ||
+        !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
+        !/^[A-Za-z0-9._:-]{1,64}$/.test(strategyId) ||
+        !/^[A-Za-z0-9._:-]{1,32}$/.test(strategyVersion) ||
+        !/^[a-f0-9]{32,128}$/i.test(marketSnapshotHash) ||
+        !["buy", "sell", "hold"].includes(signal) ||
+        !rationale || rationale.length > 500 ||
+        (confidence !== null && (!Number.isFinite(confidence) || confidence < 0 || confidence > 1)) ||
+        !/^(?:0|[1-9]\d{0,15})(?:\.\d{1,8})?$/.test(observedPrice) ||
+        !Number.isFinite(Number(observedPrice)) || Number(observedPrice) <= 0 ||
+        typeof riskPass !== "boolean" ||
+        (rejectionReason !== null && rejectionReason.length > 300) ||
+        (riskPass === false && !rejectionReason) ||
+        (positionId !== null && !/^[A-Za-z0-9._:-]{1,128}$/.test(positionId))) {
+      return Response.json({ ok: false, error: "Некорректные параметры решения AI paper." }, { status: 400 });
+    }
+
+    const now = Date.now();
+    const id = crypto.randomUUID();
+    let duplicate = false;
+    let conflict = false;
+    let decisionId = id;
+    this.ctx.storage.transactionSync(() => {
+      const existing = this.ctx.storage.sql.exec(
+        "SELECT id, strategy_id, strategy_version, market_snapshot_hash, signal, rationale, confidence, observed_price, risk_pass, rejection_reason, position_id FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? AND symbol = ?",
+        userId, tickId, symbol,
+      ).toArray()[0] as Record<string, unknown> | undefined;
+      if (existing) {
+        decisionId = String(existing.id);
+        const same = String(existing.strategy_id) === strategyId &&
+          String(existing.strategy_version) === strategyVersion &&
+          String(existing.market_snapshot_hash) === marketSnapshotHash &&
+          String(existing.signal) === signal &&
+          String(existing.rationale) === rationale &&
+          (existing.confidence === null ? confidence === null : Number(existing.confidence) === confidence) &&
+          String(existing.observed_price) === observedPrice &&
+          Number(existing.risk_pass) === (riskPass ? 1 : 0) &&
+          (existing.rejection_reason === null ? rejectionReason === null : String(existing.rejection_reason) === rejectionReason) &&
+          (existing.position_id === null ? positionId === null : String(existing.position_id) === positionId);
+        if (same) duplicate = true;
+        else conflict = true;
+        return;
+      }
+      this.ctx.storage.sql.exec(
+        "INSERT INTO ai_paper_decisions(id,user_id,tick_id,strategy_id,strategy_version,market_snapshot_hash,symbol,signal,rationale,confidence,observed_price,risk_pass,rejection_reason,position_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        id, userId, tickId, strategyId, strategyVersion, marketSnapshotHash, symbol, signal, rationale,
+        confidence, observedPrice, riskPass ? 1 : 0, rejectionReason, positionId, now,
+      );
+    });
+    if (conflict) return Response.json({ ok: false, error: "Tick id уже записан с другим решением." }, { status: 409 });
+    return Response.json({ ok: true, id: decisionId, duplicate }, { status: duplicate ? 200 : 201 });
   }
 
   private aiPaperStatus(userId: string): Record<string, unknown> {
