@@ -1468,3 +1468,87 @@ html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--strong{background:
 /* Wallet actions are visible for discoverability but clearly unavailable until real-fund flows are supported. */
 .kg-wallet-quick-actions button[aria-disabled="true"]{opacity:.48;cursor:not-allowed;filter:saturate(.55)}
 .kg-wallet-actions-note{margin:-7px 2px 12px;color:var(--kg-muted);font-size:10px;line-height:1.4;text-align:center}
+
+
+/* Kripto Guru Design System v2 — canonical tokens (2026-11-19). */
+:root{
+  color-scheme:light;
+  --kg-bg:#EFEFF4;
+  --kg-card:#FFFFFF;
+  --kg-surface-2:#F3F3F6;
+  --kg-ink:#0B0B0F;
+  --kg-muted:#8E8E93;
+  --kg-line:#E3E3E8;
+  --kg-blue:#3E86F0;
+  --kg-green:#3FAE5A;
+  --kg-red:#E5534B;
+  --kg-demo:#F5A623;
+  --kg-demo-soft:#FFF3DC;
+  --kg-live:#1C1D22;
+  --kg-ai:#7B61FF;
+  --kg-ai-blue:#3E86F0;
+  --kg-ai-soft:#EEEAFF;
+  --kg-radius-island:26px;
+  --kg-radius-tile:22px;
+  --kg-radius-button:18px;
+  --kg-radius-sheet:32px;
+  --kg-space-1:4px;
+  --kg-space-2:8px;
+  --kg-space-3:12px;
+  --kg-space-4:16px;
+  --kg-space-5:20px;
+  --kg-space-6:24px;
+  --kg-space-7:28px;
+  --kg-font:Inter,-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;
+  --kg-glass:rgba(255,255,255,.72);
+  --kg-glass-border:rgba(255,255,255,.58);
+  --kg-glass-shadow:0 10px 32px rgba(18,24,40,.12);
+  --kg-motion:220ms cubic-bezier(.2,.8,.2,1);
+  font-family:var(--kg-font);
+  font-synthesis:none;
+  text-rendering:optimizeLegibility;
+}
+:root[data-theme="dark"],html[data-theme="dark"]{
+  color-scheme:dark;
+  --kg-bg:#000000;
+  --kg-card:#1C1C1E;
+  --kg-surface-2:#2C2C2E;
+  --kg-ink:#F5F5F7;
+  --kg-muted:#8E8E93;
+  --kg-line:#38383A;
+  --kg-blue:#5B9BF5;
+  --kg-green:#4CC468;
+  --kg-red:#FF6A62;
+  --kg-demo:#F5A623;
+  --kg-demo-soft:#3A2B14;
+  --kg-live:#E8E8EC;
+  --kg-ai:#9A86FF;
+  --kg-ai-blue:#5B9BF5;
+  --kg-ai-soft:#28213F;
+  --kg-glass:rgba(28,28,30,.76);
+  --kg-glass-border:rgba(255,255,255,.10);
+  --kg-glass-shadow:0 10px 36px rgba(0,0,0,.36);
+}
+:root:not([data-theme="light"]):not([data-theme="dark"]){
+  color-scheme:dark;
+}
+.kg-tabular,.kg-wallet-hero strong,.kg-market-price,.kg-wallet-row-value,.kg-position-pnl{
+  font-variant-numeric:tabular-nums lining-nums;
+}
+.kg-glass-surface{
+  background:var(--kg-glass);
+  border:1px solid var(--kg-glass-border);
+  box-shadow:var(--kg-glass-shadow);
+  -webkit-backdrop-filter:blur(24px) saturate(1.4);
+  backdrop-filter:blur(24px) saturate(1.4);
+}
+.kg-mode-badge{display:inline-flex;align-items:center;gap:6px;min-height:25px;padding:0 10px;border-radius:999px;font-size:11px;font-weight:750;letter-spacing:.01em}
+.kg-mode-badge--demo{color:#80500A;background:var(--kg-demo-soft)}
+.kg-mode-badge--live{color:#fff;background:#1C1D22}
+.kg-mode-badge--live:before{content:"";width:6px;height:6px;border-radius:50%;background:#4CC468}
+.kg-mode-badge--ai{color:#5540B8;background:var(--kg-ai-soft)}
+:root[data-theme="dark"] .kg-mode-badge--demo{color:#FFD58A}
+:root[data-theme="dark"] .kg-mode-badge--ai{color:#C6B9FF}
+button{font-family:var(--kg-font)}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--kg-blue);outline-offset:3px}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
