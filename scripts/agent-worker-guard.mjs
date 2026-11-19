@@ -97,6 +97,36 @@ export function findUnverifiedReferences(report, selectedPaths, sourceText) {
       warnings.add("Backend route не найден в переданных исходниках: " + method + " " + path);
   }
 
+  const citationPattern = /\\b((?:miniapp|src|test|tests)\\/[A-Za-z0-9_./-]+):L(\\d+)(?:-L?(\\d+))?\\b/g;
+  for (const match of String(report || "").matchAll(citationPattern)) {
+    const path = match[1];
+    const start = Number(match[2]);
+    const end = Number(match[3] || match[2]);
+    if (!available.has(path)) {
+      warnings.add("Диапазон строк ссылается на файл вне прочитанного контекста: " + path);
+      continue;
+    }
+    const lineCount = source.split(/\\r?\\n/).length;
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 1 || end < start || end > lineCount) {
+      warnings.add("Диапазон строк выходит за пределы исходника: " + path + ":L" + start + "-L" + end);
+    }
+  }
+
+  // A PASS row must cite an exact, inspected line range in its evidence cell.
+  // Merely naming a file is not proof that the claimed behavior exists.
+  for (const line of String(report || "").split(/\\r?\\n/)) {
+    if (!/^\\s*\\|/.test(line) || !/\\[S\\d+\\]/.test(line)) continue;
+    const cells = line.trim().replace(/^\\|/, "").replace(/\\|$/, "").split("|").map(cell => cell.trim());
+    const statusIndex = cells.findIndex(cell => /^\\*{0,2}PASS\\*{0,2}$/i.test(cell));
+    if (statusIndex < 0) continue;
+    const scopeId = cells.find(cell => /^\\*{0,2}\\[S\\d+\\]\\*{0,2}$/.test(cell)) || "scope row";
+    const evidence = cells[statusIndex - 1] || "";
+    if (!citationPattern.test(evidence)) {
+      warnings.add("Строка " + scopeId + " помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.");
+    }
+    citationPattern.lastIndex = 0;
+  }
+
   return [...warnings];
 }
 
