@@ -50,6 +50,6 @@ it("flags paths, selectors and API routes that are absent from inspected source"
 
 it("accepts paths, selectors and API routes present in inspected source", () => {
   const report = "`miniapp/web/index.html` `#kg-wallet-ai` `GET /api/contracts`";
-  const warnings = findUnverifiedReferences(report, ["miniapp/web/index.html", "src/api.ts"], 'id="kg-wallet-ai" case "GET contracts"');
+  const warnings = findUnverifiedReferences(report, ["miniapp/web/index.html", "src/api.ts"], '$("#kg-wallet-ai") case "GET contracts"');
   expect(warnings).toEqual([]);
 });
