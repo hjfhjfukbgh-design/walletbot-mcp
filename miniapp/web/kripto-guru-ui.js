@@ -341,7 +341,7 @@
     }
   }
   function renderPositions(positions){
-    const value=(raw)=>{const n=Number(raw);return Number.isFinite(n)?money(n):"—";};
+    const value=(raw)=>{if(raw===null||raw===undefined||raw==="")return "—";const n=Number(raw);return Number.isFinite(n)?money(n):"—";};
     $("#kg-positions").innerHTML=positions.length?positions.map(p=>{
       const s=p.symbol||p.market||"—", side=String(p.side||"").toLowerCase(), pnl=Number(p.unrealizedPnlUsd ?? p.pnlUsd ?? NaN), id=p.id||p.positionId;
       const pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
@@ -349,7 +349,7 @@
         ["Вход",value(p.entryPriceUsd??p.entryPrice)],
         ["Текущая цена",value(p.markPriceUsd??p.markPrice)],
         ["Маржа",value(p.marginUsd)],
-        ["Плечо",Number.isFinite(Number(p.leverage))?Number(p.leverage)+"×":"—"],
+        ["Плечо",p.leverage!==null&&p.leverage!==undefined&&Number.isFinite(Number(p.leverage))?Number(p.leverage)+"×":"—"],
         ["Ликвидация",value(p.liquidationPriceUsd??p.liquidationPrice)],
         ["SL",value(p.stopLossUsd??p.stopLossPriceUsd)],
         ["TP",value(p.takeProfitUsd??p.takeProfitPriceUsd)]
