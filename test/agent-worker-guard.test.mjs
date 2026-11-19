@@ -80,9 +80,9 @@ it("rejects PASS rows that name files but provide no exact line-range evidence",
   expect(warnings.some(item => item.includes("PASS без точной ссылки"))).toBe(true);
 });
 
-it("validates cited line ranges against inspected files and requires evidence in PASS rows", () => {
+it("validates cited line ranges against the actual inspected file contents", () => {
   const report = "| [S1] | Wallet | `miniapp/web/index.html:L1-L2` | PASS | — |";
-  expect(findUnverifiedReferences(report, ["miniapp/web/index.html"], "<main>\n</main>")).toEqual([]);
-  const invalid = "| [S1] | Wallet | `miniapp/web/index.html:L9-L2` | PASS | — |";
-  expect(findUnverifiedReferences(invalid, ["miniapp/web/index.html"], "<main>\n</main>").some(item => item.includes("Некорректный диапазон строк"))).toBe(true);
+  expect(findUnverifiedReferences(report, ["miniapp/web/index.html"], "===== miniapp/web/index.html =====\n<main>\n</main>")).toEqual([]);
+  const invalid = "| [S1] | Wallet | `miniapp/web/index.html:L1-L9` | PASS | — |";
+  expect(findUnverifiedReferences(invalid, ["miniapp/web/index.html"], "<main>\n</main>").some(item => item.includes("не соответствует исходнику"))).toBe(true);
 });
