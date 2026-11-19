@@ -32,6 +32,11 @@ async function captureDarkVariant(page,name,device){
       surface:currency?getComputedStyle(currency).backgroundColor:null
     };
   });
+  const composerBackground=await page.evaluate(()=>getComputedStyle(document.querySelector("#kg-ai-form")).backgroundColor);
+  const composerChannels=composerBackground.match(/[0-9.]+/g)?.slice(0,3).map(Number)||[];
+  if(composerChannels.length!==3||composerChannels.reduce((sum,value)=>sum+value,0)/3>90){
+    throw new Error("Dark theme Companion composer must use a dark surface: "+composerBackground);
+  }
   if(colors.bg!=="#000000"||colors.card!=="#1c1c1e"||colors.body!=="rgb(0, 0, 0)"||colors.surface!=="rgb(28, 28, 30)"){
     throw new Error("Dark theme token/surface mismatch: "+JSON.stringify(colors));
   }
@@ -111,7 +116,11 @@ try{
     await page.waitForFunction(()=>document.documentElement.dataset.theme==="light");
     await page.locator("#kg-profile-theme-select").selectOption("light");
     await page.locator("#kg-profile-close").click();
-    await page.waitForFunction(()=>!document.querySelector("#kg-toast")?.classList.contains("is-visible"));
+    // Theme preference changes intentionally show a transient confirmation toast.
+    // Dismiss it in the screenshot harness so it cannot obscure the wallet preview.
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
+    await page.waitForTimeout(200);
+    if(await page.locator("#kg-toast.is-visible").count())throw new Error("Transient toast must not cover clean UI screenshots");
     try{
       await page.waitForFunction(()=>document.querySelector("#kg-wallet-balance")?.textContent.includes("₽"),null,{timeout:6000});
     }catch(error){
