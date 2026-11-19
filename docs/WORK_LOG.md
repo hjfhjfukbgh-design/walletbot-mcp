@@ -1086,3 +1086,11 @@
 - **Team A #379:** two specialist runs failed during second-model review; no source PR. Team Lead has implemented replacement PR #406 (Agents tab, accessible avatar label, four-column capsule); validation pending.
 - **Team C #360:** second run ended `no-safe-patch`; no application patch. Do not treat dispatch packet #404 as completed work.
 - **Team B #355:** priority queue label refreshed; no worker branch/run observed yet.
+
+
+### 2026-11-19T08:03:59.068+05:00 — Team Lead takes over Agents hero styling after Team C no-safe-patch
+
+- **Статус:** начато
+- **Причина:** два отдельных Team C UI dispatches (#360 and focused #409) завершились `no-safe-patch`; no source PR produced. Team Lead takes the narrow CSS-only slice from #409.
+- **Scope:** only scoped `#kg-agents-screen` CSS; no JS/HTML/backend or global tokens.
+- **QA target:** light/dark, 360/375/390/430 px; respect reduced motion; no fake agents or controls.
