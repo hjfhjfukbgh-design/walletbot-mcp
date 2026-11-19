@@ -84,5 +84,5 @@ it("validates cited line ranges against the actual inspected file contents", () 
   const report = "| [S1] | Wallet | `miniapp/web/index.html:L1-L2` | PASS | — |";
   expect(findUnverifiedReferences(report, ["miniapp/web/index.html"], "===== miniapp/web/index.html =====\n<main>\n</main>")).toEqual([]);
   const invalid = "| [S1] | Wallet | `miniapp/web/index.html:L1-L9` | PASS | — |";
-  expect(findUnverifiedReferences(invalid, ["miniapp/web/index.html"], "<main>\n</main>").some(item => item.includes("не соответствует исходнику"))).toBe(true);
+  expect(findUnverifiedReferences(invalid, ["miniapp/web/index.html"], "===== miniapp/web/index.html =====\n<main>\n</main>").some(item => item.includes("не соответствует исходнику"))).toBe(true);
 });
