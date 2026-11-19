@@ -100,7 +100,7 @@
     const returningFromSubscreen=!$("#kg-asset-screen").hidden||!$("#kg-ticket-screen").hidden;
     state.screen=name;
     $$(".kg-screen").forEach(node=>node.classList.toggle("is-active",node.id==="kg-"+name+"-screen"));
-    $$("#kg-nav button").forEach(node=>node.classList.toggle("is-active",node.dataset.screen===name));
+    $("#kg-nav button").forEach(node=>node.classList.toggle("is-active",node.dataset.screen===name));
     $("#kg-nav").hidden=false;
     $("#kg-asset-screen").hidden=true;
     $("#kg-ticket-screen").hidden=true;
@@ -1022,7 +1022,7 @@
 
     $("#kg-profile-backdrop").addEventListener("click",closeProfile);
     $("#kg-wallet-positions-all").addEventListener("click",()=>{setScreen("income");void loadWallet();void loadHistory();});
-    $("#kg-income-tabs").addEventListener("click",event=>{const button=event.target.closest("[data-income-tab]");if(!button)return;const tab=button.dataset.incomeTab;$("#kg-income-open-panel").hidden=tab!=="open";$("#kg-income-history-panel").hidden=tab!=="history";$("#kg-income-tabs [data-income-tab]").forEach(item=>{const active=item===button;item.classList.toggle("is-active",active);item.setAttribute("aria-selected",String(active));});});
+    $("#kg-income-tabs").addEventListener("click",event=>{const button=event.target.closest("[data-income-tab]");if(!button)return;const tab=button.dataset.incomeTab;$("#kg-income-open-panel").hidden=tab!=="open";$("#kg-income-history-panel").hidden=tab!=="history";$("[data-income-tab]").forEach(item=>{const active=item===button;item.classList.toggle("is-active",active);item.setAttribute("aria-selected",String(active));});});
     $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
     $("#kg-ai-paper-fund").addEventListener("click",()=>void transferAiPaper("fund"));
     $("#kg-profile-theme-select").addEventListener("change",event=>{setThemePreference(event.target.value);renderProfileSettings();notify("Настройка темы сохранена.");});
