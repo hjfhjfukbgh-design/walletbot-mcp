@@ -842,3 +842,10 @@
 - **Issue #354:** add AI paper balance panel and explicit virtual DEMO↔AI funding controls using existing status/fund/withdraw APIs.
 - **Disclosure:** AI account remains stopped; transfers are virtual only and do not start a strategy or touch LIVE.
 - **No agent dispatch; issue remains without agent-ready.**
+### 2026-11-19 — исправлено понимание целевого состояния LIVE
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T06:31:00+05:00
+- **Проверка main:** `src/api.ts` содержит LIVE preview/execute/status/position и reconciliation endpoints, но `updateProductMode()` намеренно отклоняет `productMode=live` с HTTP 409; `miniapp/web/kripto-guru-ui.js` также блокирует выбор LIVE и показывает «LIVE заблокирован».
+- **Вывод:** LIVE не готов как пользовательский режим Mini App. Наличие отдельных backend маршрутов не означает готовность полного пользовательского потока. Это противоречит целевому ТЗ пользователя: LIVE должен полноценно работать через Walt с проверками рисков, отдельным подтверждением и безопасной сверкой.
+- **Дальнейшая работа:** снять продуктовую блокировку только после проверки полного жизненного цикла сделки, включая открытие, закрытие, синхронизацию позиций/баланса и обработку unknown; никакие реальные сделки или close actions не запускать в ходе тестов — только mocks.
+- **Не выполнено:** в этой записи код не менялся, LIVE не разблокирован, merge/deploy не выполнялись.
