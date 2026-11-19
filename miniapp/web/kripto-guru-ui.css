@@ -1678,3 +1678,13 @@ body.kg-keyboard-open .kg-nav{transform:translate(-50%,130%);opacity:0;pointer-e
 .kg-toast{bottom:calc(90px + var(--kg-safe-bottom));border-radius:18px;font-size:12px}
 @media(max-width:380px){.kg-nav{width:calc(100vw - 20px)}.kg-nav button small{font-size:9px}.kg-asset-price{font-size:34px}.kg-chart{height:225px}.kg-agents-hero{min-height:170px;padding:22px 17px}}
 @media(prefers-reduced-motion:reduce){.kg-nav button{transition:none}}
+
+
+/* Mode consistency and truthful order-risk controls. */
+.kg-profile-mode-switch{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin:8px 0 2px;padding:4px;border-radius:14px;background:var(--kg-bg)}
+.kg-profile-mode-switch button{min-height:40px;border:0;border-radius:11px;background:transparent;color:var(--kg-muted);font-size:11px;font-weight:750}
+.kg-profile-mode-switch button.is-active{background:var(--kg-card);color:var(--kg-ink);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.kg-profile-mode-switch button:disabled{opacity:.4}
+.kg-ticket>.kg-mode-badge{align-self:center;margin:4px auto 0}
+.kg-ticket-risk-note{margin:14px 0 0;padding:11px 13px;border:1px solid var(--kg-line);border-radius:14px;background:var(--kg-card);color:var(--kg-muted);font-size:11px;line-height:1.45}
+.kg-asset-top .kg-mode-badge{margin-left:auto}
