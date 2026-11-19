@@ -16,6 +16,8 @@
     document.documentElement.dataset.themePreference=pref;
     document.documentElement.style.colorScheme=resolved;
     const meta=document.querySelector("meta[name=theme-color]");
+    const scheme=document.querySelector("meta[name=color-scheme]");
+    if(scheme)scheme.content=resolved;
     if(meta){meta.content=resolved==="dark"?"#000000":"#EFEFF4";try{tg?.setHeaderColor?.(meta.content);tg?.setBackgroundColor?.(meta.content);}catch{}}
     return resolved;
   }
