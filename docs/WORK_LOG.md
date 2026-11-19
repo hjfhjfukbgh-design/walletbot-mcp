@@ -867,3 +867,12 @@
 - **LIVE close audit:** `src/walt.ts` содержит только fail-closed legacy `closePosition()`; в `src/api.ts` нет LIVE close preview/execute route, только open preview/execute и read-only operation reconciliation. GitHub code search не обнаружил подтверждённого Walt MCP close tool schema. Официальная Walt help-страница описывает manual close через Cash Out и закрывающие комиссии/slippage, но не документирует MCP tool name/request schema: https://help.walt.io/article/634-trade-and-trading-assets-in-wallet. Поэтому close implementation нельзя безопасно выдумывать.
 - **Следующий блокер LIVE:** получить/подтвердить официальный MCP tool contract для close, затем добавить mock contract tests и prepare → explicit confirm → single execute → reconciliation; только после этого интегрировать LIVE UI и снять productMode 409. LIVE не разблокирован.
 - **Безопасность:** все новые тесты используют mocks; реальные Walt calls, ордера, закрытия, переводы, account changes, secrets, merge и deployment не выполнялись.
+
+
+## 2026-11-19T06:43:00+05:00 — AI paper panel screenshot-gate repair and agent audit
+- Started: 2026-11-19T06:40:00+05:00.
+- Updated miniapp/web/capture-clean-ui.mjs on feat/ai-paper-account-panel-2026-11-19 so the simulated lost-response scenario triggers its one-shot status reconciliation failure only after the virtual transfer has actually been applied. This removes a race where an unrelated background status poll could consume the fixture flag before the transfer.
+- Commit: 1a1cd13fe3d8bd55a837423fe125e9294cbbb8fe; PR #356.
+- Validation at log time: deploy workflow test job passed npm ci, syntax checks, npm run typecheck, and npm test; screenshot workflow run 44438972921 was still in progress. No merge or production deploy performed.
+- Agent audit: issue #203 is agent-blocked; no open issues currently carry agent-ready. Team A/B/C have backlog issues but many are agent-blocked; scheduled fan-out run 44430732436 completed its claim job but skipped worker execution (zero eligible tasks). Orchestrator run 44428508319 skipped specialist execution; its shell log also showed unescaped backticks in a summary string (orchestrator-ready, agent-ready) being interpreted as commands. A previous worker execution 44413048813 failed with unknown status. The worker workflows call Gemini API using GitHub secrets; project billing/free-tier status is unverified, so no worker dispatch was triggered.
+- Deployment gate remains: production deploy only after Cloudflare zero-cost allowance is verified; no financial writes or LIVE orders.
