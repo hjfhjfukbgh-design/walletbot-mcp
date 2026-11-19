@@ -14,7 +14,7 @@ export function normalizeAnalysisReport(input) {
   const hasUnverifiedEvidence = /NOT VERIFIED|NOT RUN|НЕ ПРОВЕРЕНО|НЕ ЗАПУСКАЛ/i.test(report);
   const lines = report.split(/\r?\n/);
   const headingIndex = lines.findIndex(line =>
-    /^\s*(?:#{1,6}\s*)?(?:\*\*)?(?:Общий\s+)?Вердикт\b/i.test(line)
+    /^\s*(?:#{1,6}\s*)?(?:\*\*)?(?:Общий\s+)?Вердикт(?=\s|[:：]|$|\*)/i.test(line)
   );
 
   let valueIndex = -1;
