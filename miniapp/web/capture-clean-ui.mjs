@@ -446,10 +446,8 @@ try{
     await page.waitForFunction(()=>!document.querySelector("#kg-profile-sheet").hidden);
     await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
     if(!await page.locator("#kg-profile-sheet").evaluate(el=>el.hidden))throw new Error("profile entry from AI drawer must use native BackButton to dismiss");
-    const restoredBack=await page.evaluate(()=>({visible:window.Telegram.WebApp.BackButton.isVisible,handler:typeof window.Telegram.WebApp.BackButton.handler,menuOpen:document.querySelector("#kg-ai-menu").classList.contains("is-open")}));
-    if(!restoredBack.visible||restoredBack.handler!=="function"||!restoredBack.menuOpen)throw new Error("closing profile over AI history must restore native BackButton for the underlying drawer: "+JSON.stringify(restoredBack));
-    await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
-    if(await page.locator("#kg-ai-menu.is-open").count())throw new Error("second native BackButton press must close the restored AI history drawer");
+    const aiProfileBack=await page.evaluate(()=>({visible:window.Telegram.WebApp.BackButton.isVisible,handler:typeof window.Telegram.WebApp.BackButton.handler,menuOpen:document.querySelector("#kg-ai-menu").classList.contains("is-open")}));
+    if(aiProfileBack.visible||aiProfileBack.handler!=="object"||aiProfileBack.menuOpen)throw new Error("AI menu profile navigation closes the drawer; native Back must then hide and detach after dismissing profile: "+JSON.stringify(aiProfileBack));
     if(pageErrors.length)throw new Error("browser errors: "+pageErrors.join("; "));
     await page.close();
   }
