@@ -176,8 +176,8 @@ jobs:
             if (missingScopeRows.length) throw new Error("Analysis report omitted mandatory scope rows: " + missingScopeRows.join(", "));
             if (guarded.optimisticVerdict) {
               const conservative = "Вердикт: NOT VERIFIED — автоматическая проверка обнаружила непроверенные пункты; PASS/ACCEPTED не подтверждён.";
-              const rewritten = report.replace(/(^|\\n)([^\\n]*Вердикт[^\\n]*)(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)([^\\n]*)/ig, "$1" + conservative);
-              report = rewritten === report ? report + "\\n\\n" + conservative : rewritten;
+              const rewritten = report.replace(/(^|\n)([^\n]*Вердикт[^\n]*)(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)([^\n]*)/ig, "$1" + conservative);
+              report = rewritten === report ? report + "\n\n" + conservative : rewritten;
             }
             fs.writeFileSync("/tmp/worker-mode.txt", "analysis-only");
             fs.writeFileSync("/tmp/worker-report.md", "# " + role + " — анализ задачи #" + process.env.ISSUE_NUMBER + "\n\n- Режим: анализ, исходники не изменялись\n- Задача: " + task + "\n\n" + report);
@@ -369,7 +369,7 @@ jobs:
           }
           if(repaired==="NO_SAFE_PATCH") {
             fs.writeFileSync("/tmp/worker-mode.txt","no-safe-patch");
-            fs.writeFileSync("/tmp/worker-report.md","# Исполнитель остановлен безопасно\\n\\nМодель не смогла восстановить patch. Исходники не изменены.\\n");
+            fs.writeFileSync("/tmp/worker-report.md","# Исполнитель остановлен безопасно\n\nМодель не смогла восстановить patch. Исходники не изменены.\n");
             console.log("Repair model declined patch safely.");
             process.exit(0);
           }
@@ -483,6 +483,7 @@ jobs:
           fi
 
       - name: Second-model AI review of patch
+        id: review
         if: steps.checks.outputs.mode == 'code'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -524,8 +525,13 @@ jobs:
             }
             if(result) break;
           }
-          if(!result || !["PASS","REJECT"].includes(result.verdict)) throw new Error("Second-model review unavailable: "+last);
+          if(!result || !["PASS","REJECT"].includes(result.verdict)) {
+            fs.appendFileSync(process.env.GITHUB_OUTPUT,"verdict=UNAVAILABLE\n");
+            console.warn("Second-model review unavailable after bounded retries: "+last+"; Draft PR may proceed to mandatory human review.");
+            process.exit(0);
+          }
           fs.writeFileSync("/tmp/worker-review.json",JSON.stringify(result,null,2));
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,"verdict="+result.verdict+"\n");
           console.log("Second-model review verdict: "+result.verdict);
           if(result.verdict!=="PASS") {
             console.error(JSON.stringify(result));
@@ -534,13 +540,14 @@ jobs:
           NODE
 
       - name: Publish implementation Draft PR
-        if: steps.checks.outputs.mode == 'code'
+        if: steps.checks.outputs.mode == 'code' && steps.review.outputs.verdict != 'REJECT'
         env:
           GH_TOKEN: ${{ github.token }}
           ROLE: ${{ inputs.role }}
           ISSUE_NUMBER: ${{ inputs.issue_number }}
           RUN_ID: ${{ github.run_id }}
           TASK: ${{ inputs.task }}
+          REVIEW_VERDICT: ${{ steps.review.outputs.verdict }}
         shell: bash
         run: |
           set -euo pipefail
@@ -553,7 +560,7 @@ jobs:
           git push origin "$branch"
           gh pr create --draft --base "${{ inputs.base_branch }}" --head "$branch" \
             --title "${ROLE} implementation for issue #${ISSUE_NUMBER}" \
-            --body "Automated bounded implementation from central orchestrator. Issue: #${ISSUE_NUMBER}. Runtime checks passed and a second-model AI review returned PASS; this is not an independent human security audit. Human code review still required. No merge, deployment, or LIVE actions were performed."
+            --body "Automated bounded implementation from central orchestrator. Issue: #${ISSUE_NUMBER}. Runtime checks passed. Second-model review: ${REVIEW_VERDICT:-UNAVAILABLE}. If UNAVAILABLE, human code/security review is mandatory before merge. This is not an independent human security audit. No merge, deployment, or LIVE actions were performed."
 
       - name: Publish report-only role handoff
         if: steps.patch.outcome == 'success' && steps.checks.outputs.mode != 'code'
