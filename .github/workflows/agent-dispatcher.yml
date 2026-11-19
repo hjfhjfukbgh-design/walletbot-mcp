@@ -5,6 +5,7 @@
 # Fifth pulse: re-run tenant isolation with bounded patch-apply repair.
 # Sixth pulse: launch post-redesign QA on current main.
 # Seventh pulse: start isolated AI PAPER storage implementation.
+# Eighth pulse: run narrow AI PAPER decision-ledger slice.
 name: Kripto Guru — continuous agent dispatcher
 # Keep scheduled queue active; push on this file triggers an immediate dispatch pass.
 # Queue pass: drain prioritized product queue; max three workers per pass. Retry fix verified on main; requeued #526 design, #332 LIVE close audit, #498 tenant isolation 2026-11-20 EKB. UI trading refinement #526 narrowed to CSS-only patch 2026-11-20 EKB.
