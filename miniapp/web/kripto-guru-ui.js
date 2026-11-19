@@ -568,7 +568,8 @@
         ["Открытый интерес",money(Number(detail.openInterestUsd))],
         ["Фандинг за час",Number.isFinite(Number(detail.fundingRateHourlyPct))?pct(detail.fundingRateHourlyPct):"—"],
         ["Комиссия тейкера",Number.isFinite(Number(detail.takerFeePct))?fmt(detail.takerFeePct,3)+"%":"—"],
-        ["Доступное плечо",Number(detail.maxLeverage||1)+"×"]
+        ["Комиссия мейкера",Number.isFinite(Number(detail.makerFeePct))?fmt(detail.makerFeePct,3)+"%":"—"],
+        ["Максимальное плечо контракта",Number.isFinite(Number(detail.maxLeverage))?Number(detail.maxLeverage)+"×":"—"]
       ];
       $("#kg-market-details").innerHTML=rows.map(([k,v])=>`<div class="kg-detail-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
       await loadHistory();
