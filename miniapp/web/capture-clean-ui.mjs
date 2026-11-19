@@ -238,6 +238,10 @@ try{
     const candleChart=await page.locator("#kg-chart").evaluate(el=>({scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,svgWidth:el.querySelector("svg")?.getBoundingClientRect().width,times:[...el.querySelectorAll("rect[data-time]")].map(node=>Number(node.dataset.time))}));
     if(!(candleChart.svgWidth>candleChart.clientWidth&&candleChart.scrollWidth>candleChart.clientWidth))throw new Error("candlestick history must scroll horizontally: "+JSON.stringify(candleChart));
     if(candleChart.times.length!==30||candleChart.times.some((time,index)=>index>0&&time<=candleChart.times[index-1]))throw new Error("candles must be valid, unique and sorted ascending: "+JSON.stringify(candleChart.times));
+    await page.locator("#kg-chart").evaluate(el=>{el.scrollLeft=el.scrollWidth;});
+    const axisLabels=await page.locator("#kg-chart svg text").evaluateAll(nodes=>{const svg=nodes[0]?.ownerSVGElement;const width=Number(svg?.getAttribute("viewBox")?.split(" ")[2]||0);return nodes.filter(node=>Number(node.getAttribute("x"))>width-61).map(node=>{const r=node.getBoundingClientRect();return {text:node.textContent,left:r.left,right:r.right};});});
+    const chartBounds=await page.locator("#kg-chart").evaluate(el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right};});
+    if(axisLabels.some(label=>label.left<chartBounds.left-1||label.right>chartBounds.right+1))throw new Error("Right price-axis labels must remain fully visible at "+device.width+"px: "+JSON.stringify({axisLabels,chartBounds}));
     for(const interval of ["1m","5m","15m","1h","4h","1d"]){
       await page.locator('#kg-timeframes [data-interval="'+interval+'"]').click();
       await page.waitForFunction(target=>window.__candleIntervals.at(-1)===target,interval,{timeout:3000});
