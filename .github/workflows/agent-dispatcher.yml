@@ -1,0 +1,74 @@
+name: Kripto Guru — continuous agent dispatcher
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+  pull-requests: write
+
+concurrency:
+  group: kripto-guru-agent-dispatcher
+  cancel-in-progress: false
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.queue.outputs.matrix }}
+      has_tasks: ${{ steps.queue.outputs.has_tasks }}
+    steps:
+      - name: Select up to three ready tasks
+        id: queue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const ready = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: "open", labels: "agent-ready", per_page: 100
+            });
+            const selected = [];
+            for (const issue of ready) {
+              if (issue.pull_request) continue;
+              const labels = (issue.labels || []).map(x => typeof x === "string" ? x : x.name);
+              if (labels.includes("agent-dispatched") || labels.includes("agent-review") || labels.includes("agent-blocked")) continue;
+              const marker = issue.body?.match(/<!--\s*kg-child-task:v1;[^>]*role=([A-Z]+);/);
+              if (!marker) {
+                core.warning(`Issue #${issue.number}: missing valid role marker; left queued.`);
+                continue;
+              }
+              const role = marker[1];
+              if (!["BACKEND","FRONTEND","QA","SECURITY","ARCHITECT","ANALYST"].includes(role)) {
+                core.warning(`Issue #${issue.number}: unsupported role ${role}; left queued.`);
+                continue;
+              }
+              selected.push({ issue_number: String(issue.number), role, task: issue.body || "", base_branch: "main" });
+              if (selected.length === 3) break;
+            }
+            for (const task of selected) {
+              await github.rest.issues.addLabels({ owner, repo, issue_number: Number(task.issue_number), labels: ["agent-dispatched"] });
+              await github.rest.issues.removeLabel({ owner, repo, issue_number: Number(task.issue_number), name: "agent-ready" }).catch(() => {});
+            }
+            core.setOutput("matrix", JSON.stringify({ include: selected }));
+            core.setOutput("has_tasks", selected.length ? "true" : "false");
+            core.info(`Selected ${selected.length} task(s), concurrency cap=3.`);
+
+  workers:
+    needs: select
+    if: needs.select.outputs.has_tasks == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
+    uses: ./.github/workflows/role-worker.yml
+    with:
+      role: ${{ matrix.role }}
+      issue_number: ${{ matrix.issue_number }}
+      task: ${{ matrix.task }}
+      base_branch: ${{ matrix.base_branch }}
+    secrets:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
