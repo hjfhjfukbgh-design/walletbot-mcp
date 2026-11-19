@@ -22,6 +22,24 @@ function priceIs(p: number) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("tick paper", () => {
+  it("fails closed for a persisted legacy LIVE grid before any market or Walt call", async () => {
+    const e = env();
+    const s = defaultState();
+    s.mode = "live";
+    s.grid = { cfg };
+    s.running = true;
+    await saveState(e, s);
+    const fetchSpy = vi.fn(async () => Response.json({ BTC: "105000" }));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const messages = await tick(e);
+    expect(messages.join(" ")).toContain("LIVE временно заблокирован");
+    const after = await loadState(e);
+    expect(after.running).toBe(false);
+    expect(after.paused).toContain("LIVE временно заблокирован");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("entra no degrau, realiza TP, reentra e para no stop-loss", async () => {
     const e = env();
     const s = defaultState();
