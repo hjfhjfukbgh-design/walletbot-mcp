@@ -1134,3 +1134,9 @@
 - **Changes:** frontend facade now calls existing authenticated `GET /api/ai/paper/status`; AI-only panel renders real AI balance, DEMO balance, open paper-position count and known account status. Missing fields remain `—`; API errors are shown as status text.
 - **Safety:** read-only GET only. No funding/withdrawal controls, backend changes, LIVE access, strategy start or account mutation.
 - **Validation:** pending CI and clean UI Playwright; no merge until both pass.
+
+### 2026-11-19T08:19:00+05:00 — LIVE security review revalidated against current main
+
+- **Issue #277:** appended a correction comment (GitHub comment `6998739638`). The earlier MEDIUM timestamp-correlation finding is stale: current `src/api.ts` prefers stable opened/created timestamps, rejects mutable `updated_at`-only data, and enforces lower/upper time bounds.
+- **Tests:** `test/api.test.ts` covers stable timestamp preference, later unrelated positions, updated_at-only payloads, and positions opened before preview.
+- **Remaining blockers:** no full mocked API-to-Walt concurrent execute/reconciliation test; LIVE close contract remains unverified and fail-closed. Security verdict remains not fully certified. No Walt network/write calls or financial actions.
