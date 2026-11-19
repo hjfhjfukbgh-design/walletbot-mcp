@@ -558,19 +558,19 @@
       $("#kg-asset-symbol").textContent=symbol+" · DEMO-рынок";
       $("#kg-asset-icon").textContent=iconFor(symbol);
       $("#kg-asset-product").textContent=detail.productType||"Фьючерс";
-      $("#kg-asset-leverage").textContent=Number(detail.maxLeverage||1)+"×";
+      $("#kg-asset-leverage").textContent=hasNumericValue(detail.maxLeverage)?Number(detail.maxLeverage)+"×":"—";
       $("#kg-asset-price").textContent=priceMoney(Number(detail.priceUsd??detail.price),detail);
       const ch=Number(detail.change24hPct??detail.changePct24h);
       $("#kg-asset-change").textContent=pct(ch)+" за 24 часа";
       $("#kg-asset-change").className="kg-asset-change "+(ch>=0?"kg-positive":"kg-negative");
       $("#kg-asset-favorite").textContent=state.favorites.has(symbol)?"★ В избранном":"☆ В избранное";
       const rows=[
-        ["Объём за 24 часа",money(Number(detail.volume24hUsd))],
-        ["Открытый интерес",money(Number(detail.openInterestUsd))],
+        ["Объём за 24 часа",money(detail.volume24hUsd)],
+        ["Открытый интерес",money(detail.openInterestUsd)],
         ["Фандинг за час",Number.isFinite(Number(detail.fundingRateHourlyPct))?pct(detail.fundingRateHourlyPct):"—"],
-        ["Комиссия тейкера",Number.isFinite(Number(detail.takerFeePct))?fmt(detail.takerFeePct,3)+"%":"—"],
-        ["Комиссия мейкера",Number.isFinite(Number(detail.makerFeePct))?fmt(detail.makerFeePct,3)+"%":"—"],
-        ["Максимальное плечо контракта",Number.isFinite(Number(detail.maxLeverage))?Number(detail.maxLeverage)+"×":"—"]
+        ["Комиссия тейкера",hasNumericValue(detail.takerFeePct)?fmt(detail.takerFeePct,3)+"%":"—"],
+        ["Комиссия мейкера",hasNumericValue(detail.makerFeePct)?fmt(detail.makerFeePct,3)+"%":"—"],
+        ["Максимальное плечо контракта",hasNumericValue(detail.maxLeverage)?Number(detail.maxLeverage)+"×":"—"]
       ];
       $("#kg-market-details").innerHTML=rows.map(([k,v])=>`<div class="kg-detail-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
       await loadHistory();
