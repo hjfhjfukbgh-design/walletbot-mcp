@@ -276,6 +276,17 @@ describe("API da Mini App", () => {
     expect((await call(e, "state", "chave-teste")).status).toBe(401);
   });
 
+
+  it("rejects unauthenticated POST requests before parsing their body", async () => {
+    const e = env();
+    const request = new Request("https://w.dev/api/demo/open", { method: "POST" });
+    const parseBody = vi.fn(async () => ({ symbol: "BTC", side: "long" }));
+    Object.defineProperty(request, "json", { value: parseBody });
+    const response = await handleApi(request, e, ctx);
+    expect(response.status).toBe(401);
+    expect(parseBody).not.toHaveBeenCalled();
+  });
+
   afterEach(() => { vi.unstubAllGlobals(); });
 
   it("requests real candle snapshots for every supported timeframe", async () => {
