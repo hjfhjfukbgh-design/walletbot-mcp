@@ -1221,3 +1221,9 @@
 - **README main commit:** `84a45ef8b1bb99e5382507ad045eb0b2393508f3`. Replaced stale instructions that implied `/mode live CONFIRMO` and `/run` enabled real trading. Documented that LIVE is blocked, AI strategy runner is not implemented, PR CI is not a production deploy, and listed the actual release gates.
 - **Code audit:** confirmed `src/bot.ts` `runTick()` stops persisted legacy `mode=live` state before any market fetch or Walt operation; `closeAll()` also fails closed for LIVE. Added regression coverage because `test/tick.test.ts` previously had no LIVE fail-closed test.
 - **PR #424:** test asserts legacy LIVE scheduled tick pauses and performs no market fetch. Head `1422c4b9ef2010e8c201d12ec219fed694020633`; CI run `44520219760` in progress. No real Walt calls.
+
+### 2026-11-19T17:06:13+05:00 — AI paper virtual funding UI opened; legacy LIVE test validated
+
+- **PR #424:** test-only legacy LIVE cron regression check passed in run `44520219760` (test job PASS; deploy skipped). It confirms persisted LIVE state is paused before any market fetch or Walt operation. Merge pending.
+- **PR #425:** adds virtual-only DEMO → AI paper funding and AI paper → DEMO return controls to the AI account panel, using existing authenticated backend routes, idempotency keys, retry-key retention, and post-transfer refresh. The UI explicitly says funding does not start a strategy and does not touch Walt.
+- **PR #425 head:** `708e964b04ddc78694ff9a829b0dd6e7e4060bfc`; run `44520713607` (npm install, JS syntax and typecheck passed; npm tests running); clean UI screenshot run `44520713591` running at Playwright install.
