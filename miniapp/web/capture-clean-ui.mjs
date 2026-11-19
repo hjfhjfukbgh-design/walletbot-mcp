@@ -396,6 +396,12 @@ try{
     await page.screenshot({path:`clean-companion-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-ai-menu-open").click();
     await page.waitForSelector("#kg-ai-menu.is-open");
+    const historySearch=page.locator("#kg-ai-history-search");
+    await historySearch.fill("Проверь");
+    if(await page.locator("#kg-ai-history [data-ai-conversation]").count()!==1)throw new Error("AI history search should match conversation titles");
+    await historySearch.fill("несуществующий диалог");
+    if(await page.locator("#kg-ai-history [data-ai-conversation]").count()!==0)throw new Error("AI history search should show no results for unmatched text");
+    await historySearch.fill("");
     await page.locator("#kg-ai-history [data-ai-delete]").first().click();
     await page.waitForFunction(()=>document.querySelectorAll("#kg-ai-history [data-ai-conversation]").length===0);
     if(!(await page.locator("#kg-ai-messages").innerText()).includes("Привет! Я Kripto Guru AI."))throw new Error("deleting the active AI conversation should reset the chat view");
