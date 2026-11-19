@@ -60,3 +60,8 @@ it("accepts CSS selectors represented by HTML id and data attributes", () => {
   const source = '<button id="kg-wallet-ai" data-wallet-action="transfer"></button>';
   expect(findUnverifiedReferences(report, ["miniapp/web/index.html"], source)).toEqual([]);
 });
+
+it("retains a 30-action audit checklist instead of truncating at 15", () => {
+  const actions = Array.from({ length: 30 }, (_, index) => "action " + (index + 1)).join("; ");
+  expect(extractScopeItems("## Области\n" + actions + "\n\n## Правила\nread only")).toHaveLength(30);
+});
