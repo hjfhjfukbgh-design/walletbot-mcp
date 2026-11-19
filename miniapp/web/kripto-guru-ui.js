@@ -102,7 +102,7 @@
       const path=points.length>1?points.map((v,i)=>`${i?"L":"M"}${(i/(points.length-1)*100).toFixed(1)} ${(20-(v-Math.min(...points))/(Math.max(...points)-Math.min(...points)||1)*16).toFixed(1)}`).join(" "):"";
       const chart=path?`<svg class="kg-sparkline" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true"><path d="${path}" fill="none" stroke="${change>=0?"#32ad70":"#e45a65"}" stroke-width="2"/></svg>`:'<div class="kg-sparkline kg-sparkline-empty" aria-hidden="true"></div>';
       const delta=Number.isFinite(price)&&Number.isFinite(change)?Math.abs(price*change/100):NaN; const sign=change>=0?"↑":"↓";
-      return `<button class="kg-favorite" data-open-market="${esc(s)}" type="button"><div class="kg-fav-top"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-badge">${Number(m.maxLeverage||1)}×</span><span class="kg-fav-remove" data-remove-favorite="${esc(s)}" ${state.editFavorites?"":"hidden"}>×</span></div><b>${esc(s)}</b><strong>${priceMoney(price,m)}</strong><div class="kg-fav-change"><small class="${Number.isFinite(change)?(change>=0?"kg-change-up":"kg-change-down"):"kg-muted"}">${Number.isFinite(change)?sign+" "+fmt(Math.abs(change),2)+"%":"—"}</small><small class="${Number.isFinite(delta)?(change>=0?"kg-change-up":"kg-change-down"):"kg-muted"}">${Number.isFinite(delta)?(change>=0?"+":"−")+priceMoney(delta,m):"—"}</small></div>${chart}</button>`;
+      return `<button class="kg-favorite" data-open-market="${esc(s)}" type="button"><div class="kg-fav-top"><span class="kg-asset-icon">${esc(iconFor(s))}</span><span class="kg-fav-remove" data-remove-favorite="${esc(s)}" ${state.editFavorites?"":"hidden"}>×</span></div><b>${esc(s)}</b><strong>${priceMoney(price,m)}</strong><div class="kg-fav-change"><small class="${Number.isFinite(change)?(change>=0?"kg-change-up":"kg-change-down"):"kg-muted"}">${Number.isFinite(change)?sign+" "+fmt(Math.abs(change),2)+"%":"—"}</small><small class="${Number.isFinite(delta)?(change>=0?"kg-change-up":"kg-change-down"):"kg-muted"}">${Number.isFinite(delta)?(change>=0?"+":"−")+priceMoney(delta,m):"—"}</small></div>${chart}</button>`;
     }).join(""):'<div class="kg-empty-inline">Добавьте активы в избранное из списка рынка.</div>';
   }
 
@@ -812,7 +812,7 @@
       if(!button||button.disabled)return;
       void selectProductMode(button.dataset.productMode,button);
     });
-    $("#kg-wallet-ai").addEventListener("click",async()=>{setScreen("companion");await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);state.companionInitialized=true;newCompanionConversation(false);});
+    $("#kg-wallet-ai").addEventListener("click",()=>{setScreen("agents");});
     $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
       setScreen(button.dataset.screen);
       if(state.screen==="wallet")await loadWallet();
@@ -968,7 +968,7 @@
   async function start(){
     if(started)return;
     started=true;
-    try{tg?.ready?.();tg?.expand?.();tg?.setHeaderColor?.("#0b1018");tg?.setBackgroundColor?.("#0b1018");}catch{}
+    try{tg?.ready?.();tg?.expand?.();const bg=tg?.themeParams?.bg_color||"#EFEFF4";tg?.setHeaderColor?.(bg);tg?.setBackgroundColor?.(bg);}catch{}
     bind();
     // Market quotes are the first screen's primary content. Start this request
     // immediately instead of waiting for FX, capabilities, history or wallet.
