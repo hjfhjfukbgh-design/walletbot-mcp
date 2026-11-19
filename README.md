@@ -4,8 +4,7 @@ Bot de **auto trade em grid** para perpétuos no [Walt](https://walletbot.me) vi
 (`https://walletbot.me/bot-relay/public-api/mcp`), controlado pelo Telegram (`@walletbotmcpbot`)
 e hospedado 100% serverless em **Cloudflare Workers** (webhook do Telegram + Cron a cada 5 min + KV).
 
-> ⚠️ Perpétuos alavancados podem liquidar a conta. O bot começa em **modo paper** (simulado) e só
-> opera dinheiro real depois de `/mode live CONFIRMO`. Rode em paper por pelo menos 24 h antes.
+> ⚠️ Perpétuos alavancados podem liquidar a conta. O ambiente de produção começa em **DEMO/PAPER**. A execução LIVE está atualmente bloqueada no bot e na Mini App até a validação independente do ciclo completo de abertura/fechamento, confirmação por ordem e reconciliação. Não use comandos antigos de LIVE como autorização para operar dinheiro real.
 
 ## Como funciona
 
@@ -15,7 +14,7 @@ Arquitetura **híbrida**: o **Telegram Serverless** (tgcloud) recebe as mensagen
 ```
 Telegram ─▶ tgcloud handlers/message.js ──▶ Worker POST /api/telegram ──▶ comandos (/grid, /run, /status…)
 Mini App ─▶ Telegram.WebApp.Serverless.call ─▶ tgcloud endpoints/* ──▶ Worker /api/* (X-Api-Key)
-Cron */5 min ─────────▶ Worker scheduled ──▶ preço → grid → travas de risco → ordem (paper | Walt MCP)
+Cron */5 min ─────────▶ Worker scheduled ──▶ preço → grid → travas de risco → ordem virtual (paper); LIVE bloqueado
 Walt OAuth ───────────▶ tokens no KV do Worker (refresh automático)
 ```
 
@@ -57,7 +56,7 @@ mensagens ao Worker; `tgcloud/endpoints/*` (`state`, `contracts`, `price`, `char
 - **Pares**: busca e filtro de liquidez; tocar num par mostra preço, margem mínima e faixa sugerida, e
   "Usar no grid" preenche o formulário.
 - **Histórico**: trades (abertura, TP, SL, manual) e curva de patrimônio.
-- **Controles**: configurar o grid, iniciar/parar/retomar, fechar a posição e trocar paper/live (com confirmação).
+- **Controles**: configurar e acompanhar a simulação DEMO, consultar posições e histórico. LIVE permanece desabilitado até aprovação da segurança.
 
 O Serverless não tem secrets e o repositório é público, então a chave da API **não fica no código**: o dono
 envia `/link <API_SECRET>` no chat do bot uma vez; o handler valida no Worker, grava a chave e o seu user id no
@@ -73,8 +72,7 @@ banco do tgcloud e apaga a mensagem. Só esse user id abre os endpoints da Mini 
    `/setup?secret=<TELEGRAM_WEBHOOK_SECRET>`: cria o botão de menu **Painel** sem mexer no webhook.
 4. No chat do bot: `/link <API_SECRET>`. O bot apaga a mensagem e responde "✅ Vinculado ao Worker".
 
-**Status deste bot** (2026-10-24): ativado; recentro automático ligado; dependências sem vulnerabilidades. Mini App em `https://app8936339348.tgcloud.ai/`; o `/setup` respondeu
-`webhook: "gerenciado pelo Telegram Serverless"`, comandos e botão de menu **Painel** registrados; `/link` concluído.
+**Status histórico de implantação** (2026-10-24): o Worker e a Mini App foram ativados naquele momento. Esse registro não confirma o estado atual da implantação nem substitui o gate de release abaixo. O bot de produto atual é `@Kripta_Guru_bot`; o identificador legado `@walletbotmcpbot` não deve ser usado como referência de UI.
 
 **Problemas comuns:**
 - `deploy-miniapp` com *"never synced"*: o runner não tem `.tgcloud/`; o workflow já roda `tgcloud fetch` antes do push.
@@ -97,6 +95,15 @@ Local: `cd miniapp && npm install && npx tgcloud login && npx tgcloud fetch && n
 | `POST control` | `{action: run\|stop\|resume\|closeall\|mode, mode?, confirm?}` |
 | `POST telegram` | update do Telegram encaminhado pelo tgcloud |
 
+
+## Estado atual do release — 2026-11-19
+
+- **DEMO:** основной безопасный сценарий приложения; рыночные данные, графики, виртуальные позиции и история доступны через текущие API и UI.
+- **AI Trading:** отдельный виртуальный счёт и read-only сводка; активный runner стратегий и автоматическое исполнение стратегий пока не реализованы. Не отображать статус «работает» без реального runner.
+- **LIVE:** UI-переключатель заблокирован. Backend содержит prepare → explicit confirm → atomic one-shot execute → UNKNOWN/reconciliation для ручного открытия, но закрывающий контракт Walt не подтверждён. LIVE нельзя считать готовым для пользователей.
+- **Безопасность:** нет автоматического LIVE grid execution; старый scheduled путь fail-closed. Реальные ордера, закрытия и переводы не использовать в тестах.
+- **QA:** проверять `npm ci`, `npm run typecheck`, `npm test`, чистые UI screenshot/contract tests и ручной прогон Telegram iOS WebView. Зелёные PR checks не равны production deploy.
+- **Release gate:** не выполнять production deploy, пока не закрыты security review, точный Walt close contract, полноценные mocked end-to-end тесты и ручная iPhone QA.
 ## Instalação
 
 1. **Bot do Telegram**: no @BotFather pegue o token do `@walletbotmcpbot`.
@@ -122,7 +129,7 @@ Local: `cd miniapp && npm install && npx tgcloud login && npx tgcloud fetch && n
    /grid BTC 100000 110000 10 5 3 → BTC, faixa, 10 degraus, $5 de margem por trade, 3x
    /run                           → modo paper (simulado, preço real do Walt)
    /status
-   depositar USDT/USDC na conta do agente no Walt → /mode live CONFIRMO → /run
+   LIVE: bloqueado. Não execute `/mode live`, `/live` ou `/run` para operar dinheiro real; o fluxo de grid LIVE está fail-closed.
    ```
 
 ### Valor mínimo por trade
@@ -145,7 +152,7 @@ grid atual usa `/grid BTC 77666.6 84276.5 8 2.2 3`.
 | `/call <tool> [json]` | chama uma tool de leitura/preview diretamente (execute é bloqueado) |
 | `/grid <mercado> <low> <high> <degraus> <margemUSD> [alav]` | configura o grid (`/grid` sozinho sugere um comando a partir do preço atual) |
 | `/run`, `/stop`, `/closeall` | inicia, para (posição fica com TP/SL), fecha a posição e para |
-| `/mode paper` · `/mode live CONFIRMO` | troca o modo (live exige conta pronta e saldo) |
+| `/mode paper` | retorna ao modo DEMO/PAPER; LIVE permanece bloqueado no código atual |
 | `/risk`, `/resume`, `/paper reset [saldo]` | travas, retomar após pausa, reiniciar simulação |
 | `/testalert` | testa o envio de alertas para o canal |
 
