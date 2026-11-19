@@ -58,7 +58,7 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from "node:fs";
           import { execFileSync } from "node:child_process";
-          import { extractScopeItems, findMissingScopeRows, findUnverifiedReferences, normalizeAnalysisReport } from "./scripts/agent-worker-guard.mjs";
+          import { contextLimit, extractScopeItems, findMissingScopeRows, findUnverifiedReferences, normalizeAnalysisReport } from "./scripts/agent-worker-guard.mjs";
 
           const role = process.env.ROLE;
           const task = process.env.TASK || "";
@@ -81,7 +81,7 @@ jobs:
             const context = selected.map(path => {
               if (!fs.existsSync(path)) return "\n\n===== " + path + " =====\nNOT PRESENT IN BASE CHECKOUT; inspect the referenced PR diff if available.";
               const raw = fs.readFileSync(path, "utf8");
-              const body = raw.split(/\r?\n/).map((line,index) => String(index+1).padStart(4," ") + ": " + line).join("\n").slice(0, explicitPaths.includes(path) ? 22000 : 9000);
+              const body = raw.split(/\r?\n/).map((line,index) => String(index+1).padStart(4," ") + ": " + line).join("\n").slice(0, contextLimit(path, explicitPaths));
               return "\n\n===== " + path + " =====\n" + body;
             }).join("\n");
 
