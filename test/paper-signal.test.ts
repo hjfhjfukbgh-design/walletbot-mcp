@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPaperSignal } from "../src/service";
+import { buildPaperSignal, parseAiPaperDecision } from "../src/service";
 
 describe("buildPaperSignal", () => {
   it("returns hold when there is not enough history", () => {
@@ -46,4 +46,29 @@ describe("buildPaperSignal", () => {
     buildPaperSignal(prices, 2, 4);
     expect(prices).toEqual(before);
   });
+
+  it("parses a strict allowlisted AI PAPER decision", () => {
+    expect(parseAiPaperDecision(JSON.stringify({
+      signal: "buy", symbol: "BTC", rationale: "Короткая средняя выше длинной.", confidence: 0.82,
+    }), ["BTC", "ETH"])).toEqual({
+      ok: true,
+      decision: { signal: "buy", symbol: "BTC", rationale: "Короткая средняя выше длинной.", confidence: 0.82 },
+    });
+  });
+
+  it("fails closed for markdown, malformed JSON, unknown symbols and extra fields", () => {
+    expect(parseAiPaperDecision("```json\n{}\n```", ["BTC"]).ok).toBe(false);
+    expect(parseAiPaperDecision("{", ["BTC"]).ok).toBe(false);
+    expect(parseAiPaperDecision(JSON.stringify({ signal: "buy", symbol: "DOGE", rationale: "ok", confidence: 0.8 }), ["BTC"]).ok).toBe(false);
+    expect(parseAiPaperDecision(JSON.stringify({ signal: "buy", symbol: "BTC", rationale: "ok", confidence: 0.8, riskPass: true }), ["BTC"]).ok).toBe(false);
+  });
+
+  it("rejects unsafe confidence, empty rationale and missing market allowlist", () => {
+    expect(parseAiPaperDecision(JSON.stringify({ signal: "sell", symbol: "BTC", rationale: "ok", confidence: 1.1 }), ["BTC"]).ok).toBe(false);
+    expect(parseAiPaperDecision(JSON.stringify({ signal: "hold", symbol: "BTC", rationale: " ", confidence: 0.5 }), ["BTC"]).ok).toBe(false);
+    expect(parseAiPaperDecision(JSON.stringify({ signal: "hold", symbol: "BTC", rationale: "ok", confidence: 0.5 }), []).ok).toBe(false);
+    expect(parseAiPaperDecision(JSON.stringify({ signal: "hold", symbol: "BTC", rationale: "ok", confidence: 0.5 }), null as unknown as string[]).ok).toBe(false);
+    expect(parseAiPaperDecision(JSON.stringify({ signal: "hold", symbol: "BTC", rationale: "bad\u0001text", confidence: 0.5 }), ["BTC"]).ok).toBe(false);
+  });
+
 });
