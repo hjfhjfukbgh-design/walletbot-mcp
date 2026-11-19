@@ -110,8 +110,12 @@ try{
     await page.evaluate(()=>{window.__aiPaperFailNext=true;});
     await page.locator("#kg-ai-paper-amount").fill("50.00");
     await page.locator("#kg-ai-paper-fund").click();
-    await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-note")?.textContent.includes("Повторите"));
-    await page.locator("#kg-ai-paper-fund").click();
+    await page.waitForFunction(()=>window.__aiPaperCalls>=2);
+    const pendingTransfer=await page.evaluate(()=>JSON.parse(localStorage.getItem("kg:ai-paper-pending:v1")||"null"));
+    if(pendingTransfer){
+      await page.locator("#kg-ai-paper-fund").click();
+      await page.waitForFunction(()=>window.__aiPaperCalls>=3);
+    }
     await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-balance")?.textContent==="$50.00");
     if((await page.locator("#kg-ai-paper-demo").innerText())!=="$950.00")throw new Error("funding must debit only virtual DEMO balance");
     await page.screenshot({path:`clean-product-mode-ai-${device.width}x${device.height}.png`,fullPage:false});
