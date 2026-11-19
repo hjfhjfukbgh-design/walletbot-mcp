@@ -170,41 +170,6 @@ export class TradingEngine {
             ).toArray();
         return jsonResponse({ ok: true, positions: rows });
       }
-      if (request.method === "GET" && url.pathname === "/ai/paper/decisions") {
-        const userId = url.searchParams.get("userId") ?? "";
-        const limit = Number(url.searchParams.get("limit") ?? "50");
-        if (!/^\d{1,20}$/.test(userId) || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
-          return Response.json({ ok: false, error: "Некорректные параметры истории AI paper решений." }, { status: 400 });
-        const rows = this.ctx.storage.sql.exec(
-          "SELECT id, tick_id, strategy_id, strategy_version, market_snapshot_hash, symbol, signal, rationale, confidence, observed_price, risk_pass, rejection_reason, position_id, created_at FROM ai_paper_decisions WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
-          userId, limit,
-        ).toArray() as Array<Record<string, unknown>>;
-        return jsonResponse({ ok: true, decisions: rows.map(row => ({
-          id: row.id, tickId: row.tick_id, strategyId: row.strategy_id, strategyVersion: row.strategy_version,
-          marketSnapshotHash: row.market_snapshot_hash, symbol: row.symbol, signal: row.signal,
-          rationale: row.rationale, confidence: row.confidence, observedPrice: row.observed_price,
-          riskPass: Number(row.risk_pass) === 1, rejectionReason: row.rejection_reason,
-          positionId: row.position_id, createdAt: row.created_at,
-        })) });
-      }
-      if (request.method === "GET" && url.pathname === "/ai/paper/positions") {
-        const userId = url.searchParams.get("userId") ?? "";
-        const status = url.searchParams.get("status") ?? "open";
-        const limit = Number(url.searchParams.get("limit") ?? "50");
-        if (!/^\d{1,20}$/.test(userId) || !["open", "closed", "all"].includes(status) ||
-            !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
-          return Response.json({ ok: false, error: "Некорректные параметры AI paper позиций." }, { status: 400 });
-        const rows = status === "all"
-          ? this.ctx.storage.sql.exec(
-              "SELECT id, symbol, side, qty_units, entry_price, margin_micro, leverage, fees_micro, slippage_micro, stop_loss_price, take_profit_price, status, opened_at, closed_at, close_json FROM ai_paper_positions WHERE user_id = ? ORDER BY opened_at DESC, id DESC LIMIT ?",
-              userId, limit,
-            ).toArray()
-          : this.ctx.storage.sql.exec(
-              "SELECT id, symbol, side, qty_units, entry_price, margin_micro, leverage, fees_micro, slippage_micro, stop_loss_price, take_profit_price, status, opened_at, closed_at, close_json FROM ai_paper_positions WHERE user_id = ? AND status = ? ORDER BY opened_at DESC, id DESC LIMIT ?",
-              userId, status, limit,
-            ).toArray();
-        return jsonResponse({ ok: true, positions: rows });
-      }
       if (request.method === "GET" && url.pathname === "/account") {
         const userId = url.searchParams.get("userId") ?? "";
         if (!/^\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
