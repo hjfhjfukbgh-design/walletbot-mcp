@@ -1164,3 +1164,8 @@
 - **QA #420:** run `44451657346` — npm ci, JS syntax, typecheck and npm tests PASS; deploy skipped. Run `44451657266` — Playwright clean UI screenshots/contract scenarios PASS.
 - **Profile behavior:** mode, Walt readiness, Telegram theme and AI paper status are sourced from current state. No fake action rows or unsupported settings were added.
 - **Issue #358:** closed as completed.
+
+### 2026-11-19T08:19:00+05:00 — AI paper unknown-value correctness fix opened
+
+- **PR #421:** preserves null/missing `openPositions` as unknown instead of coercing null to zero in the frontend API adapter. This keeps the UI's `—` behavior for unavailable data.
+- **Head:** `523927169be1fc8935685d249310f4396b6e379e`; CI pending.
