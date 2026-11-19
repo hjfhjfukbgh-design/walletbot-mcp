@@ -3,6 +3,9 @@
   const $ = (selector, root=document) => root.querySelector(selector);
   const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
   const tg = window.Telegram?.WebApp || null;
+  const hapticSelection=()=>{try{tg?.HapticFeedback?.selectionChanged?.();}catch{}};
+  const hapticImpact=(style="light")=>{try{tg?.HapticFeedback?.impactOccurred?.(style);}catch{}};
+  const hapticNotice=(type="success")=>{try{tg?.HapticFeedback?.notificationOccurred?.(type);}catch{}};
   const THEME_KEY="kg:theme:v1";
   function normalizeThemePreference(value){return value==="dark"||value==="light"||value==="system"?value:"dark";}
   function getThemePreference(){try{return normalizeThemePreference(localStorage.getItem(THEME_KEY));}catch{return "dark";}}
@@ -43,7 +46,8 @@
     autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[], aiPaper:null, aiPaperLoading:false, aiPaperTransfer:(()=>{try{const v=JSON.parse(sessionStorage.getItem("kg:ai-paper-transfer:v1")||"null");return v&&["fund","withdraw"].includes(v.kind)&&typeof v.amountUsd==="string"&&typeof v.key==="string"?v:null;}catch{return null;}})()
   };
   let marketLoadEpoch=0,marketRefreshInFlight=false,marketLastUpdatedAt=0,marketSearchTimer=0,marketVisibilityListenerInstalled=false;
-  const fmt = (v, digits=2) => Number.isFinite(Number(v)) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
+  const hasNumericValue = value => value!==null&&value!==undefined&&value!==""&&Number.isFinite(Number(value));
+  const fmt = (v, digits=2) => hasNumericValue(v) ? new Intl.NumberFormat("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(v)) : "—";
   const priceDigits = (value, metadata) => {
     const candidates = [metadata?.priceDecimals, metadata?.raw?.priceDecimals, metadata?.raw?.contract?.priceDecimals];
     const declared = candidates.find(v => Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) <= 12);
@@ -57,11 +61,11 @@
       ? { maximumSignificantDigits: 7, useGrouping: true }
       : { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: true }).format(number);
   };
-  const money = (v,d=2) => Number.isFinite(Number(v)) ? "$"+fmt(v,d) : "—";
-  const moneyRub = (v,d=2) => Number.isFinite(Number(v)) && Number.isFinite(state.fxRateRub) ? fmt(Number(v)*state.fxRateRub,d)+" ₽" : "—";
-  const priceMoney = (v, metadata) => Number.isFinite(Number(v)) ? "$"+formatPrice(v, metadata) : "—";
+  const money = (v,d=2) => hasNumericValue(v) ? (Number(v)<0?"-$":"$")+fmt(Math.abs(Number(v)),d) : "—";
+  const moneyRub = (v,d=2) => hasNumericValue(v) && Number.isFinite(state.fxRateRub) ? fmt(Number(v)*state.fxRateRub,d)+" ₽" : "—";
+  const priceMoney = (v, metadata) => hasNumericValue(v) ? "$"+formatPrice(v, metadata) : "—";
   async function loadFxRate(){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),5000);try{const response=await fetch("https://open.er-api.com/v6/latest/USD",{signal:controller.signal,cache:"no-store"});if(!response.ok)throw new Error("FX HTTP "+response.status);const data=await response.json();const rate=Number(data?.rates?.RUB);if(data?.result!=="success"||!Number.isFinite(rate)||rate<=0)throw new Error("Invalid USD/RUB rate");state.fxRateRub=rate;return rate;}catch(error){console.warn("[Kripto Guru] USD/RUB rate unavailable",error);state.fxRateRub=null;return null;}finally{clearTimeout(timer);}}
-  const pct = (v) => Number.isFinite(Number(v)) ? (Number(v)>=0?"+":"")+fmt(v,2)+"%" : "—";
+  const pct = (v) => hasNumericValue(v) ? (Number(v)>=0?"+":"")+fmt(v,2)+"%" : "—";
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const symbolName = (m) => ({BTC:"Bitcoin",ETH:"Ethereum",SOL:"Solana",GRAM:"Gram",XAUT:"Золото",BNB:"BNB",DOGE:"Dogecoin",XRP:"XRP"}[m] || m);
   const iconFor = (m) => ({BTC:"₿",ETH:"Ξ",SOL:"◎",GRAM:"◆",XAUT:"◈",BNB:"◆",DOGE:"Ð",XRP:"✕"}[m] || String(m||"?").slice(0,1));
@@ -103,7 +107,12 @@
     syncMarketPolling(returningFromSubscreen||name==="wallet");
     syncCandlePolling();
     if(name==="agents")void loadAiPaperSummary(true);
-    if(tg?.BackButton){tg.BackButton.hide();tg.BackButton.offClick?.(handleNativeBack);}
+    if(tg?.BackButton){
+      const historyOpen=name==="companion"&&$("#kg-ai-menu")?.classList.contains("is-open");
+      tg.BackButton.offClick?.(handleNativeBack);
+      if(historyOpen){tg.BackButton.show();tg.BackButton.onClick(handleNativeBack);}
+      else tg.BackButton.hide();
+    }
   }
   function showSubscreen(name){
     marketLoadEpoch++;
@@ -116,6 +125,8 @@
     if(tg?.BackButton){tg.BackButton.show();tg.BackButton.offClick?.(handleNativeBack);tg.BackButton.onClick(handleNativeBack);}
   }
   function handleNativeBack(){
+    if(!$("#kg-profile-sheet").hidden){closeProfile();return;}
+    if($("#kg-ai-menu").classList.contains("is-open")){setCompanionMenu(false);return;}
     if(!$("#kg-ticket-screen").hidden){closeTicket();return;}
     if(!$("#kg-asset-screen").hidden){closeAsset();return;}
     setScreen(state.screen);
@@ -326,21 +337,45 @@
       const totalNode=$("#kg-wallet-crypto-total");
       if(totalNode)totalNode.textContent=cryptoValues.length?moneyRub(cryptoValues.reduce((sum,value)=>sum+value,0)):"—";
       renderWalletAssets();
-      renderWalletEquities();
       const pos=listOf(state.wallet,["positions"]);
+      const pnlValues=pos.map(p=>Number(p.unrealizedPnlUsd ?? p.pnlUsd ?? NaN)).filter(Number.isFinite);
+      const pnlNode=$("#kg-wallet-pnl-value");
+      if(pnlNode){const pnl=pnlValues.length?pnlValues.reduce((a,b)=>a+b,0):NaN;pnlNode.textContent=Number.isFinite(pnl)?money(pnl):"—";pnlNode.classList.toggle("kg-change-up",Number.isFinite(pnl)&&pnl>=0);pnlNode.classList.toggle("kg-change-down",Number.isFinite(pnl)&&pnl<0);}
+      const pnlNote=$("#kg-wallet-pnl-note");if(pnlNote)pnlNote.textContent=pnlValues.length?("По "+pnlValues.length+" открытым позициям"):"Нет подтверждённых данных PnL";
       $("#kg-position-count").textContent=String(pos.length);
       renderPositions(pos);
+      renderWalletOpenPositions(pos);
     }catch(error){
       $("#kg-wallet-balance").textContent="—";
       $("#kg-wallet-assets").innerHTML=`<div class="kg-empty-inline">${esc(normalizeError(error).message)}</div>`;
       $("#kg-positions").innerHTML=`<div class="kg-empty-card">${esc(normalizeError(error).message)}</div>`;
     }
   }
+  function renderWalletOpenPositions(positions){
+    const root=$("#kg-wallet-open-positions");if(!root)return;
+    root.innerHTML=positions.length?positions.slice(0,3).map(p=>{
+      const side=String(p.side||"").toLowerCase(),symbol=p.symbol||p.market||"—";
+      const pnl=Number(p.unrealizedPnlUsd??p.pnlUsd??NaN),pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
+      const margin=p.marginUsd!==null&&p.marginUsd!==undefined?money(p.marginUsd):"—";
+      const leverage=p.leverage!==null&&p.leverage!==undefined&&Number.isFinite(Number(p.leverage))?Number(p.leverage)+"×":"—";
+      return `<div class="kg-asset-row kg-wallet-position-row"><span class="kg-row-copy"><b>${esc(symbol)} · ${side==="short"?"Шорт":side==="long"?"Лонг":"Позиция"}</b><small>Маржа ${margin} · Плечо ${leverage}</small></span><strong class="kg-wallet-row-value ${pnlClass}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
+    }).join(""):'<div class="kg-empty-inline">Открытых позиций пока нет.</div>';
+  }
   function renderPositions(positions){
+    const value=(raw)=>{if(raw===null||raw===undefined||raw==="")return "—";const n=Number(raw);return Number.isFinite(n)?money(n):"—";};
     $("#kg-positions").innerHTML=positions.length?positions.map(p=>{
-      const s=p.symbol||p.market, side=String(p.side||"").toLowerCase(), pnl=Number(p.unrealizedPnlUsd ?? p.pnlUsd ?? NaN), id=p.id||p.positionId;
+      const s=p.symbol||p.market||"—", side=String(p.side||"").toLowerCase(), pnl=Number(p.unrealizedPnlUsd ?? p.pnlUsd ?? NaN), id=p.id||p.positionId;
       const pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
-      return `<article class="kg-position"><div class="kg-position-head"><b>${esc(side==="short"?"Шорт":"Лонг")} ${esc(s)}</b><span class="kg-position-pnl ${pnlClass}">${money(pnl)}</span></div><div class="kg-position-meta">Маржа ${money(Number(p.marginUsd))} · Плечо ${Number(p.leverage||1)}×</div><div class="kg-position-foot"><small class="kg-muted">Виртуальная позиция DEMO</small><button class="kg-close-position" data-close-position="${esc(id)}" type="button">Закрыть</button></div></article>`;
+      const details=[
+        ["Вход",value(p.entryPriceUsd??p.entryPrice)],
+        ["Текущая цена",value(p.markPriceUsd??p.markPrice)],
+        ["Маржа",value(p.marginUsd)],
+        ["Плечо",p.leverage!==null&&p.leverage!==undefined&&Number.isFinite(Number(p.leverage))?Number(p.leverage)+"×":"—"],
+        ["Ликвидация",value(p.liquidationPriceUsd??p.liquidationPrice)],
+        ["SL",value(p.stopLossUsd??p.stopLossPriceUsd)],
+        ["TP",value(p.takeProfitUsd??p.takeProfitPriceUsd)]
+      ];
+      return `<article class="kg-position"><div class="kg-position-head"><b>${esc(side==="short"?"Шорт":side==="long"?"Лонг":"Позиция")} ${esc(s)}</b><span class="kg-position-pnl ${pnlClass}">${money(pnl)}</span></div><div class="kg-position-details">${details.map(([label,val])=>`<span><small>${label}</small><b>${val}</b></span>`).join("")}</div><div class="kg-position-foot"><small class="kg-mode-badge kg-mode-badge--demo">DEMO</small><button class="kg-close-position" data-close-position="${esc(id)}" type="button">Закрыть</button></div></article>`;
     }).join(""):'<div class="kg-empty-card">Открытых позиций пока нет.</div>';
   }
   function renderAssetHistory(symbol){
@@ -352,16 +387,44 @@
       return `<div class="kg-history-row"><span class="kg-history-dot">${side==="short"?"↘":"↗"}</span><span class="kg-history-copy"><b>${esc(e.event||e.type||"Сделка")} · ${esc(symbol)}</b><small>${esc(e.timestamp||e.createdAt||"")}</small></span><strong class="kg-history-value ${pnlClass}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
     }).join(""):'<div class="kg-empty-inline">Операций по этому активу пока нет.</div>';
   }
+  function renderWalletRecentHistory(){
+    const root=$("#kg-wallet-recent-history");if(!root)return;
+    const items=state.history.slice(0,3);
+    root.innerHTML=items.length?items.map(e=>{
+      const raw=String(e.event||e.type||e.status||"").toLowerCase(),closed=/close|closed|закрыт|закрытие/.test(raw),opened=/open|opened|открыт|открытие/.test(raw);
+      const action=opened?"Открыта позиция":closed?"Закрыта позиция":e.event||e.type||e.status||"Операция";
+      const pnlRaw=e.netPnlUsd??e.pnlUsd??e.pnl,pnl=hasNumericValue(pnlRaw)?Number(pnlRaw):NaN;
+      const dateRaw=e.timestamp??e.createdAt??e.time,n=Number(dateRaw),date=dateRaw?new Date(Number.isFinite(n)?(n<1e12?n*1000:n):dateRaw):null;
+      const time=date&&!Number.isNaN(date.getTime())?date.toLocaleDateString("ru-RU",{day:"numeric",month:"short"}):"";
+      const side=String(e.side||"").toLowerCase(),direction=side==="short"?"Шорт":side==="long"?"Лонг":"";
+      return `<div class="kg-history-row"><span class="kg-history-dot ${closed?"is-close":opened?"is-open":""}">${closed?"−":opened?"+":"·"}</span><span class="kg-history-copy"><b>${esc(action)} · ${esc([direction,e.symbol||e.market||""].filter(Boolean).join(" "))}</b><small>${esc(time)} · DEMO</small></span><strong class="kg-history-value ${Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted"}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
+    }).join(""):'<div class="kg-empty-inline">Операций пока нет.</div>';
+  }
   async function loadHistory(){
     try{
       const result=unwrap(await invoke("history.list"),"history");
       state.history=listOf(result,["events","history","items","trades"]);
+      renderWalletRecentHistory();
       if(state.selectedMarket)renderAssetHistory(state.selectedMarket);
-      $("#kg-history").innerHTML=state.history.length?state.history.map(e=>{
-        const side=String(e.side||"").toLowerCase(), pnl=Number(e.netPnlUsd ?? e.pnlUsd ?? e.pnl);
-        const action=e.event||e.type||e.status||"Сделка";
-        const pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
-        return `<div class="kg-history-row"><span class="kg-history-dot">${side==="short"?"↘":"↗"}</span><span class="kg-history-copy"><b>${esc(action)} · ${esc(e.symbol||e.market||"")}</b><small>${esc(e.timestamp||e.createdAt||"")}</small></span><strong class="kg-history-value ${pnlClass}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
+      const historyDate=(e)=>{const raw=e.timestamp??e.createdAt??e.time;if(raw===undefined||raw===null)return null;const n=Number(raw);const date=new Date(Number.isFinite(n)?(n<1e12?n*1000:n):raw);return Number.isNaN(date.getTime())?null:date;};
+      const dayKey=(date)=>date?date.getFullYear()+"-"+date.getMonth()+"-"+date.getDate():"unknown";
+      const today=new Date(),yesterday=new Date(today.getFullYear(),today.getMonth(),today.getDate()-1);
+      const groups=new Map();
+      state.history.forEach(e=>{const date=historyDate(e),key=dayKey(date);if(!groups.has(key))groups.set(key,{date,items:[]});groups.get(key).items.push(e);});
+      $("#kg-history").innerHTML=state.history.length?[...groups.values()].map(group=>{
+        const label=!group.date?"Дата не указана":dayKey(group.date)===dayKey(today)?"Сегодня":dayKey(group.date)===dayKey(yesterday)?"Вчера":group.date.toLocaleDateString("ru-RU",{day:"numeric",month:"long"});
+        const rows=group.items.map(e=>{
+          const side=String(e.side||"").toLowerCase(),pnl=Number(e.netPnlUsd??e.pnlUsd??e.pnl),raw=String(e.event||e.type||e.status||"").toLowerCase();
+          const closed=/close|closed|закрыт|закрытие/.test(raw),opened=/open|opened|открыт|открытие/.test(raw);
+          const action=opened?"Открыта позиция":closed?"Закрыта позиция":e.event||e.type||e.status||"Операция";
+          const pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
+          const icon=closed?"−":opened?"+":"·",iconClass=closed?"is-close":opened?"is-open":"";
+          const direction=side==="short"?"Шорт":side==="long"?"Лонг":"";
+          const amount=Number(e.sizeUsd??e.notionalUsd??e.volumeUsd??e.marginUsd);
+          const date=historyDate(e),time=date?date.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}):"";
+          return `<div class="kg-history-row"><span class="kg-history-dot ${iconClass}">${icon}</span><span class="kg-history-copy"><b>${esc(action)} · ${esc([direction,e.symbol||e.market||""].filter(Boolean).join(" "))}</b><small>${Number.isFinite(amount)?"Объём "+money(amount)+" · ":""}${esc(time)} · DEMO</small></span><strong class="kg-history-value ${pnlClass}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
+        }).join("");
+        return `<section class="kg-history-group"><h3>${label}</h3><div class="kg-list">${rows}</div></section>`;
       }).join(""):'<div class="kg-empty-card">Сделок пока нет.</div>';
     }catch(error){$("#kg-history").innerHTML=`<div class="kg-empty-card">${esc(normalizeError(error).message)}</div>`;}
   }
@@ -380,12 +443,14 @@
     const rawHigh = Array.isArray(c) ? c[2] : c?.high;
     const rawLow = Array.isArray(c) ? c[3] : c?.low;
     const rawClose = Array.isArray(c) ? c[4] : c?.close;
+    const rawVolume = Array.isArray(c) ? c[5] : c?.volume;
 
     const time = Number(rawTime);
     const open = Number(rawOpen);
     const high = Number(rawHigh);
     const low = Number(rawLow);
     const close = Number(rawClose);
+    const volume = rawVolume===null||rawVolume===undefined||rawVolume===""?null:Number(rawVolume);
 
     if (!Number.isFinite(time) || time <= 0) return null;
     if (![open, high, low, close].every(Number.isFinite)) return null;
@@ -393,7 +458,7 @@
     if (high < Math.max(open, close) || low > Math.min(open, close)) return null;
     if (high < low) return null;
 
-    return { time, open, high, low, close };
+    return { time, open, high, low, close, volume:Number.isFinite(volume)&&volume>=0?volume:null };
   }
   function drawCandles(candles){
     const byTimestamp = new Map();
@@ -435,13 +500,17 @@
     const marks = data.map((c, i) => {
       const x = i * step + step / 2;
       const up = c.close >= c.open;
-      const color = up ? "#20a96f" : "#e35562";
+      const color = up ? "#3E86F0" : "#8E8E93";
       const yt = y(Math.max(c.open, c.close));
       const yb = y(Math.min(c.open, c.close));
       const bodyHeight = Math.max(1, yb - yt);
-      return `<line x1="${x}" y1="${y(c.high)}" x2="${x}" y2="${y(c.low)}" stroke="${color}" stroke-width="1.2"/><rect data-time="${c.timeMs}" x="${x - body / 2}" y="${yt}" width="${body}" height="${bodyHeight}" rx=".7" fill="${color}"/>`;
+      return `<line x1="${x}" y1="${y(c.high)}" x2="${x}" y2="${y(c.low)}" stroke="${color}" stroke-width="1.2"/><rect data-time="${c.timeMs}" data-index="${i}" x="${x - body / 2}" y="${yt}" width="${body}" height="${bodyHeight}" rx=".7" fill="${color}"/>`;
     }).join("");
 
+    const volumeValues=data.map(c=>c.volume).filter(v=>Number.isFinite(v)&&v>=0),volumeMax=volumeValues.length?Math.max(...volumeValues):0;chart.dataset.volumeCount=String(volumeValues.length);chart.dataset.firstVolume=String(data[0]?.volume);
+    const volumeMarks=volumeMax>0?data.map((c,i)=>{if(!Number.isFinite(c.volume))return "";const x=i*step+step/2,h=Math.max(1,(c.volume/volumeMax)*10),color="rgba(62,134,240,.30)";return `<rect class="kg-volume-bar" x="${x-body/2}" y="${190-h}" width="${body}" height="${h}" rx=".5" fill="${color}"/>`;}).join(""):"";
+    const currentPriceY=y(data[data.length-1].close);
+    const currentPriceLine=`<line class="kg-current-price-line" x1="0" y1="${currentPriceY}" x2="${chartWidth}" y2="${currentPriceY}"/><text class="kg-current-price-label" x="${chartWidth+6}" y="${currentPriceY-4}" font-size="9">${esc(new Intl.NumberFormat("ru-RU",{maximumFractionDigits:4}).format(data[data.length-1].close))}</text>`;
     const grid = [0, 0.25, 0.5, 0.75, 1].map(p => {
       const val = max - p * range;
       const yPos = top + (bottom - top) * p;
@@ -459,8 +528,47 @@
       return `<text x="${xPos}" y="${H - 4}" fill="#8e919b" font-size="9" font-family="sans-serif" text-anchor="middle">${esc(timeStr)}</text>`;
     }).join("");
 
-    chart.innerHTML = `<svg width="${W}" height="${H}" style="width:${W}px;min-width:${W}px;max-width:none" viewBox="0 0 ${W} ${H}" role="img" aria-label="Свечной график">${grid}${marks}${timeLabels}</svg>`;
+    chart.innerHTML = `<svg width="${W}" height="${H}" style="width:${W}px;min-width:${W}px;max-width:none" viewBox="0 0 ${W} ${H}" role="img" aria-label="Свечной график">${grid}${currentPriceLine}${marks}${volumeMarks}${timeLabels}<g class="kg-chart-crosshair" opacity="0" pointer-events="none"><line class="kg-crosshair-v" x1="0" y1="${top}" x2="0" y2="${bottom}"/><line class="kg-crosshair-h" x1="0" y1="0" x2="${chartWidth}" y2="0"/><circle class="kg-crosshair-dot" cx="0" cy="0" r="3.5"/><rect class="kg-crosshair-label-bg" x="8" y="8" width="250" height="18" rx="5"/><text class="kg-crosshair-label" x="14" y="20">O — H — L — C —</text></g></svg>`;
+    chart.__kgCrosshairContext={data,step,chartWidth,top,bottom,y};
+    bindChartCrosshair(chart);
     chart.scrollLeft = wasAtEnd ? chart.scrollWidth : Math.min(previousScrollLeft, Math.max(0, chart.scrollWidth - chart.clientWidth));
+  }
+  function bindChartCrosshair(chart){
+    if(chart.dataset.crosshairBound==="true")return;
+    chart.dataset.crosshairBound="true";
+    let timer=null,active=false,start=null;
+    const hide=()=>{
+      if(timer)clearTimeout(timer);
+      timer=null;active=false;start=null;
+      const group=chart.querySelector(".kg-chart-crosshair");if(group)group.setAttribute("opacity","0");
+    };
+    const update=(clientX,clientY)=>{
+      const context=chart.__kgCrosshairContext,svg=chart.querySelector("svg"),group=chart.querySelector(".kg-chart-crosshair");
+      if(!context||!svg||!group)return;
+      const rect=svg.getBoundingClientRect(),localX=Math.max(0,Math.min(context.chartWidth,clientX-rect.left));
+      const localY=Math.max(context.top,Math.min(context.bottom,clientY-rect.top));
+      const index=Math.max(0,Math.min(context.data.length-1,Math.floor(localX/context.step)));
+      const candle=context.data[index],x=index*context.step+context.step/2;
+      const v=group.querySelector(".kg-crosshair-v"),h=group.querySelector(".kg-crosshair-h"),dot=group.querySelector(".kg-crosshair-dot"),label=group.querySelector(".kg-crosshair-label");
+      v.setAttribute("x1",x);v.setAttribute("x2",x);v.setAttribute("y1",context.top);v.setAttribute("y2",context.bottom);
+      h.setAttribute("x1","0");h.setAttribute("x2",context.chartWidth);h.setAttribute("y1",localY);h.setAttribute("y2",localY);
+      dot.setAttribute("cx",x);dot.setAttribute("cy",context.y(candle.close));
+      const f=value=>new Intl.NumberFormat("ru-RU",{maximumFractionDigits:4}).format(value);
+      label.textContent="O "+f(candle.open)+"  H "+f(candle.high)+"  L "+f(candle.low)+"  C "+f(candle.close);
+      group.setAttribute("opacity","1");
+    };
+    chart.addEventListener("pointerdown",event=>{
+      if(event.pointerType==="mouse"&&event.button!==0)return;
+      start={x:event.clientX,y:event.clientY};
+      timer=window.setTimeout(()=>{active=true;update(start.x,start.y);},420);
+    });
+    chart.addEventListener("pointermove",event=>{
+      if(!active){if(start&&Math.hypot(event.clientX-start.x,event.clientY-start.y)>9)hide();return;}
+      event.preventDefault();update(event.clientX,event.clientY);
+    },{passive:false});
+    chart.addEventListener("pointerup",hide);
+    chart.addEventListener("pointercancel",hide);
+    chart.addEventListener("pointerleave",()=>{if(active)hide();});
   }
   async function openAsset(symbol){
     state.previousScreen=state.screen;
@@ -475,18 +583,19 @@
       $("#kg-asset-symbol").textContent=symbol+" · DEMO-рынок";
       $("#kg-asset-icon").textContent=iconFor(symbol);
       $("#kg-asset-product").textContent=detail.productType||"Фьючерс";
-      $("#kg-asset-leverage").textContent=Number(detail.maxLeverage||1)+"×";
+      $("#kg-asset-leverage").textContent=hasNumericValue(detail.maxLeverage)?Number(detail.maxLeverage)+"×":"—";
       $("#kg-asset-price").textContent=priceMoney(Number(detail.priceUsd??detail.price),detail);
       const ch=Number(detail.change24hPct??detail.changePct24h);
       $("#kg-asset-change").textContent=pct(ch)+" за 24 часа";
       $("#kg-asset-change").className="kg-asset-change "+(ch>=0?"kg-positive":"kg-negative");
       $("#kg-asset-favorite").textContent=state.favorites.has(symbol)?"★ В избранном":"☆ В избранное";
       const rows=[
-        ["Объём за 24 часа",money(Number(detail.volume24hUsd))],
-        ["Открытый интерес",money(Number(detail.openInterestUsd))],
+        ["Объём за 24 часа",money(detail.volume24hUsd)],
+        ["Открытый интерес",money(detail.openInterestUsd)],
         ["Фандинг за час",Number.isFinite(Number(detail.fundingRateHourlyPct))?pct(detail.fundingRateHourlyPct):"—"],
-        ["Комиссия тейкера",Number.isFinite(Number(detail.takerFeePct))?fmt(detail.takerFeePct,3)+"%":"—"],
-        ["Доступное плечо",Number(detail.maxLeverage||1)+"×"]
+        ["Комиссия тейкера",hasNumericValue(detail.takerFeePct)?fmt(detail.takerFeePct,3)+"%":"—"],
+        ["Комиссия мейкера",hasNumericValue(detail.makerFeePct)?fmt(detail.makerFeePct,3)+"%":"—"],
+        ["Максимальное плечо контракта",hasNumericValue(detail.maxLeverage)?Number(detail.maxLeverage)+"×":"—"]
       ];
       $("#kg-market-details").innerHTML=rows.map(([k,v])=>`<div class="kg-detail-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
       await loadHistory();
@@ -560,16 +669,14 @@
   }
   function openTicket(side){
     if(!state.selected)return;
+    if(state.productMode==="ai")return notify("Ручная торговля со счёта ИИ пока недоступна. Используйте DEMO.");
     state.side=side;state.leverage=1;state.maxLeverage=Math.max(1,Number(state.selected.maxLeverage||1));state.margin=0;state.preview=null;
     $("#kg-ticket-heading").textContent=(side==="long"?"Лонг ":"Шорт ")+state.selectedMarket+" · "+$("#kg-asset-price").textContent;
     $("#kg-ticket-margin").value="";
     $("#kg-ticket-leverage").textContent="1×";
-    $("#kg-ticket-available").textContent="Доступно: "+money(Number(state.wallet?.balanceUsd??state.wallet?.balance??0))+" USDT";
+    $("#kg-ticket-available").textContent="Доступно: "+money(state.wallet?.balanceUsd??state.wallet?.balance)+" USDT";
     $("#kg-ticket-volume").textContent="Объём: —";
     $("#kg-ticket-preview").textContent="";
-    $("#kg-ticket-tp").value="5";
-    $("#kg-ticket-sl").value="2";
-    setAutoCloseUi(false);
     showSubscreen("ticket");
     const input=$("#kg-ticket-margin");
     input.focus({preventScroll:true});
@@ -581,20 +688,15 @@
     $("#kg-ticket-check").disabled=true;
     state.preview=null;
     if(!(state.margin>0)){$("#kg-ticket-volume").textContent="Объём: —";$("#kg-ticket-preview").textContent="";return;}
-    const targets=getAutoCloseTargets();
-    if(targets===false){$("#kg-ticket-preview").textContent="Укажите TP и SL от 0,1% до 90%.";return;}
     try{
       const result=unwrap(await invoke("trade.preview",{symbol:state.selectedMarket,side:state.side,marginUsd:state.margin,leverage:state.leverage}),"preview");
       if(seq!==state.previewSeq)return;
-      const pricedTargets=getAutoCloseTargets(Number(result.priceUsd??state.selected?.priceUsd));
-      if(pricedTargets===false){$("#kg-ticket-preview").textContent="Не удалось рассчитать уровни автозакрытия.";return;}
-      state.preview={...result,...(pricedTargets||{})};
+      state.preview={...result};
       const volume=Number(result.volumeUsd??result.notionalUsd);
       $("#kg-ticket-volume").textContent="Объём: "+money(volume);
       const fees=[];
-      if(result.entryFeeUsd!==undefined)fees.push("Комиссия открытия "+money(Number(result.entryFeeUsd)));
-      if(result.exitFeeUsd!==undefined)fees.push("Комиссия закрытия "+money(Number(result.exitFeeUsd)));
-      if(pricedTargets)fees.push("TP "+money(pricedTargets.takeProfitUsd)+" · SL "+money(pricedTargets.stopLossUsd));
+      if(hasNumericValue(result.entryFeeUsd))fees.push("Комиссия открытия "+money(result.entryFeeUsd));
+      if(hasNumericValue(result.exitFeeUsd))fees.push("Комиссия закрытия "+money(result.exitFeeUsd));
       $("#kg-ticket-preview").textContent=fees.join(" · ");
       $("#kg-ticket-check").disabled=!(result.valid!==false && result.available!==false);
     }catch(error){if(seq!==state.previewSeq)return;$("#kg-ticket-preview").textContent=normalizeError(error).message;}
@@ -606,13 +708,11 @@
     if(!state.preview||state.busy)return;
     state.busy=true;$("#kg-trade-confirm").disabled=true;
     try{
-      const targets=getAutoCloseTargets(state.preview?.priceUsd);
-      if(targets===false)throw new Error("Укажите корректные уровни TP и SL.");
       const payload={symbol:state.selectedMarket,side:state.side,marginUsd:state.margin,leverage:state.leverage,previewId:state.preview.previewId};
-      if(targets)Object.assign(payload,targets);
       const result=await invoke("trade.open",payload);
       closeModals();closeTicket();await Promise.all([loadWallet(),loadHistory()]);
       if(state.selectedMarket)renderAssetHistory(state.selectedMarket);
+      hapticNotice("success");
       notify("Демо-сделка открыта.");
     }catch(error){notify(normalizeError(error).message);}
     finally{state.busy=false;$("#kg-trade-confirm").disabled=false;}
@@ -650,8 +750,17 @@
     root.scrollTop=root.scrollHeight;
   }
   function renderCompanionHistory(){
-    const root=$("#kg-ai-history");
-    root.innerHTML=state.companionConversations.length?state.companionConversations.map(item=>`<div class="kg-ai-history-entry"><button type="button" class="kg-ai-history-item ${item.id===state.companionId?"is-selected":""}" data-ai-conversation="${esc(item.id)}"><span>${esc(item.title||"Новый диалог")}</span><small>${Number(item.messageCount)||0}</small></button><button type="button" class="kg-ai-history-delete" data-ai-delete="${esc(item.id)}" aria-label="Удалить диалог: ${esc(item.title||"Новый диалог")}" title="Удалить диалог">×</button></div>`).join(""):'<div class="kg-ai-history-empty">Здесь появятся ваши диалоги. Начните новый чат, чтобы сохранить историю.</div>';
+    const root=$("#kg-ai-history"),query=($("#kg-ai-history-search")?.value||"").trim().toLocaleLowerCase("ru");
+    const items=state.companionConversations.filter(item=>String(item.title||"Новый диалог").toLocaleLowerCase("ru").includes(query));
+    const dateOf=item=>{const raw=item.updatedAt??item.createdAt;if(!raw)return null;const n=Number(raw),date=new Date(Number.isFinite(n)?(n<1e12?n*1000:n):raw);return Number.isNaN(date.getTime())?null:date;};
+    const keyOf=date=>date?date.getFullYear()+"-"+date.getMonth()+"-"+date.getDate():"unknown";
+    const today=new Date(),yesterday=new Date(today.getFullYear(),today.getMonth(),today.getDate()-1),groups=new Map();
+    items.forEach(item=>{const date=dateOf(item),key=keyOf(date);if(!groups.has(key))groups.set(key,{date,items:[]});groups.get(key).items.push(item);});
+    const labelOf=date=>!date?"Без даты":keyOf(date)===keyOf(today)?"Сегодня":keyOf(date)===keyOf(yesterday)?"Вчера":date.toLocaleDateString("ru-RU",{day:"numeric",month:"long"});
+    const renderItem=item=>`<div class="kg-ai-history-entry"><button type="button" class="kg-ai-history-item ${item.id===state.companionId?"is-selected":""}" data-ai-conversation="${esc(item.id)}"><span>${esc(item.title||"Новый диалог")}</span><small>${Number(item.messageCount)||0}</small></button><button type="button" class="kg-ai-history-delete" data-ai-delete="${esc(item.id)}" aria-label="Удалить диалог: ${esc(item.title||"Новый диалог")}" title="Удалить диалог">×</button></div>`;
+    root.innerHTML=items.length?[...groups.values()].map(group=>`<section class="kg-ai-history-group"><h4>${labelOf(group.date)}</h4>${group.items.map(renderItem).join("")}</section>`).join(""):(query?'<div class="kg-ai-history-empty">Ничего не найдено.</div>':'<div class="kg-ai-history-empty">Здесь появятся ваши диалоги. Начните новый чат, чтобы сохранить историю.</div>');
+    const backButton=window.Telegram?.WebApp?.BackButton||tg?.BackButton;
+    if(backButton&&$("#kg-ai-menu").classList.contains("is-open")){backButton.offClick?.(handleNativeBack);backButton.show();backButton.onClick(handleNativeBack);}
   }
   async function deleteCompanionConversation(id){
     if(!id||state.companionBusy)return;
@@ -693,6 +802,8 @@
     menu.inert=!open;
     backdrop.hidden=!open;
     trigger.setAttribute("aria-expanded",String(open));
+    const backButton=window.Telegram?.WebApp?.BackButton||tg?.BackButton;
+    if(backButton){backButton.offClick?.(handleNativeBack);if(open){backButton.show();backButton.onClick(handleNativeBack);}else if($("#kg-companion-screen").classList.contains("is-active"))backButton.hide();}
   }
   function renderCompanionLimits(){
     const root=$("#kg-ai-limits-content"),limits=state.companionLimits;
@@ -811,13 +922,15 @@
     $("#kg-profile-sheet").hidden=false;
     $("#kg-profile-backdrop").hidden=false;
     $("#kg-wallet-profile").setAttribute("aria-expanded","true");
-    $("#kg-profile-close").focus();
+    $("#kg-profile-sheet").focus?.();
+    if(tg?.BackButton){tg.BackButton.show();tg.BackButton.offClick?.(handleNativeBack);tg.BackButton.onClick(handleNativeBack);}
   }
   function closeProfile(){
     $("#kg-profile-sheet").hidden=true;
     $("#kg-profile-backdrop").hidden=true;
     $("#kg-wallet-profile").setAttribute("aria-expanded","false");
     $("#kg-wallet-profile").focus();
+    if(tg?.BackButton){tg.BackButton.hide();tg.BackButton.offClick?.(handleNativeBack);}
   }
   function renderProductMode(){
     const descriptions={
@@ -831,6 +944,13 @@
       button.setAttribute("aria-pressed",String(selected));
     });
     $("#kg-product-mode-status").textContent=descriptions[state.productMode]||descriptions.demo;
+    const assetBadge=$("#kg-asset-mode-badge"),ticketBadge=$("#kg-ticket-mode-badge");
+    const modeClass=state.productMode==="ai"?"kg-mode-badge kg-mode-badge--ai":"kg-mode-badge kg-mode-badge--demo";
+    if(assetBadge){assetBadge.className=modeClass;assetBadge.textContent=state.productMode==="ai"?"ИИ":"DEMO";}
+    if(ticketBadge){ticketBadge.className=modeClass;ticketBadge.textContent=state.productMode==="ai"?"ИИ · виртуальный счёт":"DEMO · виртуальные деньги";}
+    $$("#kg-profile-mode-switch [data-profile-mode]").forEach(button=>{const active=button.dataset.profileMode===state.productMode;button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));});
+    const modeBadge=$("#kg-wallet-mode-badge");
+    if(modeBadge){modeBadge.className="kg-mode-badge "+(state.productMode==="ai"?"kg-mode-badge--ai":"kg-mode-badge--demo");modeBadge.textContent=state.productMode==="ai"?"ИИ · виртуальный счёт":"DEMO · виртуальные деньги";}
     renderProfileSettings();
     const paperSummary=$("#kg-ai-paper-summary");
     if(paperSummary)paperSummary.hidden=state.productMode!=="ai";
@@ -908,35 +1028,44 @@
     if(mode==="live")return notify("LIVE пока заблокирован: не подтверждён полный торговый и close-контракт.");
     if(mode!=="demo"&&mode!=="ai")return;
     if(mode===state.productMode)return;
-    button.disabled=true;
+    if(button)button.disabled=true;
     try{
       const result=await invoke("productMode.set",mode);
       state.productMode=result?.productMode==="ai"?"ai":"demo";
       renderProductMode();
       if(state.productMode==="ai")await loadAiPaperSummary();
     }catch(error){notify(normalizeError(error).message);}
-    finally{button.disabled=false;}
+    finally{if(button)button.disabled=false;}
   }
   function bind(){
     $("#kg-wallet-profile").addEventListener("click",openProfile);
-    $("#kg-profile-close").addEventListener("click",closeProfile);
+    document.addEventListener("focusin",event=>{if(event.target.matches("input,textarea,select,[contenteditable=true]"))document.body.classList.add("kg-keyboard-open");});
+    document.addEventListener("focusout",event=>{if(event.target.matches("input,textarea,select,[contenteditable=true]")){window.setTimeout(()=>{if(!document.activeElement?.matches("input,textarea,select,[contenteditable=true]"))document.body.classList.remove("kg-keyboard-open");},120);}});
+
     $("#kg-profile-backdrop").addEventListener("click",closeProfile);
+    $("#kg-wallet-positions-all").addEventListener("click",()=>{setScreen("income");void loadWallet();void loadHistory();});
+    $("#kg-wallet-history-all").addEventListener("click",()=>{setScreen("income");$("#kg-income-tabs [data-income-tab=history]").click();void loadWallet();void loadHistory();});
+    $("#kg-income-tabs").addEventListener("click",event=>{const button=event.target.closest("[data-income-tab]");if(!button)return;const tab=button.dataset.incomeTab;$("#kg-income-open-panel").hidden=tab!=="open";$("#kg-income-history-panel").hidden=tab!=="history";$$("#kg-income-tabs [data-income-tab]").forEach(item=>{const active=item===button;item.classList.toggle("is-active",active);item.setAttribute("aria-selected",String(active));});});
     $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
     $("#kg-ai-paper-fund").addEventListener("click",()=>void transferAiPaper("fund"));
     $("#kg-profile-theme-select").addEventListener("change",event=>{setThemePreference(event.target.value);renderProfileSettings();notify("Настройка темы сохранена.");});
+    $("#kg-profile-mode-switch").addEventListener("click",event=>{const button=event.target.closest("[data-profile-mode]");if(!button||button.disabled)return;void selectProductMode(button.dataset.profileMode,button);});
     $("#kg-ai-paper-withdraw").addEventListener("click",()=>void transferAiPaper("withdraw"));
     $("#kg-product-mode").addEventListener("click",event=>{
       const button=event.target.closest("[data-product-mode]");
       if(!button||button.disabled)return;
+      hapticSelection();
       void selectProductMode(button.dataset.productMode,button);
     });
     $("#kg-wallet-ai").addEventListener("click",()=>{setScreen("agents");});
+    $("#kg-agents-open-funding").addEventListener("click",async()=>{setScreen("wallet");if(state.productMode!=="ai")await selectProductMode("ai",null);if(state.productMode==="ai")$("#kg-ai-paper-amount").focus({preventScroll:true});});
+    $("#kg-wallet-quick-actions").addEventListener("click",async event=>{const button=event.target.closest("[data-wallet-shortcut]");if(!button)return;const screen=button.dataset.walletShortcut;if(screen==="virtual-transfer"){if(state.productMode!=="ai")await selectProductMode("ai",null);if(state.productMode==="ai")$("#kg-ai-paper-amount").focus({preventScroll:true});return;}setScreen(screen);if(screen==="income"){void loadWallet();void loadHistory();}if(screen==="trading")void loadCategory("crypto");if(screen==="agents")void loadAiPaperSummary(true);});
     $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
+      hapticSelection();
       setScreen(button.dataset.screen);
       if(state.screen==="wallet")await loadWallet();
       if(state.screen==="trading")await (state.category==="all"?setSearchFilter("all"):loadCategory(state.category));
       if(state.screen==="income"){await loadWallet();await loadHistory();}
-      if(state.screen==="bonuses")await loadCapabilities();
       if(state.screen==="companion"){
          await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);
          state.companionInitialized=true;
@@ -946,7 +1075,7 @@
     $("#kg-ai-new").addEventListener("click",newCompanionConversation);
     $("#kg-ai-new-menu").addEventListener("click",newCompanionConversation);
     $("#kg-ai-menu-open").addEventListener("click",()=>setCompanionMenu(true));
-    $("#kg-ai-menu-close").addEventListener("click",()=>setCompanionMenu(false));
+    $("#kg-ai-menu-profile").addEventListener("click",()=>{setCompanionMenu(false);setScreen("wallet");openProfile();});
     $("#kg-ai-menu-backdrop").addEventListener("click",()=>setCompanionMenu(false));
     $("#kg-ai-form").addEventListener("submit",sendCompanionMessage);
     const aiScreen=$("#kg-companion-screen"), aiInput=$("#kg-ai-input");
@@ -980,6 +1109,7 @@
     $("#kg-ai-input").addEventListener("keydown",event=>{
       if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();$("#kg-ai-form").requestSubmit();}
     });
+    $("#kg-ai-history-search").addEventListener("input",renderCompanionHistory);
     $("#kg-ai-history").addEventListener("click",event=>{
       const remove=event.target.closest("[data-ai-delete]");
       if(remove?.dataset.aiDelete){deleteCompanionConversation(remove.dataset.aiDelete);return;}
@@ -1019,25 +1149,13 @@
       const close=event.target.closest("[data-close-position]");
       if(close)closePosition(close.dataset.closePosition);
     });
-    document.querySelectorAll("[data-wallet-action]").forEach(button=>button.addEventListener("click",()=>notify("Операции с переводом и реальными средствами отключены. Доступен только демо-режим.")));
     $("#kg-edit-favorites").addEventListener("click",()=>{state.editFavorites=!state.editFavorites;$("#kg-edit-favorites").textContent=state.editFavorites?"Готово":"Изменить";renderFavorites();});
-    $("#kg-edit-equities").addEventListener("click",()=>{state.editEquities=!state.editEquities;renderWalletEquities();});
-    $("#kg-add-equity").addEventListener("click",openEquitiesEditor);
-    $("#kg-equities-presets").addEventListener("click",event=>{const button=event.target.closest("[data-add-equity]");if(button){const preset=equityPresets.find(x=>x.symbol===button.dataset.addEquity);if(preset)addEquity(preset.symbol,preset.name,preset.kind);}});
-    $("#kg-equities-custom-form").addEventListener("submit",event=>{event.preventDefault();const symbol=$("#kg-equities-symbol").value;addEquity(symbol,symbol.trim().toUpperCase());$("#kg-equities-symbol").value="";});
-    $("#kg-equities-editor").addEventListener("click",event=>{if(event.target.closest("[data-close-equities]"))$("#kg-equities-editor").hidden=true;});
-    $("#kg-wallet-equities").addEventListener("click",event=>{const button=event.target.closest("[data-remove-equity]");if(!button)return;state.equities=state.equities.filter(x=>x.symbol!==button.dataset.removeEquity);saveEquities();renderWalletEquities();});
 
-    $("#kg-asset-back").addEventListener("click",closeAsset);
     $("#kg-asset-favorite").addEventListener("click",()=>{const s=state.selectedMarket;if(!s)return;state.favorites.has(s)?state.favorites.delete(s):state.favorites.add(s);renderFavorites();try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}$("#kg-asset-favorite").textContent=state.favorites.has(s)?"★ В избранном":"☆ В избранное";});
     $$("#kg-timeframes button").forEach(b=>b.addEventListener("click",()=>loadCandles(b.dataset.interval)));
-    $("#kg-long").addEventListener("click",()=>openTicket("long"));
-    $("#kg-short").addEventListener("click",()=>openTicket("short"));
-    $("#kg-ticket-close").addEventListener("click",closeTicket);
+    $("#kg-long").addEventListener("click",()=>{hapticImpact("light");openTicket("long");});
+    $("#kg-short").addEventListener("click",()=>{hapticImpact("light");openTicket("short");});
     $("#kg-ticket-margin").addEventListener("input",refreshPreview);
-    $("#kg-ticket-autoclose").addEventListener("click",()=>{setAutoCloseUi(!state.autoclose);refreshPreview();});
-    $("#kg-ticket-tp").addEventListener("input",refreshPreview);
-    $("#kg-ticket-sl").addEventListener("input",refreshPreview);
     $("#kg-ticket-max").addEventListener("click",async()=>{
       const available=Number(state.wallet?.balanceUsd??state.wallet?.balance??0);
       if(!(available>0)){notify("Нет доступного демо-баланса.");return;}
@@ -1072,7 +1190,7 @@
       if(!state.preview)return;
       const targets=getAutoCloseTargets(state.preview?.priceUsd);
       const autoCloseRows=targets?`<div class="kg-detail-row"><span>Тейк-профит</span><b>${money(targets.takeProfitUsd)}</b></div><div class="kg-detail-row"><span>Стоп-лосс</span><b>${money(targets.stopLossUsd)}</b></div>`:"";
-      $("#kg-confirm-details").innerHTML=`<div class="kg-detail-row"><span>Направление</span><b>${state.side==="long"?"Лонг":"Шорт"} ${esc(state.selectedMarket)}</b></div><div class="kg-detail-row"><span>Маржа</span><b>${money(state.margin)}</b></div><div class="kg-detail-row"><span>Плечо</span><b>${state.leverage}×</b></div><div class="kg-detail-row"><span>Объём</span><b>${money(Number(state.preview.volumeUsd??state.preview.notionalUsd))}</b></div>${autoCloseRows}`;
+      $("#kg-confirm-details").innerHTML=`<div class="kg-detail-row"><span>Направление</span><b>${state.side==="long"?"Лонг":"Шорт"} ${esc(state.selectedMarket)}</b></div><div class="kg-detail-row"><span>Маржа</span><b>${money(state.margin)}</b></div><div class="kg-detail-row"><span>Плечо</span><b>${state.leverage}×</b></div><div class="kg-detail-row"><span>Объём</span><b>${money(state.preview.volumeUsd??state.preview.notionalUsd)}</b></div>${autoCloseRows}`;
       showModal("#kg-confirm-screen");
     });
     $("#kg-trade-confirm").addEventListener("click",confirmTrade);

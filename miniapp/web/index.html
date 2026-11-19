@@ -8,7 +8,7 @@
   <script>(function(){try{var saved=localStorage.getItem("kg:theme:v1");var preference=["dark","light","system"].includes(saved)?saved:"dark";var resolved=preference==="system"?(window.matchMedia?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):"dark"):preference;document.documentElement.dataset.theme=resolved;document.documentElement.dataset.themePreference=preference;var color=resolved==="dark"?"#000000":"#EFEFF4";var meta=document.querySelector("meta[name=theme-color]");if(meta)meta.content=color;var scheme=document.querySelector("meta[name=color-scheme]");if(scheme)scheme.content=resolved;}catch(error){document.documentElement.dataset.theme="dark";document.documentElement.dataset.themePreference="dark";}})();</script>
   <title>Kripto Guru</title>
   <script src="https://telegram.org/js/telegram-web-app.js?65"></script>
-  <link rel="stylesheet" href="/kripto-guru-ui.css?v=20261119-premium-dark-5">
+  <link rel="stylesheet" href="/kripto-guru-ui.css?v=20261119-kg-ui-v3">
 </head>
 <body>
   <main id="kg-main">
@@ -21,9 +21,9 @@
         </button>
       </div>
       <section class="kg-wallet-hero" aria-label="Баланс">
-        <small>Баланс</small>
+        <div class="kg-wallet-hero-label"><small>Баланс</small><span id="kg-wallet-mode-badge" class="kg-mode-badge kg-mode-badge--demo">DEMO · виртуальные деньги</span></div>
         <strong id="kg-wallet-balance">—</strong>
-        
+        <div class="kg-wallet-pnl" aria-label="Прибыль и убыток"><span>Нереализованный PnL</span><strong id="kg-wallet-pnl-value">—</strong><small id="kg-wallet-pnl-note">По открытым виртуальным позициям</small></div>
       </section>
       <div class="kg-product-mode-wrap">
         <div id="kg-product-mode" class="kg-product-mode" role="group" aria-label="Режим продукта">
@@ -48,17 +48,16 @@
             <button id="kg-ai-paper-fund" type="button" class="kg-primary">Перевести из DEMO</button>
             <button id="kg-ai-paper-withdraw" type="button" class="kg-ghost">Вернуть в DEMO</button>
           </div>
-          <p id="kg-ai-paper-transfer-note" role="status" aria-live="polite">Переводы только виртуальные. Они не запускают стратегию и не затрагивают Walt.</p>
+          <p id="kg-ai-paper-transfer-note" role="status" aria-live="polite">Переводы только виртуальные. Они не запускают стратегию и не затрагивают реальные средства.</p>
         </div>
         <p class="kg-empty-card">Виртуальные средства. Агент не имеет доступа к LIVE.</p>
       </section>
       <div id="kg-wallet-quick-actions" class="kg-wallet-quick-actions" aria-label="Быстрые действия">
-        <button type="button" data-wallet-action="transfer" aria-disabled="true" title="Операция с реальными средствами пока недоступна"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 8 4-4 4 4M8 4v11M20 16l-4 4-4-4m4 4V9"/></svg></span><small>Перевести</small></button>
-        <button type="button" data-wallet-action="deposit" aria-disabled="true" title="Операция с реальными средствами пока недоступна"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg></span><small>Пополнить</small></button>
-        <button type="button" data-wallet-action="withdraw" aria-disabled="true" title="Операция с реальными средствами пока недоступна"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V4m-8 8 8-8 8 8"/></svg></span><small>Вывести</small></button>
-        <button type="button" data-wallet-action="exchange" aria-disabled="true" title="Операция с реальными средствами пока недоступна"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/></svg></span><small>Обменять</small></button>
+        <button type="button" data-wallet-shortcut="trading"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18.5 9 13l3.5 3.5L20 8"/><path d="M14.5 8H20v5.5"/></svg></span><small>Торговля</small></button>
+        <button type="button" data-wallet-shortcut="income"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg></span><small>Позиции</small></button>
+        <button type="button" data-wallet-shortcut="agents"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18"/></svg></span><small>Агенты</small></button>
+        <button type="button" data-wallet-shortcut="virtual-transfer"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 8 4-4 4 4M8 4v11M20 16l-4 4-4-4m4 4V9"/></svg></span><small>Вирт. перевод</small></button>
       </div>
-      <p class="kg-wallet-actions-note">Операции реального кошелька пока недоступны.</p>
       <button id="kg-wallet-currency" class="kg-wallet-currency" type="button" aria-label="Доллары USDT">
         <span class="kg-currency-icon">$</span>
         <span class="kg-card-copy"><b>Доллары</b><small>USDT · курс загружается</small></span>
@@ -66,16 +65,15 @@
       </button>
       <div class="kg-section-head kg-favorites-heading"><h2>Избранное <span aria-hidden="true">›</span></h2><button id="kg-edit-favorites" class="kg-link" type="button">Изменить</button></div>
       <div id="kg-favorites" class="kg-favorites"><div class="kg-empty-inline">Загрузка избранного…</div></div>
-      <div class="kg-section-head"><h2>Крипто</h2><span class="kg-muted">Всего: <span id="kg-wallet-crypto-total">—</span></span></div>
+      <div class="kg-section-head kg-wallet-positions-heading"><h2>Открытые позиции</h2><span class="kg-mode-badge kg-mode-badge--demo">DEMO</span><button id="kg-wallet-positions-all" class="kg-link" type="button">Все</button></div>
+      <div id="kg-wallet-open-positions" class="kg-list"><div class="kg-empty-inline">Открытых позиций пока нет.</div></div>
+            <div class="kg-section-head"><h2>Крипто</h2><span class="kg-muted">Всего: <span id="kg-wallet-crypto-total">—</span></span></div>
       <div id="kg-wallet-assets" class="kg-list"><div class="kg-skeleton"></div></div>
-      <div class="kg-section-head kg-equities-heading"><h2>Акции и фонды</h2><button id="kg-edit-equities" class="kg-link" type="button">Изменить</button></div>
-      <div id="kg-wallet-equities" class="kg-list kg-wallet-equities"></div>
-      <div id="kg-equities-add-wrap" class="kg-equities-add-wrap" hidden><button id="kg-add-equity" class="kg-equities-add" type="button">＋ Добавить акцию или фонд</button></div>
-      <div class="kg-list kg-wallet-defi"><div class="kg-asset-row"><span class="kg-asset-icon kg-brand-defi" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5v14M10 5l4 14M15 5l4 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></span><span class="kg-row-copy"><b>DeFi Счёт</b></span><span class="kg-wallet-row-value">—</span></div></div>
+
       <div class="kg-section-head"><h2>Аккаунты ИИ-агента</h2></div>
       <div class="kg-list kg-wallet-ai-accounts"><div class="kg-empty-card">Подключённых ИИ-агентов пока нет. Здесь отображаются только реальные аккаунты и подтверждённые данные.</div></div>
-      <div class="kg-list kg-wallet-history"><button class="kg-asset-row kg-history-open" type="button" data-open-history><span class="kg-asset-icon kg-history-symbol">☷</span><span class="kg-row-copy"><b>История транзакций</b></span><span class="kg-chevron">›</span></button></div>
-      <section id="kg-equities-editor" class="kg-equities-editor" hidden aria-label="Добавить актив"><div class="kg-equities-editor-backdrop" data-close-equities></div><div class="kg-equities-editor-card" role="dialog" aria-modal="true" aria-labelledby="kg-equities-editor-title"><div class="kg-equities-editor-head"><b id="kg-equities-editor-title">Добавить актив</b><button type="button" data-close-equities aria-label="Закрыть">×</button></div><p>Выберите акцию или фонд. Список можно менять в любой момент.</p><div id="kg-equities-presets" class="kg-equities-presets"></div><form id="kg-equities-custom-form" class="kg-equities-custom-form"><label for="kg-equities-symbol">Свой тикер</label><div><input id="kg-equities-symbol" maxlength="12" autocomplete="off" placeholder="Например, NVDA"><button type="submit">Добавить</button></div></form></div></section>
+      <div class="kg-section-head kg-wallet-recent-heading"><h2>Последние операции</h2><button id="kg-wallet-history-all" class="kg-link" type="button">Показать все</button></div><div id="kg-wallet-recent-history" class="kg-list kg-wallet-recent-history"><div class="kg-empty-inline">История загружается…</div></div>
+
     </section>
     <section id="kg-trading-screen" class="kg-screen" aria-label="Торговля">
       <div class="kg-search-row">
@@ -99,8 +97,8 @@
       </div>
       <div id="kg-market-unavailable" class="kg-unavailable-panel" hidden><span class="kg-unavailable-icon">◫</span><b id="kg-unavailable-title">Рынок недоступен</b><p id="kg-unavailable-reason">Проверенный источник данных пока не подключён.</p></div>
     </section>
-    <section id="kg-income-screen" class="kg-screen" aria-label="Доход">
-      <div class="kg-page-title"><h1>Доход</h1><p>Открытые позиции и история демо-сделок.</p></div><div class="kg-section-head"><h2>Открытые позиции</h2><span id="kg-position-count" class="kg-muted">0</span></div><div id="kg-positions" class="kg-position-list"><div class="kg-empty-card">Загрузка позиций…</div></div><div class="kg-section-head"><h2>История транзакций</h2></div><div id="kg-history" class="kg-list"><div class="kg-empty-card">Загрузка истории…</div></div>
+    <section id="kg-income-screen" class="kg-screen" aria-label="Позиции и история">
+      <div class="kg-page-title"><h1>Позиции и история</h1><p>Открытые виртуальные позиции и история операций.</p></div><div id="kg-income-tabs" class="kg-income-tabs" role="tablist" aria-label="Позиции и история"><button type="button" data-income-tab="open" role="tab" aria-selected="true" class="is-active">Открытые</button><button type="button" data-income-tab="history" role="tab" aria-selected="false">История</button></div><section id="kg-income-open-panel" role="tabpanel"><div class="kg-section-head"><h2>Открытые позиции</h2><span id="kg-position-count" class="kg-muted">0</span></div><div id="kg-positions" class="kg-position-list"><div class="kg-empty-card">Загрузка позиций…</div></div></section><section id="kg-income-history-panel" role="tabpanel" hidden><div class="kg-section-head"><h2>История операций</h2></div><div id="kg-history" class="kg-list"><div class="kg-empty-card">Загрузка истории…</div></div></section>
     </section>
     <section id="kg-agents-screen" class="kg-screen kg-agents-screen" aria-label="Агенты">
       <header class="kg-agents-hero">
@@ -118,6 +116,7 @@
           <div class="kg-asset-row"><span class="kg-row-copy"><b>Открытые позиции</b><small>Виртуальные</small></span><strong id="kg-agents-paper-positions" class="kg-wallet-row-value">—</strong></div>
           <div class="kg-asset-row"><span class="kg-row-copy"><b>Состояние</b><small id="kg-agents-paper-note">Загрузка данных…</small></span><strong id="kg-agents-paper-status" class="kg-wallet-row-value">—</strong></div>
         </div>
+        <button id="kg-agents-open-funding" class="kg-agents-funding-link" type="button">Виртуальный перевод DEMO ↔ ИИ</button>
       </section>
       <div class="kg-section-head"><h2>Мои агенты</h2></div>
       <div id="kg-agents-list" class="kg-list">
@@ -141,10 +140,11 @@
       </header>
       <div id="kg-ai-menu-backdrop" class="kg-ai-menu-backdrop" hidden></div>
       <aside id="kg-ai-menu" class="kg-ai-menu" aria-label="Меню ИИ" aria-hidden="true" inert>
-        <div class="kg-ai-menu-head"><div><b>Ваши диалоги</b><small>История и настройки ИИ</small></div><button id="kg-ai-menu-close" type="button" aria-label="Закрыть меню">×</button></div>
+        <div class="kg-ai-menu-head"><div><b>Ваши диалоги</b><small>История и настройки ИИ</small></div></div>
         <button id="kg-ai-new-menu" class="kg-ai-new-chat" type="button"><span>＋</span> Новый чат</button>
+        <input id="kg-ai-history-search" class="kg-ai-history-search" type="search" placeholder="Поиск диалогов" aria-label="Поиск по истории ИИ">
         <div id="kg-ai-history" class="kg-ai-history" aria-label="История диалогов"></div>
-        <div class="kg-ai-limits"><b>Лимиты ИИ</b><div id="kg-ai-limits-content"><span>Загрузка лимитов…</span></div></div>
+        <div class="kg-ai-limits"><b>Лимиты ИИ</b><div id="kg-ai-limits-content"><span>Загрузка лимитов…</span></div></div><button id="kg-ai-menu-profile" class="kg-ai-menu-profile" type="button">Профиль и настройки</button>
       </aside>
       <div id="kg-ai-messages" class="kg-ai-messages" aria-live="polite">
         <div class="kg-ai-welcome">
@@ -170,29 +170,22 @@
       </form>
       <p class="kg-ai-disclaimer">Kripto Guru AI может ошибаться. Проверяйте важную информацию.</p>
     </section>
-    <section id="kg-bonuses-screen" class="kg-screen" aria-label="Бонусы">
-      <div class="kg-page-title"><h1>Бонусы</h1><p>Привилегии и специальные предложения Kripto Guru.</p></div><div class="kg-bonus-card"><span class="kg-bonus-icon">✦</span><div><small>ПРОГРАММА ГОТОВИТСЯ</small><b>Бонусы Kripto Guru</b><p id="kg-bonus-reason">Бонусная программа пока недоступна. Никакие начисления не имитируются.</p></div></div><div class="kg-settings-note">Режим: <b>ДЕМО</b>. LIVE заблокирован.</div>
-    </section>
   </main>
   <section id="kg-asset-screen" class="kg-subscreen" hidden aria-label="Актив">
-    <div class="kg-asset-top"><button id="kg-asset-back" class="kg-back" type="button" aria-label="Назад">‹</button><span id="kg-asset-product" class="kg-badge">Фьючерс</span><span id="kg-asset-leverage" class="kg-badge">—×</span><button id="kg-asset-favorite" class="kg-link" type="button">☆ В избранное</button></div>
+    <div class="kg-asset-top"><span id="kg-asset-product" class="kg-badge">Фьючерс</span><span id="kg-asset-mode-badge" class="kg-mode-badge kg-mode-badge--demo">DEMO</span><span id="kg-asset-leverage" class="kg-badge">—×</span><button id="kg-asset-favorite" class="kg-link" type="button">☆ В избранное</button></div>
     <div class="kg-asset-identity"><span id="kg-asset-icon" class="kg-asset-large-icon">₿</span><div><h1 id="kg-asset-name">Bitcoin</h1><small id="kg-asset-symbol">BTC · DEMO</small></div></div><div id="kg-asset-price" class="kg-asset-price">—</div><div id="kg-asset-change" class="kg-asset-change">—</div>
     <div class="kg-chart-card"><div class="kg-chart-head"><b>График цены</b><span id="kg-chart-state" class="kg-muted">Рыночные данные</span></div><div id="kg-chart" class="kg-chart" role="region" aria-label="Свечной график. Прокручивайте по горизонтали для просмотра истории." tabindex="0"></div><div id="kg-timeframes" class="kg-timeframes"><button data-interval="1m">1м</button><button data-interval="5m">5м</button><button data-interval="15m" class="is-selected">15м</button><button data-interval="1h">1ч</button><button data-interval="4h">4ч</button><button data-interval="1d">1д</button></div></div>
     <div class="kg-section-head"><h2>Детали</h2></div><div id="kg-market-details" class="kg-list"></div><div class="kg-section-head"><h2>История транзакций</h2><button id="kg-asset-history-all" class="kg-link" type="button">Показать все</button></div><div id="kg-asset-history" class="kg-list"></div><div class="kg-section-head"><h2>Подробнее</h2></div><div class="kg-asset-about"><p>В демо-режиме используются публичные рыночные данные, но все сделки совершаются только виртуальными средствами.</p><p>Изменение цены за 24 часа не гарантирует дальнейшего движения рынка.</p></div><div class="kg-asset-actions"><button id="kg-long" class="kg-primary" type="button">↗ Лонг</button><button id="kg-short" class="kg-primary" type="button">↘ Шорт</button></div>
   </section>
-  <section id="kg-ticket-screen" class="kg-subscreen kg-ticket" hidden aria-label="Демо-сделка">
-    <button id="kg-ticket-close" class="kg-ticket-close" type="button" aria-label="Закрыть">×</button>
+  <section id="kg-ticket-screen" class="kg-subscreen kg-ticket" hidden aria-label="Виртуальная сделка">
+    <span id="kg-ticket-mode-badge" class="kg-mode-badge kg-mode-badge--demo">DEMO · виртуальные деньги</span>
     <div id="kg-ticket-heading" class="kg-ticket-heading">Лонг BTC · —</div>
     <div class="kg-ticket-amount"><input id="kg-ticket-margin" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0"><span>$</span><button id="kg-ticket-leverage" class="kg-badge" type="button">1×</button></div>
     <div id="kg-ticket-volume" class="kg-ticket-volume">Объём: —</div>
     <div class="kg-ticket-available"><span id="kg-ticket-available">Доступно: —</span><button id="kg-ticket-max" class="kg-ticket-max" type="button">Макс.</button></div>
     <div class="kg-ticket-settings">
-      <div class="kg-ticket-actions"><span class="kg-badge">Оплата в долларах</span><button id="kg-ticket-autoclose" class="kg-badge kg-ticket-autoclose" type="button" aria-pressed="false">Автозакрытие: выкл</button></div>
-      <div id="kg-ticket-autoclose-fields" class="kg-ticket-autoclose-fields" hidden>
-        <label>Тейк-профит, %<input id="kg-ticket-tp" type="number" inputmode="decimal" min="0.1" max="90" step="0.1" value="5"></label>
-        <label>Стоп-лосс, %<input id="kg-ticket-sl" type="number" inputmode="decimal" min="0.1" max="90" step="0.1" value="2"></label>
-        <p>Позиция закроется автоматически при достижении одного из уровней.</p>
-      </div>
+      <div class="kg-ticket-actions"><span class="kg-badge">Оплата в долларах</span></div>
+      <p class="kg-ticket-risk-note">TP/SL появятся после подтверждения поддержки этих параметров торговым API.</p>
       <div id="kg-ticket-preview" class="kg-ticket-preview"></div>
     </div>
     <button id="kg-ticket-check" class="kg-primary kg-ticket-check" type="button" disabled>Проверить</button>
@@ -204,17 +197,16 @@
   </nav>
   <div id="kg-profile-backdrop" class="kg-profile-backdrop" hidden></div>
   <section id="kg-profile-sheet" class="kg-profile-sheet" role="dialog" aria-modal="true" aria-labelledby="kg-profile-name" hidden>
-    <button id="kg-profile-close" class="kg-profile-close" type="button" aria-label="Закрыть профиль">×</button>
     <div id="kg-profile-avatar" class="kg-profile-avatar" aria-hidden="true">KG</div>
     <h2 id="kg-profile-name">Профиль Kripto Guru</h2>
     <p id="kg-profile-username" class="kg-profile-username" hidden></p>
     <div class="kg-profile-islands">
       <section class="kg-profile-island" aria-label="Аккаунт и режим">
         <h3>Аккаунт и режим</h3>
-        <p><span>Режим продукта</span><strong id="kg-profile-mode">—</strong></p>
+        <p><span>Режим продукта</span><strong id="kg-profile-mode">—</strong></p><div id="kg-profile-mode-switch" class="kg-profile-mode-switch" role="group" aria-label="Выбор режима"><button type="button" data-profile-mode="demo">DEMO</button><button type="button" data-profile-mode="ai">ИИ</button><button type="button" data-profile-mode="live" disabled aria-disabled="true">LIVE</button></div>
       </section>
-      <section class="kg-profile-island" aria-label="Кошелёк Walt">
-        <h3>Кошелёк Walt</h3>
+      <section class="kg-profile-island" aria-label="Внешний кошелёк">
+        <h3>Внешний кошелёк</h3>
         <p><span>Подключение</span><strong id="kg-profile-wallet-status">—</strong></p>
       </section>
       <section class="kg-profile-island" aria-label="Общие настройки">
@@ -234,6 +226,6 @@
   </section>
   <div id="kg-toast" class="kg-toast" role="status" aria-live="polite"></div>
   <script src="/kripto-guru-api.js?v=20261118-live-quotes-1"></script>
-  <script src="/kripto-guru-ui.js?v=20261119-market-cleanup-1"></script>
+  <script src="/kripto-guru-ui.js?v=20261119-kg-ui-v3"></script>
 </body>
 </html>

@@ -21,7 +21,8 @@ const browser=await chromium.launch({headless:true});
 const positions=[];
 const history=[];
 async function captureDarkVariant(page,name,device){
-  await page.evaluate(()=>{document.documentElement.dataset.theme="dark";});
+  await page.evaluate(()=>{const select=document.querySelector("#kg-profile-theme-select");select.value="dark";select.dispatchEvent(new Event("change",{bubbles:true}));const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
+  await page.waitForTimeout(240); // allow the intentional 180ms glass-surface transition to finish before asserting computed colors
   const colors=await page.evaluate(()=>{
     const root=getComputedStyle(document.documentElement);
     const currency=document.querySelector(".kg-wallet-currency");
@@ -35,23 +36,20 @@ async function captureDarkVariant(page,name,device){
   const composerBackground=await page.evaluate(()=>getComputedStyle(document.querySelector("#kg-ai-form")).backgroundColor);
   const composerChannels=composerBackground.match(/[0-9.]+/g)?.slice(0,3).map(Number)||[];
   if(composerChannels.length!==3||composerChannels.reduce((sum,value)=>sum+value,0)/3>90){
-    throw new Error("Dark theme Companion composer must use a dark surface: "+composerBackground);
+    const debug=await page.evaluate(()=>({theme:document.documentElement.dataset.theme,preference:document.documentElement.dataset.themePreference,saved:localStorage.getItem("kg:theme:v1"),glass:getComputedStyle(document.documentElement).getPropertyValue("--kg-glass"),composer:getComputedStyle(document.querySelector("#kg-ai-form")).backgroundColor,darkSelector:!!document.querySelector('html[data-theme="dark"]')}));
+    throw new Error("Dark theme Companion composer must use a dark surface: "+composerBackground+" debug="+JSON.stringify(debug));
   }
   if(colors.bg!=="#000000"||colors.card!=="#1c1c1e"||colors.body!=="rgb(0, 0, 0)"||colors.surface!=="rgb(28, 28, 30)"){
     throw new Error("Dark theme token/surface mismatch: "+JSON.stringify(colors));
   }
   await page.screenshot({path:`clean-${name}-dark-${device.width}x${device.height}.png`,fullPage:false});
-  await page.evaluate(()=>{document.documentElement.dataset.theme="light";});
+  await page.evaluate(()=>{const select=document.querySelector("#kg-profile-theme-select");select.value="light";select.dispatchEvent(new Event("change",{bubbles:true}));const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
 }
 const marketData=[
   {symbol:"BTC",name:"Bitcoin",priceUsd:91240.5,change24hPct:2.42,volume24hUsd:8900000000,openInterestUsd:198750000,fundingRateHourlyPct:0.001,maxLeverage:50,takerFeePct:0.035,tradeable:true},
   {symbol:"ETH",name:"Ethereum",priceUsd:3120.2,change24hPct:-0.83,volume24hUsd:5200000000,openInterestUsd:92000000,fundingRateHourlyPct:-0.002,maxLeverage:30,takerFeePct:0.035,tradeable:true},
   {symbol:"SOL",name:"Solana",priceUsd:142.8,change24hPct:4.16,volume24hUsd:1900000000,openInterestUsd:61000000,fundingRateHourlyPct:0.001,maxLeverage:20,takerFeePct:0.04,tradeable:true}
 ];
-const candles=Array.from({length:30},(_,i)=>{
-  const base=91200+Math.sin(i*.55)*125+i*2.3;
-  return {time:1700000000+i*900,open:base,high:base+38,low:base-31,close:base+(i%2?18:-12)};
-});
 try{
   for(const device of [{width:360,height:800},{width:375,height:812},{width:390,height:844},{width:430,height:932}]){
     const page=await browser.newPage({viewport:device,deviceScaleFactor:3,isMobile:true,hasTouch:true});
@@ -59,7 +57,7 @@ try{
     const consoleErrors=[];
     page.on("pageerror",error=>pageErrors.push(error.message));
     page.on("console",message=>{if(message.type()==="warning"||message.type()==="error")consoleErrors.push(message.text());});
-    await page.route("https://telegram.org/js/telegram-web-app.js",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
+    await page.route("**/telegram-web-app.js*",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.route("**/kripto-guru-api.js*",route=>route.fulfill({status:200,contentType:"text/javascript",body:""}));
     await page.addInitScript(()=>{
       try{
@@ -79,12 +77,12 @@ try{
         {symbol:"ETH",name:"Ethereum",priceUsd:3120.2,change24hPct:-0.83,volume24hUsd:5200000000,openInterestUsd:92000000,fundingRateHourlyPct:-0.002,maxLeverage:30,takerFeePct:0.035,tradeable:true},
         {symbol:"SOL",name:"Solana",priceUsd:142.8,change24hPct:4.16,volume24hUsd:1900000000,openInterestUsd:61000000,fundingRateHourlyPct:0.001,maxLeverage:20,takerFeePct:0.04,tradeable:true}
       ];
-      const orderedCandles=Array.from({length:30},(_,i)=>{const base=91200+Math.sin(i*.55)*125+i*2.3;return {time:1700000000+i*900,open:base,high:base+38,low:base-31,close:base+(i%2?18:-12)};});const candles=[...orderedCandles].reverse();candles.push({...orderedCandles[10]});candles.push({...orderedCandles[5],high:0});
-      window.Telegram={WebApp:{initData:"preview-only-init-data",ready(){},expand(){},setHeaderColor(){},setBackgroundColor(){},BackButton:{isVisible:false,handler:null,show(){this.isVisible=true;},hide(){this.isVisible=false;},onClick(fn){this.handler=fn;},offClick(fn){if(this.handler===fn)this.handler=null;},__trigger(){this.handler?.();}},HapticFeedback:{selectionChanged(){},impactOccurred(){},notificationOccurred(){}}}};
+      const orderedCandles=Array.from({length:30},(_,i)=>{const base=91200+Math.sin(i*.55)*125+i*2.3;return {time:1700000000+i*900,open:base,high:base+38,low:base-31,close:base+(i%2?18:-12),volume:1200+i*35};});const candles=[...orderedCandles].reverse();candles.push({...orderedCandles[10]});candles.push({...orderedCandles[5],high:0});
+      window.Telegram={WebApp:{initData:"preview-only-init-data",ready(){},expand(){},setHeaderColor(){},setBackgroundColor(){},BackButton:{isVisible:false,handler:null,calls:{show:0,hide:0,onClick:0,offClick:0},show(){this.calls.show++;this.isVisible=true;},hide(){this.calls.hide++;this.isVisible=false;},onClick(fn){this.calls.onClick++;this.handler=fn;},offClick(fn){this.calls.offClick++;if(this.handler===fn)this.handler=null;},__trigger(){this.handler?.();}},HapticFeedback:{selectionChanged(){},impactOccurred(){},notificationOccurred(){}}}};
       window.KriptoGuruAPI={
         wallet:{async get(){return {mode:"demo",balanceUsd:1000,assets:[{symbol:"BTC",name:"Bitcoin",valueUsd:0},{symbol:"ETH",name:"Ethereum",valueUsd:0},{symbol:"SOL",name:"Solana",valueUsd:0}],positions:mockPositions.map(x=>({...x}))};}},
         markets:{async list({category}){window.__marketListCalls++;if(category==="stocks"||category==="funds")return {available:false,reason:"Проверенный источник котировок пока не подключён."};return {available:true,markets:markets.map(x=>({...x}))};}},
-        market:{async get(symbol){const item=markets.find(x=>x.symbol===symbol);if(!item)throw {code:"NOT_FOUND",message:"Инструмент не найден"};return {...item,productType:"Фьючерс"};},async candles(symbol,interval){window.__candleCalls++;window.__candleIntervals.push(interval);return {candles};}},
+        market:{async get(symbol){const item=markets.find(x=>x.symbol===symbol);if(!item)throw {code:"NOT_FOUND",message:"Инструмент не найден"};return {...item,productType:"Фьючерс"};},async candles(symbol,interval){window.__candleCalls++;window.__candleIntervals.push(interval);window.__mockCandleVolumes=candles.slice(0,2).map(item=>item.volume);return {candles};}},
         trade:{
           async preview({marginUsd,leverage}){return {valid:marginUsd>=10&&marginUsd<=50,available:marginUsd>=10&&marginUsd<=50,maxMarginUsd:50,minMarginUsd:10,priceUsd:91240.5,volumeUsd:marginUsd*leverage,entryFeeUsd:marginUsd*leverage*.00035,exitFeeUsd:marginUsd*leverage*.00035};},
           async open(payload){window.__lastTradeOpen={...payload};const p={id:"preview-position-1",symbol:payload.symbol,side:payload.side,marginUsd:payload.marginUsd,leverage:payload.leverage};mockPositions.push(p);mockHistory.unshift({event:"Открытие",symbol:p.symbol,side:p.side,timestamp:"Сейчас"});return {position:p};},
@@ -103,13 +101,14 @@ try{
     });
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     if(await page.locator("#kg-companion-screen .kg-gemini-model").evaluate(node=>node.tagName)!=="SPAN")throw new Error("Single available AI model must be a static label, not an inert selector");
-    const walletActions=await page.locator("#kg-wallet-quick-actions button").evaluateAll(nodes=>nodes.map(node=>node.getAttribute("aria-disabled")));
-    if(walletActions.length!==4||walletActions.some(value=>value!=="true"))throw new Error("Unsupported real-wallet actions must be explicitly marked unavailable");
-    if(!(await page.locator(".kg-wallet-actions-note").innerText()).includes("пока недоступны"))throw new Error("Wallet must explain why real-fund actions are unavailable");
+    const walletShortcuts=await page.locator("#kg-wallet-quick-actions button").evaluateAll(nodes=>nodes.map(node=>node.dataset.walletShortcut));
+    if(walletShortcuts.join(",")!=="trading,income,agents,virtual-transfer")throw new Error("Wallet quick actions must be real navigation shortcuts, not fake money operations: "+walletShortcuts.join(","));
+    if(await page.locator("#kg-wallet-quick-actions [data-wallet-action]").count())throw new Error("Fake real-money actions must not be rendered");
     const viewport=await page.evaluate(()=>({width:window.innerWidth,scrollWidth:document.documentElement.scrollWidth}));
     if(viewport.scrollWidth>viewport.width+1)throw new Error("Unexpected horizontal page overflow at "+device.width+"px: "+JSON.stringify(viewport));
     await page.waitForSelector("#kg-wallet-balance");
-    await page.waitForFunction(()=>document.querySelector("#kg-market-updated")?.textContent.includes("Обновлено"));
+    try{await page.waitForFunction(()=>document.querySelector("#kg-market-updated")?.textContent.includes("Обновлено"),null,{timeout:8000});}
+    catch(error){const debug=await page.evaluate(()=>({updated:document.querySelector("#kg-market-updated")?.textContent,apiReady:!!window.KriptoGuruAPI,marketCalls:window.__marketListCalls,toast:document.querySelector("#kg-toast")?.textContent,marketList:document.querySelector("#kg-market-list")?.innerText,theme:document.documentElement.dataset.theme}));throw new Error("Initial market freshness label missing: "+JSON.stringify(debug)+" pageErrors="+pageErrors.join("; ")+" "+error.message);}
     const freshnessLabel=await page.locator("#kg-market-updated").innerText();
     if(!/^Обновлено · \d{2}:\d{2}:\d{2}$/.test(freshnessLabel))throw new Error("Market freshness time must use Russian 24-hour format: "+freshnessLabel);
     if(await page.evaluate(()=>document.documentElement.dataset.theme)!=="dark")throw new Error("New installs must default to dark theme");
@@ -124,7 +123,7 @@ try{
     await page.emulateMedia({colorScheme:"light"});
     await page.waitForFunction(()=>document.documentElement.dataset.theme==="light");
     await page.locator("#kg-profile-theme-select").selectOption("light");
-    await page.locator("#kg-profile-close").click();
+    await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
     // Theme preference changes intentionally show a transient confirmation toast.
     // Dismiss it in the screenshot harness so it cannot obscure the wallet preview.
     await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
@@ -205,7 +204,7 @@ try{
     await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
     const walletScrollCheck=await page.evaluate(()=>{
       const nav=document.querySelector("#kg-nav").getBoundingClientRect();
-      const finalCard=document.querySelector("#kg-wallet-screen .kg-wallet-history .kg-asset-row").getBoundingClientRect();
+      const finalCard=document.querySelector("#kg-wallet-screen #kg-wallet-recent-history").getBoundingClientRect();
       return {scrollY:window.scrollY,navTop:nav.top,navBottom:nav.bottom,cardBottom:finalCard.bottom,viewportHeight:window.innerHeight};
     });
     if(walletScrollCheck.scrollY<=0)throw new Error("wallet screen should scroll to the final section");
@@ -222,6 +221,13 @@ try{
     if(!(await page.locator("#kg-agents-paper-status").innerText()).includes("Остановлен"))throw new Error("Agents screen must show the real stopped status");
     if(!(await page.locator(".kg-agents-safety-note").innerText()).includes("виртуальные средства"))throw new Error("Agents screen must disclose virtual-only funds");
     await page.screenshot({path:`clean-agents-${device.width}x${device.height}.png`,fullPage:false});
+    await page.locator("#kg-agents-open-funding").click();
+    await page.waitForFunction(()=>document.querySelector("#kg-wallet-screen").classList.contains("is-active")&&document.querySelector('#kg-product-mode [data-product-mode="ai"]').classList.contains("is-active"));
+    if(await page.evaluate(()=>document.activeElement?.id)!=="kg-ai-paper-amount")throw new Error("Agents virtual funding entry must focus the AI paper amount field");
+    await page.locator("#kg-ai-paper-amount").evaluate(el=>el.blur());
+    await page.waitForTimeout(140);
+    await page.locator('#kg-product-mode [data-product-mode="demo"]').click();
+    await page.waitForFunction(()=>document.querySelector('#kg-product-mode [data-product-mode="demo"]').classList.contains("is-active"));
     await page.locator('#kg-nav button[data-screen="trading"]').click();
     await page.waitForSelector("#kg-market-list .kg-market-row");
     await page.screenshot({path:`clean-catalog-${device.width}x${device.height}.png`,fullPage:false});
@@ -249,7 +255,17 @@ try{
     const candleChart=await page.locator("#kg-chart").evaluate(el=>({scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,svgWidth:el.querySelector("svg")?.getBoundingClientRect().width,times:[...el.querySelectorAll("rect[data-time]")].map(node=>Number(node.dataset.time))}));
     if(!(candleChart.svgWidth>candleChart.clientWidth&&candleChart.scrollWidth>candleChart.clientWidth))throw new Error("candlestick history must scroll horizontally: "+JSON.stringify(candleChart));
     if(candleChart.times.length!==30||candleChart.times.some((time,index)=>index>0&&time<=candleChart.times[index-1]))throw new Error("candles must be valid, unique and sorted ascending: "+JSON.stringify(candleChart.times));
+    const chartOverlays=await page.evaluate(()=>({bars:document.querySelectorAll("#kg-chart .kg-volume-bar").length,currentLine:document.querySelectorAll("#kg-chart .kg-current-price-line").length,candles:document.querySelectorAll("#kg-chart rect[data-time]").length,volumeCount:document.querySelector("#kg-chart")?.dataset.volumeCount,firstVolume:document.querySelector("#kg-chart")?.dataset.firstVolume,mockVolumes:window.__mockCandleVolumes,chartHtml:document.querySelector("#kg-chart")?.innerHTML.slice(-900)}));
+    if(chartOverlays.bars!==30||chartOverlays.currentLine!==1)throw new Error("chart must show volume bars and a current price guide: "+JSON.stringify(chartOverlays));
     await page.locator("#kg-chart").evaluate(el=>{el.scrollLeft=el.scrollWidth;});
+    const chartBox=await page.locator("#kg-chart").boundingBox();
+    await page.mouse.move(chartBox.x+chartBox.width*.52,chartBox.y+chartBox.height*.5);
+    await page.mouse.down();
+    await page.waitForTimeout(460);
+    const crosshairVisible=await page.locator(".kg-chart-crosshair").getAttribute("opacity");
+    const crosshairLabel=await page.locator(".kg-crosshair-label").textContent();
+    if(crosshairVisible!=="1"||!["O","H","L","C"].every(label=>crosshairLabel.includes(label)))throw new Error("Long-press chart crosshair must show OHLC: "+JSON.stringify({crosshairVisible,crosshairLabel}));
+    await page.mouse.up();
     const axisLabels=await page.locator("#kg-chart svg text").evaluateAll(nodes=>{const svg=nodes[0]?.ownerSVGElement;const width=Number(svg?.getAttribute("viewBox")?.split(" ")[2]||0);return nodes.filter(node=>Number(node.getAttribute("x"))>width-61).map(node=>{const r=node.getBoundingClientRect();return {text:node.textContent,left:r.left,right:r.right};});});
     const chartBounds=await page.locator("#kg-chart").evaluate(el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right};});
     if(axisLabels.some(label=>label.left<chartBounds.left-1||label.right>chartBounds.right+1))throw new Error("Right price-axis labels must remain fully visible at "+device.width+"px: "+JSON.stringify({axisLabels,chartBounds}));
@@ -284,19 +300,16 @@ try{
     await page.waitForTimeout(250);
     if(await page.evaluate(()=>window.__candleCalls)!==pausedCandleCalls)throw new Error("candlestick polling must pause while the ticket screen is open");
     if(!(await page.evaluate(()=>document.activeElement?.id==="kg-ticket-margin")))throw new Error("ticket amount input should autofocus during the user gesture");
-    await page.locator("#kg-ticket-autoclose").click();
-    if(await page.locator("#kg-ticket-autoclose").getAttribute("aria-pressed")!=="true")throw new Error("auto-close toggle must enable");
-    if(!(await page.locator("#kg-ticket-autoclose-fields").isVisible()))throw new Error("auto-close target fields must be visible");
-    await page.locator("#kg-ticket-tp").fill("5");
-    await page.locator("#kg-ticket-sl").fill("2");
+    if(await page.locator("#kg-ticket-autoclose,#kg-ticket-autoclose-fields,#kg-ticket-tp,#kg-ticket-sl").count())throw new Error("Unverified TP/SL controls must not be exposed before API contract support");
+    if(!(await page.locator(".kg-ticket-risk-note").innerText()).includes("TP/SL"))throw new Error("Ticket must explain why TP/SL controls are unavailable");
     await page.locator("#kg-ticket-max").click();
     await page.waitForFunction(()=>document.querySelector("#kg-ticket-margin")?.value==="50");
     await page.waitForFunction(()=>document.querySelector("#kg-ticket-check")?.disabled===false);
     if(await page.locator("#kg-ticket-margin").inputValue()!=="50")throw new Error("Max must use the server-approved margin cap, not the full demo balance");
     const volumeText=await page.locator("#kg-ticket-volume").innerText();
     if(!volumeText.startsWith("Объём: $"))throw new Error("ticket volume label should appear exactly once: "+volumeText);
-    const autoClosePreview=await page.locator("#kg-ticket-preview").innerText();
-    if(!autoClosePreview.includes("TP $")||!autoClosePreview.includes("SL $"))throw new Error("auto-close targets must appear in ticket preview: "+autoClosePreview);
+    const feePreview=await page.locator("#kg-ticket-preview").innerText();
+    if(!feePreview.includes("Комиссия открытия")||!feePreview.includes("Комиссия закрытия"))throw new Error("Supported open/close fees must appear in ticket preview: "+feePreview);
     await page.screenshot({path:`clean-ticket-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-ticket-leverage").click();
     await page.waitForSelector("#kg-leverage-screen:not([hidden])");
@@ -307,8 +320,8 @@ try{
     await page.waitForSelector("#kg-confirm-screen:not([hidden])");
     await page.screenshot({path:`clean-confirm-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-trade-confirm").click();
-    const submittedAutoClose=await page.evaluate(()=>window.__lastTradeOpen);
-    if(Math.abs(Number(submittedAutoClose?.takeProfitUsd)-91240.5*1.05)>0.02||Math.abs(Number(submittedAutoClose?.stopLossUsd)-91240.5*.98)>0.02)throw new Error("DEMO trade must receive the configured TP/SL prices: "+JSON.stringify(submittedAutoClose));
+    const submittedTrade=await page.evaluate(()=>window.__lastTradeOpen);
+    if("takeProfitUsd" in (submittedTrade||{})||"stopLossUsd" in (submittedTrade||{}))throw new Error("Unverified TP/SL fields must not be sent to the trade API: "+JSON.stringify(submittedTrade));
     await page.waitForSelector("#kg-asset-screen:not([hidden])");
     const candleCallsBeforeResume=await page.evaluate(()=>window.__candleCalls);
     await page.waitForFunction(previous=>window.__candleCalls>previous,candleCallsBeforeResume,{timeout:3000});
@@ -318,6 +331,8 @@ try{
     const missingPnl=page.locator(".kg-position-pnl").first();
     if((await missingPnl.innerText()).trim()!=="—")throw new Error("missing position PnL must render as an em dash");
     if(!(await missingPnl.evaluate(el=>el.classList.contains("kg-muted"))))throw new Error("missing position PnL must use neutral styling");
+    await page.locator("#kg-income-tabs [data-income-tab=history]").click();
+    if(!(await page.locator("#kg-income-history-panel").isVisible())||await page.locator("#kg-income-open-panel").isVisible())throw new Error("income tabs must switch between open positions and history");
     await page.screenshot({path:`clean-income-history-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator('#kg-nav button[data-screen="companion"]').click();
     await page.waitForSelector("#kg-companion-screen.is-active");
@@ -389,9 +404,25 @@ try{
     await page.screenshot({path:`clean-companion-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-ai-menu-open").click();
     await page.waitForSelector("#kg-ai-menu.is-open");
+    const historySearch=page.locator("#kg-ai-history-search");
+    await historySearch.fill("Проверь");
+    if(await page.locator("#kg-ai-history [data-ai-conversation]").count()!==1)throw new Error("AI history search should match conversation titles");
+    await historySearch.fill("несуществующий диалог");
+    if(await page.locator("#kg-ai-history [data-ai-conversation]").count()!==0)throw new Error("AI history search should show no results for unmatched text");
+    await historySearch.fill("");
     await page.locator("#kg-ai-history [data-ai-delete]").first().click();
     await page.waitForFunction(()=>document.querySelectorAll("#kg-ai-history [data-ai-conversation]").length===0);
     if(!(await page.locator("#kg-ai-messages").innerText()).includes("Привет! Я Kripto Guru AI."))throw new Error("deleting the active AI conversation should reset the chat view");
+    const backBefore=await page.evaluate(()=>({handler:typeof window.Telegram.WebApp.BackButton.handler,visible:window.Telegram.WebApp.BackButton.isVisible,calls:{...window.Telegram.WebApp.BackButton.calls},onClickType:typeof window.Telegram.WebApp.BackButton.onClick,profileHidden:document.querySelector("#kg-profile-sheet").hidden,menuOpen:document.querySelector("#kg-ai-menu").classList.contains("is-open")}));
+    await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
+    const backAfter=await page.evaluate(()=>({handler:typeof window.Telegram.WebApp.BackButton.handler,visible:window.Telegram.WebApp.BackButton.isVisible,calls:{...window.Telegram.WebApp.BackButton.calls},onClickType:typeof window.Telegram.WebApp.BackButton.onClick,profileHidden:document.querySelector("#kg-profile-sheet").hidden,menuOpen:document.querySelector("#kg-ai-menu").classList.contains("is-open")}));
+    if(backAfter.menuOpen)throw new Error("AI history drawer must close with Telegram BackButton: "+JSON.stringify({backBefore,backAfter}));
+    await page.locator("#kg-ai-menu-open").click();
+    await page.waitForSelector("#kg-ai-menu.is-open");
+    await page.locator("#kg-ai-menu-profile").click();
+    await page.waitForFunction(()=>!document.querySelector("#kg-profile-sheet").hidden);
+    await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
+    if(!await page.locator("#kg-profile-sheet").evaluate(el=>el.hidden))throw new Error("profile entry from AI drawer must use native BackButton to dismiss");
     if(pageErrors.length)throw new Error("browser errors: "+pageErrors.join("; "));
     await page.close();
   }
