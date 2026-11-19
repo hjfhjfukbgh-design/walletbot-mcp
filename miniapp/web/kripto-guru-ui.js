@@ -273,11 +273,11 @@
   function markMarketFresh(){
     marketLastUpdatedAt=Date.now();
     const label=$("#kg-market-updated");
-    if(label){label.textContent="Обновлено · "+new Date(marketLastUpdatedAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});label.classList.remove("is-stale");}
+    if(label){label.textContent="Обновлено · "+new Date(marketLastUpdatedAt).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"});label.classList.remove("is-stale");}
   }
   function markMarketStale(){
     const label=$("#kg-market-updated");
-    if(label){label.textContent=marketLastUpdatedAt?"Данные устарели · "+new Date(marketLastUpdatedAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"Нет свежих котировок";label.classList.add("is-stale");}
+    if(label){label.textContent=marketLastUpdatedAt?"Данные устарели · "+new Date(marketLastUpdatedAt).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",hourCycle:"h23"}):"Нет свежих котировок";label.classList.add("is-stale");}
   }
   function syncMarketPolling(refreshOnStart=false){
     const marketScreenActive=(state.screen==="wallet"||state.screen==="trading")&&$("#kg-asset-screen").hidden&&$("#kg-ticket-screen").hidden;
