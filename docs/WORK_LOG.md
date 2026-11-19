@@ -1032,3 +1032,11 @@
 - **QA:** workflow run `44446830367` — npm ci, node syntax, typecheck, npm test PASS; deploy job skipped. Playwright run `44446831585` PASS на 390/430 px; dark token assertions прошли для wallet, catalog и AI Companion.
 - **Визуальный review:** light wallet/catalog и dark wallet/catalog/AI screenshots проверены вручную. Dark composer требует отдельной доработки контраста; legacy leverage badge в избранном вынесен в #392.
 - **Production:** merge CSS foundation; Worker deploy не выполнялся.
+
+
+### 2026-11-19T07:51:52.928+05:00 — Team C Agents screen shell merged
+
+- **PR #370:** merged to main; merge commit `cde2785f97a01822e5deee1681c041f8d9bf1236`.
+- **Изменения:** новый `#kg-agents-screen`, Mira-inspired hero hooks, честные empty states для агентов и стратегий, явный дисклеймер paper-only/no LIVE access. Нет выдуманных агентов, PnL или Create button без backend.
+- **QA:** run `44445709817` — typecheck/tests PASS; run `44445709830` — Playwright screenshot/contract PASS на 390/430 px. PR head перед merge `0a55959a40c377cb3f31e617f754e363dcdcf8be`.
+- **Ограничение:** экран пока не доступен из nav до A follow-ups #379/#380; hero styling ожидает CSS integration.
