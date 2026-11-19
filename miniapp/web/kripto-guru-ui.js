@@ -846,7 +846,7 @@
     if(state.productMode!=="ai")return notify("Сначала выберите AI Trading · PAPER.");
     const input=$("#kg-ai-paper-amount"),note=$("#kg-ai-paper-transfer-note");
     const amountUsd=String(input?.value??"").trim();
-    if(!/^(?:\\d+)(?:\\.\\d{1,2})?$/.test(amountUsd)||Number(amountUsd)<=0){if(note)note.textContent="Введите сумму больше нуля, максимум два знака после запятой.";return;}
+    if(!/^(?:\d+)(?:\.\d{1,2})?$/.test(amountUsd)||Number(amountUsd)<=0){if(note)note.textContent="Введите сумму больше нуля, максимум два знака после запятой.";return;}
     const keyState=state.aiPaperTransfer;
     const idempotencyKey=keyState&&keyState.kind===kind&&keyState.amountUsd===amountUsd?keyState.key:(crypto.randomUUID?crypto.randomUUID():"kg-"+Date.now()+"-"+Math.random().toString(36).slice(2));
     state.aiPaperTransfer={kind,amountUsd,key:idempotencyKey};
