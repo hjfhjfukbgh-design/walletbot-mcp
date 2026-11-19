@@ -20,6 +20,24 @@ await new Promise(resolve=>server.listen(4173,"127.0.0.1",resolve));
 const browser=await chromium.launch({headless:true});
 const positions=[];
 const history=[];
+async function captureDarkVariant(page,name,device){
+  await page.evaluate(()=>{document.documentElement.dataset.theme="dark";});
+  const colors=await page.evaluate(()=>{
+    const root=getComputedStyle(document.documentElement);
+    const currency=document.querySelector(".kg-wallet-currency");
+    return {
+      bg:root.getPropertyValue("--kg-bg").trim().toLowerCase(),
+      card:root.getPropertyValue("--kg-card").trim().toLowerCase(),
+      body:getComputedStyle(document.body).backgroundColor,
+      surface:currency?getComputedStyle(currency).backgroundColor:null
+    };
+  });
+  if(colors.bg!=="#000000"||colors.card!=="#1c1c1e"||colors.body!=="rgb(0, 0, 0)"||colors.surface!=="rgb(28, 28, 30)"){
+    throw new Error("Dark theme token/surface mismatch: "+JSON.stringify(colors));
+  }
+  await page.screenshot({path:`clean-${name}-dark-${device.width}x${device.height}.png`,fullPage:false});
+  await page.evaluate(()=>{document.documentElement.dataset.theme="light";});
+}
 const marketData=[
   {symbol:"BTC",name:"Bitcoin",priceUsd:91240.5,change24hPct:2.42,volume24hUsd:8900000000,openInterestUsd:198750000,fundingRateHourlyPct:0.001,maxLeverage:50,takerFeePct:0.035,tradeable:true},
   {symbol:"ETH",name:"Ethereum",priceUsd:3120.2,change24hPct:-0.83,volume24hUsd:5200000000,openInterestUsd:92000000,fundingRateHourlyPct:-0.002,maxLeverage:30,takerFeePct:0.035,tradeable:true},
@@ -108,6 +126,7 @@ try{
     const walletOrder=await page.locator("#kg-wallet-screen").evaluate(el=>[...el.children].filter(x=>["kg-wallet-hero","kg-wallet-quick-actions","kg-wallet-currency"].some(id=>x.id===id||x.classList.contains(id))).slice(0,3).map(x=>x.className||x.id).join(","));
     if(!walletOrder.includes("kg-wallet-hero,kg-wallet-quick-actions,kg-wallet-currency"))throw new Error("wallet first-screen order is incorrect: "+walletOrder);
     await page.screenshot({path:`clean-wallet-${device.width}x${device.height}.png`,fullPage:false});
+    await captureDarkVariant(page,"wallet",device);
     const agentHeading=page.locator("#kg-wallet-screen .kg-section-head").filter({hasText:"Аккаунты ИИ-агента"});
     await agentHeading.evaluate(el=>el.scrollIntoView({block:"center",behavior:"instant"}));
     const agentLayout=await page.evaluate(()=>{
@@ -132,6 +151,7 @@ try{
     await page.locator('#kg-nav button[data-screen="trading"]').click();
     await page.waitForSelector("#kg-market-list .kg-market-row");
     await page.screenshot({path:`clean-catalog-${device.width}x${device.height}.png`,fullPage:false});
+    await captureDarkVariant(page,"catalog",device);
     await page.locator("#kg-search-open").click();
     await page.waitForSelector("#kg-search-filters:not([hidden])");
     const visibleSearchFilters=await page.locator("#kg-search-filters button:visible").count();
@@ -228,6 +248,7 @@ try{
     if(!(await page.locator("#kg-ai-input").isVisible()))throw new Error("AI Companion composer must be visible on the home screen");
     if(!(await page.locator("#kg-companion-screen .kg-ai-welcome").isVisible()))throw new Error("AI Companion welcome must be visible on the home screen");
     await page.screenshot({path:`clean-companion-home-${device.width}x${device.height}.png`,fullPage:false});
+    await captureDarkVariant(page,"companion-home",device);
 
     // Playwright cannot open the native iOS keyboard. Emulate the reduced app viewport
     // and draw a test-only iOS-style keyboard so the screenshot represents both states.
