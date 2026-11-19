@@ -943,3 +943,12 @@
 - **CI PR #361:** workflow run `44443477672`, job `test` завершился failure на `npm run typecheck`: TS7016 для JS-модуля без declaration file. `npm ci` и все node --check шаги прошли; `npm test` пропущен из-за fail-fast. Добавлен `miniapp/web/kripto-guru-components.d.ts` на commit `106f407407647c6822e2b3bff677669aef47c394`.
 - **Screenshot workflow:** run `44443477688`, job `screenshots` — success; он не доказывает прохождение unit tests.
 - **Ограничение:** новый CI run для declaration commit пока не вернулся через PR-filtered workflow endpoint; тестовый PASS не заявляется.
+
+
+### 2026-11-19T07:24:14.412+05:00 — CI исправления компонентной основы подтверждены
+
+- **Статус:** проверки пройдены на commit `35a6b0e05c89b7b5ff207c7a65f48cb79add2cd1`.
+- **Workflow run:** `44443954580`, job `test` — success: `npm ci`, все node --check, `npm run typecheck`, `npm test`.
+- **Исправления после предыдущего failure:** string assertions используют `.includes()`; declaration принимает неизвестный variant, чтобы runtime fallback на primary был типобезопасным.
+- **Дополнение:** создана витрина `miniapp/web/components-preview.html`; добавлены dark-theme overrides в `miniapp/web/kripto-guru-components.css` на commit `d4529c54e025052634b5bde517f2935922a5c680`. Эти последние CSS-изменения ещё требуют CI проверки.
+- **Deploy:** job `deploy` skipped; production deploy не выполнялся.
