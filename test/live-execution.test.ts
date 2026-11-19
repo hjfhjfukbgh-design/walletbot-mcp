@@ -187,6 +187,13 @@ describe("LIVE execute safety", () => {
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ ok: false, status: "unknown" });
     expect(records.get(handle)?.status).toBe("unknown");
+    const status = await callApi(e, "live/operation?handle=" + handle);
+    expect(status.status).toBe(200);
+    expect(await status.json()).toMatchObject({
+      operation: { status: "unknown", result: { reason: "position_exists_before_execute" } },
+      reconciliation: { positionDetected: true },
+    });
+    // No second lookup is allowed to falsely attribute the intervening position to our handle.
     expect(client.openPosition).toHaveBeenCalledTimes(1);
     expect(client.call).not.toHaveBeenCalled();
   });
