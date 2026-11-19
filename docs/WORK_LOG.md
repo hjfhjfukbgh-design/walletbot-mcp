@@ -1354,3 +1354,9 @@
 - **PR #433:** merged to main as `7a37927d48f0c5679d464b40ee3fe6dffff5ccfe`.
 - CI run `44527875941`: npm ci, JS syntax, typecheck and all unit tests PASS; deploy skipped. Screenshot run `44527875935`: Playwright and clean UI contract/screenshots PASS.
 - Browser contract now asserts `Обновлено · HH:mm:ss`; inspected artifact `14532506697` at 390×844 and confirmed the market list displays `Обновлено · 12:52:39` with no English AM/PM suffix.
+
+### 2026-11-19T17:54:37+05:00 — Removed inert Companion model selector
+
+- **PR #434:** merged to main as `a89e572a926086303f4111dad6fd114025fa7f60`.
+- The header now renders the single available model as a static `Kripto Guru AI` label instead of a button with a chevron that had no selection handler.
+- CI run `44528038719`: npm ci, JS syntax, typecheck and full unit tests PASS; deploy skipped. Screenshot run `44528038770`: Playwright and clean UI screenshot/contract scenarios PASS.
