@@ -172,7 +172,7 @@ describe("LIVE execute safety", () => {
     expect(client.call).toHaveBeenCalledTimes(1);
   });
 
-  it("marks an uncertain Walt response UNKNOWN and never retries the execute call", async () => {
+  it("does not execute if a position appears after preview", async () => {\n    const e = env();\n    const records = installEngine(e);\n    const handle = "e".repeat(32);\n    await tenantEnv(e, "12345").STATE.put("live:preview:12345:" + handle, JSON.stringify(previewRecord()), { expirationTtl: 120 });\n    const client = {\n      call: vi.fn(async () => ({ ok: true, orderId: "must-not-run" })),\n      openPosition: vi.fn(async () => ({ contractId: 7, raw: { side: "long", opened_at: Date.now() } })),\n    };\n    vi.mocked(bot.connectWalt).mockResolvedValue(client as any);\n\n    const response = await callApi(e, "live/execute", { method: "POST", body: JSON.stringify({ handle, confirm: true }) });\n    expect(response.status).toBe(202);\n    expect(await response.json()).toMatchObject({ ok: false, status: "unknown" });\n    expect(records.get(handle)?.status).toBe("unknown");\n    expect(client.openPosition).toHaveBeenCalledTimes(1);\n    expect(client.call).not.toHaveBeenCalled();\n  });\n  it("marks an uncertain Walt response UNKNOWN and never retries the execute call", async () => {
     const e = env();
     const records = installEngine(e);
     const handle = "b".repeat(32);
@@ -194,7 +194,8 @@ describe("LIVE execute safety", () => {
     const status = await callApi(e, "live/operation?handle=" + handle);
     expect(status.status).toBe(200);
     expect(await status.json()).toMatchObject({ operation: { status: "unknown" }, reconciliation: { positionDetected: false } });
-    expect(client.openPosition).toHaveBeenCalledTimes(1);
+    // One read immediately before execute, one read-only reconciliation after timeout.
+    expect(client.openPosition).toHaveBeenCalledTimes(2);
     expect(client.call).toHaveBeenCalledTimes(1);
   });
 });
