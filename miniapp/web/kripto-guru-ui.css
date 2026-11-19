@@ -1755,3 +1755,7 @@ html[data-theme="dark"] #kg-ai-form{background:rgba(28,28,30,.76)!important;bord
 .kg-ai-menu-profile{width:100%;min-height:48px;margin-top:14px;padding:0 15px;border:1px solid var(--kg-line);border-radius:16px;background:var(--kg-card);color:var(--kg-ink);font:inherit;font-size:13px;font-weight:700;text-align:left}
 
 .kg-agents-funding-link{width:100%;min-height:46px;margin:12px 0 2px;border:1px solid var(--kg-line);border-radius:16px;background:var(--kg-ai-soft);color:var(--kg-ink);font:inherit;font-size:12px;font-weight:750}
+
+.kg-current-price-line{stroke:var(--kg-blue);stroke-width:1;stroke-dasharray:4 3;opacity:.8}
+.kg-current-price-label{fill:var(--kg-blue);font-family:var(--kg-font);font-weight:750}
+.kg-volume-bar{shape-rendering:crispEdges}
