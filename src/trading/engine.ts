@@ -170,6 +170,41 @@ export class TradingEngine {
             ).toArray();
         return jsonResponse({ ok: true, positions: rows });
       }
+      if (request.method === "GET" && url.pathname === "/ai/paper/decisions") {
+        const userId = url.searchParams.get("userId") ?? "";
+        const limit = Number(url.searchParams.get("limit") ?? "50");
+        if (!/^\d{1,20}$/.test(userId) || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+          return Response.json({ ok: false, error: "Некорректные параметры истории AI paper решений." }, { status: 400 });
+        const rows = this.ctx.storage.sql.exec(
+          "SELECT id, tick_id, strategy_id, strategy_version, market_snapshot_hash, symbol, signal, rationale, confidence, observed_price, risk_pass, rejection_reason, position_id, created_at FROM ai_paper_decisions WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
+          userId, limit,
+        ).toArray() as Array<Record<string, unknown>>;
+        return jsonResponse({ ok: true, decisions: rows.map(row => ({
+          id: row.id, tickId: row.tick_id, strategyId: row.strategy_id, strategyVersion: row.strategy_version,
+          marketSnapshotHash: row.market_snapshot_hash, symbol: row.symbol, signal: row.signal,
+          rationale: row.rationale, confidence: row.confidence, observedPrice: row.observed_price,
+          riskPass: Number(row.risk_pass) === 1, rejectionReason: row.rejection_reason,
+          positionId: row.position_id, createdAt: row.created_at,
+        })) });
+      }
+      if (request.method === "GET" && url.pathname === "/ai/paper/positions") {
+        const userId = url.searchParams.get("userId") ?? "";
+        const status = url.searchParams.get("status") ?? "open";
+        const limit = Number(url.searchParams.get("limit") ?? "50");
+        if (!/^\d{1,20}$/.test(userId) || !["open", "closed", "all"].includes(status) ||
+            !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+          return Response.json({ ok: false, error: "Некорректные параметры AI paper позиций." }, { status: 400 });
+        const rows = status === "all"
+          ? this.ctx.storage.sql.exec(
+              "SELECT id, symbol, side, qty_units, entry_price, margin_micro, leverage, fees_micro, slippage_micro, stop_loss_price, take_profit_price, status, opened_at, closed_at, close_json FROM ai_paper_positions WHERE user_id = ? ORDER BY opened_at DESC, id DESC LIMIT ?",
+              userId, limit,
+            ).toArray()
+          : this.ctx.storage.sql.exec(
+              "SELECT id, symbol, side, qty_units, entry_price, margin_micro, leverage, fees_micro, slippage_micro, stop_loss_price, take_profit_price, status, opened_at, closed_at, close_json FROM ai_paper_positions WHERE user_id = ? AND status = ? ORDER BY opened_at DESC, id DESC LIMIT ?",
+              userId, status, limit,
+            ).toArray();
+        return jsonResponse({ ok: true, positions: rows });
+      }
       if (request.method === "GET" && url.pathname === "/account") {
         const userId = url.searchParams.get("userId") ?? "";
         if (!/^\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
@@ -217,6 +252,8 @@ export class TradingEngine {
       }
       if (request.method !== "POST") return Response.json({ ok: false, error: "Метод не поддерживается." }, { status: 405 });
       const body = await request.json() as Record<string, unknown>;
+      if (url.pathname === "/ai/paper/session/start") return this.startAiPaperSession(body);
+      if (url.pathname === "/ai/paper/session/stop") return this.stopAiPaperSession(body);
       if (url.pathname === "/ai/paper/fund") return this.fundAiPaper(body);
       if (url.pathname === "/ai/paper/withdraw") return this.withdrawAiPaper(body);
       if (url.pathname === "/ai/paper/decision") return this.recordAiPaperDecision(body);
@@ -510,6 +547,7 @@ export class TradingEngine {
     let insufficient = false;
     let openPositionExists = false;
     let invalidDecision = false;
+    let sessionInactive = false;
     let balanceAfter = 0n;
 
     this.ctx.storage.transactionSync(() => {
@@ -567,9 +605,10 @@ export class TradingEngine {
       if (existingOpen) { openPositionExists = true; return; }
 
       const account = this.ctx.storage.sql.exec(
-        "SELECT balance_micro FROM ai_paper_accounts WHERE user_id = ?", userId,
-      ).toArray()[0] as { balance_micro: string } | undefined;
+        "SELECT balance_micro, status FROM ai_paper_accounts WHERE user_id = ?", userId,
+      ).toArray()[0] as { balance_micro: string; status: string } | undefined;
       if (!account) { invalidDecision = true; return; }
+      if (account.status !== "active") { sessionInactive = true; return; }
       const before = BigInt(account.balance_micro);
       if (before < reserve) { insufficient = true; return; }
       balanceAfter = before - reserve;
@@ -595,6 +634,7 @@ export class TradingEngine {
 
     if (conflict) return Response.json({ ok: false, error: "Idempotency key уже использован с другой операцией или параметрами позиции." }, { status: 409 });
     if (invalidDecision) return Response.json({ ok: false, error: "Нет действующего одобренного AI paper решения или счёта для этой позиции." }, { status: 409 });
+    if (sessionInactive) return Response.json({ ok: false, error: "AI paper сессия остановлена. Запустите её явно перед открытием позиции." }, { status: 409 });
     if (openPositionExists) return Response.json({ ok: false, error: "Для этого инструмента уже открыта AI paper позиция." }, { status: 409 });
     if (insufficient) return Response.json({ ok: false, error: "Недостаточно средств на AI paper счёте для маржи и резервов." }, { status: 409 });
     return Response.json({ ok: true, positionId, duplicate, balanceMicro: duplicate ? undefined : balanceAfter.toString() }, { status: duplicate ? 200 : 201 });
@@ -690,6 +730,55 @@ export class TradingEngine {
       strategyVersion: account?.strategy_version ?? "1",
       openPositions: Number(openPositions?.count ?? 0),
     };
+  }
+
+  private startAiPaperSession(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    if (!/^\d{1,20}$/.test(userId))
+      return Response.json({ ok: false, error: "Не подтверждён пользователь Telegram." }, { status: 400 });
+    let notFound = false;
+    let insufficient = false;
+    const now = Date.now();
+    this.ctx.storage.transactionSync(() => {
+      const account = this.ctx.storage.sql.exec(
+        "SELECT balance_micro FROM ai_paper_accounts WHERE user_id = ?", userId,
+      ).toArray()[0] as { balance_micro: string } | undefined;
+      if (!account) { notFound = true; return; }
+      if (BigInt(account.balance_micro) <= 0n) { insufficient = true; return; }
+      this.ctx.storage.sql.exec(
+        "UPDATE ai_paper_accounts SET status = 'active', updated_at = ? WHERE user_id = ?",
+        now, userId,
+      );
+    });
+    if (notFound) return Response.json({ ok: false, error: "AI paper счёт не найден. Сначала пополните виртуальный баланс." }, { status: 404 });
+    if (insufficient) return Response.json({ ok: false, error: "Для запуска AI paper сессии нужен положительный виртуальный баланс." }, { status: 409 });
+    return Response.json({ ok: true, status: "active" });
+  }
+
+  private stopAiPaperSession(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    if (!/^\d{1,20}$/.test(userId))
+      return Response.json({ ok: false, error: "Не подтверждён пользователь Telegram." }, { status: 400 });
+    let notFound = false;
+    let openPositions = 0;
+    const now = Date.now();
+    this.ctx.storage.transactionSync(() => {
+      const account = this.ctx.storage.sql.exec(
+        "SELECT user_id FROM ai_paper_accounts WHERE user_id = ?", userId,
+      ).toArray()[0] as { user_id: string } | undefined;
+      if (!account) { notFound = true; return; }
+      this.ctx.storage.sql.exec(
+        "UPDATE ai_paper_accounts SET status = 'stopped', updated_at = ? WHERE user_id = ?",
+        now, userId,
+      );
+      const count = this.ctx.storage.sql.exec(
+        "SELECT COUNT(*) AS count FROM ai_paper_positions WHERE user_id = ? AND status = 'open'",
+        userId,
+      ).toArray()[0] as { count: number } | undefined;
+      openPositions = Number(count?.count ?? 0);
+    });
+    if (notFound) return Response.json({ ok: false, error: "AI paper счёт не найден." }, { status: 404 });
+    return Response.json({ ok: true, status: "stopped", openPositions });
   }
 
   private fundAiPaper(body: Record<string, unknown>): Response {
