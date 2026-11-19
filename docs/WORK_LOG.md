@@ -1152,3 +1152,8 @@
 - **PR #419:** merged to main; merge commit `395621b876cd08797e79d148d747312372de9e1e`.
 - **QA #419:** run `44451430606` — npm ci, JS syntax, typecheck and npm tests PASS; deploy skipped. This test-only PR did not trigger the clean UI screenshot workflow.
 - **Issue #411:** closed as completed after the read-only AI paper summary and status integration were merged (#416, #418).
+
+### 2026-11-19T08:19:00+05:00 — Profile settings islands implementation opened
+
+- **PR #420:** replaces the generic profile accordion with read-only Account & Mode, Walt Wallet, General, Trading and AI islands. Mode, Walt readiness, Telegram theme and AI paper status are rendered from existing app state; Russian language is the only static setting. No new controls or API calls.
+- **Head:** `b462b436cb068da7cfdc55e9d4c787ff1fd4cb7b`; CI and screenshot checks pending. Issue #358 remains open until acceptance checks pass.
