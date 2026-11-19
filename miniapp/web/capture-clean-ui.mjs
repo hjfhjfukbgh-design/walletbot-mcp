@@ -173,7 +173,12 @@ try{
     if(!(await page.locator("#kg-ai-paper-demo-balance").innerText()).includes("985"))throw new Error("DEMO balance did not increase after virtual withdrawal");
     await page.mouse.move(0,0);
     await page.evaluate(()=>document.activeElement?.blur());
+    await page.evaluate(()=>window.scrollTo({top:0,behavior:"instant"}));
+    await page.mouse.move(0,0);
+    await page.evaluate(()=>document.activeElement?.blur());
     await page.screenshot({path:`clean-product-mode-ai-${device.width}x${device.height}.png`,fullPage:false});
+    await page.locator("#kg-ai-paper-summary").evaluate(el=>el.scrollIntoView({block:"center",behavior:"instant"}));
+    await page.screenshot({path:`clean-ai-paper-summary-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator('[data-product-mode="demo"]').click();
     await page.waitForFunction(()=>document.querySelector('[data-product-mode="demo"]')?.classList.contains("is-active"));
     if(await page.locator('[data-product-mode="ai"]').evaluate(node=>node.classList.contains("is-active")))throw new Error("AI mode must be inactive after returning to DEMO");
