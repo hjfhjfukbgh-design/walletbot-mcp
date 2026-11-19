@@ -1246,3 +1246,9 @@
 - Reviewed actual Playwright artifact `kripto-guru-clean-ui-previews` from run `44520872698`. The AI mode screenshot exposed an error state (`aiPaper.status` unavailable) because the clean UI harness mocked `KriptoGuruAPI` without the `aiPaper` methods, even though the production facade implemented them.
 - **PR #426:** updates `miniapp/web/capture-clean-ui.mjs` with deterministic local AI paper status/funding/withdrawal fixtures. The scenario now waits for real-looking account status and tests DEMO → AI paper transfer and return, asserting both balances update. This is a test harness only; no live backend/Walt access.
 - **Head:** `bd2632e0eb7ce4d33b6b2548d57eb7a8105cc327`; screenshot run `44521760668` in progress. No merge until it passes.
+
+### 2026-11-19T17:14:16+05:00 — AI paper funding clean UI contract merged
+
+- **PR #426:** merged to main as `9fb2bf49f73622141bd09e4a92219d4770c5aacc`.
+- **Screenshot run `44521760668`:** Playwright install, syntax check and clean UI iPhone previews/contract scenarios PASS. The refreshed AI mode screenshot now shows actual fixture balances (`$115` AI paper / `$985` DEMO), 0 positions, `Остановлен`, and a successful virtual return message; no API unavailable error.
+- The clean UI harness now verifies both virtual funding directions and resulting balances on 390×844 and 430×932 viewports. All fixture transfers remain local to Playwright.
