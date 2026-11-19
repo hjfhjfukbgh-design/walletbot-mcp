@@ -89,7 +89,7 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
       case "GET live/position":
         return livePositionView(scopedEnv, url.searchParams.get("symbol") ?? "");
       case "POST product-mode":
-        return updateProductMode(scopedEnv, body);
+        return updateProductMode(scopedEnv, telegramUserId, body);
       case "POST ai/paper/session/start":
         return startAiPaperSession(scopedEnv, telegramUserId);
       case "POST ai/paper/session/stop":
@@ -820,14 +820,24 @@ async function control(env: Env, body: Json): Promise<string> {
   }
 }
 
-async function updateProductMode(env: Env, body: Json): Promise<Response> {
+async function updateProductMode(env: Env, userId: string, body: Json): Promise<Response> {
   const requested = body.productMode;
   if (requested !== "demo" && requested !== "ai" && requested !== "live")
     return fail("Режим должен быть demo, ai или live.");
   if (requested === "live")
     return fail("LIVE пока заблокирован до подтверждения полного торгового и close-контракта.", 409);
   const state = await loadState(env);
-  state.productMode = normalizeProductMode(requested);
+  const nextMode = normalizeProductMode(requested);
+  if (normalizeProductMode(state.productMode) === "ai" && nextMode !== "ai") {
+    try {
+      const stopped = await engineRequest(env, "/ai/paper/session/stop", { userId });
+      if (!stopped.ok && stopped.status !== 404)
+        return fail("Не удалось подтвердить остановку AI paper сессии. Повторите переключение режима.", 503);
+    } catch {
+      return fail("Не удалось связаться с AI paper счётом для безопасной остановки сессии.", 503);
+    }
+  }
+  state.productMode = nextMode;
   await saveState(env, state);
   return json({ ok: true, productMode: state.productMode, executionMode: state.mode });
 }
