@@ -180,6 +180,8 @@ try{
     if(!(await page.locator("#kg-product-mode-status").innerText()).includes("DEMO"))throw new Error("DEMO mode status must match the selected mode");
     await page.mouse.move(0,0);
     await page.evaluate(()=>document.activeElement?.blur());
+    const inactiveAiStyle=await page.locator('[data-product-mode="ai"]').evaluate(node=>({background:getComputedStyle(node).backgroundColor,focused:node.matches(":focus"),hovered:node.matches(":hover"),active:node.classList.contains("is-active")}));
+    if(inactiveAiStyle.active||inactiveAiStyle.background!=="rgba(0, 0, 0, 0)")throw new Error("Inactive AI mode must not look selected after returning to DEMO: "+JSON.stringify(inactiveAiStyle));
 
     if(!(await page.locator("#kg-wallet-quick-actions").isVisible()))throw new Error("wallet quick actions must be visible on the first screen");
     if(await page.locator("#kg-wallet-quick-actions button").count()!==4)throw new Error("wallet should show four reference quick actions");
