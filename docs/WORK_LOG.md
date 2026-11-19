@@ -1200,3 +1200,10 @@
 - **PR #423:** adds a second read-only Walt open-position check after the atomic handle claim and immediately before the only execute call. If a position appeared since preview, or the lookup fails, execute is not sent; operation is marked UNKNOWN for manual reconciliation.
 - **Initial CI run `44519300066`:** install, syntax and typecheck passed; unit suite had 145/146 passing. The sole failure was an old expectation that `openPosition` is called once in the timeout path; the new guard correctly adds a pre-execute read plus the existing post-timeout reconciliation read.
 - **Correction:** updated the assertion to expect both reads and added a regression test that an intervening open position prevents the Walt execute call entirely. New commit `04a25144b896969ff6a72e99a2cd943429ccbcf3`; rerun `44519528660` in progress. No Walt writes or financial actions.
+
+### 2026-11-19T16:59:44+05:00 — LIVE guard test corrections and reconciliation hardening
+
+- The first regression-test edit had literal `\\n` text and failed TypeScript parsing; corrected the test block to real line breaks.
+- Additional safety review found a false-attribution edge case: if the new pre-execute guard detects an external position, the normal UNKNOWN reconciliation could otherwise attribute that same position to the handle based only on side/time. The operation now preserves `UNKNOWN` with an explicit reason and skips automatic reconciliation for `position_exists_before_execute` / `position_check_failed`.
+- Added an API regression assertion that the intervening position remains UNKNOWN, is not re-read/marked reconciled, and `perps_execute_operation` is never called.
+- Latest PR #423 head `5f833f208554519e69c347c9e374be148c0cfebe`; CI run `44519711460` pending. No merge until typecheck, tests and screenshot checks (where applicable) pass.
