@@ -1,4 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { Miniflare } from "miniflare";
+import { build } from "esbuild";
 import { handleCompanionApi } from "../src/companion";
 import type { Env } from "../src/env";
 import { env as baseEnv, memoryQuota } from "./helpers";
@@ -468,5 +470,136 @@ describe("AI Companion API", () => {
     expect(resMalformed.status).toBe(400);
     expect(await resMalformed.json()).toMatchObject({ error: expect.stringContaining("Файл повреждён") });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("CompanionQuota Durable Object SQLite integration", () => {
+  let source = "";
+  let root = "";
+  let mf: Miniflare | undefined;
+  let objectName = "companion-quota-test-0";
+  let testSequence = 0;
+
+  beforeAll(async () => {
+    root = ".mf-companion-quota-test-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+    const bundle = await build({
+      entryPoints: ["src/companion-quota.ts"],
+      bundle: true,
+      platform: "browser",
+      format: "esm",
+      write: false,
+    });
+    source = bundle.outputFiles[0].text + "\\nexport default { fetch() { return new Response('ok'); } };";
+  });
+
+  afterAll(async () => {
+    await mf?.dispose();
+  });
+
+  beforeEach(async () => {
+    await mf?.dispose();
+    mf = undefined;
+    objectName = "companion-quota-test-" + (++testSequence);
+  });
+
+  async function boot() {
+    mf = new Miniflare({
+      workers: [{
+        config: {
+          name: "companion-quota-test",
+          compatibilityDate: "2025-06-01",
+          env: {
+            COMPANION_QUOTA: {
+              type: "durable-object",
+              worker: "companion-quota-test",
+              exportName: "CompanionQuota",
+            },
+          },
+          exports: {
+            CompanionQuota: { type: "durable-object", storage: "sqlite" },
+          },
+          manifest: {
+            mainModule: "quota.mjs",
+            modules: {
+              "quota.mjs": { type: "esm", contents: source },
+            },
+          },
+        },
+      }],
+      resourcePersistencePath: root,
+    });
+    const namespace = await mf.getDurableObjectNamespace("COMPANION_QUOTA");
+    return namespace.get(namespace.idFromName(objectName));
+  }
+
+  async function consume(stub: any, quotas: Array<{ key: string; limit: number; windowSeconds: number; sliding?: boolean }>) {
+    const response = await stub.fetch("https://quota.test/consume", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quotas }),
+    });
+    return { status: response.status, body: await response.json() as Record<string, any> };
+  }
+
+  it("enforces sliding-window limits under concurrent requests", async () => {
+    const stub = await boot();
+    const results = await Promise.all(Array.from({ length: 8 }, () => consume(stub, [
+      { key: "rate:111", limit: 3, windowSeconds: 60, sliding: true },
+    ])));
+
+    expect(results.filter(result => result.status === 200)).toHaveLength(3);
+    expect(results.filter(result => result.status === 429)).toHaveLength(5);
+    expect(results.filter(result => result.body.ok === true)).toHaveLength(3);
+  });
+
+  it("reserves multiple quotas atomically when the global research limit is exhausted", async () => {
+    const stub = await boot();
+    const globalResearch = { key: "research:global:2026-11-20", limit: 1, windowSeconds: 172800 };
+    const first = await consume(stub, [
+      { key: "rate:111", limit: 2, windowSeconds: 60, sliding: true },
+      globalResearch,
+    ]);
+    expect(first.status).toBe(200);
+
+    const rejected = await consume(stub, [
+      { key: "rate:222", limit: 2, windowSeconds: 60, sliding: true },
+      globalResearch,
+    ]);
+    expect(rejected.status).toBe(429);
+    expect(rejected.body).toMatchObject({ ok: false, allowed: false });
+
+    // A rejected multi-quota request must not spend the user's independent message quota.
+    const userTwoFirst = await consume(stub, [{ key: "rate:222", limit: 2, windowSeconds: 60, sliding: true }]);
+    const userTwoSecond = await consume(stub, [{ key: "rate:222", limit: 2, windowSeconds: 60, sliding: true }]);
+    const userTwoThird = await consume(stub, [{ key: "rate:222", limit: 2, windowSeconds: 60, sliding: true }]);
+    expect(userTwoFirst.status).toBe(200);
+    expect(userTwoSecond.status).toBe(200);
+    expect(userTwoThird.status).toBe(429);
+  });
+
+  it("keeps independent user sliding-window keys separate", async () => {
+    const stub = await boot();
+    const userOne = await consume(stub, [{ key: "rate:111", limit: 1, windowSeconds: 60, sliding: true }]);
+    const userTwo = await consume(stub, [{ key: "rate:222", limit: 1, windowSeconds: 60, sliding: true }]);
+    const userOneAgain = await consume(stub, [{ key: "rate:111", limit: 1, windowSeconds: 60, sliding: true }]);
+
+    expect(userOne.status).toBe(200);
+    expect(userTwo.status).toBe(200);
+    expect(userOneAgain.status).toBe(429);
+  });
+
+  it("rejects duplicate quota keys without consuming any quota", async () => {
+    const stub = await boot();
+    const invalid = await consume(stub, [
+      { key: "rate:111", limit: 2, windowSeconds: 60, sliding: true },
+      { key: "rate:111", limit: 2, windowSeconds: 60, sliding: true },
+    ]);
+    expect(invalid.status).toBe(400);
+
+    const first = await consume(stub, [{ key: "rate:111", limit: 1, windowSeconds: 60, sliding: true }]);
+    const second = await consume(stub, [{ key: "rate:111", limit: 1, windowSeconds: 60, sliding: true }]);
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(429);
   });
 });
