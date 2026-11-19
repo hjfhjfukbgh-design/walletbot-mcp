@@ -338,6 +338,7 @@
   async function loadCapabilities(){
     try{
       state.capabilities=unwrap(await invoke("capabilities.get"),"capabilities");
+      renderProfileSettings();
       const c=state.capabilities;
       if(c.bonuses?.available===true) $("#kg-bonus-reason").textContent="Программа бонусов доступна.";
       if(c.live?.available!==true) $(".kg-settings-note").textContent="Режим: ДЕМО. LIVE заблокирован.";
@@ -738,6 +739,23 @@
     }catch(error){notify(normalizeError(error).message);}
     finally{state.companionBusy=false;$("#kg-ai-send").disabled=false;input.disabled=false;input.focus();}
   }
+  function renderProfileSettings(){
+    const mode=$("#kg-profile-mode");
+    if(mode)mode.textContent=state.productMode==="ai"?"AI Trading · PAPER":"DEMO";
+    const wallet=$("#kg-profile-wallet-status");
+    const live=state.capabilities?.live;
+    if(wallet){
+      if(live?.available===true)wallet.textContent="Подключён и готов";
+      else if(live?.status?.connected===true)wallet.textContent="Подключён · проверка не пройдена";
+      else if(live?.status?.connected===false)wallet.textContent="Не подключён";
+      else wallet.textContent="Нет подтверждённых данных";
+    }
+    const theme=$("#kg-profile-theme");
+    if(theme)theme.textContent=tg?.colorScheme==="dark"?"Тёмная":tg?.colorScheme==="light"?"Светлая":"По теме Telegram";
+    const ai=$("#kg-profile-ai-status");
+    const labels={stopped:"Остановлен",running:"Работает",paused:"Приостановлен"};
+    if(ai)ai.textContent=labels[state.aiPaper?.status]||"Нет данных";
+  }
   function openProfile(){
     const user=tg?.initDataUnsafe?.user||{};
     const first=typeof user.first_name==="string"?user.first_name.trim():"";
@@ -745,6 +763,7 @@
     const name=[first,last].filter(Boolean).join(" ")||"Профиль Kripto Guru";
     const username=typeof user.username==="string"?user.username.trim():"";
     $("#kg-profile-name").textContent=name;
+    renderProfileSettings();
     $("#kg-profile-username").textContent=username?"@"+username:"";
     $("#kg-profile-username").hidden=!username;
     const avatar=$("#kg-profile-avatar");
@@ -782,6 +801,7 @@
       button.setAttribute("aria-pressed",String(selected));
     });
     $("#kg-product-mode-status").textContent=descriptions[state.productMode]||descriptions.demo;
+    renderProfileSettings();
     const paperSummary=$("#kg-ai-paper-summary");
     if(paperSummary)paperSummary.hidden=state.productMode!=="ai";
   }
@@ -794,6 +814,7 @@
     try{
       const data=await invoke("aiPaper.status");
       state.aiPaper=data;
+      renderProfileSettings();
       $("#kg-ai-paper-balance").textContent=data.balanceUsd==null?"—":money(data.balanceUsd);
       $("#kg-ai-paper-demo-balance").textContent=data.demoBalanceUsd==null?"—":money(data.demoBalanceUsd);
       $("#kg-ai-paper-positions").textContent=Number.isSafeInteger(data.openPositions)?String(data.openPositions):"—";
