@@ -782,6 +782,8 @@
       button.setAttribute("aria-pressed",String(selected));
     });
     $("#kg-product-mode-status").textContent=descriptions[state.productMode]||descriptions.demo;
+    const paperSummary=$("#kg-ai-paper-summary");
+    if(paperSummary)paperSummary.hidden=state.productMode!=="ai";
   }
   async function loadProductMode(){
     try{
