@@ -1207,3 +1207,11 @@
 - Additional safety review found a false-attribution edge case: if the new pre-execute guard detects an external position, the normal UNKNOWN reconciliation could otherwise attribute that same position to the handle based only on side/time. The operation now preserves `UNKNOWN` with an explicit reason and skips automatic reconciliation for `position_exists_before_execute` / `position_check_failed`.
 - Added an API regression assertion that the intervening position remains UNKNOWN, is not re-read/marked reconciled, and `perps_execute_operation` is never called.
 - Latest PR #423 head `5f833f208554519e69c347c9e374be148c0cfebe`; CI run `44519711460` pending. No merge until typecheck, tests and screenshot checks (where applicable) pass.
+
+### 2026-11-19T17:00:52+05:00 — LIVE pre-execute guard merged
+
+- **PR #423:** merged to main as `64fc27a3c8d3566978621912b1cad6e43efc6b20`.
+- **CI run `44519834372`:** npm ci, all frontend JS syntax checks, `npm run typecheck`, and `npm test` passed. Deploy job skipped.
+- **Safety:** execute route rechecks the contract's open position after atomic claim and immediately before the one Walt execute call. Existing position or lookup failure means no execute and UNKNOWN. UNKNOWN from this pre-execute guard is excluded from automatic attribution/reconciliation.
+- **Regression coverage:** intervening position, pre-execute lookup failure, timeout UNKNOWN/no retry. Security review issue #277 updated with the remaining limitation: Walt close contract still NOT VERIFIED, so LIVE remains blocked.
+- **No real Walt writes, orders, closes, transfers or account mutations.**
