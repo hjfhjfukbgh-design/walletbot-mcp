@@ -481,7 +481,7 @@
     const marks = data.map((c, i) => {
       const x = i * step + step / 2;
       const up = c.close >= c.open;
-      const color = up ? "#20a96f" : "#e35562";
+      const color = up ? "#3E86F0" : "#8E8E93";
       const yt = y(Math.max(c.open, c.close));
       const yb = y(Math.min(c.open, c.close));
       const bodyHeight = Math.max(1, yb - yt);
