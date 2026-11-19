@@ -759,7 +759,8 @@
     const labelOf=date=>!date?"Без даты":keyOf(date)===keyOf(today)?"Сегодня":keyOf(date)===keyOf(yesterday)?"Вчера":date.toLocaleDateString("ru-RU",{day:"numeric",month:"long"});
     const renderItem=item=>`<div class="kg-ai-history-entry"><button type="button" class="kg-ai-history-item ${item.id===state.companionId?"is-selected":""}" data-ai-conversation="${esc(item.id)}"><span>${esc(item.title||"Новый диалог")}</span><small>${Number(item.messageCount)||0}</small></button><button type="button" class="kg-ai-history-delete" data-ai-delete="${esc(item.id)}" aria-label="Удалить диалог: ${esc(item.title||"Новый диалог")}" title="Удалить диалог">×</button></div>`;
     root.innerHTML=items.length?[...groups.values()].map(group=>`<section class="kg-ai-history-group"><h4>${labelOf(group.date)}</h4>${group.items.map(renderItem).join("")}</section>`).join(""):(query?'<div class="kg-ai-history-empty">Ничего не найдено.</div>':'<div class="kg-ai-history-empty">Здесь появятся ваши диалоги. Начните новый чат, чтобы сохранить историю.</div>');
-    if(tg?.BackButton&&$("#kg-ai-menu").classList.contains("is-open")){tg.BackButton.offClick?.(handleNativeBack);tg.BackButton.show();tg.BackButton.onClick(handleNativeBack);}
+    const backButton=window.Telegram?.WebApp?.BackButton||tg?.BackButton;
+    if(backButton&&$("#kg-ai-menu").classList.contains("is-open")){backButton.offClick?.(handleNativeBack);backButton.show();backButton.onClick(handleNativeBack);}
   }
   async function deleteCompanionConversation(id){
     if(!id||state.companionBusy)return;
@@ -801,7 +802,8 @@
     menu.inert=!open;
     backdrop.hidden=!open;
     trigger.setAttribute("aria-expanded",String(open));
-    if(tg?.BackButton){tg.BackButton.offClick?.(handleNativeBack);if(open){tg.BackButton.show();tg.BackButton.onClick(handleNativeBack);}else if($("#kg-companion-screen").classList.contains("is-active"))tg.BackButton.hide();}
+    const backButton=window.Telegram?.WebApp?.BackButton||tg?.BackButton;
+    if(backButton){backButton.offClick?.(handleNativeBack);if(open){backButton.show();backButton.onClick(handleNativeBack);}else if($("#kg-companion-screen").classList.contains("is-active"))backButton.hide();}
   }
   function renderCompanionLimits(){
     const root=$("#kg-ai-limits-content"),limits=state.companionLimits;
