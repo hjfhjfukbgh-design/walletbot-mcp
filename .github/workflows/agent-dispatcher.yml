@@ -1,6 +1,6 @@
 name: Kripto Guru — continuous agent dispatcher
 # Keep scheduled queue active; push on this file triggers an immediate dispatch pass.
-# Queue pass: prioritize the Companion conversation serialization ADR.
+# Queue pass: drain the prioritized product queue; max three workers per pass.
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
       - '.github/workflows/agent-dispatcher.yml'
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
