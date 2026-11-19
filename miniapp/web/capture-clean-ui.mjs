@@ -35,7 +35,8 @@ async function captureDarkVariant(page,name,device){
   const composerBackground=await page.evaluate(()=>getComputedStyle(document.querySelector("#kg-ai-form")).backgroundColor);
   const composerChannels=composerBackground.match(/[0-9.]+/g)?.slice(0,3).map(Number)||[];
   if(composerChannels.length!==3||composerChannels.reduce((sum,value)=>sum+value,0)/3>90){
-    throw new Error("Dark theme Companion composer must use a dark surface: "+composerBackground);
+    const debug=await page.evaluate(()=>({theme:document.documentElement.dataset.theme,preference:document.documentElement.dataset.themePreference,saved:localStorage.getItem("kg:theme:v1"),glass:getComputedStyle(document.documentElement).getPropertyValue("--kg-glass"),composer:getComputedStyle(document.querySelector("#kg-ai-form")).backgroundColor,darkSelector:!!document.querySelector('html[data-theme="dark"]')}));
+    throw new Error("Dark theme Companion composer must use a dark surface: "+composerBackground+" debug="+JSON.stringify(debug));
   }
   if(colors.bg!=="#000000"||colors.card!=="#1c1c1e"||colors.body!=="rgb(0, 0, 0)"||colors.surface!=="rgb(28, 28, 30)"){
     throw new Error("Dark theme token/surface mismatch: "+JSON.stringify(colors));
