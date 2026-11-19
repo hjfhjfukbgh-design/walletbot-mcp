@@ -257,6 +257,11 @@ jobs:
           }
           if (!patch) throw new Error("Patch generation failed: " + lastError);
           patch = patch.replace(/^\x60\x60\x60(?:css|diff)?\s*/, "").replace(/\s*\x60\x60\x60$/, "").trim();
+          // Gemini sometimes omits conventional a/ and b/ prefixes. Normalize only
+          // the file headers; explicit path allowlisting and git apply --check remain mandatory.
+          patch = patch
+            .replace(/^--- (?!a\\/)([^\\r\\n]+)$/m, "--- a/$1")
+            .replace(/^\\+\\+\\+ (?!b\\/)([^\\r\\n]+)$/m, "+++ b/$1");
           if (/^NO_SAFE_PATCH(?:\\s*:|$)/i.test(patch)) {
             const reason = patch.replace(/^NO_SAFE_PATCH\\s*: ?/i, "").trim();
             fs.writeFileSync("/tmp/worker-mode.txt", "no-safe-patch");
