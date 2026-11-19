@@ -1175,3 +1175,8 @@
 - **PR #421:** merged to main; merge commit `7862821bcbfae95630e4c0c704f296d14676cabc`.
 - **QA #421:** run `44451869392` — npm ci, JS syntax, typecheck and tests PASS; deploy skipped. Run `44451869025` — clean UI Playwright screenshot/contract scenarios PASS.
 - **PR #422:** added read-only AI paper account overview to Agents screen, loading authenticated status on tab open even when product mode is DEMO. No strategy start or account writes. Head `e65f944f91a4925ff17f088d3f1d8958dd1299a4`; CI pending.
+
+### 2026-11-19T08:19:00+05:00 — Completed UI source issues closed
+
+- **Issue #379:** closed as completed after PR #406 merged the Agents bottom navigation.
+- **Issue #409:** closed as completed after PR #415 merged the Agents hero styling.
