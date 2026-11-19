@@ -8,11 +8,11 @@
   <link rel="stylesheet" href="./kripto-guru-components.css">
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 24px 16px 48px; background: #efeff4; color: #0b0b0f; font: 15px/1.45 -apple-system,BlinkMacSystemFont,"Inter",sans-serif; }
+    body { margin: 0; padding: 24px 16px 48px; background: #efeff4; color: #0b0b0f; font: 15px/1.45 -apple-system,BlinkMacSystemFont,"Inter",sans-serif; }\n    html[data-theme="dark"] body { background: #000; color: #f5f5f7; }\n    html[data-theme="light"] body { background: #efeff4; color: #0b0b0f; }
     main { width: min(100%, 720px); margin: 0 auto; }
     h1 { margin: 0 0 4px; font-size: 28px; letter-spacing: -.04em; }
     .lead,.section-note { color: #8e8e93; }
-    .section { margin-top: 28px; }
+    .section { margin-top: 28px; }\n    .theme-switch { display:flex; gap:6px; margin:14px 0 22px; padding:4px; width:max-content; border-radius:999px; background:#e2e2e8; }\n    .theme-switch button { min-height:40px; padding:8px 14px; border:0; border-radius:999px; background:transparent; color:#60606a; font:600 13px -apple-system,sans-serif; }\n    .theme-switch button[aria-pressed="true"] { background:#fff; color:#0b0b0f; box-shadow:0 1px 3px rgb(0 0 0 / .1); }\n    html[data-theme="dark"] .theme-switch { background:#2c2c2e; }\n    html[data-theme="dark"] .theme-switch button { color:#aaa; }\n    html[data-theme="dark"] .theme-switch button[aria-pressed="true"] { background:#48484a; color:#fff; }
     .section h2 { margin: 0 0 10px; font-size: 18px; }
     .demo-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
     .actions { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
@@ -30,7 +30,7 @@
   <header>
     <p class="lead">KRIPTO GURU · UI FOUNDATION</p>
     <h1>Витрина компонентов</h1>
-    <p class="lead">Изолированная страница проверки состояний. Все суммы и значения здесь демонстрационные, не рыночные данные.</p>
+    <p class="lead">Изолированная страница проверки состояний. Все суммы и значения здесь демонстрационные, не рыночные данные.</p>\n    <div class="theme-switch" role="group" aria-label="Тема"><button type="button" data-theme-choice="light" aria-pressed="false">Светлая</button><button type="button" data-theme-choice="dark" aria-pressed="false">Тёмная</button><button type="button" data-theme-choice="auto" aria-pressed="true">Авто</button></div>
   </header>
 
   <section class="section">
@@ -71,7 +71,7 @@
 </main>
 <script type="module">
   import "./kripto-guru-components.js";
-  const ui = window.KGDesign;
+  const ui = window.KGDesign;\n  const root = document.querySelector(".kg-ui-primitives");\n  document.querySelectorAll("[data-theme-choice]").forEach(button => button.addEventListener("click", () => {\n    const theme = button.dataset.themeChoice;\n    document.documentElement.dataset.theme = theme === "auto" ? "" : theme;\n    root.dataset.theme = theme;\n    document.querySelectorAll("[data-theme-choice]").forEach(item => item.setAttribute("aria-pressed", String(item === button)));\n  }));
   document.querySelector("#modes").innerHTML = ["demo","live","ai"].map(mode => ui.modeBadgeMarkup(mode)).join("");
   document.querySelector("#actions").innerHTML = [
     ui.actionTileMarkup({label:"Перевод",icon:"⇄",action:"demo-transfer"}),
