@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "*/5 * * * *"
+  issues:
+    types: [labeled]
 
 permissions:
   contents: write
@@ -12,6 +14,7 @@ permissions:
 
 jobs:
   dispatch-one-task:
+    if: github.event_name != 'issues' || github.event.label.name == 'orchestrator-ready' || github.event.label.name == 'agent-ready'
     name: Dispatch one ready issue
     outputs:
       status: ${{ steps.packet.outputs.status }}
