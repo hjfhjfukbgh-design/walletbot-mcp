@@ -1727,3 +1727,6 @@ html[data-theme="dark"] .kg-glass-surface{background:rgba(28,28,30,.76);border-c
 .kg-wallet-position-row .kg-wallet-row-value{font-size:12px}
 
 html[data-theme="dark"] #kg-ai-form{background:rgba(28,28,30,.76)!important;border-color:rgba(255,255,255,.10)!important;box-shadow:0 10px 36px rgba(0,0,0,.36)!important}
+
+.kg-wallet-portfolio{display:grid;place-items:center;background:linear-gradient(140deg,#7B61FF,#3E86F0);border:0;color:#fff;box-shadow:0 6px 18px rgba(82,99,230,.22)}
+.kg-wallet-portfolio svg{width:21px;height:21px;fill:currentColor;stroke:none}
