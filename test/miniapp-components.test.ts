@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  actionTileMarkup, buttonMarkup, emptyStateMarkup, islandMarkup, listRowMarkup,
-  modeBadgeMarkup, pnlChipMarkup, segmentedMarkup, skeletonMarkup,
+  actionTileMarkup, bottomSheetMarkup, buttonMarkup, emptyStateMarkup, errorBannerMarkup,
+  floatingTabBarMarkup, heatmapTileMarkup, islandMarkup, listRowMarkup, modeBadgeMarkup,
+  pnlChipMarkup, segmentedMarkup, settingsRowMarkup, skeletonMarkup, sparklineMarkup,
+  toastMarkup,
 } from "../miniapp/web/kripto-guru-components.js";
 
 describe("Kripto Guru UI primitives", () => {
@@ -59,6 +61,37 @@ describe("Kripto Guru UI primitives", () => {
     expect(html).toContain("<button");
     expect(html).toContain("disabled");
     expect(html).toContain('aria-disabled="true"');
+  });
+
+  it("renders settings rows with escaped labels and values", () => {
+    const html = settingsRowMarkup({ title: "<Account>", value: "—", icon: "A", iconColor: "#3e86f0", action: "settings" });
+    expect(html).toContain("&lt;Account&gt;");
+    expect(html).toContain('aria-disabled="false"');
+    expect(html).toContain("--kg-settings-icon-color:#3e86f0");
+  });
+
+  it("renders a fixed-size sparkline or an honest empty value", () => {
+    expect(sparklineMarkup([1, 2, 3])).toContain('width="56" height="24"');
+    expect(sparklineMarkup([])).toContain("—");
+  });
+
+  it("does not invent heatmap change or volume when data is missing", () => {
+    const html = heatmapTileMarkup({ symbol: "BTC" });
+    expect(html).toContain("<span>—</span>");
+    expect(html).toContain("<small>—</small>");
+    expect(html).toContain('data-volume=""');
+  });
+
+  it("marks hidden bottom sheets and current navigation tab accessibly", () => {
+    expect(bottomSheetMarkup("<p>trusted</p>", { title: "Форма" })).toContain(" hidden");
+    const nav = floatingTabBarMarkup([{ value: "wallet", label: "Кошелёк", icon: "◉" }], "wallet");
+    expect(nav).toContain('aria-current="page"');
+  });
+
+  it("escapes feedback text and only renders retry action when supplied", () => {
+    expect(toastMarkup("<bad>")).toContain("&lt;bad&gt;");
+    expect(errorBannerMarkup("Ошибка <x>", { action: "retry" })).toContain('data-action="retry"');
+    expect(errorBannerMarkup("Ошибка")).not.toContain("<button");
   });
 
 });
