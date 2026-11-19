@@ -32,7 +32,7 @@ export function islandMarkup(content, { className = "", label = "" } = {}) {
 export function listRowMarkup({ title, subtitle = "", value = "", icon = "", action = "", disabled = false } = {}) {
   const tag = action ? "button" : "div";
   const actionAttr = tag === "button" ? ` type="button" data-action="${escapeHTML(action)}"` : "";
-  const disabledAttr = disabled && tag === "button" ? " disabled aria-disabled=\"true\"" : "";
+  const disabledAttr = disabled ? (tag === "button" ? " disabled aria-disabled=\"true\"" : " aria-disabled=\"true\"") : "";
   const iconMarkup = icon ? `<span class="kg-list-row__icon" aria-hidden="true">${escapeHTML(icon)}</span>` : "";
   const subtitleMarkup = subtitle ? `<span class="kg-list-row__subtitle">${escapeHTML(subtitle)}</span>` : "";
   const valueMarkup = value !== "" ? `<span class="kg-list-row__value">${escapeHTML(value)}</span>` : "";
