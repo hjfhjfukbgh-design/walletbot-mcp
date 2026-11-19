@@ -158,17 +158,24 @@ jobs:
               if (report) break;
             }
             if (!report) throw new Error("Role analysis failed: " + lastError);
-            // Preserve the evidence gate while preventing an overconfident model verdict from blocking the whole report.
+            // Preserve the evidence gate, but inspect only the verdict field—not PASS words in the evidence table.
             const hasUnverifiedEvidence = /NOT VERIFIED|NOT RUN|НЕ ПРОВЕРЕНО|НЕ ЗАПУСКАЛ/i.test(report);
-            if (hasUnverifiedEvidence && /Вердикт[\s\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report)) {
-              report = report.replace(/(Вердикт[^\n]{0,160})(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/gi, "$1PARTIAL — есть непроверенные пункты");
-              if (/Вердикт[\s\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report)) {
-                report += "\n\nВердикт: PARTIAL — обязательные проверки не завершены; пункты NOT VERIFIED не считаются пройденными.";
-              }
+            const readVerdict = text => {
+              const match = text.match(/^\\s*(?:Общий\\s+)?Вердикт\\s*[:：]\\s*([^\\r\\n]*)/im);
+              return match ? { full: match[0], value: match[1] } : null;
+            };
+            let verdict = readVerdict(report);
+            if (hasUnverifiedEvidence && verdict && /\\b(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)\\b/i.test(verdict.value)) {
+              report = report.replace(verdict.full, verdict.full.replace(/\\b(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)\\b/i, "PARTIAL — есть непроверенные пункты"));
+              verdict = readVerdict(report);
             }
-            const missingScopeRows = scopeItems.map((_,index) => "S" + (index+1)).filter(id => !new RegExp("\\|\\s*\\[" + id + "\\]\\s*\\|").test(report));
+            if (hasUnverifiedEvidence && !verdict) {
+              report += "\\n\\nВердикт: PARTIAL — обязательные проверки не завершены; пункты NOT VERIFIED не считаются пройденными.";
+              verdict = readVerdict(report);
+            }
+            const missingScopeRows = scopeItems.map((_,index) => "S" + (index+1)).filter(id => !new RegExp("\\\\|\\\\s*\\\\[" + id + "\\\\]\\\\s*\\\\|").test(report));
             if (missingScopeRows.length) throw new Error("Analysis report omitted mandatory scope rows: " + missingScopeRows.join(", "));
-            if (/NOT VERIFIED|NOT RUN|НЕ ПРОВЕРЕНО|НЕ ЗАПУСКАЛ/i.test(report) && /Вердикт[\s\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report))
+            if (hasUnverifiedEvidence && verdict && /\\b(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)\\b/i.test(verdict.value))
               throw new Error("Analysis report overstates verdict despite unverified scope items.");
             fs.writeFileSync("/tmp/worker-mode.txt", "analysis-only");
             fs.writeFileSync("/tmp/worker-report.md", "# " + role + " — анализ задачи #" + process.env.ISSUE_NUMBER + "\n\n- Режим: анализ, исходники не изменялись\n- Задача: " + task + "\n\n" + report);
