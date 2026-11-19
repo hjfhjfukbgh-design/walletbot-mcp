@@ -1759,3 +1759,17 @@ html[data-theme="dark"] #kg-ai-form{background:rgba(28,28,30,.76)!important;bord
 .kg-current-price-line{stroke:var(--kg-blue);stroke-width:1;stroke-dasharray:4 3;opacity:.8}
 .kg-current-price-label{fill:var(--kg-blue);font-family:var(--kg-font);font-weight:750}
 .kg-volume-bar{shape-rendering:crispEdges}
+
+/* Positive/negative heatmap intensity uses the brand spectrum; green/red remain for PnL and Long/Short only. */
+.kg-heat-cell--positive.kg-heat-cell--mild{background:#EAF2FF;color:#3E86F0}
+.kg-heat-cell--positive.kg-heat-cell--medium{background:#D4E5FF;color:#286DC4}
+.kg-heat-cell--positive.kg-heat-cell--strong{background:#B8D4FF;color:#174F9C}
+.kg-heat-cell--negative.kg-heat-cell--mild{background:#F0EDFF;color:#7B61FF}
+.kg-heat-cell--negative.kg-heat-cell--medium{background:#DED6FF;color:#6246CF}
+.kg-heat-cell--negative.kg-heat-cell--strong{background:#C7B9FF;color:#4E35B4}
+html[data-theme="dark"] .kg-heat-cell--positive.kg-heat-cell--mild{background:#20334F;color:#A9CCFF}
+html[data-theme="dark"] .kg-heat-cell--positive.kg-heat-cell--medium{background:#28466E;color:#C2DBFF}
+html[data-theme="dark"] .kg-heat-cell--positive.kg-heat-cell--strong{background:#315A8B;color:#D7E8FF}
+html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--mild{background:#322B4D;color:#C8B8FF}
+html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--medium{background:#46366F;color:#D7CCFF}
+html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--strong{background:#5A4591;color:#E7DFFF}
