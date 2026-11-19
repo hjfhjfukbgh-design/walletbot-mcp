@@ -1440,3 +1440,10 @@ html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--strong{background:
 .kg-profile-island p span{color:var(--kg-muted)}
 .kg-profile-island p strong{max-width:62%;color:var(--kg-ink);font-weight:650;text-align:right;font-variant-numeric:tabular-nums}
 @media(max-width:360px){.kg-profile-island{padding:11px 12px}.kg-profile-island p{font-size:11px}}
+
+/* Agents paper account overview */
+.kg-agents-paper-account{margin:4px 0 22px}
+.kg-agents-paper-account .kg-list{overflow:hidden;border:1px solid var(--kg-line);border-radius:20px;background:var(--kg-card)}
+.kg-agents-paper-account .kg-asset-row{min-height:58px}
+.kg-agents-paper-account .kg-wallet-row-value{font-variant-numeric:tabular-nums}
+@media(max-width:380px){.kg-agents-paper-account .kg-asset-row{min-height:54px}}
