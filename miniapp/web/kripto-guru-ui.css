@@ -1282,5 +1282,27 @@ html[data-theme="dark"] {
     --kg-green: #4CC468;
     --kg-red: #FF6A62;
     --kg-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+    --kg-surface-2: #2C2C2E;
   }
 }
+
+/* Theme-aware surfaces shared by wallet, market, positions, profile and AI. */
+.kg-balance-card,.kg-favorite,.kg-list,.kg-asset-row,.kg-discover-card,
+.kg-search-toggle,.kg-search-close,#kg-market-search,.kg-recent-chip,
+.kg-category,.kg-position,.kg-position-list,.kg-ai-history-item,
+.kg-ai-menu-trigger,.kg-profile-sheet,.kg-ticket-settings{
+  background:var(--kg-card);
+  color:var(--kg-ink);
+  border-color:var(--kg-line);
+  box-shadow:var(--kg-shadow);
+}
+.kg-history-row{background:transparent;color:var(--kg-ink);border-color:var(--kg-line)}
+.kg-history-dot{background:var(--kg-surface-2);color:var(--kg-blue)}
+.kg-ai-menu{background:var(--kg-bg);color:var(--kg-ink)}
+.kg-ai-menu-trigger span{background:var(--kg-ink)}
+.kg-category.is-selected{background:color-mix(in srgb,var(--kg-blue) 8%,var(--kg-card));border-color:var(--kg-blue)}
+.kg-sort{background:var(--kg-surface-2);color:var(--kg-ink)}
+.kg-sort button{color:var(--kg-muted)}
+.kg-sort button.is-active{background:var(--kg-card);color:var(--kg-ink)}
+.kg-position{color:var(--kg-ink)}
+.kg-profile-sheet{color:var(--kg-ink)}
