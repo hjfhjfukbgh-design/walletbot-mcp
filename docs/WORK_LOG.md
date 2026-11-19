@@ -1309,3 +1309,11 @@
 - Added persisted Dark / Light / System theme preference in Profile. Fresh installs default dark; system mode follows OS changes; selection updates document and Telegram WebApp header/background colors. Preference survives reload via `kg:theme:v1`.
 - **Latest-head validation:** deploy workflow run `44525758219` — npm ci, JS syntax checks, TypeScript check and full `npm test` PASS; deploy intentionally skipped for PR. Screenshot run `44525758117` — Playwright install, syntax and iPhone preview/contract scenarios PASS.
 - **Test coverage:** default dark state, explicit light selection, system preference responding to emulated dark/light OS changes, return to light and closing settings.
+
+### 2026-11-19T17:40:39+05:00 — Dark/light/system theme preferences merged; theme/UI foundation issues closed
+
+- **PR #430:** merged to main as `ba680c2191d43c979b8f1beead3cdbf6707f9684`.
+- **CI run `44525758219`:** npm ci, JS syntax, typecheck and all unit tests PASS; deploy skipped.
+- **Screenshot run `44525758117`:** Playwright clean UI previews PASS, including default dark, profile-selected light, system dark/light switching, and 390×844 / 430×932 viewports.
+- New installs default to dark before CSS loads; profile offers Тёмная / Светлая / Системная; system mode tracks `prefers-color-scheme`; meta color-scheme, theme-color and Telegram header/background stay synchronized. Storage failures fall back safely.
+- **Issues closed:** #177, #182, #184, #187, #215, #216, #219 after current main and CI evidence were reviewed. #195 Companion independent QA remains open because preview is not production.
