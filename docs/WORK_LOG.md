@@ -1023,3 +1023,12 @@
 - **Team A / #358:** profile markup task также вернул NO_SAFE_PATCH; scope сужается до одного файла и меньших атомарных задач.
 - **Навигация:** широкая задача #372 вернула NO_SAFE_PATCH; закрыта как superseded. Созданы отдельные #379 (HTML tab) и #380 (JS avatar handler).
 - **Dispatcher:** event trigger работает; задачи фактически запускаются по labeled events. Worker claims сериализованы, specialist jobs могут перекрываться.
+
+
+### 2026-11-19T07:51:08.618+05:00 — Team B theme foundation merged
+
+- **PR #381:** merged to main; merge commit `1c822925d9e70f8d437ac57d9d0ec0b270c74303`.
+- **Изменения:** Telegram themeParams CSS fallbacks, light/dark semantic tokens, refactor unconditional legacy dark blocks, theme-aware wallet/market/history/profile/AI surfaces, dark-specific component states.
+- **QA:** workflow run `44446830367` — npm ci, node syntax, typecheck, npm test PASS; deploy job skipped. Playwright run `44446831585` PASS на 390/430 px; dark token assertions прошли для wallet, catalog и AI Companion.
+- **Визуальный review:** light wallet/catalog и dark wallet/catalog/AI screenshots проверены вручную. Dark composer требует отдельной доработки контраста; legacy leverage badge в избранном вынесен в #392.
+- **Production:** merge CSS foundation; Worker deploy не выполнялся.
