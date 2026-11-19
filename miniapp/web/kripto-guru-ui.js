@@ -1026,7 +1026,6 @@
       if(state.screen==="wallet")await loadWallet();
       if(state.screen==="trading")await (state.category==="all"?setSearchFilter("all"):loadCategory(state.category));
       if(state.screen==="income"){await loadWallet();await loadHistory();}
-      if(state.screen==="bonuses")await loadCapabilities();
       if(state.screen==="companion"){
          await Promise.all([loadCompanionConversations(),loadCompanionLimits()]);
          state.companionInitialized=true;
