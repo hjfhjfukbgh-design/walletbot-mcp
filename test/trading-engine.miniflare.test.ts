@@ -315,6 +315,13 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const retryA = await post(stub, "/ai/paper/position/open", { ...positionBase, userId: userA });
     expect(retryA.status).toBe(200);
     expect(retryA.body).toMatchObject({ ok: true, duplicate: true, positionId: openedA.body.positionId });
+    const alternateDecision = await post(stub, "/ai/paper/decision", {
+      ...decisionBase, userId: userA, tickId: "tick-btc-alternate-02",
+    });
+    const keyConflict = await post(stub, "/ai/paper/position/open", {
+      ...positionBase, userId: userA, decisionId: alternateDecision.body.id,
+    });
+    expect(keyConflict.status).toBe(409);
 
     const openedB = await post(stub, "/ai/paper/position/open", {
       ...positionBase, userId: userB, decisionId: decisionB.body.id,
