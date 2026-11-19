@@ -1270,3 +1270,10 @@
 - **PR #427:** merged to main as `4a6e0a15a4629112c223e13cfea61de9597b5c47`.
 - **Latest UI QA:** run `44522877277` passed clean UI Playwright screenshot/contract scenarios. Artifacts include dedicated Agents screen captures at 390×844 and 430×932, verifying AI paper balance, DEMO source balance, positions, stopped status, virtual-only disclosure, and honest hero copy.
 - **Issue #360:** closed as completed. Scope spans Agents navigation/hero/paper overview, Gemini-inspired Companion and keyboard/history flows, verified image/video/research/learning paths, and virtual funding controls. Strategy runner remains unimplemented and clearly shown as empty/stopped.
+
+### 2026-11-19T17:27:52+05:00 — Component showcase rebased and merged; stale PR cleanup
+
+- **PR #428:** merged to main as `79a177e35b7370ebf7ef797b7c75ad6ef749863e`. Rebased the five-file framework-free component primitive library, typed declarations, preview showcase and unit tests onto current main. CI run `44523852741`: npm ci, syntax, typecheck and all tests PASS; deploy skipped. Screenshot run `44523852804` PASS.
+- **PR #361:** closed as superseded by #428; original branch was 30 commits ahead/22 behind and diverged from main.
+- **PR #228:** closed as stale. Current main already has serialized deployment concurrency; old release branch was 82 commits behind and carried superseded app/UI code. No deployment was triggered.
+- **Cleanup:** closed obsolete dispatch/handoff PRs tied to completed issues (#379, #355, #409, #411, #360, #358, #266, #254, #275, #278, #330, #312, #313, #367, #359). Active blockers remain #270/#277/#332 and parent release issue #203.
