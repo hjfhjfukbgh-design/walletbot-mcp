@@ -1104,7 +1104,7 @@
       const result=await invoke("productMode.set",mode);
       state.productMode=result?.productMode==="ai"?"ai":"demo";
       renderProductMode();
-      if(state.productMode==="ai")await loadAiPaperSummary();
+      await loadAiPaperSummary(true);
     }catch(error){notify(normalizeError(error).message);}
     finally{if(button)button.disabled=false;}
   }
