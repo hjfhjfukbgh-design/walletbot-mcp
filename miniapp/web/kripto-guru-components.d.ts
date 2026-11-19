@@ -52,8 +52,17 @@ export declare const KGDesign: Readonly<{
   modeBadgeMarkup: typeof modeBadgeMarkup;
   islandMarkup: typeof islandMarkup;
   listRowMarkup: typeof listRowMarkup;
+  settingsRowMarkup: typeof settingsRowMarkup;
   actionTileMarkup: typeof actionTileMarkup;
   pnlChipMarkup: typeof pnlChipMarkup;
+  sparklineMarkup: typeof sparklineMarkup;
+  glassPillMarkup: typeof glassPillMarkup;
+  roundIconButtonMarkup: typeof roundIconButtonMarkup;
+  heatmapTileMarkup: typeof heatmapTileMarkup;
+  bottomSheetMarkup: typeof bottomSheetMarkup;
+  floatingTabBarMarkup: typeof floatingTabBarMarkup;
+  toastMarkup: typeof toastMarkup;
+  errorBannerMarkup: typeof errorBannerMarkup;
   emptyStateMarkup: typeof emptyStateMarkup;
   skeletonMarkup: typeof skeletonMarkup;
   segmentedMarkup: typeof segmentedMarkup;
