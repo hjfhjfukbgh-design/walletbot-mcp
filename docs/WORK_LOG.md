@@ -1348,3 +1348,9 @@
 - **Screenshot run `44527464005`:** Playwright install, clean UI syntax, capture scenarios and artifact upload PASS.
 - The screenshot harness now removes the intentionally transient theme toast before capturing clean wallet previews and asserts that it is not visible.
 - Added dark-theme Companion composer computed-style guard. It passes on the current CSS: the actual computed composer background is dark despite the translucent/glass appearance in the screenshot.
+
+### 2026-11-19T17:54:01+05:00 — Market freshness timestamp localization merged and screenshot-verified
+
+- **PR #433:** merged to main as `7a37927d48f0c5679d464b40ee3fe6dffff5ccfe`.
+- CI run `44527875941`: npm ci, JS syntax, typecheck and all unit tests PASS; deploy skipped. Screenshot run `44527875935`: Playwright and clean UI contract/screenshots PASS.
+- Browser contract now asserts `Обновлено · HH:mm:ss`; inspected artifact `14532506697` at 390×844 and confirmed the market list displays `Обновлено · 12:52:39` with no English AM/PM suffix.
