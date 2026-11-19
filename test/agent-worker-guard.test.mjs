@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractScopeItems, findMissingScopeRows, normalizeAnalysisReport } from "../scripts/agent-worker-guard.mjs";
+import { extractScopeItems, findMissingScopeRows, findUnverifiedReferences, normalizeAnalysisReport } from "../scripts/agent-worker-guard.mjs";
 
 describe("agent worker evidence guard", () => {
   it("extracts semicolon-separated Russian scope items", () => {
@@ -40,4 +40,16 @@ describe("agent worker evidence guard", () => {
   it("recognizes bold scope IDs and reports missing rows", () => {
     expect(findMissingScopeRows("| **[S1]** | PASS | proof |\n| [S3] | NOT VERIFIED | none |", ["one", "two", "three"])).toEqual(["S2"]);
   });
+});
+
+it("flags paths, selectors and API routes that are absent from inspected source", () => {
+  const report = "`miniapp/endpoints/contracts` `#position-close` `POST /api/companion/chat`";
+  const warnings = findUnverifiedReferences(report, ["miniapp/web/index.html", "src/api.ts"], '$("#kg-wallet-ai") case "GET contracts"');
+  expect(warnings).toHaveLength(3);
+});
+
+it("accepts paths, selectors and API routes present in inspected source", () => {
+  const report = "`miniapp/web/index.html` `#kg-wallet-ai` `GET /api/contracts`";
+  const warnings = findUnverifiedReferences(report, ["miniapp/web/index.html", "src/api.ts"], '$("#kg-wallet-ai") case "GET contracts"');
+  expect(warnings).toEqual([]);
 });
