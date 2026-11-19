@@ -147,3 +147,52 @@ export function buildPaperSignal(
     return { signal: "short", shortAverage, longAverage, reason: "Короткая средняя ниже длинной." };
   return { signal: "hold", shortAverage, longAverage, reason: "Скользящие средние совпадают." };
 }
+
+
+export type AiPaperDecision = {
+  signal: "buy" | "sell" | "hold";
+  symbol: string;
+  rationale: string;
+  confidence: number;
+};
+
+/**
+ * Parse the model's strict JSON decision. Prices, risk approval, tenant IDs and
+ * position IDs are deliberately excluded: those values must come from the
+ * server-side market snapshot and risk engine, never from Gemini.
+ */
+export function parseAiPaperDecision(
+  raw: string,
+  allowedSymbols: readonly string[],
+): { ok: true; decision: AiPaperDecision } | { ok: false; reason: string } {
+  if (typeof raw !== "string" || raw.length === 0 || raw.length > 4_000)
+    return { ok: false, reason: "Ответ модели пустой или превышает допустимый размер." };
+  const allowed = new Set(allowedSymbols.map(symbol => String(symbol).trim().toUpperCase()).filter(Boolean));
+  if (allowed.size === 0)
+    return { ok: false, reason: "Нет подтверждённого списка разрешённых рынков." };
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return { ok: false, reason: "Ответ модели не является строгим JSON." };
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    return { ok: false, reason: "Решение модели должно быть JSON-объектом." };
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record).sort();
+  if (keys.length !== 4 || keys.join(",") !== "confidence,rationale,signal,symbol")
+    return { ok: false, reason: "JSON решения содержит отсутствующие или лишние поля." };
+  const signal = record.signal;
+  const symbol = typeof record.symbol === "string" ? record.symbol.trim().toUpperCase() : "";
+  const rationale = typeof record.rationale === "string" ? record.rationale.trim() : "";
+  const confidence = record.confidence;
+  if (signal !== "buy" && signal !== "sell" && signal !== "hold")
+    return { ok: false, reason: "Недопустимый сигнал модели." };
+  if (!/^[A-Z0-9]{2,20}$/.test(symbol) || !allowed.has(symbol))
+    return { ok: false, reason: "Модель выбрала рынок вне серверного allowlist." };
+  if (!rationale || rationale.length > 500 || /[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/.test(rationale))
+    return { ok: false, reason: "Обоснование модели пустое или некорректное." };
+  if (typeof confidence !== "number" || !Number.isFinite(confidence) || confidence < 0 || confidence > 1)
+    return { ok: false, reason: "Уверенность модели должна быть числом от 0 до 1." };
+  return { ok: true, decision: { signal, symbol, rationale, confidence } };
+}
