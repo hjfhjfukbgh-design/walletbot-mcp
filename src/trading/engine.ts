@@ -152,6 +152,24 @@ export class TradingEngine {
           positionId: row.position_id, createdAt: row.created_at,
         })) });
       }
+      if (request.method === "GET" && url.pathname === "/ai/paper/positions") {
+        const userId = url.searchParams.get("userId") ?? "";
+        const status = url.searchParams.get("status") ?? "open";
+        const limit = Number(url.searchParams.get("limit") ?? "50");
+        if (!/^\d{1,20}$/.test(userId) || !["open", "closed", "all"].includes(status) ||
+            !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+          return Response.json({ ok: false, error: "Некорректные параметры AI paper позиций." }, { status: 400 });
+        const rows = status === "all"
+          ? this.ctx.storage.sql.exec(
+              "SELECT id, symbol, side, qty_units, entry_price, margin_micro, leverage, fees_micro, slippage_micro, stop_loss_price, take_profit_price, status, opened_at, closed_at, close_json FROM ai_paper_positions WHERE user_id = ? ORDER BY opened_at DESC, id DESC LIMIT ?",
+              userId, limit,
+            ).toArray()
+          : this.ctx.storage.sql.exec(
+              "SELECT id, symbol, side, qty_units, entry_price, margin_micro, leverage, fees_micro, slippage_micro, stop_loss_price, take_profit_price, status, opened_at, closed_at, close_json FROM ai_paper_positions WHERE user_id = ? AND status = ? ORDER BY opened_at DESC, id DESC LIMIT ?",
+              userId, status, limit,
+            ).toArray();
+        return jsonResponse({ ok: true, positions: rows });
+      }
       if (request.method === "GET" && url.pathname === "/account") {
         const userId = url.searchParams.get("userId") ?? "";
         if (!/^\d{1,20}$/.test(userId)) throw new Error("Не подтверждён пользователь Telegram.");
@@ -202,6 +220,7 @@ export class TradingEngine {
       if (url.pathname === "/ai/paper/fund") return this.fundAiPaper(body);
       if (url.pathname === "/ai/paper/withdraw") return this.withdrawAiPaper(body);
       if (url.pathname === "/ai/paper/decision") return this.recordAiPaperDecision(body);
+      if (url.pathname === "/ai/paper/position/open") return this.openAiPaperPosition(body);
       if (url.pathname === "/live/claim") return this.claimLive(body);
       if (url.pathname === "/live/finish") return this.finishLive(body);
       if (url.pathname === "/open") return jsonResponse(this.open(body));
@@ -302,6 +321,134 @@ export class TradingEngine {
     const ids = this.bySymbol.get(position.symbol) ?? new Set<string>();
     ids.add(position.id);
     this.bySymbol.set(position.symbol, ids);
+  }
+
+  private openAiPaperPosition(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    const decisionId = String(body.decisionId ?? "");
+    const idempotencyKey = String(body.idempotencyKey ?? "");
+    let symbol = "";
+    try { symbol = safeSymbol(body.symbol); } catch (error) {
+      return Response.json({ ok: false, error: error instanceof Error ? error.message : "Некорректный инструмент." }, { status: 400 });
+    }
+    const side = String(body.side ?? "");
+    const qtyUnits = String(body.qtyUnits ?? "");
+    const entryPrice = String(body.entryPrice ?? "");
+    const rawMargin = String(body.marginMicro ?? "");
+    const rawFees = String(body.feeMicro ?? "0");
+    const rawSlippage = String(body.slippageMicro ?? "0");
+    const leverage = Number(body.leverage);
+    const stopLossPrice = body.stopLossPrice === undefined || body.stopLossPrice === null ? null : String(body.stopLossPrice);
+    const takeProfitPrice = body.takeProfitPrice === undefined || body.takeProfitPrice === null ? null : String(body.takeProfitPrice);
+    const decimalPattern = /^(?:0|[1-9]\d{0,15})(?:\.\d{1,8})?$/;
+    if (!/^\d{1,20}$/.test(userId) ||
+        !/^[A-Za-z0-9._:-]{8,128}$/.test(decisionId) ||
+        !/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey) ||
+        !["long", "short"].includes(side) ||
+        !decimalPattern.test(qtyUnits) || Number(qtyUnits) <= 0 ||
+        !decimalPattern.test(entryPrice) || Number(entryPrice) <= 0 ||
+        !/^\d{1,20}$/.test(rawMargin) || BigInt(rawMargin) <= 0n ||
+        !/^\d{1,20}$/.test(rawFees) || !/^\d{1,20}$/.test(rawSlippage) ||
+        !Number.isSafeInteger(leverage) || leverage < 1 || leverage > 100 ||
+        (stopLossPrice !== null && (!decimalPattern.test(stopLossPrice) || Number(stopLossPrice) <= 0)) ||
+        (takeProfitPrice !== null && (!decimalPattern.test(takeProfitPrice) || Number(takeProfitPrice) <= 0))) {
+      return Response.json({ ok: false, error: "Некорректные параметры открытия AI paper позиции." }, { status: 400 });
+    }
+    const margin = BigInt(rawMargin);
+    const fees = BigInt(rawFees);
+    const slippage = BigInt(rawSlippage);
+    const reserve = margin + fees + slippage;
+    if (reserve <= 0n) return Response.json({ ok: false, error: "Резерв позиции должен быть больше нуля." }, { status: 400 });
+
+    const now = Date.now();
+    const newPositionId = crypto.randomUUID();
+    let positionId = newPositionId;
+    let duplicate = false;
+    let conflict = false;
+    let insufficient = false;
+    let openPositionExists = false;
+    let invalidDecision = false;
+    let balanceAfter = 0n;
+
+    this.ctx.storage.transactionSync(() => {
+      const existingLedger = this.ctx.storage.sql.exec(
+        "SELECT kind, amount_micro, reference_id FROM ai_paper_ledger WHERE user_id = ? AND idempotency_key = ?",
+        userId, idempotencyKey,
+      ).toArray()[0] as { kind: string; amount_micro: string; reference_id: string | null } | undefined;
+      if (existingLedger) {
+        const existingPosition = existingLedger.reference_id
+          ? this.ctx.storage.sql.exec(
+              "SELECT id, symbol, side, qty_units, entry_price, margin_micro, leverage, fees_micro, slippage_micro, stop_loss_price, take_profit_price FROM ai_paper_positions WHERE id = ? AND user_id = ?",
+              existingLedger.reference_id, userId,
+            ).toArray()[0] as Record<string, unknown> | undefined
+          : undefined;
+        const same = existingLedger.kind === "open_position" &&
+          BigInt(existingLedger.amount_micro) === -reserve &&
+          !!existingPosition &&
+          String(existingPosition.symbol) === symbol &&
+          String(existingPosition.side) === side &&
+          String(existingPosition.qty_units) === qtyUnits &&
+          String(existingPosition.entry_price) === entryPrice &&
+          String(existingPosition.margin_micro) === rawMargin &&
+          String(existingPosition.leverage) === String(leverage) &&
+          String(existingPosition.fees_micro) === rawFees &&
+          String(existingPosition.slippage_micro) === rawSlippage &&
+          (existingPosition.stop_loss_price === null ? stopLossPrice === null : String(existingPosition.stop_loss_price) === stopLossPrice) &&
+          (existingPosition.take_profit_price === null ? takeProfitPrice === null : String(existingPosition.take_profit_price) === takeProfitPrice);
+        if (same) { duplicate = true; positionId = String(existingPosition?.id); }
+        else conflict = true;
+        return;
+      }
+
+      const decision = this.ctx.storage.sql.exec(
+        "SELECT symbol, signal, risk_pass, position_id FROM ai_paper_decisions WHERE id = ? AND user_id = ?",
+        decisionId, userId,
+      ).toArray()[0] as { symbol: string; signal: string; risk_pass: number; position_id: string | null } | undefined;
+      if (!decision || decision.symbol !== symbol || Number(decision.risk_pass) !== 1 ||
+          (side === "long" && decision.signal !== "buy") || (side === "short" && decision.signal !== "sell") ||
+          decision.position_id !== null) {
+        invalidDecision = true;
+        return;
+      }
+
+      const existingOpen = this.ctx.storage.sql.exec(
+        "SELECT id FROM ai_paper_positions WHERE user_id = ? AND symbol = ? AND status = 'open' LIMIT 1",
+        userId, symbol,
+      ).toArray()[0] as { id: string } | undefined;
+      if (existingOpen) { openPositionExists = true; return; }
+
+      const account = this.ctx.storage.sql.exec(
+        "SELECT balance_micro FROM ai_paper_accounts WHERE user_id = ?", userId,
+      ).toArray()[0] as { balance_micro: string } | undefined;
+      if (!account) { invalidDecision = true; return; }
+      const before = BigInt(account.balance_micro);
+      if (before < reserve) { insufficient = true; return; }
+      balanceAfter = before - reserve;
+
+      this.ctx.storage.sql.exec(
+        "INSERT INTO ai_paper_positions(id,user_id,symbol,side,qty_units,entry_price,margin_micro,leverage,fees_micro,slippage_micro,stop_loss_price,take_profit_price,status,opened_at,closed_at,close_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        newPositionId, userId, symbol, side, qtyUnits, entryPrice, rawMargin, String(leverage), rawFees, rawSlippage,
+        stopLossPrice, takeProfitPrice, "open", now, null, null,
+      );
+      this.ctx.storage.sql.exec(
+        "UPDATE ai_paper_accounts SET balance_micro = ?, updated_at = ? WHERE user_id = ?",
+        balanceAfter.toString(), now, userId,
+      );
+      this.ctx.storage.sql.exec(
+        "INSERT INTO ai_paper_ledger(user_id,idempotency_key,kind,amount_micro,balance_before_micro,balance_after_micro,reference_id,created_at) VALUES(?,?,?,?,?,?,?,?)",
+        userId, idempotencyKey, "open_position", (-reserve).toString(), before.toString(), balanceAfter.toString(), newPositionId, now,
+      );
+      this.ctx.storage.sql.exec(
+        "UPDATE ai_paper_decisions SET position_id = ? WHERE id = ? AND user_id = ? AND position_id IS NULL",
+        newPositionId, decisionId, userId,
+      );
+    });
+
+    if (conflict) return Response.json({ ok: false, error: "Idempotency key уже использован с другой операцией или параметрами позиции." }, { status: 409 });
+    if (invalidDecision) return Response.json({ ok: false, error: "Нет действующего одобренного AI paper решения или счёта для этой позиции." }, { status: 409 });
+    if (openPositionExists) return Response.json({ ok: false, error: "Для этого инструмента уже открыта AI paper позиция." }, { status: 409 });
+    if (insufficient) return Response.json({ ok: false, error: "Недостаточно средств на AI paper счёте для маржи и резервов." }, { status: 409 });
+    return Response.json({ ok: true, positionId, duplicate, balanceMicro: duplicate ? undefined : balanceAfter.toString() }, { status: duplicate ? 200 : 201 });
   }
 
   private recordAiPaperDecision(body: Record<string, unknown>): Response {
