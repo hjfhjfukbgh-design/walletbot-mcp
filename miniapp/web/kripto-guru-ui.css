@@ -1447,3 +1447,13 @@ html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--strong{background:
 .kg-agents-paper-account .kg-asset-row{min-height:58px}
 .kg-agents-paper-account .kg-wallet-row-value{font-variant-numeric:tabular-nums}
 @media(max-width:380px){.kg-agents-paper-account .kg-asset-row{min-height:54px}}
+
+/* AI paper account virtual funding controls */
+.kg-ai-paper-transfer{display:grid;gap:9px;margin:12px 0 8px;padding:13px;border:1px solid var(--kg-line);border-radius:18px;background:var(--kg-card)}
+.kg-ai-paper-transfer label{color:var(--kg-muted);font-size:11px;font-weight:650}
+.kg-ai-paper-transfer input{width:100%;min-height:44px;padding:0 13px;border:1px solid var(--kg-line);border-radius:12px;background:var(--kg-bg);color:var(--kg-ink);font:inherit;font-variant-numeric:tabular-nums}
+.kg-ai-paper-transfer-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kg-ai-paper-transfer-actions button{min-height:42px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:700}
+.kg-ai-paper-transfer-actions button:disabled{opacity:.55;pointer-events:none}
+.kg-ai-paper-transfer #kg-ai-paper-transfer-note{margin:0;color:var(--kg-muted);font-size:10px;line-height:1.45}
+@media(max-width:360px){.kg-ai-paper-transfer{padding:11px}.kg-ai-paper-transfer-actions{grid-template-columns:1fr}.kg-ai-paper-transfer-actions button{min-height:40px}}
