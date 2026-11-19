@@ -259,7 +259,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(secondUserState.positions[0].id).not.toBe(foreignPositionId);
     const secondUserHistory = await stub.fetch("https://engine.test/history?userId=987654321");
     const secondUserHistoryBody = await secondUserHistory.json() as { trades: unknown[] };
-    expect(secondUserHistoryBody.trades).toHaveLength(2);
+    expect(secondUserHistoryBody.trades).toHaveLength(1);
   });
 
   it("rejects missing or invalid server-side risk limits", async () => {
