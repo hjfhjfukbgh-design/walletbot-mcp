@@ -1194,3 +1194,9 @@
 - Remaining product limitation: backend has paper-account balances/positions schema and status API, but no active strategy runner or strategy-start flow. Agents remain stopped/empty rather than presenting simulated activity.
 - LIVE remains unavailable in the UI pending the separate security/end-to-end validation; no Walt writes, real orders, transfers or account mutations were performed.
 - Timestamp note: earlier entries in this work session used the initial 08:19 checkpoint timestamp. This entry records the current verified local time; no durations are inferred.
+
+### 2026-11-19T16:58:22+05:00 — LIVE pre-execute position recheck opened; first CI exposed outdated assertion
+
+- **PR #423:** adds a second read-only Walt open-position check after the atomic handle claim and immediately before the only execute call. If a position appeared since preview, or the lookup fails, execute is not sent; operation is marked UNKNOWN for manual reconciliation.
+- **Initial CI run `44519300066`:** install, syntax and typecheck passed; unit suite had 145/146 passing. The sole failure was an old expectation that `openPosition` is called once in the timeout path; the new guard correctly adds a pre-execute read plus the existing post-timeout reconciliation read.
+- **Correction:** updated the assertion to expect both reads and added a regression test that an intervening open position prevents the Walt execute call entirely. New commit `04a25144b896969ff6a72e99a2cd943429ccbcf3`; rerun `44519528660` in progress. No Walt writes or financial actions.
