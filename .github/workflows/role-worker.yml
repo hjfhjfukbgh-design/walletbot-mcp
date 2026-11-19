@@ -162,7 +162,7 @@ jobs:
             const hasUnverifiedEvidence = /NOT VERIFIED|NOT RUN|НЕ ПРОВЕРЕНО|НЕ ЗАПУСКАЛ/i.test(report);
             if (hasUnverifiedEvidence && /Вердикт[\s\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report)) {
               report = report.replace(/(Вердикт[^\n]{0,160})(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/gi, "$1PARTIAL — есть непроверенные пункты");
-              if (/Вердикт[\s\\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report)) {
+              if (/Вердикт[\s\S]{0,400}(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)/i.test(report)) {
                 report += "\n\nВердикт: PARTIAL — обязательные проверки не завершены; пункты NOT VERIFIED не считаются пройденными.";
               }
             }
