@@ -85,3 +85,9 @@
 - Deploy job skipped. Production не затронут.
 - Проверены скриншоты wallet light/dark и AI mode: DEMO/AI tint/aura видны, 4-tab navigation рендерится. Это Chromium emulation, не физический iPhone Telegram WebView.
 - PR #452 остаётся Draft для review; merge не выполнялся.
+
+
+### UI follow-up — 2026-11-19 23:20 EKB
+- В PR #452 дополнительно переставлен selector режимов над балансом, как задано в wallet hierarchy.
+- Верхняя правая кнопка агента получила собственную четырёхконечную звезду Kripto Guru в фирменном сине-фиолетовом градиенте; существующий click handler не менялся и ведёт в «Агенты».
+- PR #452 description обновлён. Предыдущие checks прошли на CSS-only revision; после HTML/CSS follow-up PR reopened для повторного screenshot run. Финальную ревизию принимать только после новых checks.
