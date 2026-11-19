@@ -172,7 +172,7 @@ try{
     if(!(await page.locator("#kg-agents-demo-balance").innerText()).includes("985"))throw new Error("Agents screen must show the DEMO funding balance");
     if((await page.locator("#kg-agents-paper-positions").innerText()).trim()!=="0")throw new Error("Agents screen must show the confirmed paper position count");
     if(!(await page.locator("#kg-agents-paper-status").innerText()).includes("Остановлен"))throw new Error("Agents screen must show the real stopped status");
-    if(!(await page.locator("#kg-agents-paper-account").innerText()).includes("Виртуальные средства"))throw new Error("Agents screen must disclose virtual-only funds");
+    if(!(await page.locator(".kg-agents-safety-note").innerText()).includes("виртуальные средства"))throw new Error("Agents screen must disclose virtual-only funds");
     await page.screenshot({path:`clean-agents-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator('#kg-nav button[data-screen="trading"]').click();
     await page.waitForSelector("#kg-market-list .kg-market-row");
