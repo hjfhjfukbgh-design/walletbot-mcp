@@ -262,6 +262,48 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(secondUserHistoryBody.trades).toHaveLength(1);
   });
 
+  it("isolates idempotency key between different users for POST /ai/paper/fund", async () => {
+    const stub = await boot();
+    const sharedKey = "shared-idempotency-key-001";
+    const userA = "111111111";
+    const userB = "222222222";
+
+    // User A funds AI paper with sharedKey
+    const fundA1 = await post(stub, "/ai/paper/fund", {
+      userId: userA, amountMicro: (100n * U).toString(), idempotencyKey: sharedKey,
+    });
+    expect(fundA1.status).toBe(200);
+    expect(fundA1.body.ok).toBe(true);
+    expect(fundA1.body.duplicate).toBe(false);
+
+    // User B funds AI paper with the same sharedKey (should succeed independently)
+    const fundB1 = await post(stub, "/ai/paper/fund", {
+      userId: userB, amountMicro: (200n * U).toString(), idempotencyKey: sharedKey,
+    });
+    expect(fundB1.status).toBe(200);
+    expect(fundB1.body.ok).toBe(true);
+    expect(fundB1.body.duplicate).toBe(false);
+
+    // User A retries with the same sharedKey (should be a duplicate, no double funding)
+    const fundA2 = await post(stub, "/ai/paper/fund", {
+      userId: userA, amountMicro: (100n * U).toString(), idempotencyKey: sharedKey,
+    });
+    expect(fundA2.status).toBe(200);
+    expect(fundA2.body.duplicate).toBe(true);
+
+    // Verify both tenants retain independent balances and A was not funded twice.
+    const statusA = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userA);
+    expect(await statusA.json()).toMatchObject({
+      demoBalanceMicro: (900n * U).toString(),
+      aiBalanceMicro: (100n * U).toString(),
+    });
+    const statusB = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userB);
+    expect(await statusB.json()).toMatchObject({
+      demoBalanceMicro: (800n * U).toString(),
+      aiBalanceMicro: (200n * U).toString(),
+    });
+  });
+
   it("rejects missing or invalid server-side risk limits", async () => {
     const stub = await boot();
     await quote(stub, 50_000n * P);
