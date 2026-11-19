@@ -3,6 +3,9 @@
   const $ = (selector, root=document) => root.querySelector(selector);
   const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
   const tg = window.Telegram?.WebApp || null;
+  const hapticSelection=()=>{try{tg?.HapticFeedback?.selectionChanged?.();}catch{}};
+  const hapticImpact=(style="light")=>{try{tg?.HapticFeedback?.impactOccurred?.(style);}catch{}};
+  const hapticNotice=(type="success")=>{try{tg?.HapticFeedback?.notificationOccurred?.(type);}catch{}};
   const THEME_KEY="kg:theme:v1";
   function normalizeThemePreference(value){return value==="dark"||value==="light"||value==="system"?value:"dark";}
   function getThemePreference(){try{return normalizeThemePreference(localStorage.getItem(THEME_KEY));}catch{return "dark";}}
@@ -682,6 +685,7 @@
       const result=await invoke("trade.open",payload);
       closeModals();closeTicket();await Promise.all([loadWallet(),loadHistory()]);
       if(state.selectedMarket)renderAssetHistory(state.selectedMarket);
+      hapticNotice("success");
       notify("Демо-сделка открыта.");
     }catch(error){notify(normalizeError(error).message);}
     finally{state.busy=false;$("#kg-trade-confirm").disabled=false;}
@@ -1019,12 +1023,14 @@
     $("#kg-product-mode").addEventListener("click",event=>{
       const button=event.target.closest("[data-product-mode]");
       if(!button||button.disabled)return;
+      hapticSelection();
       void selectProductMode(button.dataset.productMode,button);
     });
     $("#kg-wallet-ai").addEventListener("click",()=>{setScreen("agents");});
     $("#kg-agents-open-funding").addEventListener("click",async()=>{setScreen("wallet");if(state.productMode!=="ai")await selectProductMode("ai",null);if(state.productMode==="ai")$("#kg-ai-paper-amount").focus({preventScroll:true});});
     $("#kg-wallet-quick-actions").addEventListener("click",async event=>{const button=event.target.closest("[data-wallet-shortcut]");if(!button)return;const screen=button.dataset.walletShortcut;if(screen==="virtual-transfer"){if(state.productMode!=="ai")await selectProductMode("ai",null);if(state.productMode==="ai")$("#kg-ai-paper-amount").focus({preventScroll:true});return;}setScreen(screen);if(screen==="income"){void loadWallet();void loadHistory();}if(screen==="trading")void loadCategory("crypto");if(screen==="agents")void loadAiPaperSummary(true);});
-    $$("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
+    $("#kg-nav button").forEach(button=>button.addEventListener("click",async()=>{
+      hapticSelection();
       setScreen(button.dataset.screen);
       if(state.screen==="wallet")await loadWallet();
       if(state.screen==="trading")await (state.category==="all"?setSearchFilter("all"):loadCategory(state.category));
@@ -1116,8 +1122,8 @@
 
     $("#kg-asset-favorite").addEventListener("click",()=>{const s=state.selectedMarket;if(!s)return;state.favorites.has(s)?state.favorites.delete(s):state.favorites.add(s);renderFavorites();try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}$("#kg-asset-favorite").textContent=state.favorites.has(s)?"★ В избранном":"☆ В избранное";});
     $$("#kg-timeframes button").forEach(b=>b.addEventListener("click",()=>loadCandles(b.dataset.interval)));
-    $("#kg-long").addEventListener("click",()=>openTicket("long"));
-    $("#kg-short").addEventListener("click",()=>openTicket("short"));
+    $("#kg-long").addEventListener("click",()=>{hapticImpact("light");openTicket("long");});
+    $("#kg-short").addEventListener("click",()=>{hapticImpact("light");openTicket("short");});
     $("#kg-ticket-margin").addEventListener("input",refreshPreview);
     $("#kg-ticket-max").addEventListener("click",async()=>{
       const available=Number(state.wallet?.balanceUsd??state.wallet?.balance??0);
