@@ -21,7 +21,7 @@ const browser=await chromium.launch({headless:true});
 const positions=[];
 const history=[];
 async function captureDarkVariant(page,name,device){
-  await page.evaluate(()=>{document.documentElement.dataset.theme="dark";document.documentElement.dataset.themePreference="dark";});
+  await page.evaluate(()=>{const select=document.querySelector("#kg-profile-theme-select");select.value="dark";select.dispatchEvent(new Event("change",{bubbles:true}));});
   const colors=await page.evaluate(()=>{
     const root=getComputedStyle(document.documentElement);
     const currency=document.querySelector(".kg-wallet-currency");
@@ -41,7 +41,7 @@ async function captureDarkVariant(page,name,device){
     throw new Error("Dark theme token/surface mismatch: "+JSON.stringify(colors));
   }
   await page.screenshot({path:`clean-${name}-dark-${device.width}x${device.height}.png`,fullPage:false});
-  await page.evaluate(()=>{document.documentElement.dataset.theme="light";document.documentElement.dataset.themePreference="light";});
+  await page.evaluate(()=>{const select=document.querySelector("#kg-profile-theme-select");select.value="light";select.dispatchEvent(new Event("change",{bubbles:true}));});
 }
 const marketData=[
   {symbol:"BTC",name:"Bitcoin",priceUsd:91240.5,change24hPct:2.42,volume24hUsd:8900000000,openInterestUsd:198750000,fundingRateHourlyPct:0.001,maxLeverage:50,takerFeePct:0.035,tradeable:true},
