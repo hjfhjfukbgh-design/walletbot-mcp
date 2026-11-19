@@ -124,7 +124,7 @@ try{
     await page.emulateMedia({colorScheme:"light"});
     await page.waitForFunction(()=>document.documentElement.dataset.theme==="light");
     await page.locator("#kg-profile-theme-select").selectOption("light");
-    await page.locator("#kg-profile-backdrop").click();
+    await page.evaluate(()=>window.Telegram.WebApp.BackButton.__trigger());
     // Theme preference changes intentionally show a transient confirmation toast.
     // Dismiss it in the screenshot harness so it cannot obscure the wallet preview.
     await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
