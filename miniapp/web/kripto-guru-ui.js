@@ -73,6 +73,7 @@
     $("#kg-ticket-screen").hidden=true;
     syncMarketPolling(returningFromSubscreen||name==="wallet");
     syncCandlePolling();
+    if(name==="agents")void loadAiPaperSummary(true);
     if(tg?.BackButton){tg.BackButton.hide();tg.BackButton.offClick?.(handleNativeBack);}
   }
   function showSubscreen(name){
@@ -805,9 +806,9 @@
     const paperSummary=$("#kg-ai-paper-summary");
     if(paperSummary)paperSummary.hidden=state.productMode!=="ai";
   }
-  async function loadAiPaperSummary(){
+  async function loadAiPaperSummary(force=false){
     const root=$("#kg-ai-paper-summary");
-    if(!root||state.productMode!=="ai"||state.aiPaperLoading)return;
+    if(!root||(!force&&state.productMode!=="ai")||state.aiPaperLoading)return;
     state.aiPaperLoading=true;
     const statusNote=$("#kg-ai-paper-status-note");
     if(statusNote)statusNote.textContent="Обновляем данные счёта…";
@@ -821,13 +822,24 @@
       const labels={stopped:"Остановлен",running:"Работает",paused:"Приостановлен"};
       $("#kg-ai-paper-status").textContent=labels[data.status]||"—";
       if(statusNote)statusNote.textContent="Состояние из защищённого API";
+            const agentBalance=$("#kg-agents-paper-balance");if(agentBalance)agentBalance.textContent=data.balanceUsd==null?"—":money(data.balanceUsd);
+      const agentDemo=$("#kg-agents-demo-balance");if(agentDemo)agentDemo.textContent=data.demoBalanceUsd==null?"—":money(data.demoBalanceUsd);
+      const agentPositions=$("#kg-agents-paper-positions");if(agentPositions)agentPositions.textContent=Number.isSafeInteger(data.openPositions)?String(data.openPositions):"—";
+      const agentStatus=$("#kg-agents-paper-status");if(agentStatus)agentStatus.textContent=labels[data.status]||"—";
+      const agentNote=$("#kg-agents-paper-note");if(agentNote)agentNote.textContent="Состояние из защищённого API";
     }catch(error){
       state.aiPaper=null;
+      renderProfileSettings();
       $("#kg-ai-paper-balance").textContent="—";
       $("#kg-ai-paper-demo-balance").textContent="—";
       $("#kg-ai-paper-positions").textContent="—";
       $("#kg-ai-paper-status").textContent="—";
       if(statusNote)statusNote.textContent=normalizeError(error).message;
+            const agentBalance=$("#kg-agents-paper-balance");if(agentBalance)agentBalance.textContent="—";
+      const agentDemo=$("#kg-agents-demo-balance");if(agentDemo)agentDemo.textContent="—";
+      const agentPositions=$("#kg-agents-paper-positions");if(agentPositions)agentPositions.textContent="—";
+      const agentStatus=$("#kg-agents-paper-status");if(agentStatus)agentStatus.textContent="—";
+      const agentNote=$("#kg-agents-paper-note");if(agentNote)agentNote.textContent=normalizeError(error).message;
     }finally{state.aiPaperLoading=false;}
   }
   async function loadProductMode(){
