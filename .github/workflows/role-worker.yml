@@ -74,7 +74,7 @@ jobs:
               ANALYST: p => /^(README\.md$|package\.json$|team\/|miniapp\/README)/.test(p)
             };
             const explicitPaths = [...new Set(task.match(/\b(?:src|miniapp\/web|test|tests)\/[A-Za-z0-9_./-]+\.(?:ts|tsx|js|mjs|css|html|json|toml|md)\b/g) || [])];
-            const scopeMatch = task.match(/##\\s*(?:Scope|Области|Объём|Объем)[^\\n]*\\n([\\s\\S]*?)(?=\\n##\\s)/i);
+            const scopeMatch = task.match(/##\\s*(?:Scope|Области|Область|Проверки|Объём|Объем)[^\\n]*\\n([\\s\\S]*?)(?=\\n##\\s)/i);
             const scopeText = scopeMatch?.[1] || "";
             const bulletScopeItems = scopeText.split(/\\r?\\n/).filter(line => /^\\s*[-*]\\s+/.test(line)).map(line => line.replace(/^\\s*[-*]\\s+/, "").trim());
             const scopeItems = (bulletScopeItems.length ? bulletScopeItems : scopeText.split(/[;\\n]+/).map(item => item.trim()).filter(Boolean)).slice(0, 15);
