@@ -1302,3 +1302,10 @@
 - **Browser coverage:** default dark, immediate light selection, dynamic system dark/light changes; screenshot workflow includes both themes.
 - Initial CI on the pre-final head `bfa0440099df7cb31b12f4e8e78249bea1271e24`: typecheck/unit tests PASS, screenshot scenario PASS. Added a wait for the profile toast to disappear before screenshot and dark fallback if `matchMedia` is unavailable.
 - **Current head:** `09c2c18d510b1ac19854d2f1b3a72bfd06b93072`; screenshot run `44525758117` in progress.
+
+### 2026-11-19T17:39:53+05:00 — Persistent theme preference merged
+
+- **PR #430:** merged to main as `ba680c2191d43c979b8f1beead3cdbf6707f9684`.
+- Added persisted Dark / Light / System theme preference in Profile. Fresh installs default dark; system mode follows OS changes; selection updates document and Telegram WebApp header/background colors. Preference survives reload via `kg:theme:v1`.
+- **Latest-head validation:** deploy workflow run `44525758219` — npm ci, JS syntax checks, TypeScript check and full `npm test` PASS; deploy intentionally skipped for PR. Screenshot run `44525758117` — Playwright install, syntax and iPhone preview/contract scenarios PASS.
+- **Test coverage:** default dark state, explicit light selection, system preference responding to emulated dark/light OS changes, return to light and closing settings.
