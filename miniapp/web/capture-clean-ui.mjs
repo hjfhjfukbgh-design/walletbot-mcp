@@ -165,6 +165,16 @@ try{
     if(walletScrollCheck.navTop>=walletScrollCheck.viewportHeight||walletScrollCheck.navBottom>walletScrollCheck.viewportHeight)throw new Error("wallet bottom navigation must remain fixed inside the viewport");
     if(walletScrollCheck.cardBottom>walletScrollCheck.navTop-8)throw new Error("wallet final card is obscured by bottom navigation: "+JSON.stringify(walletScrollCheck));
     await page.evaluate(()=>window.scrollTo(0,0));
+    await page.locator('#kg-nav button[data-screen="agents"]').click();
+    if(!(await page.locator("#kg-agents-screen .kg-agents-hero").innerText()).includes("подтверждённая активность агентов"))throw new Error("Agents hero must not imply that a strategy runner is active");
+    await page.waitForSelector("#kg-agents-paper-account");
+    await page.waitForFunction(()=>document.querySelector("#kg-agents-paper-note")?.textContent==="Состояние из защищённого API");
+    if(!(await page.locator("#kg-agents-paper-balance").innerText()).includes("115"))throw new Error("Agents screen must show the real AI paper balance");
+    if(!(await page.locator("#kg-agents-demo-balance").innerText()).includes("985"))throw new Error("Agents screen must show the DEMO funding balance");
+    if((await page.locator("#kg-agents-paper-positions").innerText()).trim()!=="0")throw new Error("Agents screen must show the confirmed paper position count");
+    if(!(await page.locator("#kg-agents-paper-status").innerText()).includes("Остановлен"))throw new Error("Agents screen must show the real stopped status");
+    if(!(await page.locator(".kg-agents-safety-note").innerText()).includes("виртуальные средства"))throw new Error("Agents screen must disclose virtual-only funds");
+    await page.screenshot({path:`clean-agents-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator('#kg-nav button[data-screen="trading"]').click();
     await page.waitForSelector("#kg-market-list .kg-market-row");
     await page.screenshot({path:`clean-catalog-${device.width}x${device.height}.png`,fullPage:false});
