@@ -857,3 +857,13 @@
 - **Первый технический фокус:** аудит полного LIVE lifecycle (Walt connection, preview/risk, explicit confirm, execute-once, open/close, positions/balance sync, unknown/reconciliation) и точные причины текущего productMode 409/UI lock.
 - **Ограничения:** тесты только с mocks; реальные ордера/закрытия/переводы/изменения аккаунта запрещены; не добавлять платные расходы; merge/deploy только после CI и проверки.
 - **Статус на старте:** код ещё не менялся; задачи команд не считаются запущенными без подтверждённых Actions runs.
+
+### 2026-11-19 — LIVE preview API regression coverage added; close contract remains unverified
+
+- **Время Екатеринбурга (UTC+05:00):** 2026-11-19T06:37:00+05:00
+- **PR #357:** Draft, branch `test/live-preview-risk-coverage-2026-11-19`, head `841d9527b3bf5420d4652af1db0729140cb6b70c`.
+- **Изменения:** добавлены mocked API-level tests для LIVE preview: валидный Walt contract с `contractId: 0` создаёт opaque tenant-scoped preview, вызывает `perps_prepare_order_place` с ожидаемыми полями и не вызывает execute; неподдерживаемый рынок отклоняется до prepare; уже открытая позиция блокирует повторное открытие до чтения цены/баланса и prepare.
+- **Проверка CI:** `fetch_commit_workflow_runs` для head SHA вернул пустой список; typecheck/tests не объявляются пройденными. PR оставлен Draft.
+- **LIVE close audit:** `src/walt.ts` содержит только fail-closed legacy `closePosition()`; в `src/api.ts` нет LIVE close preview/execute route, только open preview/execute и read-only operation reconciliation. GitHub code search не обнаружил подтверждённого Walt MCP close tool schema. Официальная Walt help-страница описывает manual close через Cash Out и закрывающие комиссии/slippage, но не документирует MCP tool name/request schema: https://help.walt.io/article/634-trade-and-trading-assets-in-wallet. Поэтому close implementation нельзя безопасно выдумывать.
+- **Следующий блокер LIVE:** получить/подтвердить официальный MCP tool contract для close, затем добавить mock contract tests и prepare → explicit confirm → single execute → reconciliation; только после этого интегрировать LIVE UI и снять productMode 409. LIVE не разблокирован.
+- **Безопасность:** все новые тесты используют mocks; реальные Walt calls, ордера, закрытия, переводы, account changes, secrets, merge и deployment не выполнялись.
