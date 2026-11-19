@@ -1258,3 +1258,9 @@
 - **PR #427:** extends iPhone Playwright coverage to open the Agents tab and assert paper balance, DEMO source balance, open-position count, stopped state and virtual-only notice; adds `clean-agents` artifacts.
 - **Initial run `44522121720`:** screenshot job failed only because the assertion expected initial balances after the same test had already funded $25 and withdrawn $10. The UI correctly showed the updated $115 AI / $985 DEMO balances. Corrected expected values to reflect preceding actions.
 - **Current head:** `6e21dd56076b2efc084770a1e404d018dbdcb453`; rerun `44522305636` in progress.
+
+### 2026-11-19T17:20:10+05:00 — Agents screen browser QA expanded; hero copy corrected
+
+- **PR #427:** first browser run `44522121720` failed because a test expected the safety note inside the account card when it is correctly rendered separately; corrected selector. Second run `44522305636` failed because the safety assertion still targeted the account card; corrected to `.kg-agents-safety-note`.
+- Visual review of artifact `14529405450` confirmed the Agents screen layout and real paper account values. It also exposed misleading hero copy (“Автоматизированные стратегии…”), despite no active strategy runner. Changed to “Баланс paper-счёта, позиции и подтверждённая активность агентов.”
+- Added browser assertion that the Agents hero does not imply an active strategy runner. Current PR #427 head `b086be5b2913e7a9aaa3bfb3543155c93559c448`; screenshot run `44522877277` in progress.
