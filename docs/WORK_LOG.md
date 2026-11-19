@@ -1277,3 +1277,8 @@
 - **PR #361:** closed as superseded by #428; original branch was 30 commits ahead/22 behind and diverged from main.
 - **PR #228:** closed as stale. Current main already has serialized deployment concurrency; old release branch was 82 commits behind and carried superseded app/UI code. No deployment was triggered.
 - **Cleanup:** closed obsolete dispatch/handoff PRs tied to completed issues (#379, #355, #409, #411, #360, #358, #266, #254, #275, #278, #330, #312, #313, #367, #359). Active blockers remain #270/#277/#332 and parent release issue #203.
+
+### 2026-11-19T17:29:32+05:00 — Obsolete worker handoff/dispatch PR cleanup
+
+- Closed 19 stale dispatch/handoff PRs (#366, #371, #373, #374, #376, #377, #378, #382, #383, #384, #386, #387, #388, #389, #390, #391, #393, #395, #396) tied to issues already closed (#358, #359, #367, #369, #372, #380, #385, #392, #394). No application code was merged from these packet/handoff branches.
+- The parent product issue #203, LIVE close contract #332, security review #277, and blocked LIVE UI issue #270 remain open.
