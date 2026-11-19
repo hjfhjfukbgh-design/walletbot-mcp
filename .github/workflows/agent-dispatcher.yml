@@ -1,6 +1,6 @@
 name: Kripto Guru — continuous agent dispatcher
 # Keep scheduled queue active; push on this file triggers an immediate dispatch pass.
-# Queue pass: drain the prioritized product queue; max three workers per pass.
+# Queue pass: drain the prioritized product queue; max three workers per pass. UI trading refinement #526 added 2026-11-20 EKB.
 
 on:
   push:
