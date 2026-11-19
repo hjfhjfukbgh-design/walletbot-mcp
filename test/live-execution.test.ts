@@ -13,7 +13,7 @@ import { handleApi } from "../src/api";
 const ctx = { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext;
 
 function liveEnv() {
-  const e = liveEnv();
+  const e = env();
   e.LIVE_TRADING_ENABLED = "true";
   return e;
 }
