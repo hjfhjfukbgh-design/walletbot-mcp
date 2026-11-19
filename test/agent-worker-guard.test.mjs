@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractScopeItems, findMissingScopeRows, findUnverifiedReferences, normalizeAnalysisReport } from "../scripts/agent-worker-guard.mjs";
+import { contextLimit, extractScopeItems, findMissingScopeRows, findUnverifiedReferences, normalizeAnalysisReport } from "../scripts/agent-worker-guard.mjs";
 
 describe("agent worker evidence guard", () => {
   it("extracts semicolon-separated Russian scope items", () => {
@@ -64,4 +64,11 @@ it("accepts CSS selectors represented by HTML id and data attributes", () => {
 it("retains a 30-action audit checklist instead of truncating at 15", () => {
   const actions = Array.from({ length: 30 }, (_, index) => "action " + (index + 1)).join("; ");
   expect(extractScopeItems("## Области\n" + actions + "\n\n## Правила\nread only")).toHaveLength(30);
+});
+
+it("loads full UI controller and explicit audit files into context", () => {
+  expect(contextLimit("miniapp/web/kripto-guru-ui.js", ["miniapp/web/kripto-guru-ui.js"])).toBe(100000);
+  expect(contextLimit("miniapp/web/index.html", ["miniapp/web/index.html"])).toBe(50000);
+  expect(contextLimit("src/companion.ts", ["src/companion.ts"])).toBe(50000);
+  expect(contextLimit("README.md", [])).toBe(9000);
 });
