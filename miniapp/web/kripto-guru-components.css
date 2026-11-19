@@ -134,3 +134,6 @@
 .kg-ui-primitives .kg-error-banner { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border-radius:14px; background:color-mix(in srgb,var(--kg-ui-loss) 10%,transparent); font-size:13px; }
 .kg-ui-primitives .kg-error-banner__action { min-height:40px; padding:8px 12px; border:0; border-radius:999px; background:var(--kg-ui-surface); color:var(--kg-ui-accent); font:600 12px -apple-system,BlinkMacSystemFont,sans-serif; }
 @media (prefers-reduced-motion: reduce) { .kg-ui-primitives .kg-skeleton__line { animation:none; } }
+
+.kg-ui-primitives[data-theme="dark"] .kg-heatmap-tile--positive { background:#183b28; color:#79db98; }
+.kg-ui-primitives[data-theme="dark"] .kg-heatmap-tile--negative { background:#432321; color:#ff8982; }
