@@ -53,7 +53,7 @@ const candles=Array.from({length:30},(_,i)=>{
   return {time:1700000000+i*900,open:base,high:base+38,low:base-31,close:base+(i%2?18:-12)};
 });
 try{
-  for(const device of [{width:390,height:844},{width:430,height:932}]){
+  for(const device of [{width:360,height:800},{width:375,height:812},{width:390,height:844},{width:430,height:932}]){
     const page=await browser.newPage({viewport:device,deviceScaleFactor:3,isMobile:true,hasTouch:true});
     const pageErrors=[];
     const consoleErrors=[];
@@ -106,6 +106,8 @@ try{
     const walletActions=await page.locator("#kg-wallet-quick-actions button").evaluateAll(nodes=>nodes.map(node=>node.getAttribute("aria-disabled")));
     if(walletActions.length!==4||walletActions.some(value=>value!=="true"))throw new Error("Unsupported real-wallet actions must be explicitly marked unavailable");
     if(!(await page.locator(".kg-wallet-actions-note").innerText()).includes("пока недоступны"))throw new Error("Wallet must explain why real-fund actions are unavailable");
+    const viewport=await page.evaluate(()=>({width:window.innerWidth,scrollWidth:document.documentElement.scrollWidth}));
+    if(viewport.scrollWidth>viewport.width+1)throw new Error("Unexpected horizontal page overflow at "+device.width+"px: "+JSON.stringify(viewport));
     await page.waitForSelector("#kg-wallet-balance");
     await page.waitForFunction(()=>document.querySelector("#kg-market-updated")?.textContent.includes("Обновлено"));
     const freshnessLabel=await page.locator("#kg-market-updated").innerText();
