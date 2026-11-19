@@ -1388,3 +1388,8 @@
 - **PR #436:** merged to main as `84f77dbc7573dcba3a78daeebb3cdadf73d1724e`.
 - CI run `44528991426`: npm ci, JS syntax, typecheck and full unit tests PASS; deploy skipped. Screenshot run `44528991445`: Playwright and clean UI contracts PASS.
 - The four wallet quick actions now disclose that real-wallet operations are unavailable, are marked `aria-disabled`, and are visually de-emphasized while preserving explanatory tap feedback.
+
+### 2026-11-19T18:01:16+05:00 — Release checkpoint updated with theme persistence and wallet action UX
+
+- Updated issue #203 with PR #435 reload-persistence QA and PR #436 unavailable-action UX, including exact CI/screenshot run IDs and inspected 390×844 visual artifact.
+- No change to LIVE/strategy/deploy blockers; no real Walt operations or production deployment.
