@@ -188,13 +188,29 @@
     <div id="kg-profile-avatar" class="kg-profile-avatar" aria-hidden="true">KG</div>
     <h2 id="kg-profile-name">Профиль Kripto Guru</h2>
     <p id="kg-profile-username" class="kg-profile-username" hidden></p>
-    <details class="kg-profile-options">
-      <summary>Настройки и опции</summary>
-      <div class="kg-profile-options-content">
+    <div class="kg-profile-islands">
+      <section class="kg-profile-island" aria-label="Аккаунт и режим">
+        <h3>Аккаунт и режим</h3>
+        <p><span>Режим продукта</span><strong id="kg-profile-mode">—</strong></p>
+      </section>
+      <section class="kg-profile-island" aria-label="Кошелёк Walt">
+        <h3>Кошелёк Walt</h3>
+        <p><span>Подключение</span><strong id="kg-profile-wallet-status">—</strong></p>
+      </section>
+      <section class="kg-profile-island" aria-label="Общие настройки">
+        <h3>Общие настройки</h3>
         <p><span>Язык интерфейса</span><strong>Русский</strong></p>
-        <p><span>Профиль</span><strong>Данные Telegram</strong></p>
-      </div>
-    </details>
+        <p><span>Тема</span><strong id="kg-profile-theme">По теме Telegram</strong></p>
+      </section>
+      <section class="kg-profile-island" aria-label="Торговля">
+        <h3>Торговля</h3>
+        <p><span>LIVE</span><strong>Заблокирован до проверки безопасности</strong></p>
+      </section>
+      <section class="kg-profile-island" aria-label="ИИ">
+        <h3>ИИ</h3>
+        <p><span>Paper-счёт</span><strong id="kg-profile-ai-status">—</strong></p>
+      </section>
+    </div>
   </section>
   <div id="kg-toast" class="kg-toast" role="status" aria-live="polite"></div>
   <script src="/kripto-guru-api.js?v=20261118-live-quotes-1"></script>
