@@ -117,6 +117,7 @@
   }
   function handleNativeBack(){
     if(!$("#kg-profile-sheet").hidden){closeProfile();return;}
+    if($("#kg-ai-menu").classList.contains("is-open")){setCompanionMenu(false);return;}
     if(!$("#kg-ticket-screen").hidden){closeTicket();return;}
     if(!$("#kg-asset-screen").hidden){closeAsset();return;}
     setScreen(state.screen);
@@ -768,6 +769,7 @@
     menu.inert=!open;
     backdrop.hidden=!open;
     trigger.setAttribute("aria-expanded",String(open));
+    if(tg?.BackButton){tg.BackButton.offClick?.(handleNativeBack);if(open){tg.BackButton.show();tg.BackButton.onClick(handleNativeBack);}else if($("#kg-companion-screen").classList.contains("is-active"))tg.BackButton.hide();}
   }
   function renderCompanionLimits(){
     const root=$("#kg-ai-limits-content"),limits=state.companionLimits;
@@ -1035,7 +1037,7 @@
     $("#kg-ai-new").addEventListener("click",newCompanionConversation);
     $("#kg-ai-new-menu").addEventListener("click",newCompanionConversation);
     $("#kg-ai-menu-open").addEventListener("click",()=>setCompanionMenu(true));
-    $("#kg-ai-menu-close").addEventListener("click",()=>setCompanionMenu(false));
+    $("#kg-ai-menu-profile").addEventListener("click",()=>{setCompanionMenu(false);setScreen("wallet");openProfile();});
     $("#kg-ai-menu-backdrop").addEventListener("click",()=>setCompanionMenu(false));
     $("#kg-ai-form").addEventListener("submit",sendCompanionMessage);
     const aiScreen=$("#kg-companion-screen"), aiInput=$("#kg-ai-input");
