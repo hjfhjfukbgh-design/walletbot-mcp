@@ -171,9 +171,15 @@ try{
     await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-transfer-note")?.textContent.includes("возвращены в DEMO"));
     if(!(await page.locator("#kg-ai-paper-balance").innerText()).includes("115"))throw new Error("AI paper balance did not update after virtual withdrawal");
     if(!(await page.locator("#kg-ai-paper-demo-balance").innerText()).includes("985"))throw new Error("DEMO balance did not increase after virtual withdrawal");
+    await page.mouse.move(0,0);
+    await page.evaluate(()=>document.activeElement?.blur());
     await page.screenshot({path:`clean-product-mode-ai-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator('[data-product-mode="demo"]').click();
     await page.waitForFunction(()=>document.querySelector('[data-product-mode="demo"]')?.classList.contains("is-active"));
+    if(await page.locator('[data-product-mode="ai"]').evaluate(node=>node.classList.contains("is-active")))throw new Error("AI mode must be inactive after returning to DEMO");
+    if(!(await page.locator("#kg-product-mode-status").innerText()).includes("DEMO"))throw new Error("DEMO mode status must match the selected mode");
+    await page.mouse.move(0,0);
+    await page.evaluate(()=>document.activeElement?.blur());
 
     if(!(await page.locator("#kg-wallet-quick-actions").isVisible()))throw new Error("wallet quick actions must be visible on the first screen");
     if(await page.locator("#kg-wallet-quick-actions button").count()!==4)throw new Error("wallet should show four reference quick actions");
