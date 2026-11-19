@@ -1470,18 +1470,6 @@ html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--strong{background:
 .kg-wallet-actions-note{margin:-7px 2px 12px;color:var(--kg-muted);font-size:10px;line-height:1.4;text-align:center}
 
 
-/* Kripto Guru dark surface overrides */
-#kg-nav{display:flex!important}
-#kg-companion-screen.is-active~#kg-nav,#kg-companion-screen.is-active~.kg-nav,#kg-nav:has(~#kg-companion-screen.is-active),body:has(#kg-companion-screen.is-active) #kg-nav{display:none!important}
-#kg-companion-screen{background:#000000;color:#F5F5F7}
-#kg-companion-screen .kg-ai-form{background:#1C1C1E;border-color:#38383A}
-#kg-companion-screen .kg-ai-messages{background:#1C1C1E;border-color:#38383A}
-#kg-companion-screen .kg-ai-message>div{background:#2C2C2E;color:#F5F5F7}
-#kg-companion-screen .kg-ai-message.is-user>div{background:#5B9BF5;color:#000000}
-#kg-companion-screen .kg-ai-welcome{background:#1C1C1E}
-#kg-companion-screen .kg-ai-welcome>b{color:#F5F5F7}
-#kg-companion-screen .kg-ai-welcome>p{color:#8E8E93}
-#kg-companion-screen .kg-ai-form textarea{color:#F5F5F7}
-#kg-companion-screen .kg-gemini-tools button{background:#2C2C2E;border-color:#38383A;color:#F5F5F7}
-#kg-companion-screen.kg-gemini-home{background:#000000}
-
+/* Keep the theme-aware Companion styling; hide the nav only while Companion is active. */
+#kg-nav{display:grid!important}
+body:has(#kg-companion-screen.is-active) #kg-nav{display:none!important}
