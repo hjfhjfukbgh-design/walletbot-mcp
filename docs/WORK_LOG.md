@@ -1424,3 +1424,9 @@
 - **PR #439:** merged to main as `392458398fe69a1f1bd75877812169235b7d5d8d`.
 - Initial screenshot assertion correctly exposed a transient 160ms CSS background transition: the inactive AI button briefly retained the previous selected tint even after class/focus/hover state had cleared. The test now waits 200ms for the transition to finish, verifies AI is inactive and the status says DEMO, then moves the pointer away and blurs before screenshots.
 - Final screenshot run `44532044254` PASS at all four widths; inspected 360×800 wallet preview confirms DEMO is the only selected mode and the AI button is neutral. CI run `44532044235`: npm ci, JS syntax, typecheck and full unit tests PASS; deploy skipped.
+
+### 2026-11-19T22:47:38+05:00 — AI wallet and paper summary preview contract verified
+
+- **PR #440:** test-only update captures the wallet AI mode and AI paper account summary separately, at the top of the screen and after scrolling the summary into view.
+- CI run `44532666964`: npm ci, JS syntax checks, TypeScript and full unit tests PASS; deploy job skipped.
+- Four-width Playwright screenshot run `44532667539`: PASS; artifact `14535295708` (`kripto-guru-clean-ui-previews`, 19,970,787 bytes) uploaded. This validates the mocked Mini App browser contract, not a live Telegram iOS WebView session.
