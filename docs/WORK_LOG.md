@@ -1366,3 +1366,8 @@
 - Updated issue #203 with merged PRs #430–#434, exact CI/screenshot run IDs, and inspected visual evidence.
 - Reconfirmed release blockers: Walt close schema (#332), dependent LIVE UI/security sign-off (#270/#277), unimplemented AI strategy runner, production deploy + Telegram iPhone QA, and unresolved E-account semantics.
 - Explicitly recorded that no real Walt financial writes or production deployment were performed.
+
+### 2026-11-19T17:56:57+05:00 — Theme persistence across reload regression test started
+
+- **PR #435:** extends clean UI Playwright coverage to reload the Mini App after selecting Light and assert the resolved theme, preference attribute and persisted `kg:theme:v1` value all remain Light.
+- Test-only change; no production code. Current head `14d151a63331ade4ef01833aa5fd33490e97856c`; CI `44528612001` and screenshot run `44528611849` are in progress.
