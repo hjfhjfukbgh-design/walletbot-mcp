@@ -101,7 +101,7 @@ export function sparklineMarkup(points, { positive = null, label = "Измене
     const y = 22 - (value - min) * 20 / range;
     return `${x.toFixed(2)},${y.toFixed(2)}`;
   }).join(" ");
-  const rising = positive === null ? values.at(-1) >= values[0] : Boolean(positive);
+  const rising = positive === null ? values[values.length - 1] >= values[0] : Boolean(positive);
   return `<svg class="kg-sparkline ${rising ? "kg-sparkline--positive" : "kg-sparkline--negative"}" width="56" height="24" viewBox="0 0 56 24" role="img" aria-label="${escapeHTML(label)}"><polyline points="${coords}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
