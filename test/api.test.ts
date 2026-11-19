@@ -209,6 +209,32 @@ describe("API da Mini App", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("routes AI paper status through the authenticated user-scoped Engine", async () => {
+    const e = env();
+    let requestedUrl = "";
+    let requestedMethod = "";
+    e.ENGINE = {
+      idFromName: (name: string) => name,
+      get: () => ({
+        fetch: async (request: Request) => {
+          requestedUrl = request.url;
+          requestedMethod = request.method;
+          return Response.json({
+            ok: true, demoBalanceMicro: "900000000", aiBalanceMicro: "100000000",
+            status: "stopped", openPositions: 2,
+          });
+        },
+      }),
+    } as unknown as DurableObjectNamespace;
+    const response = await call(e, "ai/paper/status", "chave-teste");
+    expect(response.status).toBe(200);
+    expect(requestedMethod).toBe("GET");
+    expect(requestedUrl).toContain("/ai/paper/status?userId=12345");
+    expect(await response.json()).toMatchObject({
+      ok: true, demoBalanceMicro: "900000000", aiBalanceMicro: "100000000",
+      status: "stopped", openPositions: 2,
+    });
+  });
   it("routes demo history through the authenticated user-scoped Engine", async () => {
     const e = env();
     let requestedUrl = "";
