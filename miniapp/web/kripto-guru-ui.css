@@ -1313,3 +1313,22 @@ html[data-theme="dark"] {
 .kg-favorite{background:var(--kg-card);color:var(--kg-ink)}
 .kg-list{background:var(--kg-card);color:var(--kg-ink)}
 .kg-asset-row{background:var(--kg-card);color:var(--kg-ink)}
+
+/* Muted Walt-inspired heatmap palette; values remain sourced from real quotes. */
+.kg-heat-cell{border:0;border-radius:10px;transition:filter .18s ease,transform .18s ease}
+.kg-heat-cell:active{transform:scale(.98)}
+.kg-heat-cell--neutral{background:#F3F3F6;color:#8E8E93}
+.kg-heat-cell--positive.kg-heat-cell--mild{background:#E8F5EC;color:#477D55}
+.kg-heat-cell--positive.kg-heat-cell--medium{background:#CDE8D4;color:#326D43}
+.kg-heat-cell--positive.kg-heat-cell--strong{background:#9ECDAA;color:#194F2E}
+.kg-heat-cell--negative.kg-heat-cell--mild{background:#FDECEC;color:#A6534E}
+.kg-heat-cell--negative.kg-heat-cell--medium{background:#F5D0CD;color:#923D38}
+.kg-heat-cell--negative.kg-heat-cell--strong{background:#EAA29B;color:#6F201D}
+html[data-theme="dark"] .kg-heat-cell--neutral{background:#2C2C2E;color:#8E8E93}
+html[data-theme="dark"] .kg-heat-cell--positive.kg-heat-cell--mild{background:#243B2B;color:#A6DDB1}
+html[data-theme="dark"] .kg-heat-cell--positive.kg-heat-cell--medium{background:#2C5137;color:#B3E7BD}
+html[data-theme="dark"] .kg-heat-cell--positive.kg-heat-cell--strong{background:#356545;color:#D0F1D6}
+html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--mild{background:#402725;color:#F1AAA4}
+html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--medium{background:#5A2D2A;color:#FFB7B0}
+html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--strong{background:#713632;color:#FFD0CC}
+@media (prefers-reduced-motion:reduce){.kg-heat-cell{transition:none}}
