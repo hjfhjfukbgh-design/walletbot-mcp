@@ -1,4 +1,5 @@
 name: Kripto Guru — continuous agent dispatcher
+# Keep scheduled queue active; push on this file triggers an immediate dispatch pass.
 
 on:
   push:
