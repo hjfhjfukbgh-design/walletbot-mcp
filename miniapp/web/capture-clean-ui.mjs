@@ -32,6 +32,11 @@ async function captureDarkVariant(page,name,device){
       surface:currency?getComputedStyle(currency).backgroundColor:null
     };
   });
+  const composerBackground=await page.evaluate(()=>getComputedStyle(document.querySelector("#kg-ai-form")).backgroundColor);
+  const composerChannels=composerBackground.match(/[0-9.]+/g)?.slice(0,3).map(Number)||[];
+  if(composerChannels.length!==3||composerChannels.reduce((sum,value)=>sum+value,0)/3>90){
+    throw new Error("Dark theme Companion composer must use a dark surface: "+composerBackground);
+  }
   if(colors.bg!=="#000000"||colors.card!=="#1c1c1e"||colors.body!=="rgb(0, 0, 0)"||colors.surface!=="rgb(28, 28, 30)"){
     throw new Error("Dark theme token/surface mismatch: "+JSON.stringify(colors));
   }
