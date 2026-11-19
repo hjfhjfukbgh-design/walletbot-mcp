@@ -1,6 +1,9 @@
 name: Kripto Guru — continuous agent dispatcher
 
 on:
+  push:
+    paths:
+      - '.github/workflows/agent-dispatcher.yml'
   workflow_dispatch:
   schedule:
     - cron: "*/15 * * * *"
