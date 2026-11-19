@@ -524,8 +524,13 @@ jobs:
             }
             if(result) break;
           }
-          if(!result || !["PASS","REJECT"].includes(result.verdict)) throw new Error("Second-model review unavailable: "+last);
+          if(!result || !["PASS","REJECT"].includes(result.verdict)) {
+            fs.appendFileSync(process.env.GITHUB_OUTPUT,"verdict=UNAVAILABLE\\n");
+            console.warn("Second-model review unavailable after bounded retries: "+last+"; Draft PR may proceed to mandatory human review.");
+            process.exit(0);
+          }
           fs.writeFileSync("/tmp/worker-review.json",JSON.stringify(result,null,2));
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,"verdict="+result.verdict+"\\n");
           console.log("Second-model review verdict: "+result.verdict);
           if(result.verdict!=="PASS") {
             console.error(JSON.stringify(result));
@@ -534,13 +539,14 @@ jobs:
           NODE
 
       - name: Publish implementation Draft PR
-        if: steps.checks.outputs.mode == 'code'
+        if: steps.checks.outputs.mode == 'code' && steps.review.outputs.verdict != 'REJECT'
         env:
           GH_TOKEN: ${{ github.token }}
           ROLE: ${{ inputs.role }}
           ISSUE_NUMBER: ${{ inputs.issue_number }}
           RUN_ID: ${{ github.run_id }}
           TASK: ${{ inputs.task }}
+          REVIEW_VERDICT: ${{ steps.review.outputs.verdict }}
         shell: bash
         run: |
           set -euo pipefail
@@ -553,7 +559,7 @@ jobs:
           git push origin "$branch"
           gh pr create --draft --base "${{ inputs.base_branch }}" --head "$branch" \
             --title "${ROLE} implementation for issue #${ISSUE_NUMBER}" \
-            --body "Automated bounded implementation from central orchestrator. Issue: #${ISSUE_NUMBER}. Runtime checks passed and a second-model AI review returned PASS; this is not an independent human security audit. Human code review still required. No merge, deployment, or LIVE actions were performed."
+            --body "Automated bounded implementation from central orchestrator. Issue: #${ISSUE_NUMBER}. Runtime checks passed. Second-model review: ${REVIEW_VERDICT:-UNAVAILABLE}. If UNAVAILABLE, human code/security review is mandatory before merge. This is not an independent human security audit. No merge, deployment, or LIVE actions were performed."
 
       - name: Publish report-only role handoff
         if: steps.patch.outcome == 'success' && steps.checks.outputs.mode != 'code'
