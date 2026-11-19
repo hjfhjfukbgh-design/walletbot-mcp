@@ -93,6 +93,10 @@ try{
       const mockPositions=[];
       const mockHistory=[];
       const companionHistory=[];
+      const mockAiPaperOpen=Array.from({length:12},(_,i)=>({id:"paper-open-"+i,symbol:["BTC","ETH","SOL"][i%3],side:i%2?"short":"long",status:"open",entry_price:"9124050000000",margin_micro:"10000000",leverage:"2",opened_at:Date.now()-i*60000,closed_at:null}));
+      const mockAiPaperClosed=Array.from({length:12},(_,i)=>({id:"paper-closed-"+i,symbol:["BTC","ETH","SOL"][i%3],side:i%2?"short":"long",status:"closed",entry_price:"9124050000000",margin_micro:"10000000",leverage:"2",opened_at:Date.now()-3600000-i*60000,closed_at:Date.now()-i*30000}));
+      const mockAiPaperDecisions=Array.from({length:12},(_,i)=>({id:"paper-decision-"+i,symbol:["BTC","ETH","SOL"][i%3],signal:i%3===0?"buy":i%3===1?"sell":"hold",rationale:i===0?"<img src=x onerror=alert(1)>":"Тестовое решение "+i,riskPass:i%2===0,rejectionReason:i%2?"Ограничение риска":null,observedPrice:"9124050000000",createdAt:Date.now()-i*30000}));
+      window.__aiPaperStatus="stopped";window.__aiPaperStartCalls=0;window.__aiPaperStopCalls=0;
       window.__candleCalls=0;window.__candleIntervals=[];window.__marketListCalls=0;
       window.__productMode="demo";
       window.__lastTradeOpen=null;
@@ -116,9 +120,13 @@ try{
         capabilities:{async get(){return {ipo:{available:false,reason:"Нет источника IPO"},stocks:{available:false},funds:{available:false},bonuses:{available:false},live:{available:false}};}},
         productMode:{async get(){return window.__productMode||"demo";},async set(mode){if(mode!=="demo"&&mode!=="ai")throw {code:"MODE_LOCKED",message:"LIVE заблокирован"};window.__productMode=mode;return {ok:true,productMode:mode};}},
         aiPaper:{
-          async status(){return {demoBalanceUsd:window.__aiDemoBalance??1000,balanceUsd:window.__aiPaperBalance??100,openPositions:0,status:"stopped"};},
+          async status(){return {demoBalanceUsd:window.__aiDemoBalance??1000,balanceUsd:window.__aiPaperBalance??100,openPositions:mockAiPaperOpen.length,status:window.__aiPaperStatus};},
           async fund({amountUsd,idempotencyKey}){const amount=Number(amountUsd);if(!(amount>0)||amount>(window.__aiDemoBalance??1000))throw {code:"VALIDATION_ERROR",message:"Недостаточно виртуальных средств DEMO"};const keys=window.__aiTransferKeys??(window.__aiTransferKeys={});if(keys[idempotencyKey])return keys[idempotencyKey];window.__aiDemoBalance=(window.__aiDemoBalance??1000)-amount;window.__aiPaperBalance=(window.__aiPaperBalance??100)+amount;return keys[idempotencyKey]={ok:true};},
-          async withdraw({amountUsd,idempotencyKey}){const amount=Number(amountUsd);if(!(amount>0)||amount>(window.__aiPaperBalance??100))throw {code:"VALIDATION_ERROR",message:"Недостаточно средств на AI paper-счёте"};const keys=window.__aiTransferKeys??(window.__aiTransferKeys={});if(keys[idempotencyKey])return keys[idempotencyKey];window.__aiPaperBalance=(window.__aiPaperBalance??100)-amount;window.__aiDemoBalance=(window.__aiDemoBalance??1000)+amount;return keys[idempotencyKey]={ok:true};}
+          async withdraw({amountUsd,idempotencyKey}){const amount=Number(amountUsd);if(!(amount>0)||amount>(window.__aiPaperBalance??100))throw {code:"VALIDATION_ERROR",message:"Недостаточно средств на AI paper-счёте"};const keys=window.__aiTransferKeys??(window.__aiTransferKeys={});if(keys[idempotencyKey])return keys[idempotencyKey];window.__aiPaperBalance=(window.__aiPaperBalance??100)-amount;window.__aiDemoBalance=(window.__aiDemoBalance??1000)+amount;return keys[idempotencyKey]={ok:true};},
+          async start(){window.__aiPaperStartCalls++;window.__aiPaperStatus="active";return {status:"active"};},
+          async stop(){window.__aiPaperStopCalls++;window.__aiPaperStatus="stopped";return {status:"stopped"};},
+          async positions({status="open",limit=10}={}){const rows=status==="closed"?mockAiPaperClosed:mockAiPaperOpen;return {positions:rows.slice(0,limit).map(row=>({...row}))};},
+          async decisions({limit=10}={}){return {decisions:mockAiPaperDecisions.slice(0,limit).map(row=>({...row}))};}
         },
         companion:{async list(){return companionHistory.map(x=>({...x}));},async get(id){return {id,messages:[{role:"user",content:"Привет"},{role:"assistant",content:"Здравствуйте!"}]};},async send(message,id){const conversationId=id||"preview-conversation-1";companionHistory.unshift({id:conversationId,title:message.slice(0,32),messageCount:2});return {conversationId,answer:"Тестовый ответ ИИ",conversation:{id:conversationId,messages:[{role:"user",content:message},{role:"assistant",content:"Тестовый ответ ИИ"}]}};},async remove(id){const index=companionHistory.findIndex(x=>x.id===id);if(index>=0)companionHistory.splice(index,1);return {ok:true};}},
       };
@@ -196,9 +204,44 @@ try{
     await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-transfer-note")?.textContent.includes("возвращены в DEMO"));
     if(!(await page.locator("#kg-ai-paper-balance").innerText()).includes("115"))throw new Error("AI paper balance did not update after virtual withdrawal");
     if(!(await page.locator("#kg-ai-paper-demo-balance").innerText()).includes("985"))throw new Error("DEMO balance did not increase after virtual withdrawal");
+    await page.evaluate(()=>{window.__aiPaperBalance=0;});
+    await page.locator('[data-product-mode="demo"]').click();
+    await page.waitForFunction(()=>document.querySelector('[data-product-mode="demo"]')?.classList.contains("is-active"));
+    if(!(await page.locator("#kg-ai-paper-start").isDisabled()))throw new Error("AI PAPER start must be disabled outside AI mode");
+    await page.locator('[data-product-mode="ai"]').click();
+    await page.waitForFunction(()=>document.querySelector('[data-product-mode="ai"]')?.classList.contains("is-active"));
+    if(!(await page.locator("#kg-ai-paper-start").isDisabled()))throw new Error("AI PAPER start must be disabled when virtual balance is zero");
+    await page.evaluate(()=>{window.__aiPaperBalance=115;});
+    await page.locator('[data-product-mode="demo"]').click();
+    await page.waitForFunction(()=>document.querySelector('[data-product-mode="demo"]')?.classList.contains("is-active"));
+    await page.locator('[data-product-mode="ai"]').click();
+    await page.waitForFunction(()=>document.querySelector('[data-product-mode="ai"]')?.classList.contains("is-active"));
+    if(!(await page.locator("#kg-ai-paper-start").isEnabled())||!(await page.locator("#kg-ai-paper-start").isVisible()))throw new Error("AI PAPER start must be enabled in AI mode with positive virtual balance");
+    if(await page.locator("#kg-ai-paper-stop").isVisible())throw new Error("AI PAPER Stop must be hidden before a session starts");
+    await page.locator("#kg-ai-paper-start").click();
+    await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-status")?.textContent==="Активна");
+    if(!(await page.locator("#kg-ai-paper-stop").isVisible())||await page.locator("#kg-ai-paper-start").isVisible())throw new Error("Start must activate session and expose Stop only");
+    const paperLists=await page.evaluate(()=>({
+      open:document.querySelectorAll("#kg-ai-paper-open-list .kg-ai-paper-history-item").length,
+      closed:document.querySelectorAll("#kg-ai-paper-closed-list .kg-ai-paper-history-item").length,
+      decisions:document.querySelectorAll("#kg-ai-paper-decisions-list .kg-ai-paper-history-item").length,
+      injected:document.querySelectorAll("#kg-ai-paper-decisions-list img").length,
+      rationale:document.querySelector("#kg-ai-paper-decisions-list").textContent
+    }));
+    if(paperLists.open!==10||paperLists.closed!==10||paperLists.decisions!==10)throw new Error("AI PAPER history lists must cap at 10 rows: "+JSON.stringify(paperLists));
+    if(paperLists.injected!==0||!paperLists.rationale.includes("<img src=x onerror=alert(1)>"))throw new Error("Model-provided rationale must render as text, never HTML: "+JSON.stringify(paperLists));
     await page.mouse.move(0,0);
     await page.evaluate(()=>document.activeElement?.blur());
     await page.screenshot({path:`clean-product-mode-ai-${device.width}x${device.height}.png`,fullPage:false});
+    await captureDarkVariant(page,"product-mode-ai",device);
+    await page.locator('[data-product-mode="demo"]').click();
+    await page.waitForFunction(()=>document.querySelector('[data-product-mode="demo"]')?.classList.contains("is-active"));
+    if(!(await page.locator("#kg-ai-paper-summary").isVisible())||!(await page.locator("#kg-ai-paper-stop").isVisible()))throw new Error("Stop must remain available if an active session is present after product mode changes");
+    await page.locator("#kg-ai-paper-stop").click();
+    await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-status")?.textContent==="Остановлена");
+    if(await page.locator("#kg-ai-paper-summary").isVisible())throw new Error("Stopped AI PAPER summary must hide in DEMO mode");
+    if(!(await page.locator("#kg-ai-paper-start").isDisabled()))throw new Error("AI PAPER start must remain disabled in DEMO mode");
+    if(await page.evaluate(()=>window.__aiPaperStartCalls)!==1||await page.evaluate(()=>window.__aiPaperStopCalls)!==1)throw new Error("AI PAPER start/stop API methods must be called exactly once");
     await page.locator('[data-product-mode="demo"]').click();
     await page.waitForFunction(()=>document.querySelector('[data-product-mode="demo"]')?.classList.contains("is-active"));
     if(await page.locator('[data-product-mode="ai"]').evaluate(node=>node.classList.contains("is-active")))throw new Error("AI mode must be inactive after returning to DEMO");
