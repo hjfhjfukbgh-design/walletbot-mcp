@@ -244,6 +244,22 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     // A different Telegram user has an independent balance and exposure budget.
     const otherUser = await open(stub, 40n * U, limits, "987654321");
     expect(otherUser.body.ok).toBe(true);
+
+    // Account isolation includes ownership of position IDs, not just balances.
+    const firstUserAccount = await stub.fetch("https://engine.test/account?userId=" + userId);
+    const firstUserState = await firstUserAccount.json() as { positions: Array<{ id: string }> };
+    expect(firstUserState.positions).toHaveLength(1);
+    const foreignPositionId = firstUserState.positions[0].id;
+    const foreignClose = await post(stub, "/close", { userId: "987654321", positionId: foreignPositionId, manual: true });
+    expect(foreignClose.body.ok).toBe(false);
+    expect(String(foreignClose.body.error)).toContain("не найдена");
+    const secondUserAccount = await stub.fetch("https://engine.test/account?userId=987654321");
+    const secondUserState = await secondUserAccount.json() as { positions: Array<{ id: string }> };
+    expect(secondUserState.positions).toHaveLength(1);
+    expect(secondUserState.positions[0].id).not.toBe(foreignPositionId);
+    const secondUserHistory = await stub.fetch("https://engine.test/history?userId=987654321");
+    const secondUserHistoryBody = await secondUserHistory.json() as { trades: unknown[] };
+    expect(secondUserHistoryBody.trades).toHaveLength(2);
   });
 
   it("rejects missing or invalid server-side risk limits", async () => {
