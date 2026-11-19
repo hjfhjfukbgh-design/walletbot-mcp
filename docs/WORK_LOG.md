@@ -1169,3 +1169,9 @@
 
 - **PR #421:** preserves null/missing `openPositions` as unknown instead of coercing null to zero in the frontend API adapter. This keeps the UI's `—` behavior for unavailable data.
 - **Head:** `523927169be1fc8935685d249310f4396b6e379e`; CI pending.
+
+### 2026-11-19T08:19:00+05:00 — AI paper unknown-count fix merged; Agents overview opened
+
+- **PR #421:** merged to main; merge commit `7862821bcbfae95630e4c0c704f296d14676cabc`.
+- **QA #421:** run `44451869392` — npm ci, JS syntax, typecheck and tests PASS; deploy skipped. Run `44451869025` — clean UI Playwright screenshot/contract scenarios PASS.
+- **PR #422:** added read-only AI paper account overview to Agents screen, loading authenticated status on tab open even when product mode is DEMO. No strategy start or account writes. Head `e65f944f91a4925ff17f088d3f1d8958dd1299a4`; CI pending.
