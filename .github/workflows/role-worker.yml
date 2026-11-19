@@ -362,19 +362,19 @@ jobs:
                   if(attempt < 2) await new Promise(r=>setTimeout(r,2500));
                   continue;
                 }
-                if(/^NO_SAFE_PATCH(?:\\s*:|$)/i.test(candidate)){
-                  const reason=candidate.replace(/^NO_SAFE_PATCH\\s*: ?/i,"").trim();
+                if(/^NO_SAFE_PATCH(?:\s*:|$)/i.test(candidate)){
+                  const reason=candidate.replace(/^NO_SAFE_PATCH\s*: ?/i,"").trim();
                   fs.writeFileSync("/tmp/worker-mode.txt","no-safe-patch");
-                  fs.writeFileSync("/tmp/worker-report.md","# Исполнитель остановлен безопасно\\n\\nПричина модели: "+(reason||"конкретная причина не указана")+"\\nИсходники не изменены.\\n");
+                  fs.writeFileSync("/tmp/worker-report.md","# Исполнитель остановлен безопасно\n\nПричина модели: "+(reason||"конкретная причина не указана")+"\nИсходники не изменены.\n");
                   console.log("Repair model declined patch safely: "+(reason||"no reason supplied"));
                   process.exit(0);
                 }
-                if(candidate.includes("```") || !candidate.startsWith("--- a/") || !candidate.includes("\\n+++ b/")){
-                  last="invalid unified diff response: "+candidate.slice(0,180).replace(/\\s+/g," ");
+                if(candidate.includes("```") || !candidate.startsWith("--- a/") || !candidate.includes("\n+++ b/")){
+                  last="invalid unified diff response: "+candidate.slice(0,180).replace(/\s+/g," ");
                   if(attempt < 2) await new Promise(r=>setTimeout(r,1500));
                   continue;
                 }
-                fs.writeFileSync("/tmp/worker.patch",candidate+"\\n");
+                fs.writeFileSync("/tmp/worker.patch",candidate+"\n");
                 try {
                   execFileSync("git",["apply","--recount","--check","/tmp/worker.patch"],{stdio:"pipe"});
                   repaired=candidate;
@@ -393,7 +393,7 @@ jobs:
             if(repaired) break;
           }
           if(!repaired) throw new Error("Patch repair unavailable after bounded retries: "+last);
-          fs.writeFileSync("/tmp/worker.patch",repaired+"\\n");
+          fs.writeFileSync("/tmp/worker.patch",repaired+"\n");
           execFileSync("git",["apply","--recount","--check","/tmp/worker.patch"],{stdio:"inherit"});
           console.log("Patch repaired and apply-check passed.");
           NODE
