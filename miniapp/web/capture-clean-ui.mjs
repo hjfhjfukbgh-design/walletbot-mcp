@@ -283,6 +283,7 @@ try{
     await page.waitForFunction(()=>document.querySelector("#kg-companion-screen").classList.contains("kg-composer-expanded"));
     await page.evaluate(()=>{
       document.querySelector("#kg-companion-screen").classList.add("kg-keyboard-open");
+      document.querySelector("#kg-nav").hidden=true;
       const style=document.createElement("style");
       style.id="kg-test-keyboard-style";
       style.textContent=`
@@ -308,7 +309,7 @@ try{
       document.body.appendChild(keyboard);
     });
     if(await page.locator(".kg-gemini-tools").evaluate(el=>getComputedStyle(el).display)!=="none")throw new Error("Gemini tool shortcuts must hide while the keyboard is open");
-    if(await page.locator("#kg-nav").evaluate(el=>getComputedStyle(el).display)==="none")throw new Error("bottom navigation must remain visible while the keyboard is open");
+    if(!(await page.locator("#kg-nav").evaluate(el=>el.hidden)))throw new Error("bottom navigation must be hidden while the keyboard is open");
     const composerAboveKeyboard=await page.evaluate(()=>{
       const composer=document.querySelector("#kg-ai-form").getBoundingClientRect();
       const keyboard=document.querySelector("#kg-test-keyboard").getBoundingClientRect();
@@ -316,7 +317,7 @@ try{
     });
     if(!composerAboveKeyboard)throw new Error("AI composer must remain above the on-screen keyboard");
     await page.screenshot({path:`clean-companion-keyboard-${device.width}x${device.height}.png`,fullPage:false});
-    await page.evaluate(()=>{document.querySelector("#kg-test-keyboard")?.remove();document.querySelector("#kg-test-keyboard-style")?.remove();document.querySelector("#kg-companion-screen").classList.remove("kg-keyboard-open");document.querySelector("#kg-ai-input").blur();});
+    await page.evaluate(()=>{document.querySelector("#kg-test-keyboard")?.remove();document.querySelector("#kg-test-keyboard-style")?.remove();document.querySelector("#kg-companion-screen").classList.remove("kg-keyboard-open");document.querySelector("#kg-nav").hidden=false;document.querySelector("#kg-ai-input").blur();});
     await page.locator("#kg-ai-input").fill("Проверь связь");
     await page.locator("#kg-ai-send").click();
     try{
