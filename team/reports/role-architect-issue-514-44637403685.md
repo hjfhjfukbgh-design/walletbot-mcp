@@ -1,112 +1,90 @@
-# ARCHITECT — анализ задачи #514
+# Исправленный ADR — конкурентность AI Companion (#514)
 
-- Режим: анализ, исходники не изменялись
-- Задача: Статус: READY
-Назначенная роль: ARCHITECT
+**Вердикт: PARTIAL / NOT VERIFIED.** Ни текущая реализация, ни report-only PR #513 не обеспечивают FIFO для параллельных сообщений одного диалога. Ниже — архитектурное решение и границы доказательств; исходники не изменялись.
 
-Почему выбрана роль:
-Задача требует проектирования системной архитектуры, исправления архитектурного решения (ADR) по конкурентности Cloudflare Durable Objects, анализа семантики async request lifecycle, состояния durable FIFO, управления транзакциями и миграции хранилища без изменения исходного кода. Это классическая ответственность системного архитектора (ARCHITECT).
+## 1. Подтверждённый дефект текущего кода
 
-Цель:
-Подготовить исправленный evidence-based ADR для предотвращения lost updates в AI Companion без изменения исходников, учитывающий особенности single-threaded DO, не допускающий удержания транзакций SQLite во время внешних вызовов и описывающий отказоустойчивую state machine и миграцию.
+- `src/companion.ts:18-28`: обработчик валидирует Telegram initData и получает tenant-scoped KV через `tenantEnv`.
+- `src/companion.ts:115-136`: существующий диалог читается из KV, затем на его снимке формируется новая история.
+- `src/companion.ts:157-181`: до записи истории выполняются два асинхронных внешних перехода — запрос к quota Durable Object и Gemini `fetch`.
+- `src/companion.ts:228-240`: после ответа Gemini весь массив сообщений записывается одним KV `put`.
+- `src/tenants.ts:13-16`: tenant isolation обеспечивается префиксом `tenant:${userId}:`; он не сериализует два запроса к одному conversation key.
 
-Контекст и подтверждённые файлы:
-- Задача #514, родительский контекст #203, отчеты по #512 и #513.
-- Проблема в текущем handoff #513: single-threaded Durable Object не гарантирует сериализацию полного async request lifecycle через `await`, SQLite transaction нельзя держать открытой во время внешнего provider call (Gemini).
-- Область анализа: Cloudflare Durable Objects concurrency, input gates, storage transactions, alarms, eviction/restart, durable FIFO, state machine, миграция KV -> storage.
+**Race:** запросы A и B могут прочитать один и тот же snapshot до Gemini fetch. Пока A ждёт Gemini, B также читает snapshot и вызывает Gemini. Если B завершится первым, а A последним, последний KV put перезапишет историю B своей копией. Возможны потеря user message и ответа; порядок ответов не гарантирован. Global quota DO сериализует только quota accounting, не весь conversation lifecycle.
 
-Разрешённая область изменений:
-- Только документация и подготовка ADR (аналитические артефакты, тексты ADR, схемы state machine). Изменение исходного кода запрещено.
+## 2. Cloudflare semantics — что подтверждено
 
-Запрещенные действия:
-- Никаких изменений кода, секретов, платных сервисов, LIVE, реальных финансовых операций или production deploy.
-- Не предлагать SQLite transaction вокруг Gemini fetch.
-- Не считать простой mutex/Promise chain или lease достаточным без анализа crash/restart, stale owner и fencing.
-- Не выдавать PASS без прямых доказательств.
+1. Durable Objects выполняют JavaScript в single-threaded isolate, но это **не** сериализация полного async handler: во время `await fetch()` input gate открывается и другие события могут interleave. См. официальные правила и race-condition example: https://developers.cloudflare.com/durable-objects/best-practices/rules-of-durable-objects/
+2. Storage operations имеют input/output gate protections; SQLite `transactionSync` callback обязан быть синхронным. Нельзя держать SQLite transaction вокруг Gemini fetch. См. https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/
+3. `blockConcurrencyWhile()` способен блокировать другие события на время async callback, но callback имеет 30-second timeout; при превышении объект reset. При Gemini timeout 25s и дополнительных quota/storage этапах это слишком хрупкий основной механизм. См. https://developers.cloudflare.com/durable-objects/api/state/
+4. In-memory state теряется при eviction/reset. Durable state должна храниться в DO storage. При deferred code update старый isolate может продолжить работу до max_delay (по умолчанию 300s); это best effort, не гарантия завершения каждого in-flight запроса. См. https://developers.cloudflare.com/durable-objects/best-practices/access-durable-objects-storage/
 
-Пошаговый план исполнителя:
-1. Изучить текущие материалы (#512, #513) и первичную документацию Cloudflare Durable Objects касательно reentrancy при `await` и storage transactions.
-2. Сравнить варианты архитектуры: DO coordinator/actor, durable FIFO с persisted request IDs и recovery, альтернативные подходы с гарантиями ordering/idempotency.
-3. Спроектировать crash/retry state machine, обработку таймаутов, дубликатов запросов и tenant-scoped DO identity.
-4. Описать стратегию lazy migration из KV в новый storage без потерь и дублирования.
-5. Зафиксировать лимиты плана Cloudflare (с пометкой VERIFIED/NOT VERIFIED) и составить тестовую матрицу с implementation-sized follow-up issues.
-6. Сформировать итоговый документ ADR со ссылками на файлы и первичные источники.
+## 3. Варианты
 
-Критерии приёмки:
-- Готовый исправленный ADR содержит: выбранную архитектуру, отвергнутые варианты, crash/retry state machine, стратегию миграции, тестовую матрицу и follow-up issues.
-- Отсутствуют предложения держать SQLite transaction во время внешнего вызова.
-- Все утверждения разделены на VERIFIED и NOT VERIFIED с точными ссылками.
+| Вариант | Плюсы | Риски / решение |
+|---|---|---|
+| `blockConcurrencyWhile` вокруг всего chat lifecycle | Минимум изменений, сохраняет синхронный HTTP ответ | 30s timeout/reset, долгий Gemini блокирует весь conversation object; не даёт durable request id и recovery. Не выбирать как основной механизм. |
+| In-memory mutex / Promise chain | Просто, низкая задержка | Теряется при eviction/reset; нет durable FIFO, crash recovery или fencing. Отклонить. |
+| Durable FIFO в per-conversation DO | Персистентный порядок, recovery, tenant isolation, идемпотентность | Нужны queue schema, polling/status contract и migration plan. **Рекомендуется.** |
+| Один DO на пользователя | Сериализация всех его диалогов | Лишняя блокировка независимых conversations. Не выбирать, если достаточно per-conversation DO. |
 
-Обязательные проверки и доказательства:
-- Наличие ссылок на официальную документацию Cloudflare.
-- Анализ поведения при перезапуске DO (eviction/restart) и сетевых сбоях.
+## 4. Рекомендуемая архитектура
 
-Риски/неизвестное:
-- Ограничения таймаутов и лимитов конкретного тарифного плана Cloudflare (требует пометки NOT VERIFIED, если не подтверждено документально для текущего окружения).
+**Один SQLite-backed Durable Object на пару `(telegramUserId, conversationId)`.** Идентификатор DO строится сервером как стабильный tenant-bound name; клиент не задаёт tenant ID. Существующий global quota DO остаётся отдельным сервисом.
 
-Следующий переход статуса:
-После завершения работы над ADR и открытия Draft PR — передача на независимую проверку в роль QA.
+Persisted таблица очереди содержит как минимум:
+- `request_id` UNIQUE, `sequence`, conversation key, payload reference, mode;
+- `status`: QUEUED / PROCESSING / COMPLETED / FAILED_RETRYABLE / FAILED_FINAL;
+- `lease_generation`, `lease_expires_at`, timestamps, bounded retry count;
+- serialized result/error для повторного чтения результата.
 
-### Отчёт архитектурного анализа задачи Issue #514
+Алгоритм:
+1. Принимать запрос и атомарно вставлять его в FIFO. Повтор того же `request_id` с тем же payload возвращает существующую запись; тот же ID с другим payload — 409.
+2. Claim следующего элемента делать короткой `transactionSync`: только один активный lease на conversation, sequence строго возрастает, generation увеличивается.
+3. Выполнять Gemini **вне** SQL transaction. Не держать transaction или storage cursor через `await`.
+4. После ответа коммитить результат только если request всё ещё PROCESSING и generation совпадает. Это fencing против просроченного worker.
+5. Следующий элемент запускать только после фиксации COMPLETED/FAILED. Alarm ставится на lease expiry для восстановления после reset/timeout; alarm delivery может задерживаться, поэтому не обещать точный realtime SLA.
+6. Повторный POST с тем же request_id читает persisted status/result. UI может ждать обычный ответ, а после сетевого timeout — опрашивать status endpoint; не создавать новый request_id при retry.
+7. Ошибки Gemini/429/timeout переводить в bounded retryable/final state; не сохранять частичный assistant response. Повтор Gemini может дать иной текст, но один request_id имеет только один окончательно зафиксированный результат.
 
-| ID | Проверка | Точное доказательство | Результат | Что не проверено |
-|---|---|---|---|---|
-| [S1] | Анализ Single-Threaded DO Concurrency и семантики `await` | `src/companion-quota.ts:L10-L106`, `src/trading/engine.ts:L42-L95` | **PASS** | Фактическое поведение Cloudflare DO при экстремальной нагрузке в production |
-| [S2] | Исключение удержания SQLite-транзакций во время внешних вызовов (Gemini / Walt MCP) | `src/companion-quota.ts:L57-L99`, `src/trading/engine.ts:L1-L126` | **PASS** | Внешние сетевые задержки сторонних провайдеров |
-| [S3] | Проектирование отказоустойчивой state machine и миграции хранения без изменения кода | Описано в ADR, исходный код не модифицирован | **PASS** | Фактический перенос живых данных пользователей из старого KV в новый storage в production |
+**HTTP contract:** сохранить `POST /api/companion/chat` с requestId, добавить read-only `GET /api/companion/requests/:requestId` для восстановления после timeout. Если UI не может безопасно удерживать запрос до завершения, POST возвращает 202 + requestId и UI polling; никакого fake success.
 
----
+## 5. KV → DO migration
 
-### Вердикт
-**PARTIAL — есть непроверенные пункты** (при условии использования исключительно в качестве архитектурного ADR-артефакта без изменения исходного кода репозитория).
+Не переносить все диалоги одномоментно и не делать dual-write без протокола. Для каждого conversation:
+- новый DO начинает с `migration_state=NOT_STARTED`;
+- читает legacy KV только по tenant-scoped ключу;
+- в одной локальной SQLite transaction импортирует snapshot и ставит `migration_state=COMPLETE`; уникальный conversation ID делает повтор импорта идемпотентным;
+- после COMPLETE все чтения/записи идут через DO; старый KV key сохраняется на период rollback, но больше не является write target;
+- нужен staged rollout: сначала compatibility release, направляющий все новые writes в DO, затем migration enablement после контроля старых in-flight requests. Deferred update max_delay нельзя трактовать как строгую гарантию drain.
 
----
+KV и SQLite — разные storage systems; атомарной cross-store transaction нет. Поэтому «прочитать KV + записать SQLite + удалить KV» одной атомарной операцией невозможно. Не удалять legacy data в первой версии.
 
-### Архитектурный документ (ADR): Обеспечение конкурентности Cloudflare Durable Objects и предотвращение Lost Updates для AI Companion и Trading Engine
+## 6. Tenant isolation и failure matrix
 
-#### 1. Выбранная архитектура (Evidence-Based Architecture)
-Для устранения проблем `handoff #513` и предотвращения потери обновлений (`lost updates`) в AI Companion и торговом движке принимается следующая архитектурная модель на базе Cloudflare Durable Objects (DO):
-* **Actor-Model / Single-Threaded Event Loop:** Каждый DO выполняет операции последовательно в рамках своего экземпляра. Входные ворота (input gates) гарантируют, что входящие запросы сериализуются до момента достижения кода обработчика. Однако любая операция `await` возвращает управление event loop, открывая возможность *reentrancy*, если состояние изменяется асинхронно.
-* **Изоляция SQLite Transaction:** Транзакции встроенного хранилища SQLite (`this.ctx.storage.transactionSync` или короткие атомарные блоки) **никогда** не удерживаются дольше выполнения синхронных SQL-запросов. Вызовы внешних API (Gemini, Walt MCP) выполняются **вне** транзакций и вне блокировок базы данных.
-* **Persisted Durable FIFO / Idempotency Log:** Очередь запросов и входящих событий сохраняется в локальной SQLite-таблице с уникальными ключами идемпотентности (`idempotency_key`, `operation_id`), исключая повторное исполнение при сбоях и перезагрузках (eviction/restart).
+- DO name включает проверенный server-side Telegram userId и conversationId; никакого client-supplied userId.
+- Одинаковый conversationId у двух пользователей создаёт разные DO.
+- Concurrent A/B одного диалога: FIFO sequence, обе пары user/assistant сохраняются.
+- Duplicate requestId: тот же результат, без второго assistant append.
+- Crash до Gemini: lease expiry → bounded retry.
+- Crash после ответа Gemini, до commit: повторный Gemini допустим (read-only generation); fencing допускает только один commit.
+- Старый worker после lease expiry: generation mismatch → его результат не коммитится.
+- Duplicate alarm / retry: атомарный claim исключает два действующих владельца.
+- Cross-tenant request/status lookup: 404/403 без раскрытия existence чужого диалога.
 
-#### 2. Отвергнутые варианты
-1. **Удержание SQLite Transaction вокруг Gemini `fetch`:** Отвергнуто как грубое нарушение правил Cloudflare DO и архитектурных ограничений задачи. Удержание транзакции во время сетевого ввода-вывода приводит к блокировке потока, исчерпанию соединений и деградации производительности.
-2. **Простой мутекс (`Promise chain` / `lease`) без учета crash/restart:** Отвергнуто. Простые локальные промис-цепочки не переживают выгрузку DO из памяти (eviction) и приводят к состоянию *stale owner*, когда зависший узел блокирует tenant навсегда без механизмов fencing tokens и TTL-аренды.
+## 7. Cost / plan limits
 
-#### 3. Crash/Retry State Machine и обработка сбоев
-* **Состояния:** `IDLE` ➔ `QUEUED` ➔ `PROCESSING` ➔ `WAITING_EXTERNAL` (для Gemini/Walt) ➔ `COMMITTING` ➔ `COMPLETED` (или `FAILED` с bounded retry).
-* **Таймауты и дубликаты:** Каждое внешнее действие сопровождается idempotency key. При перезапуске DO во время `WAITING_EXTERNAL` возобновление проверяет статус в SQLite. Если внешний вызов завершился до падения, результат фиксируется; если нет — запрос повторяется безопасно.
+**NOT VERIFIED:** текущий Cloudflare account plan, фактическое включённое usage и account spending limit из репозитория не видны. Не обещать «нулевую стоимость». Cloudflare указывает, что Durable Objects учитывают requests/duration и SQLite rows read/written; см. https://developers.cloudflare.com/durable-objects/platform/spend-management/ и storage billing: https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/. Перед rollout проверить план/usage в dashboard.
 
-#### 4. Стратегия миграции (KV ➔ Durable Storage) без потерь
-* **Lazy Migration:** При первом запросе к tenant-сущности проверяется наличие данных в старом KV (`bot:state`, `hist:trades`).
-* Если данные найдены в KV, а в новом SQLite-хранилище пусто, выполняется атомарный импорт с записью флага миграции `migration_completed = 1`.
-* Старые ключи в KV не удаляются немедленно (безопасный fallback на случай отката).
+## 8. Implementation-sized follow-ups
 
-#### 5. Тестовая матрица и Implementation-Sized Follow-up Issues
-* **Test Case 1:** Одновременные запросы к одному DO (конкурентные вызовы `/api/companion/chat`). Ожидание: сериализация через очередь FIFO, отсутствие `SQLITE_BUSY`.
-* **Test Case 2:** Имитация сбоя сети во время внешнего вызова Gemini. Ожидание: отсутствие незавершенных SQLite-транзакций, корректный переход в статус retryable/failed.
-* **Follow-up Issues:**
-  1. `#514-FU1`: Реализация durable FIFO очередей для фоновых тиков в `src/trading/engine.ts`.
-  2. `#514-FU2`: Написание интеграционных тестов для проверки reentrancy в Miniflare.
+1. **Backend:** per-conversation DO + persisted FIFO/lease/fencing + request status API; только mock Gemini.
+2. **QA:** Miniflare concurrency, duplicate request, timeout/crash/fencing, tenant collision and migration tests.
+3. **Frontend:** retain requestId on retry and poll status after ambiguous network timeout.
+4. **Release:** staged compatibility rollout; KV legacy data retained; no production migration until rollback procedure tested.
 
-#### 6. Лимиты Cloudflare (VERIFIED / NOT VERIFIED)
-* **VERIFIED:** Cloudflare Durable Objects SQLite поддерживает synchronous transactions (`transactionSync`) локально внутри экземпляра DO (официальная документация Cloudflare).
-* **NOT VERIFIED:** Точные пределы пропускной способности SQLite в DO при пиковых нагрузках более 1000 RPS на один tenant для данного тарифного плана.
+## Evidence boundaries
 
----
-
-### Доказательства (пути и символы)
-- `src/companion-quota.ts:L57-L99` (использование `transactionSync` для счетчиков квот без внешних вызовов).
-- `src/trading/engine.ts:L42-L95` (инициализация SQLite схем и таблиц в Trading Engine).
-- `src/tenants.ts:L13-L47` (изоляция окружения по tenant ID в KV).
-
-### Риски и пробелы
-- Отсутствие возможности запускать реальные интеграционные тесты Cloudflare Workers в изолированном офлайн-контексте без Miniflare.
-- Необходимость строгой проверки миграций при переходе от KV к SQLite в production-окружении.
-
-### Один следующий шаг
-Передать данный архитектурный отчет и ADR в роль **QA** и **SECURITY** для независимой проверки перед созданием Draft PR.
-
-### Автоматическая проверка ссылок
-- NOT VERIFIED: Строка [S3] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
+- **VERIFIED:** текущий read → await Gemini → whole-conversation KV put path; tenant-prefixed KV; official Cloudflare input-gate, storage transaction, eviction/reset and alarm semantics cited above.
+- **NOT VERIFIED:** production concurrency frequency, account-specific plan/charges, alarm latency under this deployment, and any production data migration behavior.
+- **Not claimed:** this ADR is not an implementation, not proof that the proposed FIFO exists, and not authorization for LIVE or production changes.
