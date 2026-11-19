@@ -111,6 +111,7 @@ try{
     await page.waitForFunction(()=>document.documentElement.dataset.theme==="light");
     await page.locator("#kg-profile-theme-select").selectOption("light");
     await page.locator("#kg-profile-close").click();
+    await page.waitForFunction(()=>!document.querySelector("#kg-toast")?.classList.contains("is-visible"));
     try{
       await page.waitForFunction(()=>document.querySelector("#kg-wallet-balance")?.textContent.includes("₽"),null,{timeout:6000});
     }catch(error){
