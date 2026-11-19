@@ -564,6 +564,7 @@
   }
   function openTicket(side){
     if(!state.selected)return;
+    if(state.productMode==="ai")return notify("Ручная торговля со счёта ИИ пока недоступна. Используйте DEMO.");
     state.side=side;state.leverage=1;state.maxLeverage=Math.max(1,Number(state.selected.maxLeverage||1));state.margin=0;state.preview=null;
     $("#kg-ticket-heading").textContent=(side==="long"?"Лонг ":"Шорт ")+state.selectedMarket+" · "+$("#kg-asset-price").textContent;
     $("#kg-ticket-margin").value="";
@@ -571,9 +572,6 @@
     $("#kg-ticket-available").textContent="Доступно: "+money(Number(state.wallet?.balanceUsd??state.wallet?.balance??0))+" USDT";
     $("#kg-ticket-volume").textContent="Объём: —";
     $("#kg-ticket-preview").textContent="";
-    $("#kg-ticket-tp").value="5";
-    $("#kg-ticket-sl").value="2";
-    setAutoCloseUi(false);
     showSubscreen("ticket");
     const input=$("#kg-ticket-margin");
     input.focus({preventScroll:true});
@@ -1029,7 +1027,6 @@
       if(close)closePosition(close.dataset.closePosition);
     });
     $("#kg-edit-favorites").addEventListener("click",()=>{state.editFavorites=!state.editFavorites;$("#kg-edit-favorites").textContent=state.editFavorites?"Готово":"Изменить";renderFavorites();});
-    $("#kg-equities-custom-form").addEventListener("submit",event=>{event.preventDefault();const symbol=$("#kg-equities-symbol").value;addEquity(symbol,symbol.trim().toUpperCase());$("#kg-equities-symbol").value="";});
 
     $("#kg-asset-favorite").addEventListener("click",()=>{const s=state.selectedMarket;if(!s)return;state.favorites.has(s)?state.favorites.delete(s):state.favorites.add(s);renderFavorites();try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}$("#kg-asset-favorite").textContent=state.favorites.has(s)?"★ В избранном":"☆ В избранное";});
     $$("#kg-timeframes button").forEach(b=>b.addEventListener("click",()=>loadCandles(b.dataset.interval)));
