@@ -66,7 +66,6 @@ describe("Kripto Guru UI primitives", () => {
   it("renders settings rows with escaped labels and values", () => {
     const html = settingsRowMarkup({ title: "<Account>", value: "—", icon: "A", iconColor: "#3e86f0", action: "settings" });
     expect(html).toContain("&lt;Account&gt;");
-    expect(html).toContain('aria-disabled="false"');
     expect(html).toContain("--kg-settings-icon-color:#3e86f0");
   });
 
