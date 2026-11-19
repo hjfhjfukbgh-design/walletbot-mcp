@@ -252,6 +252,15 @@ describe("API da Mini App", () => {
     const spoofed = await call(e, "ai/paper/positions?userId=999", "chave-teste", {}, "111");
     expect(spoofed.status).toBe(400);
     expect(calls).toHaveLength(4);
+
+    const switchedToDemo = await call(e, "product-mode", "chave-teste", {
+      method: "POST", body: JSON.stringify({ productMode: "demo" }),
+    }, "111");
+    expect(switchedToDemo.status).toBe(200);
+    expect(calls).toHaveLength(5);
+    expect(calls[4]).toMatchObject({
+      method: "POST", url: expect.stringContaining("/ai/paper/session/stop"), body: { userId: "111" },
+    });
   });
 
   it("routes AI paper status through the authenticated user-scoped Engine", async () => {
