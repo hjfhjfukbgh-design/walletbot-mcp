@@ -1215,3 +1215,9 @@
 - **Safety:** execute route rechecks the contract's open position after atomic claim and immediately before the one Walt execute call. Existing position or lookup failure means no execute and UNKNOWN. UNKNOWN from this pre-execute guard is excluded from automatic attribution/reconciliation.
 - **Regression coverage:** intervening position, pre-execute lookup failure, timeout UNKNOWN/no retry. Security review issue #277 updated with the remaining limitation: Walt close contract still NOT VERIFIED, so LIVE remains blocked.
 - **No real Walt writes, orders, closes, transfers or account mutations.**
+
+### 2026-11-19T17:02:57+05:00 — README release status corrected; legacy LIVE cron regression test opened
+
+- **README main commit:** `84a45ef8b1bb99e5382507ad045eb0b2393508f3`. Replaced stale instructions that implied `/mode live CONFIRMO` and `/run` enabled real trading. Documented that LIVE is blocked, AI strategy runner is not implemented, PR CI is not a production deploy, and listed the actual release gates.
+- **Code audit:** confirmed `src/bot.ts` `runTick()` stops persisted legacy `mode=live` state before any market fetch or Walt operation; `closeAll()` also fails closed for LIVE. Added regression coverage because `test/tick.test.ts` previously had no LIVE fail-closed test.
+- **PR #424:** test asserts legacy LIVE scheduled tick pauses and performs no market fetch. Head `1422c4b9ef2010e8c201d12ec219fed694020633`; CI run `44520219760` in progress. No real Walt calls.
