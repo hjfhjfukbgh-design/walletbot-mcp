@@ -893,3 +893,10 @@
 - **Объект:** `miniapp/web/*`; UX reference research
 - **Результат:** собраны первичные публичные источники и скриншоты Walt; выполняется аудит обработчиков и доступности функций для таблицы «кнопка → работает / заглушка / удалить».
 - **Доказательство:** Google I/O / Gemini UI: https://blog.google/innovation-and-ai/products/gemini-app/next-evolution-gemini-app/ ; Telegram Mini Apps: https://core.telegram.org/bots/webapps ; Walt screenshots: https://tg.app/apps/wallet-1/ ; Mira: https://mira.tg/ и https://skills.mira.tg/ .
+
+- **Время:** 2026-11-19T07:12:30+05:00
+- **Событие:** завершён read-only аудит референсов и текущих интерактивных элементов для этапа 0.
+- **Статус:** завершено
+- **Объект:** `miniapp/web/index.html`, `miniapp/web/kripto-guru-ui.js`, `miniapp/web/kripto-guru-ui.css`
+- **Результат:** подтверждены три вкладки навигации (Кошелёк/Торговля/ИИ), отдельного экрана агентов нет, LIVE disabled, быстрые wallet actions показывают уведомление вместо действия, профиль содержит статические настройки; DEMO сделки и Companion имеют API-вызовы. Этап 1 не начат, код приложения не менялся.
+- **Доказательство:** исходные blob SHA: index `244efa14a32fbc56bc7f575835bc8409703dbeb2`, UI JS `f723eb346c9be0945441e3855902eb077f774017`, CSS `<CSS blob SHA inspected in read-only fetch>`. Журнал начала цикла: commit `9c4e98ebe38031f62fd4e4c2bd744319e33b906f`.
