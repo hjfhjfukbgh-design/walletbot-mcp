@@ -116,6 +116,7 @@
     if(tg?.BackButton){tg.BackButton.show();tg.BackButton.offClick?.(handleNativeBack);tg.BackButton.onClick(handleNativeBack);}
   }
   function handleNativeBack(){
+    if(!$("#kg-profile-sheet").hidden){closeProfile();return;}
     if(!$("#kg-ticket-screen").hidden){closeTicket();return;}
     if(!$("#kg-asset-screen").hidden){closeAsset();return;}
     setScreen(state.screen);
@@ -814,13 +815,15 @@
     $("#kg-profile-sheet").hidden=false;
     $("#kg-profile-backdrop").hidden=false;
     $("#kg-wallet-profile").setAttribute("aria-expanded","true");
-    $("#kg-profile-close").focus();
+    $("#kg-profile-sheet").focus?.();
+    if(tg?.BackButton){tg.BackButton.show();tg.BackButton.offClick?.(handleNativeBack);tg.BackButton.onClick(handleNativeBack);}
   }
   function closeProfile(){
     $("#kg-profile-sheet").hidden=true;
     $("#kg-profile-backdrop").hidden=true;
     $("#kg-wallet-profile").setAttribute("aria-expanded","false");
     $("#kg-wallet-profile").focus();
+    if(tg?.BackButton){tg.BackButton.hide();tg.BackButton.offClick?.(handleNativeBack);}
   }
   function renderProductMode(){
     const descriptions={
@@ -924,7 +927,9 @@
   }
   function bind(){
     $("#kg-wallet-profile").addEventListener("click",openProfile);
-    $("#kg-profile-close").addEventListener("click",closeProfile);
+    document.addEventListener("focusin",event=>{if(event.target.matches("input,textarea,select,[contenteditable=true]"))document.body.classList.add("kg-keyboard-open");});
+    document.addEventListener("focusout",event=>{if(event.target.matches("input,textarea,select,[contenteditable=true]")){window.setTimeout(()=>{if(!document.activeElement?.matches("input,textarea,select,[contenteditable=true]"))document.body.classList.remove("kg-keyboard-open");},120);}});
+
     $("#kg-profile-backdrop").addEventListener("click",closeProfile);
     $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
     $("#kg-ai-paper-fund").addEventListener("click",()=>void transferAiPaper("fund"));
@@ -1028,12 +1033,10 @@
     $("#kg-edit-favorites").addEventListener("click",()=>{state.editFavorites=!state.editFavorites;$("#kg-edit-favorites").textContent=state.editFavorites?"Готово":"Изменить";renderFavorites();});
     $("#kg-equities-custom-form").addEventListener("submit",event=>{event.preventDefault();const symbol=$("#kg-equities-symbol").value;addEquity(symbol,symbol.trim().toUpperCase());$("#kg-equities-symbol").value="";});
 
-    $("#kg-asset-back").addEventListener("click",closeAsset);
     $("#kg-asset-favorite").addEventListener("click",()=>{const s=state.selectedMarket;if(!s)return;state.favorites.has(s)?state.favorites.delete(s):state.favorites.add(s);renderFavorites();try{localStorage.setItem("kg:favorites:v1",JSON.stringify([...state.favorites]));}catch{}$("#kg-asset-favorite").textContent=state.favorites.has(s)?"★ В избранном":"☆ В избранное";});
     $$("#kg-timeframes button").forEach(b=>b.addEventListener("click",()=>loadCandles(b.dataset.interval)));
     $("#kg-long").addEventListener("click",()=>openTicket("long"));
     $("#kg-short").addEventListener("click",()=>openTicket("short"));
-    $("#kg-ticket-close").addEventListener("click",closeTicket);
     $("#kg-ticket-margin").addEventListener("input",refreshPreview);
     $("#kg-ticket-autoclose").addEventListener("click",()=>{setAutoCloseUi(!state.autoclose);refreshPreview();});
     $("#kg-ticket-tp").addEventListener("input",refreshPreview);
