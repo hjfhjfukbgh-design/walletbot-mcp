@@ -391,6 +391,12 @@
   };
 
   const aiPaper = {
+    async fund({ amountUsd, idempotencyKey }) {
+      return request("/api/ai/paper/fund", { method: "POST", body: { amountUsd, idempotencyKey } });
+    },
+    async withdraw({ amountUsd, idempotencyKey }) {
+      return request("/api/ai/paper/withdraw", { method: "POST", body: { amountUsd, idempotencyKey } });
+    },
     async status() {
       const data = await request("/api/ai/paper/status");
       const count = data.openPositions == null ? null : Number(data.openPositions);
