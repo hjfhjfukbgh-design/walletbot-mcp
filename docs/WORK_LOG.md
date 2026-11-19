@@ -1377,3 +1377,8 @@
 - **PR #435:** merged to main as `4588888ac25037c0ab378b771fbf3ab20f271945`.
 - CI run `44528612001`: npm ci, JS syntax, typecheck and full unit tests PASS; deploy skipped.
 - Screenshot/contract run `44528611849`: Playwright capture and upload PASS. After selecting Light and reloading the Mini App, browser assertions confirmed `data-theme=light`, `data-theme-preference=light`, and `localStorage['kg:theme:v1']='light'`.
+
+### 2026-11-19T17:59:44+05:00 — Wallet real-fund quick actions clarified
+
+- **PR #436:** marks Transfer / Deposit / Withdraw / Exchange as `aria-disabled`, visually de-emphasizes them, and adds a Russian explanation that real-wallet operations are unavailable. Existing tap feedback remains, so the user receives a reason rather than a dead silent control.
+- Added Playwright assertions for all four disabled states and the explanatory note. Current head `e963776a52952daba1c50ab22815f65b91173259`; CI run `44528991426` and screenshot run `44528991445` in progress.
