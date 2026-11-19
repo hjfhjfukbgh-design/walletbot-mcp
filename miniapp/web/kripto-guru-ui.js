@@ -721,7 +721,7 @@
   function renderCompanionHistory(){
     const root=$("#kg-ai-history"),query=($("#kg-ai-history-search")?.value||"").trim().toLocaleLowerCase("ru");
     const items=state.companionConversations.filter(item=>String(item.title||"Новый диалог").toLocaleLowerCase("ru").includes(query));
-    const dateOf=item=>{const raw=item.updatedAt??item.createdAt;if(!raw)return null;const date=new Date(raw);return Number.isNaN(date.getTime())?null:date;};
+    const dateOf=item=>{const raw=item.updatedAt??item.createdAt;if(!raw)return null;const n=Number(raw),date=new Date(Number.isFinite(n)?(n<1e12?n*1000:n):raw);return Number.isNaN(date.getTime())?null:date;};
     const keyOf=date=>date?date.getFullYear()+"-"+date.getMonth()+"-"+date.getDate():"unknown";
     const today=new Date(),yesterday=new Date(today.getFullYear(),today.getMonth(),today.getDate()-1),groups=new Map();
     items.forEach(item=>{const date=dateOf(item),key=keyOf(date);if(!groups.has(key))groups.set(key,{date,items:[]});groups.get(key).items.push(item);});
