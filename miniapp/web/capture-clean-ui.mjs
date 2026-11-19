@@ -52,7 +52,7 @@ const marketData=[
 ];
 const candles=Array.from({length:30},(_,i)=>{
   const base=91200+Math.sin(i*.55)*125+i*2.3;
-  return {time:1700000000+i*900,open:base,high:base+38,low:base-31,close:base+(i%2?18:-12)};
+  return {time:1700000000+i*900,open:base,high:base+38,low:base-31,close:base+(i%2?18:-12),volume:1200+i*35};
 });
 try{
   for(const device of [{width:360,height:800},{width:375,height:812},{width:390,height:844},{width:430,height:932}]){
@@ -256,6 +256,7 @@ try{
     const candleChart=await page.locator("#kg-chart").evaluate(el=>({scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,svgWidth:el.querySelector("svg")?.getBoundingClientRect().width,times:[...el.querySelectorAll("rect[data-time]")].map(node=>Number(node.dataset.time))}));
     if(!(candleChart.svgWidth>candleChart.clientWidth&&candleChart.scrollWidth>candleChart.clientWidth))throw new Error("candlestick history must scroll horizontally: "+JSON.stringify(candleChart));
     if(candleChart.times.length!==30||candleChart.times.some((time,index)=>index>0&&time<=candleChart.times[index-1]))throw new Error("candles must be valid, unique and sorted ascending: "+JSON.stringify(candleChart.times));
+    if(await page.locator("#kg-chart .kg-volume-bar").count()!==30||await page.locator("#kg-chart .kg-current-price-line").count()!==1)throw new Error("chart must show volume bars and a current price guide");
     await page.locator("#kg-chart").evaluate(el=>{el.scrollLeft=el.scrollWidth;});
     const chartBox=await page.locator("#kg-chart").boundingBox();
     await page.mouse.move(chartBox.x+chartBox.width*.52,chartBox.y+chartBox.height*.5);
