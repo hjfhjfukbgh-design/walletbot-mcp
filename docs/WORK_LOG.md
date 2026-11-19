@@ -1001,3 +1001,14 @@
 - **Симптом:** задачи #358/#359/#360 остаются `orchestrator-ready` после нескольких пятиминутных интервалов; dispatch PR/worker branches/comments не появились.
 - **Ограничение инструмента:** доступный GitHub connector не предоставляет list workflow runs по workflow ID и не может вызвать workflow_dispatch; `fetch_commit_workflow_runs` показывает только PR-triggered runs.
 - **План:** добавить безопасный issue-labeled event trigger к существующему dispatcher; queue claim уже сериализован, reusable worker запускается отдельно и может перекрываться.
+
+
+### 2026-11-19T07:32:48.207+05:00 — dispatcher event trigger опубликован и очередь переотправлена
+
+- **Статус:** завершено
+- **PR #362:** merged, merge commit `0bb25706a2de1793dd0b1ed97481b3e509e623e9`.
+- **Проверки PR:** run `44444966597` — npm ci, node syntax, typecheck и npm test PASS; job deploy skipped.
+- **Изменение:** `.github/workflows/kripto-guru-orchestrator.yml` теперь запускается по `issues.labeled` для `orchestrator-ready`/`agent-ready` в дополнение к cron и workflow_dispatch. Queue claim остаётся сериализованным; reusable workers могут выполняться параллельно.
+- **Действие:** ready label снят и повторно добавлен для #358/#359/#360, чтобы вызвать три независимых issue events. Явные team labels A/B/C сохранены.
+- **Проверка:** сразу после повторной постановки labels подтверждены, но dispatch branches/comments ещё не появились; требуется проверить дальнейший запуск и секреты.
+- **Production:** deploy job на PR был skipped; merge менял только workflow trigger, не выполнял Worker deploy или Walt операции.
