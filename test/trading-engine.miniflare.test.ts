@@ -290,6 +290,18 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     });
     expect(fundA2.status).toBe(200);
     expect(fundA2.body.duplicate).toBe(true);
+
+    // Verify both tenants retain independent balances and A was not funded twice.
+    const statusA = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userA);
+    expect(await statusA.json()).toMatchObject({
+      demoBalanceMicro: (900n * U).toString(),
+      aiBalanceMicro: (100n * U).toString(),
+    });
+    const statusB = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userB);
+    expect(await statusB.json()).toMatchObject({
+      demoBalanceMicro: (800n * U).toString(),
+      aiBalanceMicro: (200n * U).toString(),
+    });
   });
 
   it("rejects missing or invalid server-side risk limits", async () => {
