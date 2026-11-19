@@ -358,7 +358,8 @@ export class TradingEngine {
     const fees = BigInt(rawFees);
     const slippage = BigInt(rawSlippage);
     const reserve = margin + fees + slippage;
-    if (reserve <= 0n) return Response.json({ ok: false, error: "Резерв позиции должен быть больше нуля." }, { status: 400 });
+    if (reserve <= 0n || reserve > 9_223_372_036_854_775_807n)
+      return Response.json({ ok: false, error: "Резерв позиции выходит за допустимый диапазон." }, { status: 400 });
 
     const now = Date.now();
     const newPositionId = crypto.randomUUID();
@@ -382,7 +383,14 @@ export class TradingEngine {
               existingLedger.reference_id, userId,
             ).toArray()[0] as Record<string, unknown> | undefined
           : undefined;
+        const existingDecision = existingLedger.reference_id
+          ? this.ctx.storage.sql.exec(
+              "SELECT id FROM ai_paper_decisions WHERE user_id = ? AND position_id = ?",
+              userId, existingLedger.reference_id,
+            ).toArray()[0] as { id: string } | undefined
+          : undefined;
         const same = existingLedger.kind === "open_position" &&
+          existingDecision?.id === decisionId &&
           BigInt(existingLedger.amount_micro) === -reserve &&
           !!existingPosition &&
           String(existingPosition.symbol) === symbol &&
