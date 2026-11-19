@@ -1040,3 +1040,11 @@
 - **Изменения:** новый `#kg-agents-screen`, Mira-inspired hero hooks, честные empty states для агентов и стратегий, явный дисклеймер paper-only/no LIVE access. Нет выдуманных агентов, PnL или Create button без backend.
 - **QA:** run `44445709817` — typecheck/tests PASS; run `44445709830` — Playwright screenshot/contract PASS на 390/430 px. PR head перед merge `0a55959a40c377cb3f31e617f754e363dcdcf8be`.
 - **Ограничение:** экран пока не доступен из nav до A follow-ups #379/#380; hero styling ожидает CSS integration.
+
+
+### 2026-11-19T07:55:18.575+05:00 — Team Lead начал отдельный heatmap palette fix
+
+- **Статус:** начато
+- **Причина:** ручной просмотр Playwright dark catalog выявил чрезмерно насыщенные красные/зелёные плитки, не соответствующие приглушённой Walt-палитре из ТЗ.
+- **Scope:** только существующий renderer `renderHeatmap()` и scoped CSS `.kg-heat-cell`; сохранить реальные change/volume данные и volume-based tile ordering.
+- **Ограничения:** без изменения котировок/API, без новых внешних сервисов, без LIVE операций.
