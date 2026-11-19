@@ -993,3 +993,11 @@
 - **Причина:** reusable worker для роли QA работает в analysis-only режиме и не создаёт UI-код; исходная постановка не обеспечивала бы реализацию экрана агентов и чата.
 - **Разделение файлов:** Team A — верхняя навигация/кошелёк/профиль; Team C — только AI/Agents регионы `miniapp/web/index.html` и `miniapp/web/kripto-guru-ui.js`; Team B — общий CSS/design system. В issue прописаны непересекающиеся участки.
 - **Маршрутизация:** label `team-c` сохранён, `orchestrator-ready` сохранён.
+
+
+### 2026-11-19T07:31:17.342+05:00 — начало диагностики задержки dispatcher
+
+- **Статус:** начато
+- **Симптом:** задачи #358/#359/#360 остаются `orchestrator-ready` после нескольких пятиминутных интервалов; dispatch PR/worker branches/comments не появились.
+- **Ограничение инструмента:** доступный GitHub connector не предоставляет list workflow runs по workflow ID и не может вызвать workflow_dispatch; `fetch_commit_workflow_runs` показывает только PR-triggered runs.
+- **План:** добавить безопасный issue-labeled event trigger к существующему dispatcher; queue claim уже сериализован, reusable worker запускается отдельно и может перекрываться.
