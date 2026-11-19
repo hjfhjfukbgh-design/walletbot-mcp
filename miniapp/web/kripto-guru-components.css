@@ -84,3 +84,20 @@
   .kg-ui-primitives .kg-action-tile__label { font-size: 11px; }
   .kg-ui-primitives .kg-list-row { padding-inline: 12px; }
 }
+
+.kg-ui-primitives[data-theme="dark"] {
+  --kg-ui-bg: var(--kg-bg, #000);
+  --kg-ui-surface: var(--kg-surface, #1c1c1e);
+  --kg-ui-surface-2: var(--kg-surface-2, #2c2c2e);
+  --kg-ui-text: var(--kg-text, #f5f5f7);
+  --kg-ui-muted: var(--kg-muted, #8e8e93);
+  --kg-ui-divider: var(--kg-divider, #38383a);
+  --kg-ui-accent: var(--kg-accent, #5b9bf5);
+  --kg-ui-profit: var(--kg-profit, #4cc468);
+  --kg-ui-loss: var(--kg-loss, #ff6a62);
+}
+.kg-ui-primitives[data-theme="dark"] .kg-mode-badge--demo { color: #ffc45e; background: #3a2b13; }
+.kg-ui-primitives[data-theme="dark"] .kg-mode-badge--ai { color: #c2b5ff; background: #2c2548; }
+.kg-ui-primitives[data-theme="dark"] .kg-button--long { color: #70dc8c; background: #173522; }
+.kg-ui-primitives[data-theme="dark"] .kg-button--short,
+.kg-ui-primitives[data-theme="dark"] .kg-button--destructive { color: #ff8982; background: #3b201f; }
