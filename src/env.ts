@@ -9,6 +9,7 @@ export interface Env {
   OWNER_CHAT_ID: string;
   ALERT_CHAT_ID?: string;
   WALT_MCP_URL: string;
+  LIVE_TRADING_ENABLED?: string;
   WALT_AUTH_ISSUER: string;
   MAX_ORDER_PCT: string;
   MAX_TOTAL_EXPOSURE_PCT: string;
