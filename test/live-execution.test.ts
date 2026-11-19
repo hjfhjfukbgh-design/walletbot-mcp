@@ -197,6 +197,24 @@ describe("LIVE execute safety", () => {
     expect(client.openPosition).toHaveBeenCalledTimes(1);
     expect(client.call).not.toHaveBeenCalled();
   });
+  it("fails closed when the pre-execute position lookup is unavailable", async () => {
+    const e = env();
+    const records = installEngine(e);
+    const handle = "f".repeat(32);
+    await tenantEnv(e, "12345").STATE.put("live:preview:12345:" + handle, JSON.stringify(previewRecord()), { expirationTtl: 120 });
+    const client = {
+      call: vi.fn(async () => ({ ok: true, orderId: "must-not-run" })),
+      openPosition: vi.fn(async () => { throw new Error("Walt read timeout"); }),
+    };
+    vi.mocked(bot.connectWalt).mockResolvedValue(client as any);
+
+    const response = await callApi(e, "live/execute", { method: "POST", body: JSON.stringify({ handle, confirm: true }) });
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({ ok: false, status: "unknown" });
+    expect(records.get(handle)?.status).toBe("unknown");
+    expect(client.openPosition).toHaveBeenCalledTimes(1);
+    expect(client.call).not.toHaveBeenCalled();
+  });
   it("marks an uncertain Walt response UNKNOWN and never retries the execute call", async () => {
     const e = env();
     const records = installEngine(e);
