@@ -209,6 +209,60 @@ describe("API da Mini App", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("routes AI paper session controls and read APIs using only signed Telegram identity", async () => {
+    const e = env();
+    const calls: Array<{ url: string; method: string; body: Record<string, unknown> }> = [];
+    e.ENGINE = {
+      idFromName: (name: string) => name,
+      get: () => ({
+        fetch: async (request: Request) => {
+          const body = request.method === "POST" ? await request.json() as Record<string, unknown> : {};
+          calls.push({ url: request.url, method: request.method, body });
+          return Response.json({ ok: true, status: "active", positions: [], decisions: [] });
+        },
+      }),
+    } as unknown as DurableObjectNamespace;
+    const blockedDemoStart = await call(e, "ai/paper/session/start", "chave-teste", {
+      method: "POST", body: JSON.stringify({ userId: "999" }),
+    }, "111");
+    expect(blockedDemoStart.status).toBe(409);
+    expect(calls).toHaveLength(0);
+    await call(e, "product-mode", "chave-teste", { method: "POST", body: JSON.stringify({ productMode: "ai" }) }, "111");
+
+    const started = await call(e, "ai/paper/session/start", "chave-teste", {
+      method: "POST", body: JSON.stringify({ userId: "999" }),
+    }, "111");
+    expect(started.status).toBe(200);
+    expect(calls[0]).toMatchObject({ method: "POST", url: expect.stringContaining("/ai/paper/session/start"), body: { userId: "111" } });
+
+    const stopped = await call(e, "ai/paper/session/stop", "chave-teste", {
+      method: "POST", body: JSON.stringify({ userId: "999" }),
+    }, "111");
+    expect(stopped.status).toBe(200);
+    expect(calls[1]).toMatchObject({ method: "POST", url: expect.stringContaining("/ai/paper/session/stop"), body: { userId: "111" } });
+
+    const positions = await call(e, "ai/paper/positions?status=closed&limit=10", "chave-teste", {}, "111");
+    expect(positions.status).toBe(200);
+    expect(calls[2]).toMatchObject({ method: "GET", url: expect.stringContaining("/ai/paper/positions?userId=111&status=closed&limit=10") });
+
+    const decisions = await call(e, "ai/paper/decisions?limit=25", "chave-teste", {}, "111");
+    expect(decisions.status).toBe(200);
+    expect(calls[3]).toMatchObject({ method: "GET", url: expect.stringContaining("/ai/paper/decisions?userId=111&limit=25") });
+
+    const spoofed = await call(e, "ai/paper/positions?userId=999", "chave-teste", {}, "111");
+    expect(spoofed.status).toBe(400);
+    expect(calls).toHaveLength(4);
+
+    const switchedToDemo = await call(e, "product-mode", "chave-teste", {
+      method: "POST", body: JSON.stringify({ productMode: "demo" }),
+    }, "111");
+    expect(switchedToDemo.status).toBe(200);
+    expect(calls).toHaveLength(5);
+    expect(calls[4]).toMatchObject({
+      method: "POST", url: expect.stringContaining("/ai/paper/session/stop"), body: { userId: "111" },
+    });
+  });
+
   it("routes AI paper status through the authenticated user-scoped Engine", async () => {
     const e = env();
     let requestedUrl = "";

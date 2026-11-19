@@ -53,6 +53,21 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
     switch (route) {
       case "GET ai/paper/status":
         return engineRequest(env, "/ai/paper/status?userId=" + encodeURIComponent(telegramUserId));
+      case "GET ai/paper/positions": {
+        if (url.searchParams.has("userId")) return fail("ID пользователя берётся только из Telegram initData.", 400);
+        const status = url.searchParams.get("status") ?? "open";
+        const limit = Number(url.searchParams.get("limit") ?? "50");
+        if (!["open", "closed", "all"].includes(status) || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+          return fail("Некорректные параметры истории AI paper позиций.", 400);
+        return engineRequest(env, "/ai/paper/positions?userId=" + encodeURIComponent(telegramUserId) + "&status=" + encodeURIComponent(status) + "&limit=" + limit);
+      }
+      case "GET ai/paper/decisions": {
+        if (url.searchParams.has("userId")) return fail("ID пользователя берётся только из Telegram initData.", 400);
+        const limit = Number(url.searchParams.get("limit") ?? "50");
+        if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+          return fail("Некорректный лимит истории AI paper решений.", 400);
+        return engineRequest(env, "/ai/paper/decisions?userId=" + encodeURIComponent(telegramUserId) + "&limit=" + limit);
+      }
       case "GET demo":
         return demoAccountView(env, telegramUserId);
       case "GET demo/history":
@@ -74,7 +89,11 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
       case "GET live/position":
         return livePositionView(scopedEnv, url.searchParams.get("symbol") ?? "");
       case "POST product-mode":
-        return updateProductMode(scopedEnv, body);
+        return updateProductMode(scopedEnv, telegramUserId, body);
+      case "POST ai/paper/session/start":
+        return startAiPaperSession(scopedEnv, telegramUserId);
+      case "POST ai/paper/session/stop":
+        return engineRequest(env, "/ai/paper/session/stop", { userId: telegramUserId });
       case "POST ai/paper/fund":
         return fundAiPaper(scopedEnv, telegramUserId, body);
       case "POST ai/paper/withdraw":
@@ -801,16 +820,33 @@ async function control(env: Env, body: Json): Promise<string> {
   }
 }
 
-async function updateProductMode(env: Env, body: Json): Promise<Response> {
+async function updateProductMode(env: Env, userId: string, body: Json): Promise<Response> {
   const requested = body.productMode;
   if (requested !== "demo" && requested !== "ai" && requested !== "live")
     return fail("Режим должен быть demo, ai или live.");
   if (requested === "live")
     return fail("LIVE пока заблокирован до подтверждения полного торгового и close-контракта.", 409);
   const state = await loadState(env);
-  state.productMode = normalizeProductMode(requested);
+  const nextMode = normalizeProductMode(requested);
+  if (normalizeProductMode(state.productMode) === "ai" && nextMode !== "ai") {
+    try {
+      const stopped = await engineRequest(env, "/ai/paper/session/stop", { userId });
+      if (!stopped.ok && stopped.status !== 404)
+        return fail("Не удалось подтвердить остановку AI paper сессии. Повторите переключение режима.", 503);
+    } catch {
+      return fail("Не удалось связаться с AI paper счётом для безопасной остановки сессии.", 503);
+    }
+  }
+  state.productMode = nextMode;
   await saveState(env, state);
   return json({ ok: true, productMode: state.productMode, executionMode: state.mode });
+}
+
+async function startAiPaperSession(env: Env, userId: string): Promise<Response> {
+  const state = await loadState(env);
+  if (normalizeProductMode(state.productMode) !== "ai")
+    return fail("Выберите режим AI Trading перед запуском AI paper сессии.", 409);
+  return engineRequest(env, "/ai/paper/session/start", { userId });
 }
 
 async function fundAiPaper(env: Env, userId: string, body: Json): Promise<Response> {

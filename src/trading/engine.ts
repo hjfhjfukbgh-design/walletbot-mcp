@@ -217,6 +217,8 @@ export class TradingEngine {
       }
       if (request.method !== "POST") return Response.json({ ok: false, error: "Метод не поддерживается." }, { status: 405 });
       const body = await request.json() as Record<string, unknown>;
+      if (url.pathname === "/ai/paper/session/start") return this.startAiPaperSession(body);
+      if (url.pathname === "/ai/paper/session/stop") return this.stopAiPaperSession(body);
       if (url.pathname === "/ai/paper/fund") return this.fundAiPaper(body);
       if (url.pathname === "/ai/paper/withdraw") return this.withdrawAiPaper(body);
       if (url.pathname === "/ai/paper/decision") return this.recordAiPaperDecision(body);
@@ -488,8 +490,8 @@ export class TradingEngine {
         !["long", "short"].includes(side) ||
         !decimalPattern.test(qtyUnits) || Number(qtyUnits) <= 0 ||
         !decimalPattern.test(entryPrice) || Number(entryPrice) <= 0 ||
-        !/^\d{1,20}$/.test(rawMargin) || BigInt(rawMargin) <= 0n ||
-        !/^\d{1,20}$/.test(rawFees) || !/^\d{1,20}$/.test(rawSlippage) ||
+        !/^(?:0|[1-9]\d{0,18})$/.test(rawMargin) || BigInt(rawMargin) <= 0n ||
+        !/^(?:0|[1-9]\d{0,18})$/.test(rawFees) || !/^(?:0|[1-9]\d{0,18})$/.test(rawSlippage) ||
         !Number.isSafeInteger(leverage) || leverage < 1 || leverage > 100 ||
         (stopLossPrice !== null && (!decimalPattern.test(stopLossPrice) || Number(stopLossPrice) <= 0)) ||
         (takeProfitPrice !== null && (!decimalPattern.test(takeProfitPrice) || Number(takeProfitPrice) <= 0))) {
@@ -510,6 +512,7 @@ export class TradingEngine {
     let insufficient = false;
     let openPositionExists = false;
     let invalidDecision = false;
+    let sessionInactive = false;
     let balanceAfter = 0n;
 
     this.ctx.storage.transactionSync(() => {
@@ -567,9 +570,10 @@ export class TradingEngine {
       if (existingOpen) { openPositionExists = true; return; }
 
       const account = this.ctx.storage.sql.exec(
-        "SELECT balance_micro FROM ai_paper_accounts WHERE user_id = ?", userId,
-      ).toArray()[0] as { balance_micro: string } | undefined;
+        "SELECT balance_micro, status FROM ai_paper_accounts WHERE user_id = ?", userId,
+      ).toArray()[0] as { balance_micro: string; status: string } | undefined;
       if (!account) { invalidDecision = true; return; }
+      if (account.status !== "active") { sessionInactive = true; return; }
       const before = BigInt(account.balance_micro);
       if (before < reserve) { insufficient = true; return; }
       balanceAfter = before - reserve;
@@ -595,6 +599,7 @@ export class TradingEngine {
 
     if (conflict) return Response.json({ ok: false, error: "Idempotency key уже использован с другой операцией или параметрами позиции." }, { status: 409 });
     if (invalidDecision) return Response.json({ ok: false, error: "Нет действующего одобренного AI paper решения или счёта для этой позиции." }, { status: 409 });
+    if (sessionInactive) return Response.json({ ok: false, error: "AI paper сессия остановлена. Запустите её явно перед открытием позиции." }, { status: 409 });
     if (openPositionExists) return Response.json({ ok: false, error: "Для этого инструмента уже открыта AI paper позиция." }, { status: 409 });
     if (insufficient) return Response.json({ ok: false, error: "Недостаточно средств на AI paper счёте для маржи и резервов." }, { status: 409 });
     return Response.json({ ok: true, positionId, duplicate, balanceMicro: duplicate ? undefined : balanceAfter.toString() }, { status: duplicate ? 200 : 201 });
@@ -690,6 +695,55 @@ export class TradingEngine {
       strategyVersion: account?.strategy_version ?? "1",
       openPositions: Number(openPositions?.count ?? 0),
     };
+  }
+
+  private startAiPaperSession(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    if (!/^\d{1,20}$/.test(userId))
+      return Response.json({ ok: false, error: "Не подтверждён пользователь Telegram." }, { status: 400 });
+    let notFound = false;
+    let insufficient = false;
+    const now = Date.now();
+    this.ctx.storage.transactionSync(() => {
+      const account = this.ctx.storage.sql.exec(
+        "SELECT balance_micro FROM ai_paper_accounts WHERE user_id = ?", userId,
+      ).toArray()[0] as { balance_micro: string } | undefined;
+      if (!account) { notFound = true; return; }
+      if (BigInt(account.balance_micro) <= 0n) { insufficient = true; return; }
+      this.ctx.storage.sql.exec(
+        "UPDATE ai_paper_accounts SET status = 'active', updated_at = ? WHERE user_id = ?",
+        now, userId,
+      );
+    });
+    if (notFound) return Response.json({ ok: false, error: "AI paper счёт не найден. Сначала пополните виртуальный баланс." }, { status: 404 });
+    if (insufficient) return Response.json({ ok: false, error: "Для запуска AI paper сессии нужен положительный виртуальный баланс." }, { status: 409 });
+    return Response.json({ ok: true, status: "active" });
+  }
+
+  private stopAiPaperSession(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    if (!/^\d{1,20}$/.test(userId))
+      return Response.json({ ok: false, error: "Не подтверждён пользователь Telegram." }, { status: 400 });
+    let notFound = false;
+    let openPositions = 0;
+    const now = Date.now();
+    this.ctx.storage.transactionSync(() => {
+      const account = this.ctx.storage.sql.exec(
+        "SELECT user_id FROM ai_paper_accounts WHERE user_id = ?", userId,
+      ).toArray()[0] as { user_id: string } | undefined;
+      if (!account) { notFound = true; return; }
+      this.ctx.storage.sql.exec(
+        "UPDATE ai_paper_accounts SET status = 'stopped', updated_at = ? WHERE user_id = ?",
+        now, userId,
+      );
+      const count = this.ctx.storage.sql.exec(
+        "SELECT COUNT(*) AS count FROM ai_paper_positions WHERE user_id = ? AND status = 'open'",
+        userId,
+      ).toArray()[0] as { count: number } | undefined;
+      openPositions = Number(count?.count ?? 0);
+    });
+    if (notFound) return Response.json({ ok: false, error: "AI paper счёт не найден." }, { status: 404 });
+    return Response.json({ ok: true, status: "stopped", openPositions });
   }
 
   private fundAiPaper(body: Record<string, unknown>): Response {

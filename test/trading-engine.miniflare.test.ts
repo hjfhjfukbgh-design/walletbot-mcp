@@ -62,6 +62,12 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     return { status: response.status, body: await response.json() as Record<string, any> };
   }
 
+  async function startAiPaper(stub: EngineStub, user: string) {
+    const started = await post(stub, "/ai/paper/session/start", { userId: user });
+    expect(started.status).toBe(200);
+    expect(started.body).toMatchObject({ ok: true, status: "active" });
+  }
+
   async function quote(stub: EngineStub, price: bigint) {
     return post(stub, "/quote", { symbol: "BTC", price: price.toString(), observedAt: Date.now() });
   }
@@ -302,6 +308,8 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       rationale: "Fast average crossed above slow average.", confidence: 0.8,
       observedPrice: "50000", riskPass: true,
     };
+    await startAiPaper(stub, userA);
+    await startAiPaper(stub, userB);
     const decisionA = await post(stub, "/ai/paper/decision", { ...decisionBase, userId: userA });
     const decisionB = await post(stub, "/ai/paper/decision", { ...decisionBase, userId: userB });
     const positionBase = {
@@ -351,6 +359,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const userA = "111111111";
     const userB = "222222222";
     await post(stub, "/ai/paper/fund", { userId: userA, amountMicro: (10n * U).toString(), idempotencyKey: "fund-position-small" });
+    await startAiPaper(stub, userA);
     const decision = await post(stub, "/ai/paper/decision", {
       userId: userA, tickId: "tick-position-0002", strategyId: "ma-crossover", strategyVersion: "1",
       marketSnapshotHash: "d".repeat(64), symbol: "ETH", signal: "buy", rationale: "Signal approved.",
@@ -384,6 +393,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       marketSnapshotHash: "e".repeat(64), symbol: "SOL", signal: "buy",
       rationale: "Signal approved.", confidence: 0.7, observedPrice: "150", riskPass: true,
     });
+    await startAiPaper(stub, userId);
     const d1 = await makeDecision("tick-position-sol-01");
     const d2 = await makeDecision("tick-position-sol-02");
     const base = {
@@ -402,6 +412,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const stub = await boot();
     const userId = "111111111";
     await post(stub, "/ai/paper/fund", { userId, amountMicro: (100n * U).toString(), idempotencyKey: "fund-close-long-01" });
+    await startAiPaper(stub, userId);
     const decision = await post(stub, "/ai/paper/decision", {
       userId, tickId: "tick-close-long-01", strategyId: "ma-crossover", strategyVersion: "1",
       marketSnapshotHash: "f".repeat(64), symbol: "BTC", signal: "buy", rationale: "Approved long.",
@@ -438,6 +449,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const stub = await boot();
     const userId = "222222222";
     await post(stub, "/ai/paper/fund", { userId, amountMicro: (50n * U).toString(), idempotencyKey: "fund-close-short-01" });
+    await startAiPaper(stub, userId);
     const decision = await post(stub, "/ai/paper/decision", {
       userId, tickId: "tick-close-short-01", strategyId: "ma-crossover", strategyVersion: "1",
       marketSnapshotHash: "1".repeat(64), symbol: "ETH", signal: "sell", rationale: "Approved short.",
@@ -466,6 +478,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const owner = "333333333";
     const stranger = "444444444";
     await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (20n * U).toString(), idempotencyKey: "fund-close-owner" });
+    await startAiPaper(stub, owner);
     const decision = await post(stub, "/ai/paper/decision", {
       userId: owner, tickId: "tick-close-owner-01", strategyId: "ma-crossover", strategyVersion: "1",
       marketSnapshotHash: "2".repeat(64), symbol: "SOL", signal: "buy", rationale: "Approved long.",
@@ -491,6 +504,63 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       exitPrice: "160", closeFeeMicro: "0", closeSlippageMicro: "0", fundingMicro: "0",
     });
     expect(secondClose.status).toBe(409);
+  });
+
+  it("requires explicit AI paper session start and stops new opens without auto-closing", async () => {
+    const stub = await boot();
+    const userId = "555555555";
+    const otherUser = "666666666";
+    const zeroUser = "777777777";
+    const missing = await post(stub, "/ai/paper/session/start", { userId });
+    expect(missing.status).toBe(404);
+    await post(stub, "/ai/paper/fund", { userId: zeroUser, amountMicro: (10n * U).toString(), idempotencyKey: "fund-zero-session-01" });
+    await post(stub, "/ai/paper/withdraw", { userId: zeroUser, amountMicro: (10n * U).toString(), idempotencyKey: "withdraw-zero-session-01" });
+    expect((await post(stub, "/ai/paper/session/start", { userId: zeroUser })).status).toBe(409);
+    await post(stub, "/ai/paper/fund", { userId, amountMicro: (50n * U).toString(), idempotencyKey: "fund-session-start-01" });
+    await post(stub, "/ai/paper/fund", { userId: otherUser, amountMicro: (20n * U).toString(), idempotencyKey: "fund-session-other-01" });
+    await startAiPaper(stub, otherUser);
+    const stopped = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
+    expect(await stopped.json()).toMatchObject({ status: "stopped", aiBalanceMicro: (50n * U).toString() });
+
+    const decision = await post(stub, "/ai/paper/decision", {
+      userId, tickId: "tick-session-open-01", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "3".repeat(64), symbol: "BTC", signal: "buy",
+      rationale: "Approved long.", confidence: 0.8, observedPrice: "50000", riskPass: true,
+    });
+    const openInput = {
+      userId, decisionId: decision.body.id, idempotencyKey: "open-session-01",
+      symbol: "BTC", side: "long", qtyUnits: "0.01", entryPrice: "50000",
+      marginMicro: (10n * U).toString(), leverage: "2", feeMicro: "0", slippageMicro: "0",
+    };
+    expect((await post(stub, "/ai/paper/position/open", openInput)).status).toBe(409);
+    await startAiPaper(stub, userId);
+    const opened = await post(stub, "/ai/paper/position/open", openInput);
+    expect(opened.status).toBe(201);
+
+    const stoppedSession = await post(stub, "/ai/paper/session/stop", { userId });
+    expect(stoppedSession.body).toMatchObject({ ok: true, status: "stopped", openPositions: 1 });
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
+    expect(await status.json()).toMatchObject({ status: "stopped", openPositions: 1 });
+    const otherStatus = await stub.fetch("https://engine.test/ai/paper/status?userId=" + otherUser);
+    expect(await otherStatus.json()).toMatchObject({ status: "active", aiBalanceMicro: (20n * U).toString() });
+
+    const anotherDecision = await post(stub, "/ai/paper/decision", {
+      userId, tickId: "tick-session-open-02", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "4".repeat(64), symbol: "ETH", signal: "buy",
+      rationale: "Another approved long.", confidence: 0.8, observedPrice: "3000", riskPass: true,
+    });
+    const blockedOpen = await post(stub, "/ai/paper/position/open", {
+      ...openInput, decisionId: anotherDecision.body.id, idempotencyKey: "open-session-02", symbol: "ETH", entryPrice: "3000",
+    });
+    expect(blockedOpen.status).toBe(409);
+
+    const closed = await post(stub, "/ai/paper/position/close", {
+      userId, positionId: opened.body.positionId, idempotencyKey: "close-while-stopped-01",
+      exitPrice: "51000", closeFeeMicro: "0", closeSlippageMicro: "0", fundingMicro: "0",
+    });
+    expect(closed.status).toBe(201);
+    const finalStatus = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
+    expect(await finalStatus.json()).toMatchObject({ status: "stopped", openPositions: 0 });
   });
 
   it("rejects stale quotes for both market updates and trade entry", async () => {
