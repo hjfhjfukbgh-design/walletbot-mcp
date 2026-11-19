@@ -407,6 +407,14 @@ try{
     await page.locator("#kg-ai-history [data-ai-delete]").first().click();
     await page.waitForFunction(()=>document.querySelectorAll("#kg-ai-history [data-ai-conversation]").length===0);
     if(!(await page.locator("#kg-ai-messages").innerText()).includes("Привет! Я Kripto Guru AI."))throw new Error("deleting the active AI conversation should reset the chat view");
+    await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
+    if(await page.locator("#kg-ai-menu").evaluate(el=>el.classList.contains("is-open")))throw new Error("AI history drawer must close with Telegram BackButton");
+    await page.locator("#kg-ai-menu-open").click();
+    await page.waitForSelector("#kg-ai-menu.is-open");
+    await page.locator("#kg-ai-menu-profile").click();
+    await page.waitForFunction(()=>!document.querySelector("#kg-profile-sheet").hidden);
+    await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
+    if(!await page.locator("#kg-profile-sheet").evaluate(el=>el.hidden))throw new Error("profile entry from AI drawer must use native BackButton to dismiss");
     if(pageErrors.length)throw new Error("browser errors: "+pageErrors.join("; "));
     await page.close();
   }
