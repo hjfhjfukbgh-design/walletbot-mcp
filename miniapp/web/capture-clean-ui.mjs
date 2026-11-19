@@ -103,6 +103,9 @@ try{
     });
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     if(await page.locator("#kg-companion-screen .kg-gemini-model").evaluate(node=>node.tagName)!=="SPAN")throw new Error("Single available AI model must be a static label, not an inert selector");
+    const walletActions=await page.locator("#kg-wallet-quick-actions button").evaluateAll(nodes=>nodes.map(node=>node.getAttribute("aria-disabled")));
+    if(walletActions.length!==4||walletActions.some(value=>value!=="true"))throw new Error("Unsupported real-wallet actions must be explicitly marked unavailable");
+    if(!(await page.locator(".kg-wallet-actions-note").innerText()).includes("пока недоступны"))throw new Error("Wallet must explain why real-fund actions are unavailable");
     await page.waitForSelector("#kg-wallet-balance");
     await page.waitForFunction(()=>document.querySelector("#kg-market-updated")?.textContent.includes("Обновлено"));
     const freshnessLabel=await page.locator("#kg-market-updated").innerText();

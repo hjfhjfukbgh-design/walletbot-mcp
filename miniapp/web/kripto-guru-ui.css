@@ -1463,3 +1463,8 @@ html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--strong{background:
 .kg-profile-theme-row label{color:var(--kg-muted);font-size:12px}
 .kg-profile-theme-row select{min-height:38px;max-width:150px;padding:0 10px;border:1px solid var(--kg-line);border-radius:11px;background:var(--kg-bg);color:var(--kg-ink);font:inherit;font-size:12px}
 .kg-profile-theme-row select:focus-visible{outline:2px solid var(--kg-blue);outline-offset:2px}
+
+
+/* Wallet actions are visible for discoverability but clearly unavailable until real-fund flows are supported. */
+.kg-wallet-quick-actions button[aria-disabled="true"]{opacity:.48;cursor:not-allowed;filter:saturate(.55)}
+.kg-wallet-actions-note{margin:-7px 2px 12px;color:var(--kg-muted);font-size:10px;line-height:1.4;text-align:center}

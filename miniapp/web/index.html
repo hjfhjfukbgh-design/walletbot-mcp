@@ -53,11 +53,12 @@
         <p class="kg-empty-card">Виртуальные средства. Агент не имеет доступа к LIVE.</p>
       </section>
       <div id="kg-wallet-quick-actions" class="kg-wallet-quick-actions" aria-label="Быстрые действия">
-        <button type="button" data-wallet-action="transfer"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 8 4-4 4 4M8 4v11M20 16l-4 4-4-4m4 4V9"/></svg></span><small>Перевести</small></button>
-        <button type="button" data-wallet-action="deposit"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg></span><small>Пополнить</small></button>
-        <button type="button" data-wallet-action="withdraw"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V4m-8 8 8-8 8 8"/></svg></span><small>Вывести</small></button>
-        <button type="button" data-wallet-action="exchange"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/></svg></span><small>Обменять</small></button>
+        <button type="button" data-wallet-action="transfer" aria-disabled="true" title="Операция с реальными средствами пока недоступна"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 8 4-4 4 4M8 4v11M20 16l-4 4-4-4m4 4V9"/></svg></span><small>Перевести</small></button>
+        <button type="button" data-wallet-action="deposit" aria-disabled="true" title="Операция с реальными средствами пока недоступна"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg></span><small>Пополнить</small></button>
+        <button type="button" data-wallet-action="withdraw" aria-disabled="true" title="Операция с реальными средствами пока недоступна"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V4m-8 8 8-8 8 8"/></svg></span><small>Вывести</small></button>
+        <button type="button" data-wallet-action="exchange" aria-disabled="true" title="Операция с реальными средствами пока недоступна"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/></svg></span><small>Обменять</small></button>
       </div>
+      <p class="kg-wallet-actions-note">Операции реального кошелька пока недоступны.</p>
       <button id="kg-wallet-currency" class="kg-wallet-currency" type="button" aria-label="Доллары USDT">
         <span class="kg-currency-icon">$</span>
         <span class="kg-card-copy"><b>Доллары</b><small>USDT · курс загружается</small></span>
