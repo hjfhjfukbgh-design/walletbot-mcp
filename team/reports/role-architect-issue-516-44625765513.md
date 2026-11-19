@@ -1,71 +1,38 @@
-# ARCHITECT — анализ задачи #516
+# ARCHITECT — проверка AI LIVE control architecture (#516)
 
-- Режим: анализ, исходники не изменялись
-- Задача: [KG-C- AI LIVE] Supervised AI LIVE mode: orchestration, controls and audit
+- Режим: анализ, исходники не изменялись.
+- Общий вердикт: **NOT VERIFIED / BLOCKED FOR LIVE RELEASE**.
+- Цель отчёта — отличить описанные требования от реально реализованной архитектуры. Наличие таблиц/README не считается доказательством работающей сессии.
 
-<!-- kg-child-task:v1;parent=239;key=ai-live-control;team=C;role=ARCHITECT;depends=none -->
+## Scope matrix
 
-## Цель
-Зафиксировать модель трёх execution modes:
-- MANUAL LIVE — подтверждение каждого ордера.
-- AI PAPER — автономная торговля только в изолированном виртуальном ledger.
-- AI LIVE — автономная торговля реальным счётом после одного явного session-level запуска/разрешения пользователя; повторные подтверждения каждого ордера не требуются.
-
-## AI LIVE session authorization
-При запуске пользователь явно выбирает счёт, выделенный капитал, срок действия и риск-лимиты. Сервер создаёт ограниченную authorization session. ИИ может самостоятельно анализировать рынок, готовить preview и отправлять ордера в пределах этой сессии без per-order confirmation.
-
-Обязательные server-side ограничения:
-- session expiry/revocation и kill switch;
-- max allocated capital, max order notional, contract max leverage, max open positions, max daily loss;
-- свежесть цены и срок жизни preview;
-- проверка баланса, ownership, Telegram auth, tenant isolation и Walt contract rules перед каждым ордером;
-- idempotency, durable audit, reconciliation unknown outcomes; никаких blind retries;
-- при потере соединения/авторизации, неизвестном результате, превышении лимита или несогласованном балансе — остановить новые ордера и fail-closed;
-- AI не имеет withdraw/transfer/account-management прав;
-- session opt-in не включается по умолчанию и не переносится на будущие сессии.
-
-## Запреты разработки/тестов
-Никаких реальных Walt write calls, ордеров, переводов, account mutations, секретов и production deploy. Только статический анализ и mock tests.
-
-## Результат
-State machine, API contract, threat model, persistence/idempotency design, тестовая матрица и точные ссылки на код. Не объявлять архитектуру готовой без evidence.
-
-Как агент роли **ARCHITECT** команды **Kripto Guru**, я выполнил анализ задачи **Issue #516** (*[KG-C- AI LIVE] Supervised AI LIVE mode: orchestration, controls and audit*), опираясь строго на предоставленный контекст репозитория.
-
-Ниже представлен отчёт в требуемом формате.
-
----
-
-### Таблица Scope Checklist (Обязательный scope checklist)
-
-| ID | Проверка | Точное доказательство | Результат | Что не проверено |
+| ID | Проверка | Evidence | Статус | Пробел |
 |---|---|---|---|---|
-| [S1] | Модель трёх execution modes (MANUAL LIVE, AI PAPER, AI LIVE) | `README.md:L7-L17`, `README.md:L59-L60`, `src/api.ts:L54-L75` | PASS | Внутреннее поведение AI-модели вне границ изолированного ledger и server-side ограничений |
-| [S2] | Server-side ограничения сессии (expiry, kill switch, risk limits, freshness) | `src/trading/engine.ts:L72-L82`, `src/trading/engine.ts:L100-L105` | PASS | Фактическое срабатывание kill switch на живой бирже (LIVE строго заблокирован) |
-| [S3] | Изоляция AI paper ledger от пользовательского DEMO и защита от blind retries | `src/trading/engine.ts:L73-L80`, `src/walt.ts:L41-L44` | PASS | Дополнительные edge cases одновременного доступа к D1 SQLite под высокой нагрузкой |
-| [S4] | Запрет real Walt write calls, переводов, account mutations и секретов (Budget 0) | `README.md:L7`, `README.md:L59`, `src/walt.ts:L87-L92`, `team/ARCHITECT_AGENT.md:L14-L17` | PASS | Поведение реального бэкенда Walt при включении production-контракта (заблокировано) |
-| [S5] | State machine, API contract, threat model, test matrix и точные ссылки на код | `README.md:L11-L19`, `src/api.ts:L54-L75`, `src/trading/engine.ts:L72-L82` | PASS | Полное покрытие всех ветвлений threat model в отдельном security-отчёте |
+| S1 | Три режима MANUAL LIVE / AI PAPER / AI LIVE | README.md:L7-L17, src/api.ts:L54-L80, miniapp/web/index.html:L28-L34 | PARTIAL | UI имеет DEMO/AI и disabled LIVE; AI PAPER fund/withdraw/status есть. Session-start AI LIVE route/runner отсутствует. |
+| S2 | Session expiry/revoke, kill switch, server-side capital/notional/leverage/positions/daily-loss limits, preview freshness | src/trading/engine.ts:L72-L80, src/api.ts:L357-L480, src/api.ts:L527-L680 | NOT VERIFIED | Таблицы AI paper не являются AI LIVE session store. В reviewed source не найдено session authorization state, revoke/kill-switch endpoint или per-order AI LIVE session guard. Open LIVE flow не равен автономной session. |
+| S3 | AI paper ledger isolation/idempotency и positions/decisions isolation | src/trading/engine.ts:L74-L79, L289-L305, L312-L388, L393-L466; test/trading-engine.miniflare.test.ts:L90-L300; test/api.test.ts:L133-L174 | PARTIAL | AI paper balance/ledger operations scoped by user_id and tested; ai_paper_positions/ai_paper_decisions are schema-only in reviewed engine code, with no execution/write surface to verify. |
+| S4 | Fail-closed: no real Walt writes, transfers, account mutation, secrets or deploy during development/tests | src/walt.ts:L74-L92; README.md:L7, L59-L60 | PASS (development guard) | This verifies current blocked legacy methods and project policy, not a production AI LIVE design. |
+| S5 | State machine, API contract, threat model, persistence/idempotency design and test matrix | src/api.ts:L54-L80; src/walt.ts:L74-L92; README.md:L99-L104 | NOT VERIFIED | No complete AI LIVE session state machine or API contract exists in the reviewed implementation. |
 
----
+## Verified facts
 
-### Вердикт
-**NOT VERIFIED / BLOCKED FOR LIVE RELEASE** (Архитектурный анализ выполнен успешно, требования зафиксированы, но **LIVE-режим и автономное исполнение реальных ордеров остаются полностью заблокированными** в соответствии с политикой бюджета 0 и правилами безопасности проекта).
+1. The active Mini App exposes DEMO and AI PAPER; LIVE selector is disabled in index.html:L28-L34.
+2. API routes expose AI paper status/fund/withdraw and manual LIVE open preview/execute/status; no AI LIVE session-start/stop/revoke route appears in the reviewed route switch (src/api.ts:L54-L80).
+3. Current LIVE open execution is user-confirmed and uses preview/claim/execute/reconciliation flow in src/api.ts:L357-L480 and L527-L680. This is not an autonomous AI LIVE session.
+4. Legacy Walt wrappers fail closed (src/walt.ts:L74-L92). The report does not infer a supported close tool name or schema from them.
+5. AI paper schema separates account/ledger/positions/decisions tables, but the reviewed engine implements account/status/fund/withdraw operations; schema presence alone does not prove position/decision execution or complete tenant isolation.
 
----
+## Missing architecture before AI LIVE can be considered
 
-### Доказательства с путями и символами
-1. **Разделение режимов и блокировка LIVE**: В `README.md:L7` и `README.md:L59` явно указано, что исполнение LIVE заблокировано до валидации полного цикла и подтверждения безопасности.
-2. **Изолированный ledger для AI Paper**: В `src/trading/engine.ts:L73-L80` создаются изолированные таблицы D1 SQLite (`ai_paper_accounts`, `ai_paper_ledger`, `ai_paper_positions`, `ai_paper_decisions`), отделяющие AI-песочницу от ручного DEMO и потенциального LIVE.
-3. **Безопасность API-контракта**: В `src/api.ts:L54-L75` маршруты `ai/paper/status`, `live/preview`, `live/execute`, `live/operation` чётко разграничены с проверкой Telegram TMA-авторизации (`validateTelegramInitData`).
-4. **Защита от blind retries в Walt**: В `src/walt.ts:L87-L92` legacy методы `openLong` и `closePosition` бросают `WaltError`, требуя двухэтапного процесса `prepare` → `execute` с явным подтверждением.
+- Durable session record bound to Telegram user and exact Walt account/owner.
+- One explicit user Start AI LIVE authorization, scoped to one session; expiry and revocation; session-specific kill switch.
+- Immutable server-side limits: allocated capital, per-order notional, contract leverage ceiling, max open positions, daily loss stop, stale-price/preview expiry.
+- Before each AI order: auth + account ownership + readiness + balance + contract rules + all limits.
+- Idempotent order operation state, durable audit, GET-only reconciliation for unknown outcomes, no blind execute retries.
+- Explicit deny of withdraw/transfer/account-management permissions.
+- Mocked cross-tenant, replay, expiry, revocation, kill-switch, limit-breach, timeout/unknown, balance-mismatch tests.
+- Walt close prepare/execute/reconciliation contract remains blocked by #332; do not expose LIVE trading UI or AI LIVE runner until this is verified.
 
----
+## Conclusion
 
-### Риски и пробелы
-- **Отсутствие реального runner для AI LIVE**: Как отмечено в `README.md:L99-L104`, активный runner стратегий и автоматическое исполнение AI-стратегий на реальном счёте не реализованы.
-- **Риск рассинхронизации состояния**: Без надёжного механизма reconciliation unknown outcomes в реальном брокере возможны ложные срабатывания при потере сетевого соединения.
-
----
-
-### Один следующий шаг
-Продолжить статическое проектирование схемы state machine и API contract для управляемой сессии AI LIVE в рамках изолированного Durable Object (`TradingEngine`), строго удерживая бюджет равным 0 и не снимая блокировку с LIVE-ордеров.
+**NOT VERIFIED / BLOCKED.** Requirements for supervised AI LIVE are documented, but the required session authorization, execution state machine, and safety enforcement are not implemented in the reviewed code. Keep LIVE disabled. No real Walt writes, orders, transfers, account mutations, secrets or production deploy were performed.
