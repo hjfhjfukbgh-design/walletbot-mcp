@@ -124,6 +124,8 @@ try{
     await page.waitForFunction(()=>document.documentElement.dataset.theme==="light");
     await page.locator("#kg-profile-theme-select").selectOption("light");
     await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
+    const walletBackState=await page.evaluate(()=>({visible:window.Telegram.WebApp.BackButton.isVisible,handler:typeof window.Telegram.WebApp.BackButton.handler,profileHidden:document.querySelector("#kg-profile-sheet").hidden}));
+    if(!walletBackState.profileHidden||walletBackState.visible||walletBackState.handler!=="object")throw new Error("closing a standalone profile sheet must hide and detach Telegram BackButton: "+JSON.stringify(walletBackState));
     // Theme preference changes intentionally show a transient confirmation toast.
     // Dismiss it in the screenshot harness so it cannot obscure the wallet preview.
     await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
