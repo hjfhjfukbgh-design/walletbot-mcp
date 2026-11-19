@@ -116,6 +116,14 @@ A Durable Object may process another request while an earlier handler is awaitin
 
 MANUAL LIVE requires a fresh server preview and a separate explicit confirmation for **each** order. The execute endpoint accepts a single-use confirmation/operation handle and is idempotent. A manual confirmation cannot authorize an AI LIVE session, and an AI LIVE session cannot be used to bypass manual per-order confirmation.
 
+## Provider semantics research (not an API contract)
+
+Walt's public Help Center documents an **Agentic account** as a separate-balance subaccount for an AI assistant. It states that the agent cannot top up/withdraw or access the main balance, and that stopping the account disconnects the agent, closes open perpetual positions and returns the remaining balance. It also states one open position per perpetual contract per account, while different contracts can be held concurrently. See [Walt Agentic account](https://help.walt.io/article/1153-agentic-account).
+
+Walt's perpetuals guide states that opening/closing fees are tier-dependent percentages of position size deducted from margin, and funding can be charged or credited hourly and changes margin. See [Walt trading, fees and funding](https://help.walt.io/article/634-trade-and-trading-assets-in-wallet).
+
+These are product semantics, **not verified MCP tool schemas**. The current adapter must not assume it can create/stop an Agentic account, list all positions, fetch daily PnL, or close positions through the same capability. Verify exact MCP tools, input/output schemas, ownership binding and operation states before using this model. Fee and daily-loss controls must include trading fees and funding; aggregate exposure must account for multiple contracts. Never implement an assumed endpoint or payload from Help Center prose.
+
 ## Walt adapter dependency
 
 The adapter must expose typed capabilities only after the corresponding provider contract is verified:
