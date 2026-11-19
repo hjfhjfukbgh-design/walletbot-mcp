@@ -102,6 +102,7 @@ try{
       };
     });
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
+    if(await page.locator("#kg-companion-screen .kg-gemini-model").evaluate(node=>node.tagName)!=="SPAN")throw new Error("Single available AI model must be a static label, not an inert selector");
     await page.waitForSelector("#kg-wallet-balance");
     await page.waitForFunction(()=>document.querySelector("#kg-market-updated")?.textContent.includes("Обновлено"));
     const freshnessLabel=await page.locator("#kg-market-updated").innerText();
