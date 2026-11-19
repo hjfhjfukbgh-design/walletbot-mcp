@@ -1,5 +1,6 @@
 name: Kripto Guru — continuous agent dispatcher
 # Keep scheduled queue active; push on this file triggers an immediate dispatch pass.
+# Queue pass: prioritize the Companion conversation serialization ADR.
 
 on:
   push:
