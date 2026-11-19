@@ -1332,3 +1332,40 @@ html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--mild{background:#4
 html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--medium{background:#5A2D2A;color:#FFB7B0}
 html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--strong{background:#713632;color:#FFD0CC}
 @media (prefers-reduced-motion:reduce){.kg-heat-cell{transition:none}}
+
+/* Agents hub — Mira-inspired hero, scoped to this screen and theme-aware. */
+#kg-agents-screen{padding-bottom:calc(112px + var(--kg-safe-bottom))}
+#kg-agents-screen .kg-agents-hero{
+  position:relative;isolation:isolate;overflow:hidden;
+  display:flex;align-items:flex-end;min-height:214px;
+  margin:-10px -14px 22px;padding:30px 20px 42px;
+  border-radius:0 0 30px 30px;
+  color:#fff;
+  background:linear-gradient(128deg,#3F4FF5 0%,#6259F2 48%,#5BA8F7 100%);
+}
+#kg-agents-screen .kg-agents-hero::before{
+  content:"";position:absolute;z-index:-1;width:230px;height:230px;right:-78px;top:-105px;
+  border:1px solid rgba(255,255,255,.22);border-radius:50%;
+  box-shadow:0 0 0 26px rgba(255,255,255,.055),0 0 0 54px rgba(255,255,255,.035);
+}
+#kg-agents-screen .kg-agents-hero::after{
+  content:"";position:absolute;z-index:0;pointer-events:none;left:0;right:0;bottom:0;height:48px;
+  background:linear-gradient(180deg,rgba(0,0,0,0),var(--kg-bg));
+}
+#kg-agents-screen .kg-agents-hero-copy{position:relative;z-index:1;max-width:330px}
+#kg-agents-screen .kg-agents-eyebrow{margin:0 0 10px;font-size:10px;font-weight:750;letter-spacing:.13em;color:rgba(255,255,255,.76)}
+#kg-agents-screen .kg-agents-hero h1{margin:0 0 8px;font-size:28px;line-height:1.08;font-weight:760;letter-spacing:-.8px;color:#fff}
+#kg-agents-screen .kg-agents-hero-copy>p:last-child{max-width:285px;margin:0;font-size:13px;line-height:1.45;color:rgba(255,255,255,.88)}
+#kg-agents-screen .kg-section-head{margin:22px 2px 10px}
+#kg-agents-screen .kg-section-head h2{font-size:18px;font-weight:720;letter-spacing:-.45px}
+#kg-agents-screen .kg-list{overflow:hidden;display:grid;gap:0;padding:0;border:1px solid var(--kg-line);border-radius:24px;background:var(--kg-card);box-shadow:var(--kg-shadow)}
+#kg-agents-screen .kg-empty-card{min-height:92px;display:grid;place-items:center;padding:20px 18px;border-radius:0;background:transparent;color:var(--kg-muted);font-size:12px;line-height:1.5;text-align:center}
+#kg-agents-screen .kg-list+.kg-section-head{margin-top:26px}
+#kg-agents-screen .kg-agents-safety-note{margin:16px 4px 0;padding:12px 14px;border:1px solid var(--kg-line);border-radius:16px;background:var(--kg-card);color:var(--kg-muted);font-size:11px;line-height:1.45;text-align:center}
+@media (max-width:380px){
+  #kg-agents-screen .kg-agents-hero{min-height:198px;padding:26px 17px 39px}
+  #kg-agents-screen .kg-agents-hero h1{font-size:26px}
+}
+@media (prefers-reduced-motion:reduce){
+  #kg-agents-screen *{scroll-behavior:auto!important;animation:none!important;transition:none!important}
+}
