@@ -8,7 +8,8 @@
   function getThemePreference(){try{return normalizeThemePreference(localStorage.getItem(THEME_KEY));}catch{return "dark";}}
   function getResolvedTheme(preference=getThemePreference()){
     const pref=normalizeThemePreference(preference);
-    return pref==="system"?(window.matchMedia?.("(prefers-color-scheme: dark)")?.matches?"dark":"light"):pref;
+    const media=window.matchMedia?.("(prefers-color-scheme: dark)");
+    return pref==="system"?(media?(media.matches?"dark":"light"):"dark"):pref;
   }
   function applyThemePreference(preference=getThemePreference()){
     const pref=normalizeThemePreference(preference),resolved=getResolvedTheme(pref);
