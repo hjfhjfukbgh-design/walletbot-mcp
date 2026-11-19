@@ -1335,3 +1335,9 @@
 - **PR #431:** merged to main as `81bca026328dd1bedd22e9fa54acf9647730dbf3`.
 - CI run `44526453936`: npm ci, JS syntax, typecheck and all 164 unit tests PASS; deploy skipped.
 - The expanded Miniflare integration test now verifies a second Telegram user cannot close the first user's position by guessed ID, receives no foreign position in account state, and sees only its own history. The existing implementation correctly rejects the foreign close and keeps both accounts isolated.
+
+### 2026-11-19T17:49:58+05:00 — Screenshot visual audit: theme toast removed; Companion dark composer assertion added
+
+- Downloaded and inspected actual PR #430 Playwright artifact at 390×844. The wallet dark screenshot had a theme-confirmation toast covering lower account content; this was a screenshot-harness issue, not a production toast regression.
+- **PR #432:** clears only the transient toast inside the screenshot harness after verifying theme selection; asserts the toast is absent before clean previews.
+- Additional visual audit found the Gemini-style Companion composer looked materially lighter than the surrounding dark theme. Added a computed-style assertion to the dark screenshot helper requiring a dark composer surface. This will determine whether a production CSS correction is needed; screenshot run `44527464005` is in progress.
