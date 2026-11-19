@@ -585,20 +585,15 @@
     $("#kg-ticket-check").disabled=true;
     state.preview=null;
     if(!(state.margin>0)){$("#kg-ticket-volume").textContent="Объём: —";$("#kg-ticket-preview").textContent="";return;}
-    const targets=getAutoCloseTargets();
-    if(targets===false){$("#kg-ticket-preview").textContent="Укажите TP и SL от 0,1% до 90%.";return;}
     try{
       const result=unwrap(await invoke("trade.preview",{symbol:state.selectedMarket,side:state.side,marginUsd:state.margin,leverage:state.leverage}),"preview");
       if(seq!==state.previewSeq)return;
-      const pricedTargets=getAutoCloseTargets(Number(result.priceUsd??state.selected?.priceUsd));
-      if(pricedTargets===false){$("#kg-ticket-preview").textContent="Не удалось рассчитать уровни автозакрытия.";return;}
-      state.preview={...result,...(pricedTargets||{})};
+      state.preview={...result};
       const volume=Number(result.volumeUsd??result.notionalUsd);
       $("#kg-ticket-volume").textContent="Объём: "+money(volume);
       const fees=[];
       if(result.entryFeeUsd!==undefined)fees.push("Комиссия открытия "+money(Number(result.entryFeeUsd)));
       if(result.exitFeeUsd!==undefined)fees.push("Комиссия закрытия "+money(Number(result.exitFeeUsd)));
-      if(pricedTargets)fees.push("TP "+money(pricedTargets.takeProfitUsd)+" · SL "+money(pricedTargets.stopLossUsd));
       $("#kg-ticket-preview").textContent=fees.join(" · ");
       $("#kg-ticket-check").disabled=!(result.valid!==false && result.available!==false);
     }catch(error){if(seq!==state.previewSeq)return;$("#kg-ticket-preview").textContent=normalizeError(error).message;}
@@ -610,10 +605,7 @@
     if(!state.preview||state.busy)return;
     state.busy=true;$("#kg-trade-confirm").disabled=true;
     try{
-      const targets=getAutoCloseTargets(state.preview?.priceUsd);
-      if(targets===false)throw new Error("Укажите корректные уровни TP и SL.");
       const payload={symbol:state.selectedMarket,side:state.side,marginUsd:state.margin,leverage:state.leverage,previewId:state.preview.previewId};
-      if(targets)Object.assign(payload,targets);
       const result=await invoke("trade.open",payload);
       closeModals();closeTicket();await Promise.all([loadWallet(),loadHistory()]);
       if(state.selectedMarket)renderAssetHistory(state.selectedMarket);
@@ -837,6 +829,11 @@
       button.setAttribute("aria-pressed",String(selected));
     });
     $("#kg-product-mode-status").textContent=descriptions[state.productMode]||descriptions.demo;
+    const assetBadge=$("#kg-asset-mode-badge"),ticketBadge=$("#kg-ticket-mode-badge");
+    const modeClass=state.productMode==="ai"?"kg-mode-badge kg-mode-badge--ai":"kg-mode-badge kg-mode-badge--demo";
+    if(assetBadge){assetBadge.className=modeClass;assetBadge.textContent=state.productMode==="ai"?"ИИ":"DEMO";}
+    if(ticketBadge){ticketBadge.className=modeClass;ticketBadge.textContent=state.productMode==="ai"?"ИИ · виртуальный счёт":"DEMO · виртуальные деньги";}
+    $("#kg-profile-mode-switch [data-profile-mode]").forEach(button=>{const active=button.dataset.profileMode===state.productMode;button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));});
     const modeBadge=$("#kg-wallet-mode-badge");
     if(modeBadge){modeBadge.className="kg-mode-badge "+(state.productMode==="ai"?"kg-mode-badge--ai":"kg-mode-badge--demo");modeBadge.textContent=state.productMode==="ai"?"ИИ · виртуальный счёт":"DEMO · виртуальные деньги";}
     renderProfileSettings();
@@ -934,6 +931,7 @@
     $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
     $("#kg-ai-paper-fund").addEventListener("click",()=>void transferAiPaper("fund"));
     $("#kg-profile-theme-select").addEventListener("change",event=>{setThemePreference(event.target.value);renderProfileSettings();notify("Настройка темы сохранена.");});
+    $("#kg-profile-mode-switch").addEventListener("click",event=>{const button=event.target.closest("[data-profile-mode]");if(!button||button.disabled)return;void selectProductMode(button.dataset.profileMode,button);});
     $("#kg-ai-paper-withdraw").addEventListener("click",()=>void transferAiPaper("withdraw"));
     $("#kg-product-mode").addEventListener("click",event=>{
       const button=event.target.closest("[data-product-mode]");
@@ -1038,9 +1036,6 @@
     $("#kg-long").addEventListener("click",()=>openTicket("long"));
     $("#kg-short").addEventListener("click",()=>openTicket("short"));
     $("#kg-ticket-margin").addEventListener("input",refreshPreview);
-    $("#kg-ticket-autoclose").addEventListener("click",()=>{setAutoCloseUi(!state.autoclose);refreshPreview();});
-    $("#kg-ticket-tp").addEventListener("input",refreshPreview);
-    $("#kg-ticket-sl").addEventListener("input",refreshPreview);
     $("#kg-ticket-max").addEventListener("click",async()=>{
       const available=Number(state.wallet?.balanceUsd??state.wallet?.balance??0);
       if(!(available>0)){notify("Нет доступного демо-баланса.");return;}
