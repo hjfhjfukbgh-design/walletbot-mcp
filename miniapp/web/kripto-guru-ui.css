@@ -1257,3 +1257,30 @@ html,body{background:#0b1018!important;color:#eef3fa}
 .kg-product-mode-status{margin:7px 3px 0;color:#94a3b8;font-size:10px;line-height:1.45;text-align:center}
 .kg-product-mode button:focus-visible{outline:2px solid #3989f4;outline-offset:2px}
 @media(max-width:360px){.kg-product-mode button b{font-size:11px}.kg-product-mode button small{font-size:8px}}
+
+:root[data-theme="dark"],
+html[data-theme="dark"] {
+  --kg-bg: #000000;
+  --kg-card: #1C1C1E;
+  --kg-ink: #F5F5F7;
+  --kg-muted: #8E8E93;
+  --kg-line: #38383A;
+  --kg-blue: #5B9BF5;
+  --kg-green: #4CC468;
+  --kg-red: #FF6A62;
+  --kg-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --kg-bg: #000000;
+    --kg-card: #1C1C1E;
+    --kg-ink: #F5F5F7;
+    --kg-muted: #8E8E93;
+    --kg-line: #38383A;
+    --kg-blue: #5B9BF5;
+    --kg-green: #4CC468;
+    --kg-red: #FF6A62;
+    --kg-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+  }
+}
