@@ -104,7 +104,7 @@ try{
     await page.goto("http://127.0.0.1:4173/",{waitUntil:"networkidle"});
     if(await page.locator("#kg-companion-screen .kg-gemini-model").evaluate(node=>node.tagName)!=="SPAN")throw new Error("Single available AI model must be a static label, not an inert selector");
     const walletShortcuts=await page.locator("#kg-wallet-quick-actions button").evaluateAll(nodes=>nodes.map(node=>node.dataset.walletShortcut));
-    if(walletShortcuts.join(",")!=="trading,income,agents,companion")throw new Error("Wallet quick actions must be real navigation shortcuts, not fake money operations: "+walletShortcuts.join(","));
+    if(walletShortcuts.join(",")!=="trading,income,agents,virtual-transfer")throw new Error("Wallet quick actions must be real navigation shortcuts, not fake money operations: "+walletShortcuts.join(","));
     if(await page.locator("#kg-wallet-quick-actions [data-wallet-action]").count())throw new Error("Fake real-money actions must not be rendered");
     const viewport=await page.evaluate(()=>({width:window.innerWidth,scrollWidth:document.documentElement.scrollWidth}));
     if(viewport.scrollWidth>viewport.width+1)throw new Error("Unexpected horizontal page overflow at "+device.width+"px: "+JSON.stringify(viewport));
