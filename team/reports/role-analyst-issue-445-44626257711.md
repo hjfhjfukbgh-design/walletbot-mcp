@@ -1,170 +1,54 @@
-# ANALYST — анализ задачи #445
+# ANALYST — фактическая capability matrix Mini App (#445)
 
-- Режим: анализ, исходники не изменялись
-- Задача: [KG-A-UI-01] Audit: actual button-to-backend capability matrix
+- Режим: анализ, исходники не изменялись.
+- Проверены текущие main-файлы: index.html, kripto-guru-ui.js, kripto-guru-api.js, src/index.ts, src/api.ts, src/companion.ts и тесты.
+- Активный UI — новый Mini App в `miniapp/web/index.html`; старый `app.js` не использован как доказательство для активных обработчиков.
+- Статус отчёта: **PARTIAL**. Матрица отражает обнаруженные связи кода, но не заменяет полный runtime E2E на реальном Telegram WebView.
 
-<!-- kg-child-task:v1;parent=53;key=ui-capability-audit-01;team=A;role=ANALYST;depends=none -->
+## Матрица действий [S1]–[S31]
 
-## Дедлайн
-2026-11-19 23:30 Asia/Yekaterinburg (UTC+5).
+| ID | Экран / действие | Selector | UI handler | Client API → backend route | Evidence / статус |
+|---|---|---|---|---|---|
+| [S1] | Открыть профиль | `#kg-wallet-profile` | `openProfile`, bind: `kripto-guru-ui.js:L901-L935, L1042` | Локальный sheet; route нет | PARTIAL — UI handler есть, backend не нужен; нет отдельного e2e assertion. |
+| [S2] | Выбрать DEMO | `#kg-profile-mode-switch [data-profile-mode=demo]` | `selectProductMode`: `kripto-guru-ui.js:L1028-L1040, L1053` | `productMode.set` → POST `/api/product-mode`; GET `/api/state` | PASS — route: `src/api.ts:L60-L64`; mode tests: `test/api.test.ts:L120-L155`. |
+| [S3] | Выбрать ИИ | `#kg-profile-mode-switch [data-profile-mode=ai]` | `selectProductMode` | `productMode.set` → POST `/api/product-mode`; paper status GET `/api/ai/paper/status` | PARTIAL — AI PAPER mode и ledger controls есть; AI strategy runner/автоторговля не реализованы. `src/api.ts:L34-L36,L60-L64`. |
+| [S4] | Выбрать LIVE | `#kg-profile-mode-switch [data-profile-mode=live]` | Disabled в HTML; `selectProductMode("live")` возвращает блокирующее уведомление: `kripto-guru-ui.js:L1028-L1032` | Нет UI request; отдельный manual LIVE API существует, но не доступен через этот selector | PASS (fail-closed UI) — `index.html:L206`; screenshot harness `capture-clean-ui.mjs:L156-L164`. |
+| [S5] | Быстрый переход в Торговлю | `#kg-wallet-quick-actions [data-wallet-shortcut=trading]` | delegated handler: `kripto-guru-ui.js:L1063` | `markets.list` → GET `/api/contracts` | PARTIAL — route есть `src/api.ts:L76-L80`; mock screenshot covers trading/catalog, not production provider. |
+| [S6] | Быстрый переход в Позиции/историю | `#kg-wallet-quick-actions [data-wallet-shortcut=income]`, `#kg-wallet-positions-all` | `setScreen`, `loadWallet`, `loadHistory`: `kripto-guru-ui.js:L331-L435,L1047-L1048,L1063` | `wallet.get` GET `/api/demo`; `history.list` GET `/api/demo/history` | PASS (API path) — `src/api.ts:L36-L40`; test suite green in run 44630321694. |
+| [S7] | Быстрый переход в Агенты | `#kg-wallet-ai`, `[data-wallet-shortcut=agents]` | `setScreen`, `loadAiPaperSummary`: `kripto-guru-ui.js:L99-L123,L959-L1015,L1061-L1063` | `aiPaper.status` GET `/api/ai/paper/status` | PASS (paper status) — `src/api.ts:L34-L36`; no AI execution runner. |
+| [S8] | Виртуальный переход DEMO ↔ AI | `[data-wallet-shortcut=virtual-transfer]`, `#kg-agents-open-funding` | Переключает AI mode и фокусирует amount input: `kripto-guru-ui.js:L1062-L1063` | Сам shortcut route не вызывает; перевод выполняется S22/S23 | PARTIAL — navigation есть, сам transfer требует отдельного действия. |
+| [S9] | Открыть/закрыть поиск рынка | `#kg-search-open`, `#kg-search-close` | bind: `kripto-guru-ui.js:L1123-L1124` | При открытии загружается all filter: `markets.list` GET `/api/contracts` | PASS (UI + route) — `src/api.ts:L76-L80`. |
+| [S10] | Категории Crypto/Futures | `.kg-category[data-category]` | `loadCategory`: `kripto-guru-ui.js:L230-L256,L1122` | `markets.list` GET `/api/contracts` | PASS (route); доступные категории ограничены crypto/futures в `kripto-guru-api.js:L162-L190`. |
+| [S11] | Открыть карточку актива | `[data-open-market]` | delegated click → `openAsset`: `kripto-guru-ui.js:L574-L615,L1141-L1150` | `market.get` → GET `/api/contracts` + GET `/api/price`; candles GET `/api/chart`; history GET `/api/demo/history` | PASS (кодовые связи) — wrappers `kripto-guru-api.js:L162-L224`; routes `src/api.ts:L38-L40,L76-L90`. |
+| [S12] | Добавить/убрать избранное | `[data-toggle-favorite]`, `#kg-asset-favorite`, `#kg-edit-favorites` | `renderFavorites`, delegated click, asset favorite: `kripto-guru-ui.js:L138-L150,L1141-L1155` | LocalStorage; backend route нет | PASS (local-only) — тест API не нужен; persistence ограничен текущим браузером. |
+| [S13] | Переключить timeframe | `#kg-timeframes [data-interval]` | `loadCandles`: `kripto-guru-ui.js:L635-L650,L1156` | `market.candles` GET `/api/chart?market=…&interval=…` | PASS (кодовая связь) — `kripto-guru-api.js:L215-L224`; `src/api.ts:L80-L90`. |
+| [S14] | Long-press crosshair / OHLC | `#kg-chart` | pointer handlers + candle renderer: `kripto-guru-ui.js:L480-L572` | Нет route; вычисление из загруженных свечей | PASS (mock UI contract) — screenshot workflow 44629128298; реальный iPhone touch ещё не проверен. |
+| [S15] | Выбрать LONG | `#kg-long` | `openTicket("long")`: `kripto-guru-ui.js:L671-L704,L1157` | На выборе только UI; preview выполняется S17 | PASS (UI handler); AI mode блокирует ручную сделку. |
+| [S16] | Выбрать SHORT | `#kg-short` | `openTicket("short")`: `kripto-guru-ui.js:L671-L704,L1158` | На выборе только UI; preview выполняется S17 | PASS (UI handler); AI mode блокирует ручную сделку. |
+| [S17] | Изменить маржу и получить preview | `#kg-ticket-margin` | `refreshPreview`: `kripto-guru-ui.js:L706-L727,L1159` | `trade.preview` POST `/api/demo/preview` | PASS (route) — `kripto-guru-api.js:L226-L251`; `src/api.ts:L45-L48`. |
+| [S18] | Подтвердить DEMO-сделку | `#kg-ticket-check`, `#kg-trade-confirm` | preview review modal + `confirmTrade`: `kripto-guru-ui.js:L708-L720,L1190-L1197` | `trade.open` POST `/api/demo/open` | PASS (route) — `kripto-guru-api.js:L253-L266`; `src/api.ts:L48-L52`. |
+| [S19] | Закрыть DEMO-позицию | `[data-close-position]` | delegated click → `closePosition`: `kripto-guru-ui.js:L721-L727,L1141-L1150` | `trade.close` POST `/api/demo/close` | PASS (route) — `kripto-guru-api.js:L268-L272`; `src/api.ts:L51-L53`. |
+| [S20] | Загрузить историю сделок | `#kg-wallet-history-all`, `#kg-asset-history-all`, `[data-open-history]` | `loadHistory`: `kripto-guru-ui.js:L404-L430,L1048,L1189` | `history.list` GET `/api/demo/history` | PASS (route) — `kripto-guru-api.js:L303-L323`; `src/api.ts:L38-L40`. |
+| [S21] | Загрузить сводку AI paper | `#kg-agents-screen`, `#kg-wallet-ai` | `loadAiPaperSummary`: `kripto-guru-ui.js:L959-L1015,L1061-L1063` | `aiPaper.status` GET `/api/ai/paper/status` | PASS (paper status) — `kripto-guru-api.js:L382-L397`; no strategy execution endpoint. |
+| [S22] | Пополнить AI paper из DEMO | `#kg-ai-paper-fund` | `transferAiPaper("fund")`: `kripto-guru-ui.js:L1000-L1015,L1051` | `aiPaper.fund` POST `/api/ai/paper/fund` | PASS (mocked backend tests) — `kripto-guru-api.js:L376-L381`; `src/api.ts:L62-L64`; `test/api.test.ts:L133-L174`. |
+| [S23] | Вернуть AI paper в DEMO | `#kg-ai-paper-withdraw` | `transferAiPaper("withdraw")`: `kripto-guru-ui.js:L1000-L1015,L1054` | `aiPaper.withdraw` POST `/api/ai/paper/withdraw` | PASS (mocked backend tests) — `kripto-guru-api.js:L376-L381`; `src/api.ts:L64-L66`; `test/api.test.ts:L133-L174`. |
+| [S24] | Создать новый чат Companion | `#kg-ai-new`, `#kg-ai-new-menu` | `newCompanionConversation`: `kripto-guru-ui.js:L799-L808,L1076-L1077` | Локальное состояние; conversation создаётся при первом send; route до send нет | PASS (local UI); persistence только после сообщения. |
+| [S25] | Отправить сообщение Companion | `#kg-ai-form`, `#kg-ai-send` | `sendCompanionMessage`: `kripto-guru-ui.js:L871-L883,L1081` | `companion.send` POST `/api/companion/chat` | PASS (backend tests) — `kripto-guru-api.js:L336-L348`; router `src/index.ts:L31-L32`, `src/companion.ts:L62-L70`; `test/companion.test.ts:L74-L111`. |
+| [S26] | Открыть/закрыть историю Companion через BackButton | `#kg-ai-menu-open`, `#kg-ai-menu-backdrop`, Telegram BackButton | `setCompanionMenu`, `handleNativeBack`: `kripto-guru-ui.js:L127-L136,L799-L808,L1078-L1080` | `companion.list` GET `/api/companion/conversations`; limits GET `/api/companion/limits` | PARTIAL — route: `src/companion.ts:L31-L50`; harness uses mocked Telegram WebApp, not physical Telegram WebView. |
+| [S27] | Поиск/удаление диалога | `#kg-ai-history-search`, `#kg-ai-history [data-ai-delete]` | local filter + `deleteCompanionConversation`: `kripto-guru-ui.js:L753-L783,L766-L781,L1113-L1118` | Search local; delete `companion.remove` DELETE `/api/companion/conversations/{id}` | PARTIAL — server route: `src/companion.ts:L52-L60`; verify owner-scoped delete and UI interaction on real device. |
+| [S28] | Добавить вложение / voice input | `#kg-ai-attach`, `#kg-ai-voice`, `#kg-ai-file-input` | `addCompanionFiles`, `toggleCompanionRecording`, `sendCompanionMessage`: `kripto-guru-ui.js:L831-L870,L1088-L1091` | Files are sent with `companion.send` POST `/api/companion/chat` | PARTIAL — client path exists; browser media permissions, supported codecs and large attachment UX not fully covered by tests. |
+| [S29] | Переключить тему light/dark/system | `#kg-profile-theme-select` | `setThemePreference`: `kripto-guru-ui.js:L28-L44,L1052` | LocalStorage; backend route нет | PASS (screenshot tests) — both themes covered in screenshot workflow 44629128298. |
+| [S30] | Изменить валюту отображения | `#kg-wallet-currency` | local currency toggle: `kripto-guru-ui.js:L1050`; FX load `L67-L78` | External free FX read; backend route нет | PARTIAL — UI conversion exists; FX provider outage/freshness is not covered by end-to-end tests. |
+| [S31] | Поддержка / правовая информация | No active selector found in `index.html:L1-L227` | Handler not found in active `kripto-guru-ui.js` | Backend route not found | NOT FOUND — feature is not implemented in current active Mini App. |
 
-## Цель
-Проверить текущие Mini App UI и backend в main, составить фактическую таблицу «кнопка/действие → работает / disabled с причиной / убрать» для всех экранов.
+## Security and release notes
 
-## Области
-Открыть профиль из кошелька; переключить DEMO; переключить ИИ; выбрать LIVE (ожидается disabled); быстрый переход из кошелька в торговлю; быстрый переход в позиции/историю; быстрый переход в агенты; виртуальный переход/перевод в AI paper; открыть и закрыть поиск рынка; переключить категории Crypto/Futures/Favorites; открыть карточку актива; добавить/убрать актив из избранного; переключить timeframe графика; long-press crosshair и чтение OHLC; выбрать LONG; выбрать SHORT; проверить форму и preview DEMO; подтвердить DEMO-сделку; закрыть DEMO-позицию; загрузить историю сделок; открыть экран агентов; пополнить AI paper из DEMO; вернуть средства из AI paper в DEMO; создать новый чат Companion; отправить сообщение Companion; открыть/закрыть историю Companion через Telegram BackButton; поиск/удаление диалога Companion; добавить вложение или запустить voice input; переключить тему light/dark/system; изменить валюту отображения; открыть настройки поддержки/правовой информации.
+- Authenticated API derives Telegram user ID from signed initData before parsing request body: `src/api.ts:L25-L47`; Companion independently validates initData and scopes KV by user: `src/companion.ts:L19-L29`.
+- Manual LIVE wrappers exist in `kripto-guru-api.js:L275-L301`; `execute` rejects calls without `confirm === true`. This is a per-order confirmation contract, not AI LIVE session authorization.
+- Active UI LIVE selector is disabled and `selectProductMode("live")` returns a blocking message; `src/api.ts` still contains manual LIVE routes. Walt close contract remains NOT VERIFIED under #332; do not unblock LIVE UI or AI LIVE.
+- CI: main run 44630321694 passed npm ci, JS syntax, typecheck and npm test; UI screenshot run 44629128298 passed and uploaded artifact 14580123321. Both use mocks/harness; no physical Telegram iPhone WebView sign-off.
+- No real Walt write calls, orders, transfers, account mutations, secrets or production deploy were performed.
 
-## Правила
-Только подтверждённые возможности из исходников и тестов. Отделить «обработчик есть» от «операция реально поддерживается backend». Указать selectors, handlers, endpoints, тесты и ограничения. Не использовать реальные write endpoints.
+## Verdict
 
-## Выход
-Русский отчётный Draft PR с таблицей, файлами/символами/тестами, рисками и одним следующим шагом. Не менять продуктовый код.
-
-## Запреты
-Без платных API, секретов, реальных ордеров, переводов, merge и production deploy.
-
-Родительская миссия: #53.
-
-## Дополнительные источники для повторного аудита (20.11.2026)
-- PR #456 — предыдущий аналитический отчёт; считать неполным и перепроверить утверждения.
-- PR #460 — QA handoff, использовать как вспомогательное evidence, не как окончательный QA sign-off.
-- PR #455 — закрыт как устаревший/несовместимый с актуальным контрактом навигации; его CSS не входит в main.
-- Проверять существование каждого пути и endpoint в текущем main; не использовать несуществующие пути вроде `miniapp/endpoints/*` без подтверждения.
-- В таблице для каждого UI действия указать реальный selector/handler, точный backend route или явно «нет backend route», тест и статус.
-
-## Обязательные файлы контекста для повторного аудита
-Перед составлением матрицы прочитать актуальные версии следующих файлов из main и привязать выводы к конкретным функциям/селектором/роутам:
-- `miniapp/web/index.html`
-- `miniapp/web/kripto-guru-ui.js`
-- `miniapp/web/kripto-guru-ui.css`
-- `miniapp/web/kripto-guru-api.js`
-- `miniapp/web/app.js`
-- `src/index.ts`
-- `src/api.ts`
-- `src/service.ts`
-- `src/state.ts`
-- `src/walt.ts`
-- `src/companion.ts`
-- `test/api.test.ts`
-- `test/companion.test.ts`
-- `test/trading-engine.miniflare.test.ts`
-Не использовать README как единственное доказательство. Любой путь, endpoint, selector или handler должен быть найден в этих файлах; иначе явно указать «не найдено / не подтверждено».
-
-## Текущий UI PR для анализа
-- PR #468 — чистая main-based ветка редизайна Mini App; проверить diff и обновлённые selectors/handlers в связке с текущим backend. Отдельно указать, что PR не меняет backend и LIVE-контракт.
-- Screenshot run 44610898459 — CI для PR #468; учитывать только после завершения и проверить итог/артефакты.
-
-
-## Дополнительные исходники для доказательств
-Включить также полные версии: `miniapp/web/wallet-v2.js`, `miniapp/web/trading-v2.js`, `src/bot.ts`, `src/prices.ts`, `src/history.ts`, `src/risk.ts`. Если путь не выбран/не загружен в контекст, не использовать его как доказательство.
-
-## Финальная проверка ссылок после PR #476
-- PR #476 использует полные selected source files для проверки HTML id/data attributes, поэтому валидные селекторы после truncation не должны получать ложный NOT VERIFIED.
-- Проверить фактическое существование всех путей, включая `src/prices.ts`, `src/history.ts`, `src/bot.ts`, `miniapp/web/wallet-v2.js`, `miniapp/web/trading-v2.js`.
-- Не принимать PASS по одной только строке файла; проверь handler → API wrapper → backend route → test.
-
-## CI test run for current clean UI PR
-- CI run 44610898570 — PR #468 test job: `npm ci`, all listed JS syntax checks, `npm run typecheck`, and `npm test` passed; deploy job skipped. Cite the exact job steps, do not label them NOT RUN.
-
-## Формат обязательной матрицы
-Нужно минимум 30 отдельных строк, по одной на каждое действие выше. Первый столбец — [S1]...[S30] в том же порядке. Колонки: экран/действие; точный selector; handler/function; client API method; backend HTTP route или «нет route»; test evidence; статус; ограничение/что не проверено. Не объединять несколько действий в одну строку и не заменять матрицу списком экранов.
-
-## Final evidence-guard update
-PR #483 is merged into main. The validator now includes PR diff contents when checking selectors/routes and requires full repo-relative paths with line ranges. Re-run the 30-row [S1]–[S30] matrix against PR #468 and main. Valid selectors present in PR #468 diff must not be falsely marked NOT VERIFIED; nonexistent routes/selectors must remain flagged. LIVE stays blocked.
-
-## Scope guard update
-PR #486 is merged: the checklist parser now preserves up to 40 items and has a regression test for 30. Re-run the complete 30-row audit; the missing-row guard must validate [S1]–[S30], not only the first 15.
-
-## Context completeness update
-PR #490 is merged: `kripto-guru-ui.js` is now included up to 100 KB and explicit audit files up to 50 KB. Re-run the audit with the full handlers visible. Check the 30 required action rows and ensure each row names exact full path + line range, selector, handler, client wrapper, backend route, test and evidence status. Do not mark working currency/theme/Companion handlers NOT VERIFIED merely because they were beyond the earlier 22 KB excerpt.
-
-# ANALYST — анализ задачи #445
-
-- **Режим:** анализ, исходники не изменялись.
-- **Задача:** [KG-A-UI-01] Audit: actual button-to-backend capability matrix.
-- **Статус:** Draft PR (аналитический отчёт).
-
-## Матрица возможностей [S1]–[S31]
-
-| ID | Экран / Действие | Selector | Handler / Function | Client API | Backend Route | Test Evidence | Статус | Ограничение |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| [S1] | Открыть профиль | `#kg-wallet-profile` | `openProfile()` | — | нет route | `miniapp/web/app.js` | PASS | — |
-| [S2] | Переключить DEMO | `[data-product-mode="demo"]` | `selectProductMode` | `productMode.set` | `/api/product-mode` | `miniapp/web/index.html` | PASS | — |
-| [S3] | Переключить ИИ | `[data-product-mode="ai"]` | `selectProductMode` | `productMode.set` | `/api/product-mode` | `miniapp/web/index.html` | PASS | — |
-| [S4] | Выбрать LIVE | `[data-product-mode="live"]` | `selectProductMode` | — | нет route | `miniapp/web/index.html` | PASS | Заблокировано |
-| [S5] | Переход в торговлю | `[data-screen="trading"]` | `setScreen` | — | нет route | `miniapp/web/index.html` | PASS | — |
-| [S6] | Переход в позиции | `[data-screen="income"]` | `setScreen` | — | нет route | `miniapp/web/index.html` | PASS | — |
-| [S7] | Переход в агенты | `[data-screen="agents"]` | `setScreen` | — | нет route | `miniapp/web/index.html` | PASS | — |
-| [S8] | Перевод AI paper | `#kg-ai-paper-fund` | `transferAiPaper` | `aiPaper.fund` | `/api/ai/paper/fund` | `miniapp/web/index.html` | PASS | Только DEMO |
-| [S9] | Поиск рынка | `#kg-search-open` | `setSearchFilter` | `markets.list` | `/api/contracts` | `miniapp/web/index.html` | PASS | — |
-| [S10] | Категории Crypto/Futures | `.kg-category` | `loadCategory` | `markets.list` | `/api/contracts` | `miniapp/web/index.html` | PASS | — |
-| [S11] | Карточка актива | `[data-open-market]` | `openAsset` | `market.get` | `/api/price` | `miniapp/web/index.html` | PASS | — |
-| [S12] | Избранное | `[data-toggle-favorite]` | `renderFavorites` | — | нет route | `miniapp/web/index.html` | PASS | LocalStorage |
-| [S13] | Timeframe графика | `[data-interval]` | `loadCandles` | `market.candles` | `/api/chart` | `miniapp/web/index.html` | PASS | — |
-| [S14] | Crosshair OHLC | `#kg-chart` | `bindChartCrosshair` | — | нет route | `miniapp/web/kripto-guru-ui.js` | PASS | — |
-| [S15] | Выбрать LONG | `#kg-long` | `openTicket` | `trade.preview` | `/api/demo/preview` | `miniapp/web/index.html` | PASS | — |
-| [S16] | Выбрать SHORT | `#kg-short` | `openTicket` | `trade.preview` | `/api/demo/preview` | `miniapp/web/index.html` | PASS | — |
-| [S17] | Форма DEMO | `#kg-ticket-margin` | `refreshPreview` | `trade.preview` | `/api/demo/preview` | `miniapp/web/index.html` | PASS | — |
-| [S18] | Подтвердить сделку | `#kg-trade-confirm` | `confirmTrade` | `trade.open` | `/api/demo/open` | `miniapp/web/index.html` | PASS | — |
-| [S19] | Закрыть позицию | `[data-close-position]` | `closePosition` | `trade.close` | `/api/demo/close` | `miniapp/web/index.html` | PASS | — |
-| [S20] | Загрузить историю | `#kg-wallet-history-all` | `loadHistory` | `history.list` | `/api/demo/history` | `miniapp/web/index.html` | PASS | — |
-| [S21] | Экран агентов | `[data-screen="agents"]` | `loadAiPaperSummary` | `aiPaper.status` | `/api/ai/paper/status` | `miniapp/web/index.html` | PASS | — |
-| [S22] | Пополнить AI paper | `#kg-ai-paper-fund` | `transferAiPaper` | `aiPaper.fund` | `/api/ai/paper/fund` | `miniapp/web/index.html` | PASS | — |
-| [S23] | Вернуть в DEMO | `#kg-ai-paper-withdraw` | `transferAiPaper` | `aiPaper.withdraw` | `/api/ai/paper/withdraw` | `miniapp/web/index.html` | PASS | — |
-| [S24] | Новый чат | `#kg-ai-new` | `newCompanionConversation` | — | нет route | `miniapp/web/index.html` | PASS | — |
-| [S25] | Сообщение Companion | `#kg-ai-send` | `sendCompanionMessage` | `companion.send` | `/api/companion/chat` | `miniapp/web/index.html` | PASS | — |
-| [S26] | История через BackButton | `Telegram.WebApp.BackButton` | `handleNativeBack` | — | нет route | `miniapp/web/app.js` | PASS | — |
-| [S27] | Поиск/удаление диалога | `#kg-ai-history` | `deleteCompanionConversation` | `companion.remove` | `/api/companion/conversations` | `miniapp/web/index.html` | PASS | — |
-| [S28] | Вложение/Voice | `#kg-ai-attach` | `addCompanionFiles` | — | нет route | `miniapp/web/index.html` | PASS | — |
-| [S29] | Тема light/dark | `#kg-profile-theme-select` | `setThemePreference` | — | нет route | `miniapp/web/index.html` | PASS | — |
-| [S30] | Валюта отображения | `#kg-wallet-currency` | `loadWallet` | — | нет route | `miniapp/web/index.html` | PASS | Local |
-| [S31] | Поддержка/правовая | — | — | — | нет route | — | NOT FOUND | — |
-
-## Вердикт
-**PARTIAL.** Основные торговые и навигационные пути подтверждены в `main` и PR #468. LIVE-торговля остаётся заблокированной на уровне UI и API. Функционал поддержки/правовой информации (S31) отсутствует в текущем коде.
-
-## Доказательства
-- **UI/API:** `miniapp/web/index.html` (L14-L230) содержит все селекторы. `miniapp/web/kripto-guru-api.js` (L148-L410) реализует методы API.
-- **Безопасность:** `src/api.ts` (L54-L81) маршрутизирует запросы; LIVE-пути (`live/execute`) требуют `confirmationToken` и ручного подтверждения.
-- **CI:** Job 44610898570 (PR #468) подтверждает корректность JS-синтаксиса и прохождение тестов.
-
-## Риски и пробелы
-1. **S31:** Отсутствуют ссылки на настройки поддержки или правовую информацию.
-2. **LIVE:** Несмотря на наличие API-методов, отсутствие подтверждённого server-side контракта закрытия позиции делает LIVE-торговлю небезопасной.
-3. **UI/UX:** Адаптивность на реальных устройствах (iOS/Android) требует проверки вне Playwright.
-
-## Следующий шаг
-Реализовать экран «Поддержка и правовая информация» (S31) в `miniapp/web/index.html` и добавить соответствующие ссылки в `kg-profile-sheet`.
-
-### Автоматическая проверка ссылок
-- NOT VERIFIED: UI selector не найден в переданных исходниках: [data-screen="income"]
-- NOT VERIFIED: Строка [S1] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S2] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S3] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S4] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S5] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S6] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S7] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S8] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S9] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S10] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S11] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S12] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S13] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S14] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S15] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S16] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S17] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S18] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S19] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S20] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S21] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S22] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S23] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S24] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S25] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S26] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S27] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S28] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S29] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
-- NOT VERIFIED: Строка [S30] помечена PASS без точной ссылки file:Lx-Ly в ячейке доказательства.
+**PARTIAL.** Core wallet, market, DEMO trade, AI paper balance transfer and Companion code paths have identifiable handlers and routes. The matrix is not a full release sign-off: several UI interactions lack dedicated end-to-end tests; native Telegram WebView and media permissions are unverified; support/legal UI is absent; AI strategy execution is not implemented; LIVE remains gated by #332.
