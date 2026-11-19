@@ -341,10 +341,20 @@
     }
   }
   function renderPositions(positions){
+    const value=(raw)=>{const n=Number(raw);return Number.isFinite(n)?money(n):"—";};
     $("#kg-positions").innerHTML=positions.length?positions.map(p=>{
-      const s=p.symbol||p.market, side=String(p.side||"").toLowerCase(), pnl=Number(p.unrealizedPnlUsd ?? p.pnlUsd ?? NaN), id=p.id||p.positionId;
+      const s=p.symbol||p.market||"—", side=String(p.side||"").toLowerCase(), pnl=Number(p.unrealizedPnlUsd ?? p.pnlUsd ?? NaN), id=p.id||p.positionId;
       const pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
-      return `<article class="kg-position"><div class="kg-position-head"><b>${esc(side==="short"?"Шорт":"Лонг")} ${esc(s)}</b><span class="kg-position-pnl ${pnlClass}">${money(pnl)}</span></div><div class="kg-position-meta">Маржа ${money(Number(p.marginUsd))} · Плечо ${Number(p.leverage||1)}×</div><div class="kg-position-foot"><small class="kg-muted">Виртуальная позиция DEMO</small><button class="kg-close-position" data-close-position="${esc(id)}" type="button">Закрыть</button></div></article>`;
+      const details=[
+        ["Вход",value(p.entryPriceUsd??p.entryPrice)],
+        ["Текущая цена",value(p.markPriceUsd??p.markPrice)],
+        ["Маржа",value(p.marginUsd)],
+        ["Плечо",Number.isFinite(Number(p.leverage))?Number(p.leverage)+"×":"—"],
+        ["Ликвидация",value(p.liquidationPriceUsd??p.liquidationPrice)],
+        ["SL",value(p.stopLossUsd??p.stopLossPriceUsd)],
+        ["TP",value(p.takeProfitUsd??p.takeProfitPriceUsd)]
+      ];
+      return `<article class="kg-position"><div class="kg-position-head"><b>${esc(side==="short"?"Шорт":side==="long"?"Лонг":"Позиция")} ${esc(s)}</b><span class="kg-position-pnl ${pnlClass}">${money(pnl)}</span></div><div class="kg-position-details">${details.map(([label,val])=>`<span><small>${label}</small><b>${val}</b></span>`).join("")}</div><div class="kg-position-foot"><small class="kg-mode-badge kg-mode-badge--demo">DEMO</small><button class="kg-close-position" data-close-position="${esc(id)}" type="button">Закрыть</button></div></article>`;
     }).join(""):'<div class="kg-empty-card">Открытых позиций пока нет.</div>';
   }
   function renderAssetHistory(symbol){
@@ -361,11 +371,25 @@
       const result=unwrap(await invoke("history.list"),"history");
       state.history=listOf(result,["events","history","items","trades"]);
       if(state.selectedMarket)renderAssetHistory(state.selectedMarket);
-      $("#kg-history").innerHTML=state.history.length?state.history.map(e=>{
-        const side=String(e.side||"").toLowerCase(), pnl=Number(e.netPnlUsd ?? e.pnlUsd ?? e.pnl);
-        const action=e.event||e.type||e.status||"Сделка";
-        const pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
-        return `<div class="kg-history-row"><span class="kg-history-dot">${side==="short"?"↘":"↗"}</span><span class="kg-history-copy"><b>${esc(action)} · ${esc(e.symbol||e.market||"")}</b><small>${esc(e.timestamp||e.createdAt||"")}</small></span><strong class="kg-history-value ${pnlClass}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
+      const historyDate=(e)=>{const raw=e.timestamp??e.createdAt??e.time;if(raw===undefined||raw===null)return null;const n=Number(raw);const date=new Date(Number.isFinite(n)?(n<1e12?n*1000:n):raw);return Number.isNaN(date.getTime())?null:date;};
+      const dayKey=(date)=>date?date.getFullYear()+"-"+date.getMonth()+"-"+date.getDate():"unknown";
+      const today=new Date(),yesterday=new Date(today.getFullYear(),today.getMonth(),today.getDate()-1);
+      const groups=new Map();
+      state.history.forEach(e=>{const date=historyDate(e),key=dayKey(date);if(!groups.has(key))groups.set(key,{date,items:[]});groups.get(key).items.push(e);});
+      $("#kg-history").innerHTML=state.history.length?[...groups.values()].map(group=>{
+        const label=!group.date?"Дата не указана":dayKey(group.date)===dayKey(today)?"Сегодня":dayKey(group.date)===dayKey(yesterday)?"Вчера":group.date.toLocaleDateString("ru-RU",{day:"numeric",month:"long"});
+        const rows=group.items.map(e=>{
+          const side=String(e.side||"").toLowerCase(),pnl=Number(e.netPnlUsd??e.pnlUsd??e.pnl),raw=String(e.event||e.type||e.status||"").toLowerCase();
+          const closed=/close|closed|закрыт/.test(raw),opened=/open|opened|открыт/.test(raw);
+          const action=opened?"Открыта позиция":closed?"Закрыта позиция":e.event||e.type||e.status||"Операция";
+          const pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
+          const icon=closed?"−":opened?"+":"·",iconClass=closed?"is-close":opened?"is-open":"";
+          const direction=side==="short"?"Шорт":side==="long"?"Лонг":"";
+          const amount=Number(e.sizeUsd??e.notionalUsd??e.volumeUsd??e.marginUsd);
+          const date=historyDate(e),time=date?date.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}):"";
+          return `<div class="kg-history-row"><span class="kg-history-dot ${iconClass}">${icon}</span><span class="kg-history-copy"><b>${esc(action)} · ${esc([direction,e.symbol||e.market||""].filter(Boolean).join(" "))}</b><small>${Number.isFinite(amount)?"Объём "+money(amount)+" · ":""}${esc(time)} · DEMO</small></span><strong class="kg-history-value ${pnlClass}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
+        }).join("");
+        return `<section class="kg-history-group"><h3>${label}</h3><div class="kg-list">${rows}</div></section>`;
       }).join(""):'<div class="kg-empty-card">Сделок пока нет.</div>';
     }catch(error){$("#kg-history").innerHTML=`<div class="kg-empty-card">${esc(normalizeError(error).message)}</div>`;}
   }
