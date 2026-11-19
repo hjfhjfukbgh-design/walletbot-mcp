@@ -1418,3 +1418,9 @@
 - **PR #438:** merged to main as `4b5937414021caa50c35d0887cae9485b647608d`.
 - CI run `44530627457`: npm ci, JS syntax, typecheck and full unit tests PASS; deploy skipped. Screenshot run `44530627423`: four-width Playwright scenarios and screenshot upload PASS.
 - Visible AI paper labels now use Russian (`ИИ`, `СЧЁТ`, `Счёт ИИ`, `Виртуальные позиции`, `ВИРТУАЛЬНЫЙ РЕЖИМ`); only required product identifiers DEMO/LIVE and the Kripto Guru AI brand remain in English.
+
+### 2026-11-19T18:19:57+05:00 — Product-mode screenshot focus/transition contract merged
+
+- **PR #439:** merged to main as `392458398fe69a1f1bd75877812169235b7d5d8d`.
+- Initial screenshot assertion correctly exposed a transient 160ms CSS background transition: the inactive AI button briefly retained the previous selected tint even after class/focus/hover state had cleared. The test now waits 200ms for the transition to finish, verifies AI is inactive and the status says DEMO, then moves the pointer away and blurs before screenshots.
+- Final screenshot run `44532044254` PASS at all four widths; inspected 360×800 wallet preview confirms DEMO is the only selected mode and the AI button is neutral. CI run `44532044235`: npm ci, JS syntax, typecheck and full unit tests PASS; deploy skipped.
