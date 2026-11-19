@@ -125,6 +125,7 @@
     if(tg?.BackButton){tg.BackButton.show();tg.BackButton.offClick?.(handleNativeBack);tg.BackButton.onClick(handleNativeBack);}
   }
   function handleNativeBack(){
+    if(!$("#kg-confirm-screen").hidden||!$("#kg-leverage-screen").hidden){closeModals();return;}
     if(!$("#kg-profile-sheet").hidden){closeProfile();return;}
     if($("#kg-ai-menu").classList.contains("is-open")){setCompanionMenu(false);return;}
     if(!$("#kg-ticket-screen").hidden){closeTicket();return;}
@@ -930,7 +931,14 @@
     $("#kg-profile-backdrop").hidden=true;
     $("#kg-wallet-profile").setAttribute("aria-expanded","false");
     $("#kg-wallet-profile").focus();
-    if(tg?.BackButton){tg.BackButton.hide();tg.BackButton.offClick?.(handleNativeBack);}
+    const backButton=window.Telegram?.WebApp?.BackButton||tg?.BackButton;
+    if(backButton){
+      backButton.offClick?.(handleNativeBack);
+      if($("#kg-ai-menu").classList.contains("is-open")){
+        backButton.show();
+        backButton.onClick(handleNativeBack);
+      }else backButton.hide();
+    }
   }
   function renderProductMode(){
     const descriptions={
