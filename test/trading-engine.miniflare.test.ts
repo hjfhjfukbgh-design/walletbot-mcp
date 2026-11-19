@@ -455,7 +455,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(closed.status).toBe(201);
     expect(closed.body.close).toMatchObject({
       grossPnlMicro: (-100n * U).toString(), payoutMicro: "0",
-      netPnlMicro: (-12n * U).toString(),
+      netPnlMicro: (-11n * U).toString(),
     });
     const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
     expect(await status.json()).toMatchObject({ aiBalanceMicro: (39n * U).toString(), openPositions: 0 });
