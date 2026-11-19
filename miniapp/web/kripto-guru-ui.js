@@ -718,8 +718,9 @@
     root.scrollTop=root.scrollHeight;
   }
   function renderCompanionHistory(){
-    const root=$("#kg-ai-history");
-    root.innerHTML=state.companionConversations.length?state.companionConversations.map(item=>`<div class="kg-ai-history-entry"><button type="button" class="kg-ai-history-item ${item.id===state.companionId?"is-selected":""}" data-ai-conversation="${esc(item.id)}"><span>${esc(item.title||"Новый диалог")}</span><small>${Number(item.messageCount)||0}</small></button><button type="button" class="kg-ai-history-delete" data-ai-delete="${esc(item.id)}" aria-label="Удалить диалог: ${esc(item.title||"Новый диалог")}" title="Удалить диалог">×</button></div>`).join(""):'<div class="kg-ai-history-empty">Здесь появятся ваши диалоги. Начните новый чат, чтобы сохранить историю.</div>';
+    const root=$("#kg-ai-history"),query=($("#kg-ai-history-search")?.value||"").trim().toLocaleLowerCase("ru");
+    const items=state.companionConversations.filter(item=>String(item.title||"Новый диалог").toLocaleLowerCase("ru").includes(query));
+    root.innerHTML=items.length?items.map(item=>`<div class="kg-ai-history-entry"><button type="button" class="kg-ai-history-item ${item.id===state.companionId?"is-selected":""}" data-ai-conversation="${esc(item.id)}"><span>${esc(item.title||"Новый диалог")}</span><small>${Number(item.messageCount)||0}</small></button><button type="button" class="kg-ai-history-delete" data-ai-delete="${esc(item.id)}" aria-label="Удалить диалог: ${esc(item.title||"Новый диалог")}" title="Удалить диалог">×</button></div>`).join(""):(query?'<div class="kg-ai-history-empty">Ничего не найдено.</div>':'<div class="kg-ai-history-empty">Здесь появятся ваши диалоги. Начните новый чат, чтобы сохранить историю.</div>');
   }
   async function deleteCompanionConversation(id){
     if(!id||state.companionBusy)return;
@@ -1062,6 +1063,7 @@
     $("#kg-ai-input").addEventListener("keydown",event=>{
       if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();$("#kg-ai-form").requestSubmit();}
     });
+    $("#kg-ai-history-search").addEventListener("input",renderCompanionHistory);
     $("#kg-ai-history").addEventListener("click",event=>{
       const remove=event.target.closest("[data-ai-delete]");
       if(remove?.dataset.aiDelete){deleteCompanionConversation(remove.dataset.aiDelete);return;}
