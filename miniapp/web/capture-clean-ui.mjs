@@ -22,6 +22,7 @@ const positions=[];
 const history=[];
 async function captureDarkVariant(page,name,device){
   await page.evaluate(()=>{const select=document.querySelector("#kg-profile-theme-select");select.value="dark";select.dispatchEvent(new Event("change",{bubbles:true}));const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
+  await page.waitForTimeout(240); // allow the intentional 180ms glass-surface transition to finish before asserting computed colors
   const colors=await page.evaluate(()=>{
     const root=getComputedStyle(document.documentElement);
     const currency=document.querySelector(".kg-wallet-currency");
