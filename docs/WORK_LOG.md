@@ -1012,3 +1012,14 @@
 - **Действие:** ready label снят и повторно добавлен для #358/#359/#360, чтобы вызвать три независимых issue events. Явные team labels A/B/C сохранены.
 - **Проверка:** сразу после повторной постановки labels подтверждены, но dispatch branches/comments ещё не появились; требуется проверить дальнейший запуск и секреты.
 - **Production:** deploy job на PR был skipped; merge менял только workflow trigger, не выполнял Worker deploy или Walt операции.
+
+
+### 2026-11-19T07:41:45.632+05:00 — ручная проверка первых A/B/C результатов и повторная декомпозиция
+
+- **Team C / #367:** worker run `44445345275` создал implementation PR #370 (10 строк HTML в `#kg-agents-screen`), typecheck/tests и second-model review PASS. Первичный diff был неполным относительно UI-спеки; Team Lead добавил hero, отдельные empty states для Agents/Strategies и paper-only LIVE disclaimer в ветку PR. Новый head требует повторного CI.
+- **Team C / #360:** broad AI+Agents task вернул NO_SAFE_PATCH; report-only handoff #364. Задача остаётся на review, не считается выполненной.
+- **Team B / #359:** broad task вернул NO_SAFE_PATCH; закрыта как superseded.
+- **Team B / #369:** первый code patch не прошёл repair; после сужения до APPEND_ONLY_CSS worker run `44445774657` создал PR #381. Team Lead выявил безусловный старый dark root override, который ломал light mode; исправлена legacy CSS часть и добавлены token-driven surfaces. Новый head `0d7fcf3299ed241bc7c5e706fe89c5a099b83e34`, CI повторно запущен.
+- **Team A / #358:** profile markup task также вернул NO_SAFE_PATCH; scope сужается до одного файла и меньших атомарных задач.
+- **Навигация:** широкая задача #372 вернула NO_SAFE_PATCH; закрыта как superseded. Созданы отдельные #379 (HTML tab) и #380 (JS avatar handler).
+- **Dispatcher:** event trigger работает; задачи фактически запускаются по labeled events. Worker claims сериализованы, specialist jobs могут перекрываться.
