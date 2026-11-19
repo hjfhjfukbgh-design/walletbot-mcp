@@ -1126,3 +1126,11 @@
 - The previous #416 log entry incorrectly stated that no paper-account status endpoint exists. Further source inspection found authenticated `GET /api/ai/paper/status` in `src/api.ts`, backed by `TradingEngine.aiPaperStatus()` in `src/trading/engine.ts`.
 - The endpoint returns actual DEMO balance, AI paper balance, account status and open paper-position count. The frontend API facade did not yet expose it.
 - #416's placeholder-only panel is therefore incomplete. A follow-up will connect this existing read-only endpoint; no backend or financial write changes are needed.
+
+
+### 2026-11-19T08:19:00+05:00 — AI paper panel wired to real account state
+
+- **PR #418:** opened; head `5275d79bfbce72cbb7f0de1d71e725205a323d1e`.
+- **Changes:** frontend facade now calls existing authenticated `GET /api/ai/paper/status`; AI-only panel renders real AI balance, DEMO balance, open paper-position count and known account status. Missing fields remain `—`; API errors are shown as status text.
+- **Safety:** read-only GET only. No funding/withdrawal controls, backend changes, LIVE access, strategy start or account mutation.
+- **Validation:** pending CI and clean UI Playwright; no merge until both pass.
