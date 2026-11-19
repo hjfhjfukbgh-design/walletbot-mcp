@@ -101,9 +101,9 @@ try{
     }
     await page.waitForFunction(()=>document.querySelectorAll("#kg-favorites .kg-favorite").length===3);
     if(await page.locator("#kg-favorites .kg-favorite").count()!==3)throw new Error("wallet should show three favorite markets");
-    if(await page.locator("#kg-nav button").count()!==3)throw new Error("bottom navigation should have three tabs");
+    if(await page.locator("#kg-nav button").count()!==4)throw new Error("bottom navigation should have four tabs");
     const navOrder=await page.locator("#kg-nav button").evaluateAll(nodes=>nodes.map(node=>node.dataset.screen).join(","));
-    if(navOrder!=="wallet,trading,companion")throw new Error("bottom navigation should contain wallet, trading, and AI Companion in that order");
+    if(navOrder!=="wallet,trading,agents,companion")throw new Error("bottom navigation should contain wallet, trading, agents, and AI Companion in that order");
     const navLabels=await page.locator("#kg-nav button small").allTextContents();
     if(navLabels.includes("Доход")||navLabels.includes("Бонусы"))throw new Error("Income and Bonuses must not appear in bottom navigation");
     if(!(await page.locator(".kg-wallet-hero").isVisible()))throw new Error("wallet balance hero must be visible on the first screen");
