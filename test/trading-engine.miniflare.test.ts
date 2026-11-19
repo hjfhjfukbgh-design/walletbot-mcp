@@ -304,6 +304,54 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     });
   });
 
+  it("scopes AI paper withdrawal idempotency keys to each Telegram user", async () => {
+    const stub = await boot();
+    const userA = "111111111";
+    const userB = "222222222";
+    const sharedFundKey = "cross-tenant-fund-001";
+    const sharedWithdrawKey = "cross-tenant-withdraw-001";
+
+    const fundA = await post(stub, "/ai/paper/fund", {
+      userId: userA, amountMicro: (100n * U).toString(), idempotencyKey: sharedFundKey,
+    });
+    const fundB = await post(stub, "/ai/paper/fund", {
+      userId: userB, amountMicro: (200n * U).toString(), idempotencyKey: sharedFundKey,
+    });
+    expect(fundA.status).toBe(200);
+    expect(fundB.status).toBe(200);
+    expect(fundA.body.duplicate).toBe(false);
+    expect(fundB.body.duplicate).toBe(false);
+
+    const withdrawA = await post(stub, "/ai/paper/withdraw", {
+      userId: userA, amountMicro: (40n * U).toString(), idempotencyKey: sharedWithdrawKey,
+    });
+    const withdrawB = await post(stub, "/ai/paper/withdraw", {
+      userId: userB, amountMicro: (80n * U).toString(), idempotencyKey: sharedWithdrawKey,
+    });
+    expect(withdrawA.status).toBe(200);
+    expect(withdrawB.status).toBe(200);
+    expect(withdrawA.body.duplicate).toBe(false);
+    expect(withdrawB.body.duplicate).toBe(false);
+
+    const retryA = await post(stub, "/ai/paper/withdraw", {
+      userId: userA, amountMicro: (40n * U).toString(), idempotencyKey: sharedWithdrawKey,
+    });
+    const retryB = await post(stub, "/ai/paper/withdraw", {
+      userId: userB, amountMicro: (80n * U).toString(), idempotencyKey: sharedWithdrawKey,
+    });
+    expect(retryA.body.duplicate).toBe(true);
+    expect(retryB.body.duplicate).toBe(true);
+
+    const statusA = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userA);
+    const statusB = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userB);
+    expect(await statusA.json()).toMatchObject({
+      demoBalanceMicro: (940n * U).toString(), aiBalanceMicro: (60n * U).toString(),
+    });
+    expect(await statusB.json()).toMatchObject({
+      demoBalanceMicro: (880n * U).toString(), aiBalanceMicro: (120n * U).toString(),
+    });
+  });
+
   it("rejects missing or invalid server-side risk limits", async () => {
     const stub = await boot();
     await quote(stub, 50_000n * P);
