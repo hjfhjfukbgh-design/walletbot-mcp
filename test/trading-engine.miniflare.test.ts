@@ -398,6 +398,101 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(await status.json()).toMatchObject({ aiBalanceMicro: (80n * U).toString(), openPositions: 1 });
   });
 
+  it("settles profitable AI paper LONG positions with fees, slippage and funding exactly once", async () => {
+    const stub = await boot();
+    const userId = "111111111";
+    await post(stub, "/ai/paper/fund", { userId, amountMicro: (100n * U).toString(), idempotencyKey: "fund-close-long-01" });
+    const decision = await post(stub, "/ai/paper/decision", {
+      userId, tickId: "tick-close-long-01", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "f".repeat(64), symbol: "BTC", signal: "buy", rationale: "Approved long.",
+      confidence: 0.9, observedPrice: "50000", riskPass: true,
+    });
+    const opened = await post(stub, "/ai/paper/position/open", {
+      userId, decisionId: decision.body.id, idempotencyKey: "open-close-long-01",
+      symbol: "BTC", side: "long", qtyUnits: "0.01", entryPrice: "50000",
+      marginMicro: (25n * U).toString(), leverage: "2", feeMicro: U.toString(), slippageMicro: U.toString(),
+    });
+    const closeInput = {
+      userId, positionId: opened.body.positionId, idempotencyKey: "close-long-01",
+      exitPrice: "51000", closeFeeMicro: "500000", closeSlippageMicro: "250000", fundingMicro: "100000",
+    };
+    const closed = await post(stub, "/ai/paper/position/close", closeInput);
+    expect(closed.status).toBe(201);
+    expect(closed.body.close).toMatchObject({
+      grossPnlMicro: (10n * U).toString(), payoutMicro: (34_150_000n).toString(),
+      netPnlMicro: (7_150_000n).toString(), closeFeeMicro: "500000",
+      closeSlippageMicro: "250000", fundingMicro: "100000",
+    });
+    const retry = await post(stub, "/ai/paper/position/close", closeInput);
+    expect(retry.status).toBe(200);
+    expect(retry.body).toMatchObject({ duplicate: true, close: closed.body.close });
+    const conflict = await post(stub, "/ai/paper/position/close", { ...closeInput, exitPrice: "52000" });
+    expect(conflict.status).toBe(409);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
+    expect(await status.json()).toMatchObject({ aiBalanceMicro: (107_150_000n).toString(), openPositions: 0 });
+    const positions = await stub.fetch("https://engine.test/ai/paper/positions?userId=" + userId + "&status=closed");
+    expect((await positions.json() as { positions: Array<{ status: string; close_json: string }> }).positions[0].status).toBe("closed");
+  });
+
+  it("settles losing AI paper SHORT positions and caps payout at zero", async () => {
+    const stub = await boot();
+    const userId = "222222222";
+    await post(stub, "/ai/paper/fund", { userId, amountMicro: (50n * U).toString(), idempotencyKey: "fund-close-short-01" });
+    const decision = await post(stub, "/ai/paper/decision", {
+      userId, tickId: "tick-close-short-01", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "1".repeat(64), symbol: "ETH", signal: "sell", rationale: "Approved short.",
+      confidence: 0.75, observedPrice: "3000", riskPass: true,
+    });
+    const opened = await post(stub, "/ai/paper/position/open", {
+      userId, decisionId: decision.body.id, idempotencyKey: "open-close-short-01",
+      symbol: "ETH", side: "short", qtyUnits: "0.1", entryPrice: "3000",
+      marginMicro: (10n * U).toString(), leverage: "2", feeMicro: U.toString(), slippageMicro: U.toString(),
+    });
+    const closed = await post(stub, "/ai/paper/position/close", {
+      userId, positionId: opened.body.positionId, idempotencyKey: "close-short-01",
+      exitPrice: "4000", closeFeeMicro: "0", closeSlippageMicro: "0", fundingMicro: "0",
+    });
+    expect(closed.status).toBe(201);
+    expect(closed.body.close).toMatchObject({
+      grossPnlMicro: (-100n * U).toString(), payoutMicro: "0",
+      netPnlMicro: (-12n * U).toString(),
+    });
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
+    expect(await status.json()).toMatchObject({ aiBalanceMicro: (38n * U).toString(), openPositions: 0 });
+  });
+
+  it("prevents foreign users from closing AI paper positions and rejects second close keys", async () => {
+    const stub = await boot();
+    const owner = "333333333";
+    const stranger = "444444444";
+    await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (20n * U).toString(), idempotencyKey: "fund-close-owner" });
+    const decision = await post(stub, "/ai/paper/decision", {
+      userId: owner, tickId: "tick-close-owner-01", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "2".repeat(64), symbol: "SOL", signal: "buy", rationale: "Approved long.",
+      confidence: 0.7, observedPrice: "150", riskPass: true,
+    });
+    const opened = await post(stub, "/ai/paper/position/open", {
+      userId: owner, decisionId: decision.body.id, idempotencyKey: "open-close-owner",
+      symbol: "SOL", side: "long", qtyUnits: "1", entryPrice: "150",
+      marginMicro: (10n * U).toString(), leverage: "2", feeMicro: "0", slippageMicro: "0",
+    });
+    const foreign = await post(stub, "/ai/paper/position/close", {
+      userId: stranger, positionId: opened.body.positionId, idempotencyKey: "foreign-close-key",
+      exitPrice: "160", closeFeeMicro: "0", closeSlippageMicro: "0", fundingMicro: "0",
+    });
+    expect(foreign.status).toBe(404);
+    const firstClose = await post(stub, "/ai/paper/position/close", {
+      userId: owner, positionId: opened.body.positionId, idempotencyKey: "owner-close-first",
+      exitPrice: "160", closeFeeMicro: "0", closeSlippageMicro: "0", fundingMicro: "0",
+    });
+    expect(firstClose.status).toBe(201);
+    const secondClose = await post(stub, "/ai/paper/position/close", {
+      userId: owner, positionId: opened.body.positionId, idempotencyKey: "owner-close-second",
+      exitPrice: "160", closeFeeMicro: "0", closeSlippageMicro: "0", fundingMicro: "0",
+    });
+    expect(secondClose.status).toBe(409);
+  });
+
   it("rejects stale quotes for both market updates and trade entry", async () => {
     const stub = await boot();
     const stale = await post(stub, "/quote", { symbol: "BTC", price: (50_000n * P).toString(), observedAt: Date.now() - 20_000 });

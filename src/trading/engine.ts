@@ -221,6 +221,7 @@ export class TradingEngine {
       if (url.pathname === "/ai/paper/withdraw") return this.withdrawAiPaper(body);
       if (url.pathname === "/ai/paper/decision") return this.recordAiPaperDecision(body);
       if (url.pathname === "/ai/paper/position/open") return this.openAiPaperPosition(body);
+      if (url.pathname === "/ai/paper/position/close") return this.closeAiPaperPosition(body);
       if (url.pathname === "/live/claim") return this.claimLive(body);
       if (url.pathname === "/live/finish") return this.finishLive(body);
       if (url.pathname === "/open") return jsonResponse(this.open(body));
@@ -321,6 +322,146 @@ export class TradingEngine {
     const ids = this.bySymbol.get(position.symbol) ?? new Set<string>();
     ids.add(position.id);
     this.bySymbol.set(position.symbol, ids);
+  }
+
+  private closeAiPaperPosition(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    const positionId = String(body.positionId ?? "");
+    const idempotencyKey = String(body.idempotencyKey ?? "");
+    const exitPriceInput = String(body.exitPrice ?? "");
+    const rawCloseFee = String(body.closeFeeMicro ?? "0");
+    const rawCloseSlippage = String(body.closeSlippageMicro ?? "0");
+    const rawFunding = String(body.fundingMicro ?? "0");
+    const decimalPattern = /^(?:0|[1-9]\d{0,15})(?:\.\d{1,8})?$/;
+    const integerPattern = /^(?:0|[1-9]\d{0,19})$/;
+    const signedIntegerPattern = /^(?:0|-?[1-9]\d{0,19})$/;
+    const toScaled8 = (value: string): bigint | null => {
+      if (!decimalPattern.test(value)) return null;
+      const [whole, fraction = ""] = value.split(".");
+      return BigInt(whole) * 100_000_000n + BigInt((fraction + "00000000").slice(0, 8));
+    };
+    const exitScaled = toScaled8(exitPriceInput);
+    if (!/^\d{1,20}$/.test(userId) ||
+        !/^[A-Za-z0-9._:-]{8,128}$/.test(positionId) ||
+        !/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey) ||
+        exitScaled === null || exitScaled <= 0n ||
+        !integerPattern.test(rawCloseFee) || !integerPattern.test(rawCloseSlippage) ||
+        !signedIntegerPattern.test(rawFunding)) {
+      return Response.json({ ok: false, error: "Некорректные параметры закрытия AI paper позиции." }, { status: 400 });
+    }
+    const closeFee = BigInt(rawCloseFee);
+    const closeSlippage = BigInt(rawCloseSlippage);
+    const funding = BigInt(rawFunding);
+    const maxSqlInt = 9_223_372_036_854_775_807n;
+    if (closeFee > maxSqlInt || closeSlippage > maxSqlInt || funding > maxSqlInt || funding < -maxSqlInt)
+      return Response.json({ ok: false, error: "Комиссии или funding выходят за допустимый диапазон." }, { status: 400 });
+    const exitPrice = (() => {
+      const [whole, fraction = ""] = exitPriceInput.split(".");
+      return whole + "." + (fraction + "00000000").slice(0, 8);
+    })();
+    const now = Date.now();
+    let duplicate = false;
+    let conflict = false;
+    let notFound = false;
+    let alreadyClosed = false;
+    let invalidStoredPosition = false;
+    let balanceOverflow = false;
+    let result: Record<string, string | number> | null = null;
+    let balanceAfter = 0n;
+
+    this.ctx.storage.transactionSync(() => {
+      const existingLedger = this.ctx.storage.sql.exec(
+        "SELECT kind, reference_id FROM ai_paper_ledger WHERE user_id = ? AND idempotency_key = ?",
+        userId, idempotencyKey,
+      ).toArray()[0] as { kind: string; reference_id: string | null } | undefined;
+      if (existingLedger) {
+        const existingPosition = existingLedger.reference_id
+          ? this.ctx.storage.sql.exec(
+              "SELECT status, close_json FROM ai_paper_positions WHERE id = ? AND user_id = ?",
+              existingLedger.reference_id, userId,
+            ).toArray()[0] as { status: string; close_json: string | null } | undefined
+          : undefined;
+        let prior: Record<string, unknown> | null = null;
+        try { prior = existingPosition?.close_json ? JSON.parse(existingPosition.close_json) as Record<string, unknown> : null; } catch {}
+        const same = existingLedger.kind === "close_position" &&
+          existingLedger.reference_id === positionId &&
+          existingPosition?.status === "closed" &&
+          prior?.idempotencyKey === idempotencyKey &&
+          prior?.exitPrice === exitPrice &&
+          prior?.closeFeeMicro === closeFee.toString() &&
+          prior?.closeSlippageMicro === closeSlippage.toString() &&
+          prior?.fundingMicro === funding.toString();
+        if (same) {
+          duplicate = true;
+          result = prior as Record<string, string | number>;
+        } else conflict = true;
+        return;
+      }
+
+      const position = this.ctx.storage.sql.exec(
+        "SELECT id, symbol, side, qty_units, entry_price, margin_micro, fees_micro, slippage_micro, status FROM ai_paper_positions WHERE id = ? AND user_id = ?",
+        positionId, userId,
+      ).toArray()[0] as Record<string, unknown> | undefined;
+      if (!position) { notFound = true; return; }
+      if (String(position.status) !== "open") { alreadyClosed = true; return; }
+
+      const quantity = toScaled8(String(position.qty_units ?? ""));
+      const entry = toScaled8(String(position.entry_price ?? ""));
+      const marginRaw = String(position.margin_micro ?? "");
+      const openFeesRaw = String(position.fees_micro ?? "0");
+      const openSlippageRaw = String(position.slippage_micro ?? "0");
+      const side = String(position.side ?? "");
+      if (!quantity || quantity <= 0n || !entry || entry <= 0n ||
+          !integerPattern.test(marginRaw) || !integerPattern.test(openFeesRaw) ||
+          !integerPattern.test(openSlippageRaw) || !["long", "short"].includes(side)) {
+        invalidStoredPosition = true;
+        return;
+      }
+      const margin = BigInt(marginRaw);
+      const openFees = BigInt(openFeesRaw);
+      const openSlippage = BigInt(openSlippageRaw);
+      const priceDelta = side === "long" ? exitScaled - entry : entry - exitScaled;
+      const grossPnl = quantity * priceDelta / 10_000_000_000n;
+      const rawPayout = margin + grossPnl - closeFee - closeSlippage - funding;
+      const payout = rawPayout > 0n ? rawPayout : 0n;
+      if (payout > maxSqlInt) { balanceOverflow = true; return; }
+
+      const account = this.ctx.storage.sql.exec(
+        "SELECT balance_micro FROM ai_paper_accounts WHERE user_id = ?", userId,
+      ).toArray()[0] as { balance_micro: string } | undefined;
+      if (!account) { invalidStoredPosition = true; return; }
+      const before = BigInt(account.balance_micro);
+      balanceAfter = before + payout;
+      if (balanceAfter > maxSqlInt) { balanceOverflow = true; return; }
+      const netPnl = payout - margin - openFees - openSlippage;
+      result = {
+        positionId, exitPrice, grossPnlMicro: grossPnl.toString(), netPnlMicro: netPnl.toString(),
+        payoutMicro: payout.toString(), closeFeeMicro: closeFee.toString(),
+        closeSlippageMicro: closeSlippage.toString(), fundingMicro: funding.toString(),
+        closedAt: now, idempotencyKey,
+      };
+      const closeJson = JSON.stringify(result);
+      this.ctx.storage.sql.exec(
+        "UPDATE ai_paper_accounts SET balance_micro = ?, updated_at = ? WHERE user_id = ?",
+        balanceAfter.toString(), now, userId,
+      );
+      this.ctx.storage.sql.exec(
+        "INSERT INTO ai_paper_ledger(user_id,idempotency_key,kind,amount_micro,balance_before_micro,balance_after_micro,reference_id,created_at) VALUES(?,?,?,?,?,?,?,?)",
+        userId, idempotencyKey, "close_position", payout.toString(), before.toString(), balanceAfter.toString(), positionId, now,
+      );
+      this.ctx.storage.sql.exec(
+        "UPDATE ai_paper_positions SET status = 'closed', closed_at = ?, close_json = ? WHERE id = ? AND user_id = ? AND status = 'open'",
+        now, closeJson, positionId, userId,
+      );
+    });
+
+    if (conflict) return Response.json({ ok: false, error: "Idempotency key уже использован с другой операцией или параметрами закрытия." }, { status: 409 });
+    if (notFound) return Response.json({ ok: false, error: "AI paper позиция не найдена." }, { status: 404 });
+    if (alreadyClosed) return Response.json({ ok: false, error: "AI paper позиция уже закрыта." }, { status: 409 });
+    if (invalidStoredPosition) return Response.json({ ok: false, error: "Позиция или AI paper счёт содержат некорректные данные." }, { status: 409 });
+    if (balanceOverflow) return Response.json({ ok: false, error: "Расчёт закрытия выходит за допустимый диапазон баланса." }, { status: 409 });
+    if (!result) return Response.json({ ok: false, error: "Не удалось завершить закрытие AI paper позиции." }, { status: 409 });
+    return Response.json({ ok: true, duplicate, close: result, balanceMicro: duplicate ? undefined : balanceAfter.toString() }, { status: duplicate ? 200 : 201 });
   }
 
   private openAiPaperPosition(body: Record<string, unknown>): Response {
