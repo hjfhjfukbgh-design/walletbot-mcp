@@ -1360,3 +1360,9 @@
 - **PR #434:** merged to main as `a89e572a926086303f4111dad6fd114025fa7f60`.
 - The header now renders the single available model as a static `Kripto Guru AI` label instead of a button with a chevron that had no selection handler.
 - CI run `44528038719`: npm ci, JS syntax, typecheck and full unit tests PASS; deploy skipped. Screenshot run `44528038770`: Playwright and clean UI screenshot/contract scenarios PASS.
+
+### 2026-11-19T17:55:57+05:00 — Release checkpoint refreshed
+
+- Updated issue #203 with merged PRs #430–#434, exact CI/screenshot run IDs, and inspected visual evidence.
+- Reconfirmed release blockers: Walt close schema (#332), dependent LIVE UI/security sign-off (#270/#277), unimplemented AI strategy runner, production deploy + Telegram iPhone QA, and unresolved E-account semantics.
+- Explicitly recorded that no real Walt financial writes or production deployment were performed.
