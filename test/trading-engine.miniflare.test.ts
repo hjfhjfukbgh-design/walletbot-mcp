@@ -509,9 +509,12 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   it("requires explicit AI paper session start and stops new opens without auto-closing", async () => {
     const stub = await boot();
     const userId = "555555555";
+    const otherUser = "666666666";
     const missing = await post(stub, "/ai/paper/session/start", { userId });
     expect(missing.status).toBe(404);
     await post(stub, "/ai/paper/fund", { userId, amountMicro: (50n * U).toString(), idempotencyKey: "fund-session-start-01" });
+    await post(stub, "/ai/paper/fund", { userId: otherUser, amountMicro: (20n * U).toString(), idempotencyKey: "fund-session-other-01" });
+    await startAiPaper(stub, otherUser);
     const stopped = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
     expect(await stopped.json()).toMatchObject({ status: "stopped", aiBalanceMicro: (50n * U).toString() });
 
@@ -534,6 +537,8 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(stoppedSession.body).toMatchObject({ ok: true, status: "stopped", openPositions: 1 });
     const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
     expect(await status.json()).toMatchObject({ status: "stopped", openPositions: 1 });
+    const otherStatus = await stub.fetch("https://engine.test/ai/paper/status?userId=" + otherUser);
+    expect(await otherStatus.json()).toMatchObject({ status: "active", aiBalanceMicro: (20n * U).toString() });
 
     const anotherDecision = await post(stub, "/ai/paper/decision", {
       userId, tickId: "tick-session-open-02", strategyId: "ma-crossover", strategyVersion: "1",
