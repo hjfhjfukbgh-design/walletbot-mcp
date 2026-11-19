@@ -829,6 +829,7 @@
       const agentNote=$("#kg-agents-paper-note");if(agentNote)agentNote.textContent="Состояние из защищённого API";
     }catch(error){
       state.aiPaper=null;
+      renderProfileSettings();
       $("#kg-ai-paper-balance").textContent="—";
       $("#kg-ai-paper-demo-balance").textContent="—";
       $("#kg-ai-paper-positions").textContent="—";
