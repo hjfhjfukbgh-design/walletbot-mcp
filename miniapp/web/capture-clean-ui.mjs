@@ -20,6 +20,27 @@ await new Promise(resolve=>server.listen(4173,"127.0.0.1",resolve));
 const browser=await chromium.launch({headless:true});
 const positions=[];
 const history=[];
+function contrastRatio(foreground,background){
+  const luminance=value=>{
+    const channels=value.match(/[0-9a-f]{2}/gi)?.map(part=>parseInt(part,16)/255)||[];
+    if(channels.length!==3)return 0;
+    const linear=channels.map(channel=>channel<=.04045?channel/12.92:((channel+.055)/1.055)**2.4);
+    return linear[0]*.2126+linear[1]*.7152+linear[2]*.0722;
+  };
+  const values=[luminance(foreground),luminance(background)].sort((a,b)=>b-a);
+  return (values[0]+.05)/(values[1]+.05);
+}
+async function assertMutedContrast(page,theme){
+  const result=await page.evaluate(()=>{
+    const style=getComputedStyle(document.documentElement);
+    return Object.fromEntries(["--kg-muted","--kg-bg","--kg-card","--kg-surface-2"].map(key=>[key,style.getPropertyValue(key).trim()]));
+  });
+  const foreground=result["--kg-muted"];
+  for(const key of ["--kg-bg","--kg-card","--kg-surface-2"]){
+    const ratio=contrastRatio(foreground,result[key]);
+    if(ratio<4.5)throw new Error(theme+" muted text contrast below WCAG AA on "+key+": "+ratio.toFixed(2)+" ("+foreground+" / "+result[key]+")");
+  }
+}
 async function captureDarkVariant(page,name,device){
   await page.evaluate(()=>{const select=document.querySelector("#kg-profile-theme-select");select.value="dark";select.dispatchEvent(new Event("change",{bubbles:true}));const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
   await page.waitForTimeout(240); // allow the intentional 180ms glass-surface transition to finish before asserting computed colors
@@ -42,8 +63,11 @@ async function captureDarkVariant(page,name,device){
   if(colors.bg!=="#000000"||colors.card!=="#1c1c1e"||colors.body!=="rgb(0, 0, 0)"||colors.surface!=="rgb(28, 28, 30)"){
     throw new Error("Dark theme token/surface mismatch: "+JSON.stringify(colors));
   }
+  await assertMutedContrast(page,"dark");
   await page.screenshot({path:`clean-${name}-dark-${device.width}x${device.height}.png`,fullPage:false});
   await page.evaluate(()=>{const select=document.querySelector("#kg-profile-theme-select");select.value="light";select.dispatchEvent(new Event("change",{bubbles:true}));const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
+  await page.waitForTimeout(240);
+  await assertMutedContrast(page,"light");
 }
 const marketData=[
   {symbol:"BTC",name:"Bitcoin",priceUsd:91240.5,change24hPct:2.42,volume24hUsd:8900000000,openInterestUsd:198750000,fundingRateHourlyPct:0.001,maxLeverage:50,takerFeePct:0.035,tradeable:true},
