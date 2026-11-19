@@ -43,4 +43,5 @@ jobs:
             clean-bonuses-*.png
             clean-companion-*.png
             clean-product-mode-ai-*.png
+            clean-ai-paper-summary-*.png
             clean-agents-*.png
