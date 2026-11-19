@@ -356,10 +356,35 @@ jobs:
                   if(retryable.has(response.status) && attempt < 2) { await new Promise(r=>setTimeout(r,2500)); continue; }
                   break;
                 }
-                repaired=(payload?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("").trim();
-                if(repaired) break;
-                last="empty candidate; finishReason="+String(payload?.candidates?.[0]?.finishReason||"none")+"; blockReason="+String(payload?.promptFeedback?.blockReason||"none")+"; feedback="+JSON.stringify(payload?.promptFeedback||{});
-                if(attempt < 2) await new Promise(r=>setTimeout(r,2500));
+                const candidate=(payload?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("").trim();
+                if(!candidate){
+                  last="empty candidate; finishReason="+String(payload?.candidates?.[0]?.finishReason||"none")+"; blockReason="+String(payload?.promptFeedback?.blockReason||"none")+"; feedback="+JSON.stringify(payload?.promptFeedback||{});
+                  if(attempt < 2) await new Promise(r=>setTimeout(r,2500));
+                  continue;
+                }
+                if(/^NO_SAFE_PATCH(?:\s*:|$)/i.test(candidate)){
+                  const reason=candidate.replace(/^NO_SAFE_PATCH\s*: ?/i,"").trim();
+                  fs.writeFileSync("/tmp/worker-mode.txt","no-safe-patch");
+                  fs.writeFileSync("/tmp/worker-report.md","# Исполнитель остановлен безопасно\n\nПричина модели: "+(reason||"конкретная причина не указана")+"\nИсходники не изменены.\n");
+                  console.log("Repair model declined patch safely: "+(reason||"no reason supplied"));
+                  process.exit(0);
+                }
+                if(candidate.includes("```") || !candidate.startsWith("--- a/") || !candidate.includes("\n+++ b/")){
+                  last="invalid unified diff response: "+candidate.slice(0,180).replace(/\s+/g," ");
+                  if(attempt < 2) await new Promise(r=>setTimeout(r,1500));
+                  continue;
+                }
+                fs.writeFileSync("/tmp/worker.patch",candidate+"\n");
+                try {
+                  execFileSync("git",["apply","--recount","--check","/tmp/worker.patch"],{stdio:"pipe"});
+                  repaired=candidate;
+                  console.log("Repair candidate applies cleanly with "+model+" attempt "+attempt+".");
+                  break;
+                } catch(e) {
+                  last="candidate did not apply: "+String(e.stderr?.toString?.()||e.message).slice(0,500);
+                  console.warn(last);
+                  if(attempt < 2) await new Promise(r=>setTimeout(r,1500));
+                }
               } catch(e) {
                 last=e.message;
                 if(attempt < 2) await new Promise(r=>setTimeout(r,2500));
@@ -367,16 +392,7 @@ jobs:
             }
             if(repaired) break;
           }
-          if(repaired==="NO_SAFE_PATCH") {
-            fs.writeFileSync("/tmp/worker-mode.txt","no-safe-patch");
-            fs.writeFileSync("/tmp/worker-report.md","# Исполнитель остановлен безопасно\n\nМодель не смогла восстановить patch. Исходники не изменены.\n");
-            console.log("Repair model declined patch safely.");
-            process.exit(0);
-          }
           if(!repaired) throw new Error("Patch repair unavailable after bounded retries: "+last);
-          if(repaired.includes("```") || !repaired.startsWith("--- a/") || !repaired.includes("\n+++ b/")) {
-            throw new Error("Repair model did not return a clean unified diff: "+repaired.slice(0,200).replace(/\\s+/g," "));
-          }
           fs.writeFileSync("/tmp/worker.patch",repaired+"\n");
           execFileSync("git",["apply","--recount","--check","/tmp/worker.patch"],{stdio:"inherit"});
           console.log("Patch repaired and apply-check passed.");
