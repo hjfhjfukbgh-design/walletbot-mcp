@@ -12,6 +12,12 @@ import { handleApi } from "../src/api";
 
 const ctx = { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext;
 
+function liveEnv() {
+  const e = env();
+  e.LIVE_TRADING_ENABLED = "true";
+  return e;
+}
+
 async function signedInitData(botToken: string, userId: string): Promise<string> {
   const params = new URLSearchParams({
     auth_date: String(Math.floor(Date.now() / 1000)),
@@ -90,11 +96,44 @@ function previewRecord() {
   };
 }
 
+describe("LIVE server feature gate", () => {
+  afterEach(() => { vi.clearAllMocks(); });
+
+  it("blocks LIVE preview by default before connecting to Walt", async () => {
+    const e = env();
+    const response = await callApi(e, "live/preview", {
+      method: "POST",
+      body: JSON.stringify({ market: "BTC", side: "long", leverage: 2, marginUsd: 10 }),
+    });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ ok: false, error: expect.stringContaining("feature gate") });
+    expect(bot.connectWalt).not.toHaveBeenCalled();
+  });
+
+  it("blocks LIVE execute by default even with a valid preview handle", async () => {
+    const e = env();
+    const handle = "9".repeat(32);
+    await tenantEnv(e, "12345").STATE.put("live:preview:12345:" + handle, JSON.stringify(previewRecord()), { expirationTtl: 120 });
+    const client = {
+      call: vi.fn(async () => ({ ok: true, orderId: "must-not-run" })),
+      openPosition: vi.fn(async () => null),
+    };
+    vi.mocked(bot.connectWalt).mockResolvedValue(client as any);
+    const response = await callApi(e, "live/execute", {
+      method: "POST", body: JSON.stringify({ handle, confirm: true }),
+    });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ ok: false, error: expect.stringContaining("feature gate") });
+    expect(bot.connectWalt).not.toHaveBeenCalled();
+    expect(client.call).not.toHaveBeenCalled();
+  });
+});
+
 describe("LIVE execute safety", () => {
   afterEach(() => { vi.clearAllMocks(); });
 
   it("requires explicit confirmation and executes a claimed handle only once under concurrency", async () => {
-    const e = env();
+    const e = liveEnv();
     const records = installEngine(e);
     const handle = "a".repeat(32);
     await tenantEnv(e, "12345").STATE.put("live:preview:12345:" + handle, JSON.stringify(previewRecord()), { expirationTtl: 120 });
@@ -124,7 +163,7 @@ describe("LIVE execute safety", () => {
   });
 
   it("rejects an expired preview before connecting to Walt", async () => {
-    const e = env();
+    const e = liveEnv();
     const records = installEngine(e);
     const handle = "c".repeat(32);
     const expired = { ...previewRecord(), expiresAt: Date.now() - 1 };
@@ -146,7 +185,7 @@ describe("LIVE execute safety", () => {
   });
 
   it("does not expose or execute another tenant's LIVE preview", async () => {
-    const e = env();
+    const e = liveEnv();
     const records = installEngine(e);
     const handle = "d".repeat(32);
     await tenantEnv(e, "111").STATE.put("live:preview:111:" + handle, JSON.stringify(previewRecord()), { expirationTtl: 120 });
@@ -173,7 +212,7 @@ describe("LIVE execute safety", () => {
   });
 
   it("does not execute if a position appears after preview", async () => {
-    const e = env();
+    const e = liveEnv();
     const records = installEngine(e);
     const handle = "e".repeat(32);
     await tenantEnv(e, "12345").STATE.put("live:preview:12345:" + handle, JSON.stringify(previewRecord()), { expirationTtl: 120 });
@@ -198,7 +237,7 @@ describe("LIVE execute safety", () => {
     expect(client.call).not.toHaveBeenCalled();
   });
   it("fails closed when the pre-execute position lookup is unavailable", async () => {
-    const e = env();
+    const e = liveEnv();
     const records = installEngine(e);
     const handle = "f".repeat(32);
     await tenantEnv(e, "12345").STATE.put("live:preview:12345:" + handle, JSON.stringify(previewRecord()), { expirationTtl: 120 });
@@ -216,7 +255,7 @@ describe("LIVE execute safety", () => {
     expect(client.call).not.toHaveBeenCalled();
   });
   it("marks an uncertain Walt response UNKNOWN and never retries the execute call", async () => {
-    const e = env();
+    const e = liveEnv();
     const records = installEngine(e);
     const handle = "b".repeat(32);
     await tenantEnv(e, "12345").STATE.put("live:preview:12345:" + handle, JSON.stringify(previewRecord()), { expirationTtl: 120 });
@@ -264,7 +303,7 @@ describe("LIVE preview safety", () => {
   afterEach(() => { vi.clearAllMocks(); });
 
   it("prepares a contractId 0 order with Walt risk preview and never executes it", async () => {
-    const e = env();
+    const e = liveEnv();
     const client = {
       contracts: vi.fn(async () => [liveContract()]),
       openPosition: vi.fn(async () => null),
@@ -297,7 +336,7 @@ describe("LIVE preview safety", () => {
   });
 
   it("rejects an unsupported market before preparing an order", async () => {
-    const e = env();
+    const e = liveEnv();
     const client = {
       contracts: vi.fn(async () => [liveContract()]),
       preview: vi.fn(),
@@ -315,7 +354,7 @@ describe("LIVE preview safety", () => {
   });
 
   it("blocks a second LIVE open on a contract with an existing position", async () => {
-    const e = env();
+    const e = liveEnv();
     const client = {
       contracts: vi.fn(async () => [liveContract()]),
       openPosition: vi.fn(async () => ({ contractId: 0, valueBase: 0.01, raw: { side: "long" } })),
