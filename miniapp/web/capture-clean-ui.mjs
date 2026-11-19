@@ -325,6 +325,8 @@ try{
     const missingPnl=page.locator(".kg-position-pnl").first();
     if((await missingPnl.innerText()).trim()!=="—")throw new Error("missing position PnL must render as an em dash");
     if(!(await missingPnl.evaluate(el=>el.classList.contains("kg-muted"))))throw new Error("missing position PnL must use neutral styling");
+    await page.locator("#kg-income-tabs [data-income-tab=history]").click();
+    if(!(await page.locator("#kg-income-history-panel").isVisible())||await page.locator("#kg-income-open-panel").isVisible())throw new Error("income tabs must switch between open positions and history");
     await page.screenshot({path:`clean-income-history-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator('#kg-nav button[data-screen="companion"]').click();
     await page.waitForSelector("#kg-companion-screen.is-active");
