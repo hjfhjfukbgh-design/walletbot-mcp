@@ -1382,3 +1382,9 @@
 
 - **PR #436:** marks Transfer / Deposit / Withdraw / Exchange as `aria-disabled`, visually de-emphasizes them, and adds a Russian explanation that real-wallet operations are unavailable. Existing tap feedback remains, so the user receives a reason rather than a dead silent control.
 - Added Playwright assertions for all four disabled states and the explanatory note. Current head `e963776a52952daba1c50ab22815f65b91173259`; CI run `44528991426` and screenshot run `44528991445` in progress.
+
+### 2026-11-19T18:00:25+05:00 — Wallet unavailable-action state merged
+
+- **PR #436:** merged to main as `84f77dbc7573dcba3a78daeebb3cdadf73d1724e`.
+- CI run `44528991426`: npm ci, JS syntax, typecheck and full unit tests PASS; deploy skipped. Screenshot run `44528991445`: Playwright and clean UI contracts PASS.
+- The four wallet quick actions now disclose that real-wallet operations are unavailable, are marked `aria-disabled`, and are visually de-emphasized while preserving explanatory tap feedback.
