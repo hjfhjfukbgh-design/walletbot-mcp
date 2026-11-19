@@ -1329,3 +1329,9 @@
 - Static review of `src/trading/engine.ts` confirms close ownership is checked against both cached `position.userId` and SQL `(id,user_id)`. Existing test covered separate balances/exposure budgets but did not attempt a foreign-user close by guessed position ID.
 - **PR #431:** test-only extension now opens one DEMO position for each of two Telegram users, attempts to close the first user's position as the second user, asserts rejection, and verifies the second user's positions/history remain isolated.
 - Current head `efaa6bb67f1c062ccd74905c330c044cbde3002d`; CI pending. No runtime code changes or financial actions.
+
+### 2026-11-19T17:44:00+05:00 — DEMO cross-user position ownership regression merged
+
+- **PR #431:** merged to main as `81bca026328dd1bedd22e9fa54acf9647730dbf3`.
+- CI run `44526453936`: npm ci, JS syntax, typecheck and all 164 unit tests PASS; deploy skipped.
+- The expanded Miniflare integration test now verifies a second Telegram user cannot close the first user's position by guessed ID, receives no foreign position in account state, and sees only its own history. The existing implementation correctly rejects the foreign close and keeps both accounts isolated.
