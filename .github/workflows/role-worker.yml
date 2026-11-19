@@ -500,7 +500,7 @@ jobs:
 
       - name: Second-model AI review of patch
         id: review
-        if: steps.checks.outputs.mode == 'code'
+        if: steps.checks.outputs.mode == 'code' || steps.checks.outputs.mode == 'css-append' || steps.checks.outputs.mode == 'ts-append'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ROLE: ${{ inputs.role }}
@@ -556,7 +556,7 @@ jobs:
           NODE
 
       - name: Publish implementation Draft PR
-        if: steps.checks.outputs.mode == 'code' && steps.review.outputs.verdict != 'REJECT'
+        if: (steps.checks.outputs.mode == 'code' || steps.checks.outputs.mode == 'css-append' || steps.checks.outputs.mode == 'ts-append') && steps.review.outputs.verdict != 'REJECT'
         env:
           GH_TOKEN: ${{ github.token }}
           ROLE: ${{ inputs.role }}
@@ -579,7 +579,7 @@ jobs:
             --body "Automated bounded implementation from central orchestrator. Issue: #${ISSUE_NUMBER}. Runtime checks passed. Second-model review: ${REVIEW_VERDICT:-UNAVAILABLE}. If UNAVAILABLE, human code/security review is mandatory before merge. This is not an independent human security audit. No merge, deployment, or LIVE actions were performed."
 
       - name: Publish report-only role handoff
-        if: steps.patch.outcome == 'success' && steps.checks.outputs.mode != 'code'
+        if: steps.patch.outcome == 'success' && steps.checks.outputs.mode != 'code' && steps.checks.outputs.mode != 'css-append' && steps.checks.outputs.mode != 'ts-append'
         env:
           GH_TOKEN: ${{ github.token }}
           ROLE: ${{ inputs.role }}
