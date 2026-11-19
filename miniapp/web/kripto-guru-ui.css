@@ -1736,3 +1736,7 @@ html[data-theme="dark"] #kg-ai-form{background:rgba(28,28,30,.76)!important;bord
 .kg-crosshair-dot{fill:var(--kg-blue);stroke:var(--kg-card);stroke-width:2}
 .kg-crosshair-label-bg{fill:var(--kg-card);stroke:var(--kg-line);stroke-width:.7}
 .kg-crosshair-label{fill:var(--kg-ink);font-size:8px;font-family:var(--kg-font);font-weight:650;font-variant-numeric:tabular-nums}
+
+.kg-ai-history-search{width:100%;min-height:44px;margin:12px 0;padding:0 14px;border:1px solid var(--kg-line);border-radius:14px;background:var(--kg-bg);color:var(--kg-ink);font:inherit;font-size:13px}
+.kg-ai-history-search::placeholder{color:var(--kg-muted)}
+.kg-ai-history-search:focus-visible{outline:2px solid var(--kg-blue);outline-offset:2px}
