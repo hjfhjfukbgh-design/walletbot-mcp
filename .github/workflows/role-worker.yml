@@ -156,8 +156,9 @@ jobs:
                 }
                 report = (payload?.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("").trim();
                 if (report) break;
-                lastError = "empty response";
-                break;
+                lastError = "empty candidate; finishReason=" + String(payload?.candidates?.[0]?.finishReason || "none") + "; blockReason=" + String(payload?.promptFeedback?.blockReason || "none") + "; feedback=" + JSON.stringify(payload?.promptFeedback || {});
+                if (attempt < 2) await new Promise(r => setTimeout(r, 2500));
+                continue;
               }
               if (report) break;
             }
