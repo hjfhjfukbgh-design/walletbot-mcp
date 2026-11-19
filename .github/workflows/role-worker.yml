@@ -262,8 +262,8 @@ jobs:
           patch = patch
             .replace(/^--- (?!a\/)([^\r\n]+)$/gm, "--- a/$1")
             .replace(/^\+\+\+ (?!b\/)([^\r\n]+)$/gm, "+++ b/$1");
-          if (/^NO_SAFE_PATCH(?:\\s*:|$)/i.test(patch)) {
-            const reason = patch.replace(/^NO_SAFE_PATCH\\s*: ?/i, "").trim();
+          if (/^NO_SAFE_PATCH(?:\s*:|$)/i.test(patch)) {
+            const reason = patch.replace(/^NO_SAFE_PATCH\s*: ?/i, "").trim();
             fs.writeFileSync("/tmp/worker-mode.txt", "no-safe-patch");
             fs.writeFileSync("/tmp/worker-report.md", "# Исполнитель остановлен безопасно\n\nПричина модели: " + (reason || "конкретная причина не указана") + "\nИсходники не изменены.\n");
             console.log("Model declined to create a safe patch.");
