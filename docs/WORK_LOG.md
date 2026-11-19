@@ -1323,3 +1323,9 @@
 - **Issue #204:** closed as superseded by the later product brief's DEMO / LIVE / AI Trading · PAPER selector. Explicitly documented that E-account semantics are not implemented or inferred.
 - **Issue #195:** added independent QA findings (comment `7009426994`). Current unit suite covers Telegram auth expiry, tenant isolation, CRUD/modes, research grounding/no fabricated sources, free-tier quota, image/audio/video validation, attachment limits, provider-error sanitization and no trading-tool binding.
 - **Issue #195 remains open:** isolated preview Worker smoke has not been run; physical iPhone Telegram WebView and production are unverified. Preview ≠ production.
+
+### 2026-11-19T17:43:04+05:00 — DEMO cross-user position ownership regression test started
+
+- Static review of `src/trading/engine.ts` confirms close ownership is checked against both cached `position.userId` and SQL `(id,user_id)`. Existing test covered separate balances/exposure budgets but did not attempt a foreign-user close by guessed position ID.
+- **PR #431:** test-only extension now opens one DEMO position for each of two Telegram users, attempts to close the first user's position as the second user, asserts rejection, and verifies the second user's positions/history remain isolated.
+- Current head `efaa6bb67f1c062ccd74905c330c044cbde3002d`; CI pending. No runtime code changes or financial actions.
