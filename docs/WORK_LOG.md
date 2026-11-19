@@ -1288,3 +1288,10 @@
 - Added Team Lead release checkpoint to issue #203 (comment `7009155093`): merged work, actual CI/screenshot run IDs, and explicit remaining blockers.
 - **Hard blockers remain:** exact Walt MCP close method/schema unavailable; therefore LIVE UI/security sign-off remain blocked; AI paper strategy runner is not implemented; production deploy not performed.
 - No attempt to infer a close tool, enable LIVE, start automated strategy execution, or trigger production deploy.
+
+### 2026-11-19T17:36:18+05:00 — Companion keyboard/tabbar QA contract corrected and merged
+
+- **PR #429:** merged to main as `2d13c31cbe6e78c1ad5001e8cb888835f82b60d2`.
+- **Screenshot run `44524641358`:** Playwright keyboard and clean UI scenarios PASS.
+- The production UI already hides `#kg-nav` when `visualViewport` indicates the AI composer keyboard is open. The old test harness manually added the keyboard CSS class but incorrectly asserted that the tabbar remain visible. Fixed the emulator to set `hidden=true`, assert the tabbar is hidden, then restore it after the fixture.
+- No production runtime changes in this PR; test now matches the product requirement.
