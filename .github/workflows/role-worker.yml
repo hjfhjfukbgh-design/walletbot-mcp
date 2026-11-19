@@ -334,10 +334,10 @@ jobs:
           }
           const hunkRanges = new Map();
           let currentPath = "";
-          for (const line of original.split(/\\r?\\n/)) {
-            const file = line.match(/^--- a\\/(.+)$/);
+          for (const line of original.split(/\r?\n/)) {
+            const file = line.match(/^--- a\/(.+)$/);
             if (file) currentPath = file[1];
-            const hunk = line.match(/^@@ -(\\d+)(?:,\\d+)? \\+/);
+            const hunk = line.match(/^@@ -(\d+)(?:,\d+)? \+/);
             if (hunk && currentPath) {
               const ranges = hunkRanges.get(currentPath) || [];
               ranges.push(Number(hunk[1]));
@@ -346,15 +346,15 @@ jobs:
           }
           const context = paths.map(path => {
             if (!fs.existsSync(path)) throw new Error("Target file does not exist: "+path);
-            const lines = fs.readFileSync(path,"utf8").split(/\\r?\\n/);
+            const lines = fs.readFileSync(path,"utf8").split(/\r?\n/);
             const starts = hunkRanges.get(path) || [];
             const selected = new Set();
             if (!starts.length) for (let n=1;n<=Math.min(lines.length,100);n++) selected.add(n);
             for (const start of starts.slice(0,8)) {
               for (let n=Math.max(1,start-24);n<=Math.min(lines.length,start+55);n++) selected.add(n);
             }
-            const excerpt = [...selected].sort((a,b)=>a-b).map(n=>String(n)+": "+lines[n-1]).join("\\n").slice(0,12000);
-            return "\\n\\n===== EXACT CURRENT EXCERPTS "+path+" =====\\n"+excerpt;
+            const excerpt = [...selected].sort((a,b)=>a-b).map(n=>String(n)+": "+lines[n-1]).join("\n").slice(0,12000);
+            return "\n\n===== EXACT CURRENT EXCERPTS "+path+" =====\n"+excerpt;
           }).join("").slice(0,24000);
           const basePrompt = [
             "Исправь unified diff так, чтобы он применялся к точным текущим фрагментам ниже.",
