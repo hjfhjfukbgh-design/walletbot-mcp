@@ -900,3 +900,13 @@
 - **Объект:** `miniapp/web/index.html`, `miniapp/web/kripto-guru-ui.js`, `miniapp/web/kripto-guru-ui.css`
 - **Результат:** подтверждены три вкладки навигации (Кошелёк/Торговля/ИИ), отдельного экрана агентов нет, LIVE disabled, быстрые wallet actions показывают уведомление вместо действия, профиль содержит статические настройки; DEMO сделки и Companion имеют API-вызовы. Этап 1 не начат, код приложения не менялся.
 - **Доказательство:** исходные blob SHA: index `244efa14a32fbc56bc7f575835bc8409703dbeb2`, UI JS `f723eb346c9be0945441e3855902eb077f774017`, CSS `<CSS blob SHA inspected in read-only fetch>`. Журнал начала цикла: commit `9c4e98ebe38031f62fd4e4c2bd744319e33b906f`.
+
+
+### 2026-11-19T07:15:58.706+05:00 — запуск глобального UI redesign
+
+- **Событие:** пользователь подтвердил полное разрешение на разработку по ТЗ; запущена параллельная декомпозиция A/B/C.
+- **Статус:** начато
+- **Команда A:** Issue #undefined — кошелёк, режимы и Telegram navigation.
+- **Команда B:** Issue #undefined — design tokens, темы и базовые компоненты.
+- **Команда C:** Issue #undefined — AI/Agents UX audit и responsive acceptance tests.
+- **Ограничения:** один dispatcher run выбирает одну задачу; label orchestrator-ready означает постановку в очередь, а не подтверждённый старт. Проверять фактические Actions runs/worker PR. LIVE остаётся fail-closed; никаких реальных финансовых действий.
