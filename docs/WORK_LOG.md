@@ -1186,3 +1186,11 @@
 - **PR #422:** merged to main; merge commit `3be02fc7525a3dba1738b55352a59939cf78f004`.
 - **QA #422:** run `44452088922` — npm ci, JS syntax, typecheck and tests PASS; deploy skipped. Run `44452088945` — clean UI Playwright screenshots/contract scenarios PASS.
 - **Agents tab:** now shows real AI paper balance, DEMO funding balance, open positions and status from the authenticated read-only API, even when product mode is DEMO. Active agents and strategy catalog remain honest empty states; no automatic strategy execution exists in the current backend.
+
+### 2026-11-19T08:33:46+05:00 — Team Lead checkpoint
+
+- Main contains the merged Agents navigation/hero, AI paper summary/status, profile settings islands and Agents paper-account overview. Latest known application merge: `3be02fc7525a3dba1738b55352a59939cf78f004`.
+- All associated PR checks were green: npm install, JS syntax, typecheck, unit tests and clean UI Playwright screenshots. Deploy jobs on PR runs were skipped; no production deployment is claimed.
+- Remaining product limitation: backend has paper-account balances/positions schema and status API, but no active strategy runner or strategy-start flow. Agents remain stopped/empty rather than presenting simulated activity.
+- LIVE remains unavailable in the UI pending the separate security/end-to-end validation; no Walt writes, real orders, transfers or account mutations were performed.
+- Timestamp note: earlier entries in this work session used the initial 08:19 checkpoint timestamp. This entry records the current verified local time; no durations are inferred.
