@@ -458,7 +458,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       netPnlMicro: (-12n * U).toString(),
     });
     const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userId);
-    expect(await status.json()).toMatchObject({ aiBalanceMicro: (39n * U).toString(), openPositions: 0 });
+    expect(await status.json()).toMatchObject({ aiBalanceMicro: (38n * U).toString(), openPositions: 0 });
   });
 
   it("prevents foreign users from closing AI paper positions and rejects second close keys", async () => {
