@@ -126,6 +126,7 @@ export function heatmapTileMarkup({ symbol, changePct = null, volume = null, act
   return `<${tag} class="kg-heatmap-tile kg-heatmap-tile--${state}" data-volume="${hasVolume ? Number(volume) : ""}"${attrs}><strong>${escapeHTML(symbol)}</strong><span>${changeText}</span><small>${escapeHTML(volumeText)}</small></${tag}>`;
 }
 
+/** `content` is a trusted HTML slot; escape dynamic text before composing markup. */
 export function bottomSheetMarkup(content, { title = "", open = false, labelledBy = "" } = {}) {
   const hidden = open ? "" : " hidden";
   const aria = labelledBy ? ` aria-labelledby="${escapeHTML(labelledBy)}"` : ` aria-label="${escapeHTML(title)}"`;
