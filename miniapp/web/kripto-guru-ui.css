@@ -1781,3 +1781,152 @@ html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--strong{background:
 .kg-change-up{color:var(--kg-blue)}
 .kg-change-down{color:#7B61FF}
 html[data-theme="dark"] .kg-change-down{color:#B9A8FF}
+
+
+/* Trading screen polish: clearer chart data layers and a calmer order ticket. */
+#kg-asset-screen .kg-asset-price{
+  font-variant-numeric:tabular-nums;
+  line-height:1.05;
+}
+#kg-asset-screen .kg-asset-change{
+  min-height:28px;
+  display:inline-flex;
+  align-items:center;
+  font-variant-numeric:tabular-nums;
+}
+#kg-chart{
+  position:relative;
+  overflow-x:auto;
+  overflow-y:hidden;
+  border-radius:16px;
+  background:var(--kg-surface-2);
+  scrollbar-width:thin;
+  scrollbar-color:var(--kg-line) transparent;
+  overscroll-behavior-x:contain;
+}
+#kg-chart svg{
+  display:block;
+  padding:5px 0 3px;
+}
+#kg-chart .kg-volume-bar{opacity:.72}
+#kg-chart .kg-current-price-line{
+  stroke:var(--kg-blue);
+  stroke-width:1.1;
+  stroke-dasharray:4 3;
+}
+#kg-chart .kg-current-price-label{
+  fill:var(--kg-blue);
+  font-weight:750;
+}
+#kg-chart .kg-chart-crosshair line{
+  stroke:var(--kg-blue);
+  stroke-width:1;
+  stroke-dasharray:3 3;
+}
+#kg-chart .kg-crosshair-dot{
+  fill:var(--kg-blue);
+  stroke:var(--kg-card);
+  stroke-width:1.5;
+}
+#kg-chart .kg-crosshair-label-bg{
+  fill:var(--kg-card);
+  stroke:var(--kg-line);
+}
+#kg-chart .kg-crosshair-label{
+  fill:var(--kg-ink);
+  font-size:9px;
+  font-weight:650;
+}
+.kg-chart-head{
+  min-height:28px;
+  gap:10px;
+}
+.kg-chart-head b{
+  font-size:13px;
+  letter-spacing:-.15px;
+}
+.kg-chart-head .kg-muted{
+  font-size:10px;
+  font-variant-numeric:tabular-nums;
+  text-align:right;
+}
+.kg-ticket-heading{
+  max-width:calc(100% - 52px);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  letter-spacing:.1px;
+}
+.kg-ticket-amount{
+  align-items:baseline;
+  gap:8px;
+}
+.kg-ticket-amount input{
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-1.7px;
+}
+.kg-ticket-amount button{
+  min-width:52px;
+  min-height:34px;
+  border:1px solid var(--kg-line);
+  border-radius:999px;
+  font-size:12px;
+  font-weight:750;
+}
+.kg-ticket-volume{
+  margin-top:7px;
+  font-size:11px;
+  font-weight:650;
+  font-variant-numeric:tabular-nums;
+}
+.kg-ticket-available{
+  align-items:center;
+  gap:8px;
+  margin-top:12px;
+  font-size:11px;
+  font-variant-numeric:tabular-nums;
+}
+.kg-ticket-settings{
+  border:1px solid var(--kg-line);
+  border-radius:18px;
+  background:var(--kg-card);
+}
+.kg-ticket-preview{
+  position:static;
+  margin:12px 0 0;
+  padding:11px 13px;
+  border:1px solid var(--kg-line);
+  border-radius:14px;
+  background:var(--kg-card);
+  line-height:1.45;
+  font-variant-numeric:tabular-nums;
+}
+.kg-ticket-check{
+  font-weight:750;
+  letter-spacing:.1px;
+}
+.kg-ticket-check:focus-visible,
+.kg-ticket-amount button:focus-visible,
+.kg-timeframes button:focus-visible{
+  outline:2px solid var(--kg-blue);
+  outline-offset:2px;
+}
+.kg-ticket-check:disabled{
+  cursor:not-allowed;
+  filter:saturate(.35);
+}
+@media(max-width:380px){
+  .kg-chart-card{padding:11px;border-radius:20px}
+  .kg-chart{height:220px}
+  .kg-chart-head b{font-size:12px}
+  .kg-ticket-amount input{font-size:42px}
+  .kg-ticket-preview{font-size:11px}
+}
+@media(max-height:720px){
+  .kg-ticket .kg-ticket-amount{margin:34px 0 5px}
+  .kg-ticket-available{margin-top:8px}
+  .kg-ticket-preview{margin-top:8px;padding:9px 11px}
+}
+@media(prefers-reduced-motion:reduce){
+  #kg-chart{scroll-behavior:auto}
+}
