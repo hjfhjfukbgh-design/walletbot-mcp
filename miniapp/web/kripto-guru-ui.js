@@ -489,7 +489,7 @@
     }).join("");
 
     const volumeValues=data.map(c=>c.volume).filter(v=>Number.isFinite(v)&&v>=0),volumeMax=volumeValues.length?Math.max(...volumeValues):0;chart.dataset.volumeCount=String(volumeValues.length);chart.dataset.firstVolume=String(data[0]?.volume);
-    const volumeMarks=volumeMax>0?data.map((c,i)=>{if(!Number.isFinite(c.volume))return "";const x=i*step+step/2,h=Math.max(1,(c.volume/volumeMax)*10),color=c.close>=c.open?"rgba(63,174,90,.42)":"rgba(229,83,75,.42)";return `<rect class="kg-volume-bar" x="${x-body/2}" y="${190-h}" width="${body}" height="${h}" rx=".5" fill="${color}"/>`;}).join(""):"";
+    const volumeMarks=volumeMax>0?data.map((c,i)=>{if(!Number.isFinite(c.volume))return "";const x=i*step+step/2,h=Math.max(1,(c.volume/volumeMax)*10),color="rgba(62,134,240,.30)";return `<rect class="kg-volume-bar" x="${x-body/2}" y="${190-h}" width="${body}" height="${h}" rx=".5" fill="${color}"/>`;}).join(""):"";
     const currentPriceY=y(data[data.length-1].close);
     const currentPriceLine=`<line class="kg-current-price-line" x1="0" y1="${currentPriceY}" x2="${chartWidth}" y2="${currentPriceY}"/><text class="kg-current-price-label" x="${chartWidth+6}" y="${currentPriceY-4}" font-size="9">${esc(new Intl.NumberFormat("ru-RU",{maximumFractionDigits:4}).format(data[data.length-1].close))}</text>`;
     const grid = [0, 0.25, 0.5, 0.75, 1].map(p => {
