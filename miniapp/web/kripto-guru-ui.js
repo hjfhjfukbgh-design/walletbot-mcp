@@ -107,7 +107,12 @@
     syncMarketPolling(returningFromSubscreen||name==="wallet");
     syncCandlePolling();
     if(name==="agents")void loadAiPaperSummary(true);
-    if(tg?.BackButton){tg.BackButton.hide();tg.BackButton.offClick?.(handleNativeBack);}
+    if(tg?.BackButton){
+      const historyOpen=name==="companion"&&$("#kg-ai-menu")?.classList.contains("is-open");
+      tg.BackButton.offClick?.(handleNativeBack);
+      if(historyOpen){tg.BackButton.show();tg.BackButton.onClick(handleNativeBack);}
+      else tg.BackButton.hide();
+    }
   }
   function showSubscreen(name){
     marketLoadEpoch++;
