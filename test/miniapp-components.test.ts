@@ -54,4 +54,11 @@ describe("Kripto Guru UI primitives", () => {
     expect(html).toContain('class="kg-island alpha beta &lt;unsafe&gt;"');
   });
 
+  it("keeps disabled action rows semantic and non-interactive", () => {
+    const html = listRowMarkup({ title: "LIVE", action: "live", disabled: true });
+    expect(html).toContain("<button");
+    expect(html).toContain("disabled");
+    expect(html).toContain('aria-disabled="true"');
+  });
+
 });
