@@ -166,6 +166,7 @@ try{
     if(walletScrollCheck.cardBottom>walletScrollCheck.navTop-8)throw new Error("wallet final card is obscured by bottom navigation: "+JSON.stringify(walletScrollCheck));
     await page.evaluate(()=>window.scrollTo(0,0));
     await page.locator('#kg-nav button[data-screen="agents"]').click();
+    if(!(await page.locator("#kg-agents-screen .kg-agents-hero").innerText()).includes("подтверждённая активность агентов"))throw new Error("Agents hero must not imply that a strategy runner is active");
     await page.waitForSelector("#kg-agents-paper-account");
     await page.waitForFunction(()=>document.querySelector("#kg-agents-paper-note")?.textContent==="Состояние из защищённого API");
     if(!(await page.locator("#kg-agents-paper-balance").innerText()).includes("115"))throw new Error("Agents screen must show the real AI paper balance");
