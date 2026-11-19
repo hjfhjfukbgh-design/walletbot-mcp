@@ -116,13 +116,14 @@ export function roundIconButtonMarkup({ label, icon = "", action = "", disabled 
 }
 
 export function heatmapTileMarkup({ symbol, changePct = null, volume = null, action = "" } = {}) {
-  const change = Number(changePct), valid = Number.isFinite(change);
+  const change = Number(changePct), valid = changePct !== null && changePct !== undefined && changePct !== "" && Number.isFinite(change);
+  const hasVolume = volume !== null && volume !== undefined && volume !== "" && Number.isFinite(Number(volume));
   const state = !valid || change === 0 ? "neutral" : change > 0 ? "positive" : "negative";
   const changeText = valid ? `${change > 0 ? "+" : ""}${change.toFixed(2)}%` : "—";
-  const volumeText = Number.isFinite(Number(volume)) ? new Intl.NumberFormat("ru-RU", { notation: "compact", maximumFractionDigits: 1 }).format(Number(volume)) : "—";
+  const volumeText = hasVolume ? new Intl.NumberFormat("ru-RU", { notation: "compact", maximumFractionDigits: 1 }).format(Number(volume)) : "—";
   const tag = action ? "button" : "div";
   const attrs = action ? ` type="button" data-action="${escapeHTML(action)}"` : "";
-  return `<${tag} class="kg-heatmap-tile kg-heatmap-tile--${state}" data-volume="${Number.isFinite(Number(volume)) ? Number(volume) : ""}"${attrs}><strong>${escapeHTML(symbol)}</strong><span>${changeText}</span><small>${escapeHTML(volumeText)}</small></${tag}>`;
+  return `<${tag} class="kg-heatmap-tile kg-heatmap-tile--${state}" data-volume="${hasVolume ? Number(volume) : ""}"${attrs}><strong>${escapeHTML(symbol)}</strong><span>${changeText}</span><small>${escapeHTML(volumeText)}</small></${tag}>`;
 }
 
 export function bottomSheetMarkup(content, { title = "", open = false, labelledBy = "" } = {}) {
