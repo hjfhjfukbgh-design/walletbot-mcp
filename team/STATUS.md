@@ -30,3 +30,38 @@
 - Полное текущее состояние production Mini App и поведение на реальном iPhone Telegram WebView.
 
 Обновлять этот файл после каждого существенного аудита, релиза или изменения инфраструктуры.
+
+
+---
+
+## Срочный цикл UI-редизайна — 2026-11-19, EKB (UTC+5)
+
+### Референсы изучены
+- Walt: публичная карточка и скриншоты Mini App — https://tg.app/apps/wallet-1/ ; подтверждено позиционирование Walt как crypto Mini App в Telegram, бывший Wallet. Скриншоты доступны на странице каталога.
+- Mira: официальный продуктовый сайт — https://mira.tg/ ; изучены паттерны AI-agent hub и делегирования задач.
+- Gemini Neural Expressive: официальный анонс Google от 2026-05-19 — https://blog.google/innovation-and-ai/products/gemini-app/next-evolution-gemini-app/ ; подтверждены динамическая выразительная визуальная система, анимации, haptics и более структурированные ответы.
+- Telegram Mini Apps: https://core.telegram.org/bots/webapps ; учитывать актуальные themeParams, themeChanged, safeAreaInset/contentSafeAreaInset, viewportStableHeight, BackButton и нативные методы цвета шапки/фона.
+
+### Фактическое состояние main на момент аудита
+- Mini App находится в `miniapp/web/`; активная оболочка — `index.html`, основные UI-слои — `kripto-guru-ui.css` и `kripto-guru-ui.js`.
+- В коде уже есть переключатель DEMO/AI/LIVE, тема light/dark/system, профиль, нижняя навигация, экран агентов, AI Companion и market chart. Их нельзя переписывать вслепую.
+- LIVE в текущем HTML выключен до проверки полного торгового контракта. AI Trading должен оставаться paper-only.
+- В CSS обнаружены остаточные жёстко заданные светлые поверхности и старые размеры/радиусы; нужна проверка согласованности по всей системе.
+- PR #179 — ранний ограниченный CSS token/dark baseline, не считать готовым полным редизайном.
+- PR #191 уже merged: Gemini-backed AI Companion backend. Это не означает, что все желаемые функции Gemini UI уже реализованы.
+- PR #333 — handoff-only по issue #326; LIVE selector task остаётся заблокированной зависимостями.
+
+### Поставлены задачи с дедлайном 2026-11-20 00:10 EKB
+- #444 Team B / FRONTEND: первый премиальный iPhone-first инкремент Wallet/theme-safe layout. Scope ограничен CSS и максимум одним HTML-файлом.
+- #445 Team A / ANALYST: фактическая матрица «кнопка → UI handler → API/backend capability → статус».
+- #446 Team C / QA: независимая мобильная регрессия 360/375/390/430 px, темы, safe areas, клавиатура и BackButton.
+
+Задачи помечены `agent-ready`, `agent-priority` и team labels. События GitHub Actions созданы; фактическое назначение подтверждать только по lease/comments и workflow logs. Не выдавать queued/pending за начатую работу.
+
+### Ограничения и безопасность
+- Не подключать платные API/сервисы.
+- Не выполнять реальные ордера, close, переводы или изменения Walt account.
+- Не включать AI live execution; AI Trading остаётся paper-only.
+- Не выполнять merge и production deploy в рамках этого цикла.
+- Не считать скриншотную/preview-проверку физическим тестом на iPhone Telegram WebView.
+- Временные отметки и дедлайны писать в Asia/Yekaterinburg (UTC+5).
