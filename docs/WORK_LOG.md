@@ -1341,3 +1341,10 @@
 - Downloaded and inspected actual PR #430 Playwright artifact at 390×844. The wallet dark screenshot had a theme-confirmation toast covering lower account content; this was a screenshot-harness issue, not a production toast regression.
 - **PR #432:** clears only the transient toast inside the screenshot harness after verifying theme selection; asserts the toast is absent before clean previews.
 - Additional visual audit found the Gemini-style Companion composer looked materially lighter than the surrounding dark theme. Added a computed-style assertion to the dark screenshot helper requiring a dark composer surface. This will determine whether a production CSS correction is needed; screenshot run `44527464005` is in progress.
+
+### 2026-11-19T17:50:45+05:00 — Clean screenshot harness corrections merged
+
+- **PR #432:** merged to main as `3d3fa88fb0eba9196ac2aa5bfb38b1cadb9c15f4`.
+- **Screenshot run `44527464005`:** Playwright install, clean UI syntax, capture scenarios and artifact upload PASS.
+- The screenshot harness now removes the intentionally transient theme toast before capturing clean wallet previews and asserts that it is not visible.
+- Added dark-theme Companion composer computed-style guard. It passes on the current CSS: the actual computed composer background is dark despite the translucent/glass appearance in the screenshot.
