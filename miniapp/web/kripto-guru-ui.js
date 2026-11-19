@@ -43,7 +43,7 @@
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
-    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[], aiPaper:null, aiPaperLoading:false, aiPaperTransfer:(()=>{try{const v=JSON.parse(sessionStorage.getItem("kg:ai-paper-transfer:v1")||"null");return v&&["fund","withdraw"].includes(v.kind)&&typeof v.amountUsd==="string"&&typeof v.key==="string"?v:null;}catch{return null;}})()
+    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[], aiPaper:null, aiPaperLoading:false, aiPaperActionBusy:false, aiPaperOpenPositions:[], aiPaperClosedPositions:[], aiPaperDecisions:[], aiPaperHistoryErrors:null, aiPaperTransfer:(()=>{try{const v=JSON.parse(sessionStorage.getItem("kg:ai-paper-transfer:v1")||"null");return v&&["fund","withdraw"].includes(v.kind)&&typeof v.amountUsd==="string"&&typeof v.key==="string"?v:null;}catch{return null;}})()
   };
   let marketLoadEpoch=0,marketRefreshInFlight=false,marketLastUpdatedAt=0,marketSearchTimer=0,marketVisibilityListenerInstalled=false;
   const hasNumericValue = value => value!==null&&value!==undefined&&value!==""&&Number.isFinite(Number(value));
@@ -895,7 +895,7 @@
     const theme=$("#kg-profile-theme-select");
     if(theme)theme.value=getThemePreference();
     const ai=$("#kg-profile-ai-status");
-    const labels={stopped:"Остановлен",running:"Работает",paused:"Приостановлен"};
+    const labels={stopped:"Остановлена",active:"Активна",running:"Работает",paused:"Приостановлен"};
     if(ai)ai.textContent=labels[state.aiPaper?.status]||"Нет данных";
   }
   function openProfile(){
@@ -954,7 +954,47 @@
     if(modeBadge){modeBadge.className="kg-mode-badge "+(state.productMode==="ai"?"kg-mode-badge--ai":"kg-mode-badge--demo");modeBadge.textContent=state.productMode==="ai"?"ИИ · виртуальный счёт":"DEMO · виртуальные деньги";}
     renderProfileSettings();
     const paperSummary=$("#kg-ai-paper-summary");
-    if(paperSummary)paperSummary.hidden=state.productMode!=="ai";
+    if(paperSummary)paperSummary.hidden=state.productMode!=="ai"&&state.aiPaper?.status!=="active";
+    renderAiPaperSessionControls();
+  }
+  function renderAiPaperSessionControls(){
+    const start=$("#kg-ai-paper-start"),stop=$("#kg-ai-paper-stop"),note=$("#kg-ai-paper-session-note");
+    const active=state.aiPaper?.status==="active",balance=Number(state.aiPaper?.balanceUsd);
+    if(start){start.hidden=active;start.disabled=state.aiPaperLoading||state.aiPaperActionBusy||state.productMode!=="ai"||!Number.isFinite(balance)||balance<=0;}
+    if(stop){stop.hidden=!active;stop.disabled=state.aiPaperLoading||state.aiPaperActionBusy;}
+    if(note)note.textContent=active
+      ?"Сессия AI PAPER активна. Управление касается только виртуального счёта; реальные сделки и LIVE не используются."
+      :state.productMode==="ai"?"Запуск включает только виртуальную AI PAPER сессию. Для запуска нужен положительный баланс."
+      :"AI PAPER остановлен. Реальные средства и LIVE не затрагиваются.";
+  }
+  function renderAiPaperList(selector,rows,kind,errorMessage){
+    const list=$(selector);if(!list)return;list.replaceChildren();
+    if(errorMessage){const li=document.createElement("li");li.className="is-empty";li.textContent=errorMessage;list.append(li);return;}
+    if(!rows.length){const li=document.createElement("li");li.className="is-empty";li.textContent=kind==="open"?"Нет открытых позиций":kind==="closed"?"Нет закрытых позиций":"Нет записанных решений";list.append(li);return;}
+    const dateText=value=>{const n=Number(value);if(!Number.isFinite(n)||n<=0)return "";try{return new Date(n).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});}catch{return "";}};
+    for(const row of rows.slice(0,10)){
+      const li=document.createElement("li");li.className="kg-ai-paper-history-item";
+      const main=document.createElement("span");main.className="kg-ai-paper-history-main";
+      const title=document.createElement("b"),detail=document.createElement("small");
+      if(kind==="decision"){
+        const signal=row.signal==="long"?"ЛОНГ":row.signal==="short"?"ШОРТ":String(row.signal||"НЕТ СИГНАЛА").toUpperCase();
+        title.textContent=(row.symbol||"—")+" · "+signal;
+        detail.textContent=(row.riskPass?"Риск пройден":"Отклонено")+(row.rejectionReason?": "+row.rejectionReason:row.rationale?": "+row.rationale:"");
+      }else{
+        title.textContent=(row.symbol||"—")+" · "+(row.side==="short"?"ШОРТ":"ЛОНГ");
+        detail.textContent="Вход "+(row.entryPrice==null?"—":money(row.entryPrice))+" · маржа "+(row.marginUsd==null?"—":money(row.marginUsd))+(row.leverage?" · "+row.leverage+"×":"")+(kind==="closed"?" · "+(dateText(row.closedAt)||"закрыта"):" · "+(dateText(row.openedAt)||"открыта"));
+      }
+      main.append(title,detail);
+      const badge=document.createElement("span");badge.className="kg-ai-paper-history-state";
+      badge.textContent=kind==="decision"?(row.riskPass?"PASS":"SKIP"):(kind==="closed"?"Закрыта":"Открыта");
+      li.append(main,badge);list.append(li);
+    }
+  }
+  function renderAiPaperHistory(){
+    renderAiPaperList("#kg-ai-paper-open-list",state.aiPaperOpenPositions,"open",state.aiPaperHistoryErrors?.open);
+    renderAiPaperList("#kg-ai-paper-closed-list",state.aiPaperClosedPositions,"closed",state.aiPaperHistoryErrors?.closed);
+    renderAiPaperList("#kg-ai-paper-decisions-list",state.aiPaperDecisions,"decision",state.aiPaperHistoryErrors?.decisions);
+    const count=$("#kg-ai-paper-open-count");if(count)count.textContent=String(state.aiPaper?.openPositions??state.aiPaperOpenPositions.length);
   }
   async function loadAiPaperSummary(force=false){
     const root=$("#kg-ai-paper-summary");
@@ -962,35 +1002,65 @@
     state.aiPaperLoading=true;
     const statusNote=$("#kg-ai-paper-status-note");
     if(statusNote)statusNote.textContent="Обновляем данные счёта…";
+    renderAiPaperSessionControls();
     try{
-      const data=await invoke("aiPaper.status");
-      state.aiPaper=data;
-      renderProfileSettings();
+      const data=await invoke("aiPaper.status");state.aiPaper=data;
+      const [openResult,closedResult,decisionResult]=await Promise.allSettled([
+        invoke("aiPaper.positions",{status:"open",limit:10}),
+        invoke("aiPaper.positions",{status:"closed",limit:10}),
+        invoke("aiPaper.decisions",{limit:10}),
+      ]);
+      state.aiPaperOpenPositions=openResult.status==="fulfilled"?openResult.value.positions:[];
+      state.aiPaperClosedPositions=closedResult.status==="fulfilled"?closedResult.value.positions:[];
+      state.aiPaperDecisions=decisionResult.status==="fulfilled"?decisionResult.value.decisions:[];
+      state.aiPaperHistoryErrors={
+        open:openResult.status==="rejected"?normalizeError(openResult.reason).message:"",
+        closed:closedResult.status==="rejected"?normalizeError(closedResult.reason).message:"",
+        decisions:decisionResult.status==="rejected"?normalizeError(decisionResult.reason).message:"",
+      };
+      renderProductMode();
       $("#kg-ai-paper-balance").textContent=data.balanceUsd==null?"—":money(data.balanceUsd);
       $("#kg-ai-paper-demo-balance").textContent=data.demoBalanceUsd==null?"—":money(data.demoBalanceUsd);
       $("#kg-ai-paper-positions").textContent=Number.isSafeInteger(data.openPositions)?String(data.openPositions):"—";
-      const labels={stopped:"Остановлен",running:"Работает",paused:"Приостановлен"};
-      $("#kg-ai-paper-status").textContent=labels[data.status]||"—";
+      const labels={stopped:"Остановлена",active:"Активна"};
+      $("#kg-ai-paper-status").textContent=labels[data.status]||"Нет данных";
       if(statusNote)statusNote.textContent="Состояние из защищённого API";
-            const agentBalance=$("#kg-agents-paper-balance");if(agentBalance)agentBalance.textContent=data.balanceUsd==null?"—":money(data.balanceUsd);
+      const agentBalance=$("#kg-agents-paper-balance");if(agentBalance)agentBalance.textContent=data.balanceUsd==null?"—":money(data.balanceUsd);
       const agentDemo=$("#kg-agents-demo-balance");if(agentDemo)agentDemo.textContent=data.demoBalanceUsd==null?"—":money(data.demoBalanceUsd);
       const agentPositions=$("#kg-agents-paper-positions");if(agentPositions)agentPositions.textContent=Number.isSafeInteger(data.openPositions)?String(data.openPositions):"—";
-      const agentStatus=$("#kg-agents-paper-status");if(agentStatus)agentStatus.textContent=labels[data.status]||"—";
+      const agentStatus=$("#kg-agents-paper-status");if(agentStatus)agentStatus.textContent=labels[data.status]||"Нет данных";
       const agentNote=$("#kg-agents-paper-note");if(agentNote)agentNote.textContent="Состояние из защищённого API";
+      renderAiPaperHistory();
     }catch(error){
-      state.aiPaper=null;
-      renderProfileSettings();
-      $("#kg-ai-paper-balance").textContent="—";
-      $("#kg-ai-paper-demo-balance").textContent="—";
-      $("#kg-ai-paper-positions").textContent="—";
-      $("#kg-ai-paper-status").textContent="—";
+      state.aiPaper=null;state.aiPaperOpenPositions=[];state.aiPaperClosedPositions=[];state.aiPaperDecisions=[];
+      state.aiPaperHistoryErrors={open:"История временно недоступна",closed:"История временно недоступна",decisions:"История временно недоступна"};
+      renderProductMode();
+      $("#kg-ai-paper-balance").textContent="—";$("#kg-ai-paper-demo-balance").textContent="—";
+      $("#kg-ai-paper-positions").textContent="—";$("#kg-ai-paper-status").textContent="Нет данных";
       if(statusNote)statusNote.textContent=normalizeError(error).message;
-            const agentBalance=$("#kg-agents-paper-balance");if(agentBalance)agentBalance.textContent="—";
+      const agentBalance=$("#kg-agents-paper-balance");if(agentBalance)agentBalance.textContent="—";
       const agentDemo=$("#kg-agents-demo-balance");if(agentDemo)agentDemo.textContent="—";
       const agentPositions=$("#kg-agents-paper-positions");if(agentPositions)agentPositions.textContent="—";
       const agentStatus=$("#kg-agents-paper-status");if(agentStatus)agentStatus.textContent="—";
       const agentNote=$("#kg-agents-paper-note");if(agentNote)agentNote.textContent=normalizeError(error).message;
-    }finally{state.aiPaperLoading=false;}
+      renderAiPaperHistory();
+    }finally{state.aiPaperLoading=false;renderAiPaperSessionControls();}
+  }
+  async function controlAiPaperSession(action){
+    if(state.aiPaperActionBusy)return;
+    if(action==="start"&&(state.productMode!=="ai"||!(Number(state.aiPaper?.balanceUsd)>0)))
+      return notify("Для запуска выберите режим ИИ и пополните виртуальный AI PAPER счёт.");
+    state.aiPaperActionBusy=true;renderAiPaperSessionControls();
+    const note=$("#kg-ai-paper-session-note");
+    if(note)note.textContent=action==="start"?"Запускаем виртуальную AI PAPER сессию…":"Останавливаем виртуальную AI PAPER сессию…";
+    try{
+      await invoke(action==="start"?"aiPaper.start":"aiPaper.stop");
+      await loadAiPaperSummary(true);hapticNotice("success");
+      notify(action==="start"?"AI PAPER сессия запущена.":"AI PAPER сессия остановлена.");
+    }catch(error){
+      if(note)note.textContent=normalizeError(error).message;notify(normalizeError(error).message);
+      await loadAiPaperSummary(true);
+    }finally{state.aiPaperActionBusy=false;renderAiPaperSessionControls();}
   }
   async function transferAiPaper(kind){
     if(state.productMode!=="ai")return notify("Сначала выберите режим ИИ.");
@@ -1023,7 +1093,7 @@
       state.productMode="demo";
     }
     renderProductMode();
-    if(state.productMode==="ai")await loadAiPaperSummary();
+    await loadAiPaperSummary(true);
   }
   async function selectProductMode(mode,button){
     if(mode==="live")return notify("LIVE пока заблокирован: не подтверждён полный торговый и close-контракт.");
@@ -1034,7 +1104,7 @@
       const result=await invoke("productMode.set",mode);
       state.productMode=result?.productMode==="ai"?"ai":"demo";
       renderProductMode();
-      if(state.productMode==="ai")await loadAiPaperSummary();
+      await loadAiPaperSummary(true);
     }catch(error){notify(normalizeError(error).message);}
     finally{if(button)button.disabled=false;}
   }
@@ -1049,6 +1119,8 @@
     $("#kg-income-tabs").addEventListener("click",event=>{const button=event.target.closest("[data-income-tab]");if(!button)return;const tab=button.dataset.incomeTab;$("#kg-income-open-panel").hidden=tab!=="open";$("#kg-income-history-panel").hidden=tab!=="history";$$("#kg-income-tabs [data-income-tab]").forEach(item=>{const active=item===button;item.classList.toggle("is-active",active);item.setAttribute("aria-selected",String(active));});});
     $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
     $("#kg-ai-paper-fund").addEventListener("click",()=>void transferAiPaper("fund"));
+    $("#kg-ai-paper-start").addEventListener("click",()=>void controlAiPaperSession("start"));
+    $("#kg-ai-paper-stop").addEventListener("click",()=>void controlAiPaperSession("stop"));
     $("#kg-profile-theme-select").addEventListener("change",event=>{setThemePreference(event.target.value);renderProfileSettings();notify("Настройка темы сохранена.");});
     $("#kg-profile-mode-switch").addEventListener("click",event=>{const button=event.target.closest("[data-profile-mode]");if(!button||button.disabled)return;void selectProductMode(button.dataset.profileMode,button);});
     $("#kg-ai-paper-withdraw").addEventListener("click",()=>void transferAiPaper("withdraw"));

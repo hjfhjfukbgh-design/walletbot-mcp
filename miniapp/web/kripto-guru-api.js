@@ -397,13 +397,40 @@
     async withdraw({ amountUsd, idempotencyKey }) {
       return request("/api/ai/paper/withdraw", { method: "POST", body: { amountUsd, idempotencyKey } });
     },
+    async start() { return request("/api/ai/paper/session/start", { method: "POST" }); },
+    async stop() { return request("/api/ai/paper/session/stop", { method: "POST" }); },
+    async positions({ status = "open", limit = 10 } = {}) {
+      const query = new URLSearchParams({ status, limit: String(limit) });
+      const data = await request("/api/ai/paper/positions?" + query.toString());
+      const rows = Array.isArray(data.positions) ? data.positions : [];
+      return { positions: rows.slice(0, 10).map(row => ({
+        id: String(row.id ?? ""), symbol: String(row.symbol ?? ""),
+        side: row.side === "short" ? "short" : "long",
+        status: row.status === "closed" ? "closed" : "open",
+        entryPrice: row.entry_price == null ? null : fromPrice(row.entry_price),
+        marginUsd: row.margin_micro == null ? null : fromMicro(row.margin_micro),
+        leverage: finite(row.leverage), openedAt: finite(row.opened_at), closedAt: finite(row.closed_at),
+      })) };
+    },
+    async decisions({ limit = 10 } = {}) {
+      const query = new URLSearchParams({ limit: String(limit) });
+      const data = await request("/api/ai/paper/decisions?" + query.toString());
+      const rows = Array.isArray(data.decisions) ? data.decisions : [];
+      return { decisions: rows.slice(0, 10).map(row => ({
+        id: String(row.id ?? ""), symbol: String(row.symbol ?? ""), signal: String(row.signal ?? ""),
+        rationale: String(row.rationale ?? ""), riskPass: row.riskPass === true,
+        rejectionReason: row.rejectionReason == null ? "" : String(row.rejectionReason),
+        observedPrice: row.observedPrice == null ? null : fromPrice(row.observedPrice),
+        createdAt: finite(row.createdAt),
+      })) };
+    },
     async status() {
       const data = await request("/api/ai/paper/status");
       const count = data.openPositions == null ? null : Number(data.openPositions);
       return {
         demoBalanceUsd: data.demoBalanceMicro == null ? null : fromMicro(data.demoBalanceMicro),
         balanceUsd: data.aiBalanceMicro == null ? null : fromMicro(data.aiBalanceMicro),
-        status: typeof data.status === "string" ? data.status : null,
+        status: data.status === "active" ? "active" : data.status === "stopped" ? "stopped" : null,
         openPositions: count !== null && Number.isSafeInteger(count) && count >= 0 ? count : null,
       };
     },
