@@ -1306,3 +1306,10 @@ html[data-theme="dark"] {
 .kg-sort button.is-active{background:var(--kg-card);color:var(--kg-ink)}
 .kg-position{color:var(--kg-ink)}
 .kg-profile-sheet{color:var(--kg-ink)}
+
+.kg-wallet-currency,.kg-wallet-action-icon,.kg-fav-top .kg-fav-icon,
+.kg-asset-icon,.kg-history-icon{background:var(--kg-surface-2);color:var(--kg-blue)}
+.kg-wallet-currency{border-color:var(--kg-line);color:var(--kg-ink)}
+.kg-favorite{background:var(--kg-card);color:var(--kg-ink)}
+.kg-list{background:var(--kg-card);color:var(--kg-ink)}
+.kg-asset-row{background:var(--kg-card);color:var(--kg-ink)}
