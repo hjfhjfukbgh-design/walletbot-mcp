@@ -111,7 +111,8 @@ try{
     const viewport=await page.evaluate(()=>({width:window.innerWidth,scrollWidth:document.documentElement.scrollWidth}));
     if(viewport.scrollWidth>viewport.width+1)throw new Error("Unexpected horizontal page overflow at "+device.width+"px: "+JSON.stringify(viewport));
     await page.waitForSelector("#kg-wallet-balance");
-    await page.waitForFunction(()=>document.querySelector("#kg-market-updated")?.textContent.includes("Обновлено"));
+    try{await page.waitForFunction(()=>document.querySelector("#kg-market-updated")?.textContent.includes("Обновлено"),null,{timeout:8000});}
+    catch(error){const debug=await page.evaluate(()=>({updated:document.querySelector("#kg-market-updated")?.textContent,apiReady:!!window.KriptoGuruAPI,marketCalls:window.__marketListCalls,toast:document.querySelector("#kg-toast")?.textContent,marketList:document.querySelector("#kg-market-list")?.innerText,theme:document.documentElement.dataset.theme}));throw new Error("Initial market freshness label missing: "+JSON.stringify(debug)+" pageErrors="+pageErrors.join("; ")+" "+error.message);}
     const freshnessLabel=await page.locator("#kg-market-updated").innerText();
     if(!/^Обновлено · \d{2}:\d{2}:\d{2}$/.test(freshnessLabel))throw new Error("Market freshness time must use Russian 24-hour format: "+freshnessLabel);
     if(await page.evaluate(()=>document.documentElement.dataset.theme)!=="dark")throw new Error("New installs must default to dark theme");
