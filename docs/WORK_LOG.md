@@ -1048,3 +1048,11 @@
 - **Причина:** ручной просмотр Playwright dark catalog выявил чрезмерно насыщенные красные/зелёные плитки, не соответствующие приглушённой Walt-палитре из ТЗ.
 - **Scope:** только существующий renderer `renderHeatmap()` и scoped CSS `.kg-heat-cell`; сохранить реальные change/volume данные и volume-based tile ordering.
 - **Ограничения:** без изменения котировок/API, без новых внешних сервисов, без LIVE операций.
+
+
+### 2026-11-19T07:57:10.647+05:00 — wallet UX fixes merged
+
+- **PR #398:** merged to main; merge commit `54f88f904dc115ca22a0e07250cc618b0e796683`.
+- **Изменения:** правый аватар кошелька открывает Agents, а не AI chat; нижняя вкладка AI не менялась. Telegram header/background используют themeParams.bg_color с light fallback. Убрано плечо из wallet favorite cards, контрактное плечо в trade flow сохранено.
+- **Проверки:** run `44447585017` — npm ci, node syntax, typecheck, npm test PASS; run `44447585016` — Playwright clean UI PASS; deploy skipped.
+- **Issues:** #380/#385/#392 закрыты как выполненные через TL PR.
