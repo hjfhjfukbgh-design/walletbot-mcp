@@ -105,7 +105,7 @@ try{
     await page.waitForSelector("#kg-wallet-balance");
     await page.waitForFunction(()=>document.querySelector("#kg-market-updated")?.textContent.includes("Обновлено"));
     const freshnessLabel=await page.locator("#kg-market-updated").innerText();
-    if(!/^Обновлено · \\d{2}:\\d{2}:\\d{2}$/.test(freshnessLabel))throw new Error("Market freshness time must use Russian 24-hour format: "+freshnessLabel);
+    if(!/^Обновлено · \d{2}:\d{2}:\d{2}$/.test(freshnessLabel))throw new Error("Market freshness time must use Russian 24-hour format: "+freshnessLabel);
     if(await page.evaluate(()=>document.documentElement.dataset.theme)!=="dark")throw new Error("New installs must default to dark theme");
     if(await page.evaluate(()=>document.documentElement.dataset.themePreference)!=="dark")throw new Error("Default theme preference must be dark");
     await page.locator("#kg-wallet-profile").click();
