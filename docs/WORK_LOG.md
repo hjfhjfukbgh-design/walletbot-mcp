@@ -1234,3 +1234,9 @@
 - **PR #425:** merged to main as `091ea49a1077ae6b58f8023030ce00c1008812e4`. Current-head run `44520872808`: npm ci, JS syntax, typecheck and tests PASS; deploy skipped. Screenshot run `44520872698`: Playwright install, clean UI syntax and iPhone preview/contract scenarios PASS.
 - **AI paper controls:** user can move virtual funds DEMO → AI paper and return them AI paper → DEMO. Existing server-side AI-mode validation and atomic ledger/idempotency are used. Retry key is retained in sessionStorage for same action/amount after uncertain response. These transfers do not access Walt or start an AI strategy.
 - **Issue #355:** closed as completed after PR #425. AI strategy runner remains a separate, not-yet-implemented capability.
+
+### 2026-11-19T17:09:30+05:00 — Companion video attachment scope independently verified
+
+- **Issue #242:** closed as completed after checking `src/companion.ts` and `test/companion.test.ts` on main. Backend accepts only MP4/WebM with matching extension and container signature (MP4 `ftyp`, WebM EBML), validates base64 and 5 MB per-file / 8 MB total limits, and sends inline media to Gemini.
+- **Regression evidence:** tests cover valid MP4/WebM, MIME/container mismatch, unsupported formats, malformed base64 and payload limits. Latest full `npm test` run `44520872808` passed.
+- **Research mode:** source inspection confirms Gemini Google Search grounding is enabled only for research mode; only returned HTTPS grounding chunks are surfaced, and the API rejects research responses with no verifiable sources. No fabricated sources are substituted.
