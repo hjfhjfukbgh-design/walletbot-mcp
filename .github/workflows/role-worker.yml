@@ -174,8 +174,11 @@ jobs:
             report = guarded.report;
             const missingScopeRows = findMissingScopeRows(report, scopeItems);
             if (missingScopeRows.length) throw new Error("Analysis report omitted mandatory scope rows: " + missingScopeRows.join(", "));
-            if (guarded.optimisticVerdict)
-              throw new Error("Analysis report overstates verdict despite unverified scope items.");
+            if (guarded.optimisticVerdict) {
+              const conservative = "Вердикт: NOT VERIFIED — автоматическая проверка обнаружила непроверенные пункты; PASS/ACCEPTED не подтверждён.";
+              const rewritten = report.replace(/(^|\\n)([^\\n]*Вердикт[^\\n]*)(PASS|ACCEPTED|ОДОБРЕНО|ПРИНЯТО)([^\\n]*)/ig, "$1" + conservative);
+              report = rewritten === report ? report + "\\n\\n" + conservative : rewritten;
+            }
             fs.writeFileSync("/tmp/worker-mode.txt", "analysis-only");
             fs.writeFileSync("/tmp/worker-report.md", "# " + role + " — анализ задачи #" + process.env.ISSUE_NUMBER + "\n\n- Режим: анализ, исходники не изменялись\n- Задача: " + task + "\n\n" + report);
             console.log(role + " analysis report generated.");
