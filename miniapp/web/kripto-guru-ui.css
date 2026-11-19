@@ -1712,3 +1712,10 @@ body.kg-keyboard-open .kg-nav{transform:translate(-50%,130%);opacity:0;pointer-e
 .kg-history-dot.is-close{background:color-mix(in srgb,var(--kg-red) 13%,var(--kg-card));color:var(--kg-red);font-weight:800}
 .kg-history-copy b{line-height:1.35}
 @media(max-width:360px){.kg-position-details{gap:8px;padding:10px}.kg-position-details b{font-size:11px}}
+
+
+/* Explicit dark glass surfaces for Telegram WebView theme transitions. */
+html[data-theme="dark"] #kg-companion-screen .kg-ai-form{background:rgba(28,28,30,.76);border-color:rgba(255,255,255,.10);box-shadow:0 10px 36px rgba(0,0,0,.36)}
+html[data-theme="dark"] .kg-nav{background:rgba(28,28,30,.76);border-color:rgba(255,255,255,.10);box-shadow:0 10px 36px rgba(0,0,0,.36)}
+html[data-theme="dark"] .kg-asset-actions{background:rgba(28,28,30,.90)}
+html[data-theme="dark"] .kg-glass-surface{background:rgba(28,28,30,.76);border-color:rgba(255,255,255,.10)}
