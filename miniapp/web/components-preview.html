@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>Kripto Guru — витрина компонентов</title>
+  <link rel="stylesheet" href="./kripto-guru-components.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 16px 48px; background: #efeff4; color: #0b0b0f; font: 15px/1.45 -apple-system,BlinkMacSystemFont,"Inter",sans-serif; }
+    main { width: min(100%, 720px); margin: 0 auto; }
+    h1 { margin: 0 0 4px; font-size: 28px; letter-spacing: -.04em; }
+    .lead,.section-note { color: #8e8e93; }
+    .section { margin-top: 28px; }
+    .section h2 { margin: 0 0 10px; font-size: 18px; }
+    .demo-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+    .actions { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+    .button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .kg-ui-primitives .kg-island { margin-top: 8px; }
+    .kg-ui-primitives .kg-list-row:first-child { border-top: 0; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #000; color: #f5f5f7; }
+    }
+    @media (max-width: 375px) { body { padding-inline: 12px; } .actions { gap: 5px; } }
+  </style>
+</head>
+<body>
+<main class="kg-ui-primitives" data-theme="auto">
+  <header>
+    <p class="lead">KRIPTO GURU · UI FOUNDATION</p>
+    <h1>Витрина компонентов</h1>
+    <p class="lead">Изолированная страница проверки состояний. Все суммы и значения здесь демонстрационные, не рыночные данные.</p>
+  </header>
+
+  <section class="section">
+    <h2>Режимы счёта</h2>
+    <div class="demo-grid" id="modes"></div>
+  </section>
+
+  <section class="section">
+    <h2>Быстрые действия</h2>
+    <div class="actions" id="actions"></div>
+  </section>
+
+  <section class="section">
+    <h2>Состояния результата</h2>
+    <div id="pnl"></div>
+    <div class="kg-island" id="empty"></div>
+  </section>
+
+  <section class="section">
+    <h2>Сегментированный выбор</h2>
+    <div id="segments"></div>
+  </section>
+
+  <section class="section">
+    <h2>Строки и настройки</h2>
+    <div class="kg-island" id="rows"></div>
+  </section>
+
+  <section class="section">
+    <h2>Кнопки</h2>
+    <div class="button-row" id="buttons"></div>
+  </section>
+
+  <section class="section">
+    <h2>Загрузка</h2>
+    <div class="kg-island" id="skeleton"></div>
+  </section>
+</main>
+<script type="module">
+  import "./kripto-guru-components.js";
+  const ui = window.KGDesign;
+  document.querySelector("#modes").innerHTML = ["demo","live","ai"].map(mode => ui.modeBadgeMarkup(mode)).join("");
+  document.querySelector("#actions").innerHTML = [
+    ui.actionTileMarkup({label:"Перевод",icon:"⇄",action:"demo-transfer"}),
+    ui.actionTileMarkup({label:"Пополнить",icon:"＋",action:"demo-fund"}),
+    ui.actionTileMarkup({label:"Вывести",icon:"↗",disabled:true,reason:"Недоступно"}),
+    ui.actionTileMarkup({label:"Обменять",icon:"⇅",disabled:true,reason:"Недоступно"})
+  ].join("");
+  document.querySelector("#pnl").innerHTML = [
+    ui.pnlChipMarkup("+0,00",{label:"P&L "}),
+    ui.pnlChipMarkup("—",{label:"P&L "}),
+    ui.pnlChipMarkup("-0,00",{label:"P&L "})
+  ].join(" ");
+  document.querySelector("#empty").innerHTML = ui.emptyStateMarkup({
+    title:"Пока пусто",description:"Здесь появятся данные, когда они будут доступны."
+  });
+  document.querySelector("#segments").innerHTML = ui.segmentedMarkup([
+    {value:"day",label:"1Д"},{value:"week",label:"7Д"},{value:"month",label:"30Д"}
+  ],"week",{label:"Период"});
+  document.querySelector("#rows").innerHTML = [
+    ui.listRowMarkup({title:"Уведомления",subtitle:"Состояние примера",value:"Вкл.",icon:"◉",action:"notifications"}),
+    ui.listRowMarkup({title:"Кошелёк Walt",subtitle:"Подключение не проверяется на витрине",value:"—",icon:"◇",disabled:true})
+  ].join("");
+  document.querySelector("#buttons").innerHTML = [
+    ui.buttonMarkup({label:"Основное",action:"primary"}),
+    ui.buttonMarkup({label:"Лонг",variant:"long",action:"long"}),
+    ui.buttonMarkup({label:"Шорт",variant:"short",action:"short"}),
+    ui.buttonMarkup({label:"Удалить",variant:"destructive",action:"delete"}),
+    ui.buttonMarkup({label:"Недоступно",disabled:true,reason:"Требуется подключение"})
+  ].join("");
+  document.querySelector("#skeleton").innerHTML = ui.skeletonMarkup({rows:3});
+</script>
+</body>
+</html>
