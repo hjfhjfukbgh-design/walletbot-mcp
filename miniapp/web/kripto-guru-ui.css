@@ -1457,6 +1457,24 @@ html[data-theme="dark"] .kg-heat-cell--negative.kg-heat-cell--strong{background:
 .kg-ai-paper-transfer-actions button:disabled{opacity:.55;pointer-events:none}
 .kg-ai-paper-transfer #kg-ai-paper-transfer-note{margin:0;color:var(--kg-muted);font-size:10px;line-height:1.45}
 @media(max-width:360px){.kg-ai-paper-transfer{padding:11px}.kg-ai-paper-transfer-actions{grid-template-columns:1fr}.kg-ai-paper-transfer-actions button{min-height:40px}}
+.kg-ai-paper-session{display:grid;gap:8px;margin:10px 0 14px;padding:12px;border:1px solid var(--kg-line);border-radius:16px;background:var(--kg-card)}
+.kg-ai-paper-session-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kg-ai-paper-session-actions button{min-height:42px;border-radius:12px;font-size:12px;font-weight:750}
+.kg-ai-paper-session-actions button:disabled{opacity:.48;pointer-events:none}
+.kg-ai-paper-session #kg-ai-paper-session-note{margin:0;color:var(--kg-muted);font-size:10px;line-height:1.45}
+.kg-ai-paper-history{display:grid;gap:10px;margin:12px 0}
+.kg-ai-paper-history-section{min-width:0;padding:12px;border:1px solid var(--kg-line);border-radius:16px;background:var(--kg-card)}
+.kg-ai-paper-history-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:12px}
+.kg-ai-paper-history-head span{color:var(--kg-muted);font-size:10px;font-variant-numeric:tabular-nums}
+.kg-ai-paper-history-list{display:grid;gap:0;margin:0;padding:0;list-style:none}
+.kg-ai-paper-history-item{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid var(--kg-line)}
+.kg-ai-paper-history-item:first-child{border-top:0}
+.kg-ai-paper-history-main{display:grid;gap:3px;min-width:0}
+.kg-ai-paper-history-main b{font-size:11px;font-weight:750;color:var(--kg-ink)}
+.kg-ai-paper-history-main small{font-size:10px;line-height:1.4;color:var(--kg-muted);overflow-wrap:anywhere}
+.kg-ai-paper-history-state{flex:0 0 auto;color:var(--kg-muted);font-size:9px;font-weight:750}
+.kg-ai-paper-history-list .is-empty{padding:8px 0;color:var(--kg-muted);font-size:10px}
+@media(max-width:360px){.kg-ai-paper-session{padding:10px}.kg-ai-paper-session-actions{grid-template-columns:1fr}.kg-ai-paper-history-section{padding:10px}.kg-ai-paper-history-item{gap:6px}}
 
 /* Profile theme preference control */
 .kg-profile-theme-row{align-items:center}
