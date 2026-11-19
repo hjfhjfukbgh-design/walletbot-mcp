@@ -159,6 +159,12 @@
   ],"wallet");
   document.querySelector("#sheet").innerHTML = ui.bottomSheetMarkup("<p>Доверенное содержимое шторки</p>",{title:"Пример шторки",open:true});
 
+  document.querySelector("main").addEventListener("click", event => {
+    const target = event.target.closest("[data-action]");
+    if (!target || target.disabled) return;
+    document.querySelector("#feedback").innerHTML = ui.toastMarkup("Демо-действие: " + target.dataset.action);
+  });
+
 </script>
 </body>
 </html>
