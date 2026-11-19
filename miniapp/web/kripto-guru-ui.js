@@ -125,6 +125,7 @@
     if(tg?.BackButton){tg.BackButton.show();tg.BackButton.offClick?.(handleNativeBack);tg.BackButton.onClick(handleNativeBack);}
   }
   function handleNativeBack(){
+    if(!$("#kg-confirm-screen").hidden||!$("#kg-leverage-screen").hidden){closeModals();return;}
     if(!$("#kg-profile-sheet").hidden){closeProfile();return;}
     if($("#kg-ai-menu").classList.contains("is-open")){setCompanionMenu(false);return;}
     if(!$("#kg-ticket-screen").hidden){closeTicket();return;}
