@@ -382,10 +382,24 @@
       return `<div class="kg-history-row"><span class="kg-history-dot">${side==="short"?"↘":"↗"}</span><span class="kg-history-copy"><b>${esc(e.event||e.type||"Сделка")} · ${esc(symbol)}</b><small>${esc(e.timestamp||e.createdAt||"")}</small></span><strong class="kg-history-value ${pnlClass}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
     }).join(""):'<div class="kg-empty-inline">Операций по этому активу пока нет.</div>';
   }
+  function renderWalletRecentHistory(){
+    const root=$("#kg-wallet-recent-history");if(!root)return;
+    const items=state.history.slice(0,3);
+    root.innerHTML=items.length?items.map(e=>{
+      const raw=String(e.event||e.type||e.status||"").toLowerCase(),closed=/close|closed|закрыт|закрытие/.test(raw),opened=/open|opened|открыт|открытие/.test(raw);
+      const action=opened?"Открыта позиция":closed?"Закрыта позиция":e.event||e.type||e.status||"Операция";
+      const pnlRaw=e.netPnlUsd??e.pnlUsd??e.pnl,pnl=hasNumericValue(pnlRaw)?Number(pnlRaw):NaN;
+      const dateRaw=e.timestamp??e.createdAt??e.time,n=Number(dateRaw),date=dateRaw?new Date(Number.isFinite(n)?(n<1e12?n*1000:n):dateRaw):null;
+      const time=date&&!Number.isNaN(date.getTime())?date.toLocaleDateString("ru-RU",{day:"numeric",month:"short"}):"";
+      const side=String(e.side||"").toLowerCase(),direction=side==="short"?"Шорт":side==="long"?"Лонг":"";
+      return `<div class="kg-history-row"><span class="kg-history-dot ${closed?"is-close":opened?"is-open":""}">${closed?"−":opened?"+":"·"}</span><span class="kg-history-copy"><b>${esc(action)} · ${esc([direction,e.symbol||e.market||""].filter(Boolean).join(" "))}</b><small>${esc(time)} · DEMO</small></span><strong class="kg-history-value ${Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted"}">${Number.isFinite(pnl)?money(pnl):"—"}</strong></div>`;
+    }).join(""):'<div class="kg-empty-inline">Операций пока нет.</div>';
+  }
   async function loadHistory(){
     try{
       const result=unwrap(await invoke("history.list"),"history");
       state.history=listOf(result,["events","history","items","trades"]);
+      renderWalletRecentHistory();
       if(state.selectedMarket)renderAssetHistory(state.selectedMarket);
       const historyDate=(e)=>{const raw=e.timestamp??e.createdAt??e.time;if(raw===undefined||raw===null)return null;const n=Number(raw);const date=new Date(Number.isFinite(n)?(n<1e12?n*1000:n):raw);return Number.isNaN(date.getTime())?null:date;};
       const dayKey=(date)=>date?date.getFullYear()+"-"+date.getMonth()+"-"+date.getDate():"unknown";
@@ -1022,6 +1036,7 @@
 
     $("#kg-profile-backdrop").addEventListener("click",closeProfile);
     $("#kg-wallet-positions-all").addEventListener("click",()=>{setScreen("income");void loadWallet();void loadHistory();});
+    $("#kg-wallet-history-all").addEventListener("click",()=>{setScreen("income");$("#kg-income-tabs [data-income-tab=history]").click();void loadWallet();void loadHistory();});
     $("#kg-income-tabs").addEventListener("click",event=>{const button=event.target.closest("[data-income-tab]");if(!button)return;const tab=button.dataset.incomeTab;$("#kg-income-open-panel").hidden=tab!=="open";$("#kg-income-history-panel").hidden=tab!=="history";$$("#kg-income-tabs [data-income-tab]").forEach(item=>{const active=item===button;item.classList.toggle("is-active",active);item.setAttribute("aria-selected",String(active));});});
     $("#kg-wallet-currency").addEventListener("click",()=>{state.currencyMode=state.currencyMode==="USD"?"RUB":"USD";if(state.wallet){const balanceUsd=Number(state.wallet.balanceUsd ?? state.wallet.balance ?? NaN),balanceRub=balanceUsd*Number(state.fxRateRub),shown=state.currencyMode==="USD"?balanceUsd:balanceRub;$("#kg-wallet-balance").innerHTML=Number.isFinite(shown)?fmt(shown)+(state.currencyMode==="USD"?' <span>USD</span>':' <span class="kg-ruble-symbol">₽</span>'):"—";$("#kg-wallet-currency-value").textContent=Number.isFinite(balanceUsd)?(state.currencyMode==="USD"?fmt(balanceUsd)+" $":(Number.isFinite(balanceRub)?fmt(balanceRub)+" ₽":"—")):"—";}});
     $("#kg-ai-paper-fund").addEventListener("click",()=>void transferAiPaper("fund"));
