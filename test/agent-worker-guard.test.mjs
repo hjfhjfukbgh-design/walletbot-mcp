@@ -53,3 +53,10 @@ it("accepts paths, selectors and API routes present in inspected source", () => 
   const warnings = findUnverifiedReferences(report, ["miniapp/web/index.html", "src/api.ts"], '$("#kg-wallet-ai") case "GET contracts"');
   expect(warnings).toEqual([]);
 });
+
+it("accepts CSS selectors represented by HTML id and data attributes", () => {
+  const tick = String.fromCharCode(96);
+  const report = tick + "#kg-wallet-ai" + tick + " " + tick + "[data-wallet-action=\"transfer\"]" + tick;
+  const source = '<button id="kg-wallet-ai" data-wallet-action="transfer"></button>';
+  expect(findUnverifiedReferences(report, ["miniapp/web/index.html"], source)).toEqual([]);
+});

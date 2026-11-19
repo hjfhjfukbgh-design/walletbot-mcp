@@ -72,7 +72,20 @@ export function findUnverifiedReferences(report, selectedPaths, sourceText) {
 
   const selectorPattern = /(#[A-Za-z][A-Za-z0-9_-]*|\[data-[A-Za-z0-9_-]+(?:="[^"]*"|'[^']*')?\])/g;
   for (const match of String(report || "").matchAll(selectorPattern)) {
-    if (!source.includes(match[1])) warnings.add("UI selector не найден в переданных исходниках: " + match[1]);
+    const selector = match[1];
+    let present = source.includes(selector);
+    if (!present && selector.startsWith("#")) {
+      const id = selector.slice(1);
+      present = source.includes('id="' + id + '"') || source.includes("id='" + id + "'");
+    }
+    if (!present && selector.startsWith("[data-")) {
+      const attribute = selector.slice(1, -1).split("=")[0];
+      const value = selector.match(/=["']([^"']+)["']/)?.[1];
+      present = value
+        ? source.includes(attribute + '="' + value + '"') || source.includes(attribute + "='" + value + "'")
+        : source.includes(attribute);
+    }
+    if (!present) warnings.add("UI selector не найден в переданных исходниках: " + selector);
   }
 
   const endpointPattern = /\b(GET|POST|PUT|PATCH|DELETE)\s+(\/api\/[A-Za-z0-9_/?{}.-]+)/gi;
