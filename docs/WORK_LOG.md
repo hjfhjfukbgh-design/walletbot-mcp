@@ -910,3 +910,20 @@
 - **Команда B:** Issue #undefined — design tokens, темы и базовые компоненты.
 - **Команда C:** Issue #undefined — AI/Agents UX audit и responsive acceptance tests.
 - **Ограничения:** один dispatcher run выбирает одну задачу; label orchestrator-ready означает постановку в очередь, а не подтверждённый старт. Проверять фактические Actions runs/worker PR. LIVE остаётся fail-closed; никаких реальных финансовых действий.
+
+
+### 2026-11-19T07:17:11.312+05:00 — самостоятельная задача Team Lead: UI component primitives
+
+- **Статус:** подготовлен Draft PR #361.
+- **Ветка:** feat/ui-component-primitives-2026-11-19.
+- **Изменения:** добавлен miniapp/web/kripto-guru-components.js (ModeBadge, Island, ListRow, ActionTile, PnlChip, EmptyState, Skeleton, Segmented, Button); добавлены тесты test/miniapp-components.test.ts.
+- **Проверка diff:** compare main...branch — 2 commits, 2 новых файла, 141 добавленная строка, без изменений существующих экранов.
+- **Безопасность:** пользовательский текст/атрибуты экранируются; disabled state семантически размечается; production HTML пока не подключает модуль, чтобы не создавать незавершённую интеграцию.
+- **CI:** fetch_commit_workflow_runs вернул пустой список; тесты не запускались, PASS не заявляется.
+- **Результат:** https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/361
+
+### 2026-11-19T07:17:11.312+05:00 — контроль параллельной очереди A/B/C
+
+- **Issues:** #358 (A), #359 (B), #360 (C) созданы с label orchestrator-ready.
+- **Подтверждение старта:** на момент проверки нет доступного подтверждения worker Actions run/ветки/PR для этих трёх задач. Метка очереди не считается фактом начала выполнения.
+- **Следующее действие:** проверить dispatcher/worker executions повторно; если запуска нет, диагностировать механизм dispatch, не создавать фиктивные статусы.
