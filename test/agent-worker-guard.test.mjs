@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractScopeItems, findMissingScopeRows, normalizeAnalysisReport } from "../scripts/agent-worker-guard.mjs";
+import { extractScopeItems, findMissingScopeRows, findUnverifiedReferences, normalizeAnalysisReport } from "../scripts/agent-worker-guard.mjs";
 
 describe("agent worker evidence guard", () => {
   it("extracts semicolon-separated Russian scope items", () => {
@@ -44,7 +44,7 @@ describe("agent worker evidence guard", () => {
 
 it("flags paths, selectors and API routes that are absent from inspected source", () => {
   const report = "`miniapp/endpoints/contracts` `#position-close` `POST /api/companion/chat`";
-  const warnings = findUnverifiedReferences(report, ["miniapp/web/index.html", "src/api.ts"], 'id="kg-wallet-ai" case "GET contracts"');
+  const warnings = findUnverifiedReferences(report, ["miniapp/web/index.html", "src/api.ts"], '$("#kg-wallet-ai") case "GET contracts"');
   expect(warnings).toHaveLength(3);
 });
 
