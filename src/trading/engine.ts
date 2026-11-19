@@ -490,8 +490,8 @@ export class TradingEngine {
         !["long", "short"].includes(side) ||
         !decimalPattern.test(qtyUnits) || Number(qtyUnits) <= 0 ||
         !decimalPattern.test(entryPrice) || Number(entryPrice) <= 0 ||
-        !/^\d{1,20}$/.test(rawMargin) || BigInt(rawMargin) <= 0n ||
-        !/^\d{1,20}$/.test(rawFees) || !/^\d{1,20}$/.test(rawSlippage) ||
+        !/^(?:0|[1-9]\d{0,18})$/.test(rawMargin) || BigInt(rawMargin) <= 0n ||
+        !/^(?:0|[1-9]\d{0,18})$/.test(rawFees) || !/^(?:0|[1-9]\d{0,18})$/.test(rawSlippage) ||
         !Number.isSafeInteger(leverage) || leverage < 1 || leverage > 100 ||
         (stopLossPrice !== null && (!decimalPattern.test(stopLossPrice) || Number(stopLossPrice) <= 0)) ||
         (takeProfitPrice !== null && (!decimalPattern.test(takeProfitPrice) || Number(takeProfitPrice) <= 0))) {
