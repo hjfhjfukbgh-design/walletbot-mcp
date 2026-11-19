@@ -33,8 +33,8 @@ jobs:
 
   deploy:
     needs: test
-    # Deploy only after a successful push to main; PR checks never touch production.
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    # Deploy after green CI on main pushes or an explicit manual dispatch; PR checks never touch production.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     environment: TELEGRAM_BOT_TOKEN
     steps:
