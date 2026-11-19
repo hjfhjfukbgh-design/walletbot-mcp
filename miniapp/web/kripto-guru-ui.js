@@ -478,7 +478,7 @@
       const yt = y(Math.max(c.open, c.close));
       const yb = y(Math.min(c.open, c.close));
       const bodyHeight = Math.max(1, yb - yt);
-      return `<line x1="${x}" y1="${y(c.high)}" x2="${x}" y2="${y(c.low)}" stroke="${color}" stroke-width="1.2"/><rect data-time="${c.timeMs}" x="${x - body / 2}" y="${yt}" width="${body}" height="${bodyHeight}" rx=".7" fill="${color}"/>`;
+      return `<line x1="${x}" y1="${y(c.high)}" x2="${x}" y2="${y(c.low)}" stroke="${color}" stroke-width="1.2"/><rect data-time="${c.timeMs}" data-index="${i}" x="${x - body / 2}" y="${yt}" width="${body}" height="${bodyHeight}" rx=".7" fill="${color}"/>`;
     }).join("");
 
     const grid = [0, 0.25, 0.5, 0.75, 1].map(p => {
@@ -498,8 +498,47 @@
       return `<text x="${xPos}" y="${H - 4}" fill="#8e919b" font-size="9" font-family="sans-serif" text-anchor="middle">${esc(timeStr)}</text>`;
     }).join("");
 
-    chart.innerHTML = `<svg width="${W}" height="${H}" style="width:${W}px;min-width:${W}px;max-width:none" viewBox="0 0 ${W} ${H}" role="img" aria-label="Свечной график">${grid}${marks}${timeLabels}</svg>`;
+    chart.innerHTML = `<svg width="${W}" height="${H}" style="width:${W}px;min-width:${W}px;max-width:none" viewBox="0 0 ${W} ${H}" role="img" aria-label="Свечной график">${grid}${marks}${timeLabels}<g class="kg-chart-crosshair" opacity="0" pointer-events="none"><line class="kg-crosshair-v" x1="0" y1="${top}" x2="0" y2="${bottom}"/><line class="kg-crosshair-h" x1="0" y1="0" x2="${chartWidth}" y2="0"/><circle class="kg-crosshair-dot" cx="0" cy="0" r="3.5"/><rect class="kg-crosshair-label-bg" x="8" y="8" width="250" height="18" rx="5"/><text class="kg-crosshair-label" x="14" y="20">O — H — L — C —</text></g></svg>`;
+    chart.__kgCrosshairContext={data,step,chartWidth,top,bottom,y};
+    bindChartCrosshair(chart);
     chart.scrollLeft = wasAtEnd ? chart.scrollWidth : Math.min(previousScrollLeft, Math.max(0, chart.scrollWidth - chart.clientWidth));
+  }
+  function bindChartCrosshair(chart){
+    if(chart.dataset.crosshairBound==="true")return;
+    chart.dataset.crosshairBound="true";
+    let timer=null,active=false,start=null;
+    const hide=()=>{
+      if(timer)clearTimeout(timer);
+      timer=null;active=false;start=null;
+      const group=chart.querySelector(".kg-chart-crosshair");if(group)group.setAttribute("opacity","0");
+    };
+    const update=(clientX,clientY)=>{
+      const context=chart.__kgCrosshairContext,svg=chart.querySelector("svg"),group=chart.querySelector(".kg-chart-crosshair");
+      if(!context||!svg||!group)return;
+      const rect=svg.getBoundingClientRect(),localX=Math.max(0,Math.min(context.chartWidth,clientX-rect.left));
+      const localY=Math.max(context.top,Math.min(context.bottom,clientY-rect.top));
+      const index=Math.max(0,Math.min(context.data.length-1,Math.floor(localX/context.step)));
+      const candle=context.data[index],x=index*context.step+context.step/2;
+      const v=group.querySelector(".kg-crosshair-v"),h=group.querySelector(".kg-crosshair-h"),dot=group.querySelector(".kg-crosshair-dot"),label=group.querySelector(".kg-crosshair-label");
+      v.setAttribute("x1",x);v.setAttribute("x2",x);v.setAttribute("y1",context.top);v.setAttribute("y2",context.bottom);
+      h.setAttribute("x1","0");h.setAttribute("x2",context.chartWidth);h.setAttribute("y1",localY);h.setAttribute("y2",localY);
+      dot.setAttribute("cx",x);dot.setAttribute("cy",context.y(candle.close));
+      const f=value=>new Intl.NumberFormat("ru-RU",{maximumFractionDigits:4}).format(value);
+      label.textContent="O "+f(candle.open)+"  H "+f(candle.high)+"  L "+f(candle.low)+"  C "+f(candle.close);
+      group.setAttribute("opacity","1");
+    };
+    chart.addEventListener("pointerdown",event=>{
+      if(event.pointerType==="mouse"&&event.button!==0)return;
+      start={x:event.clientX,y:event.clientY};
+      timer=window.setTimeout(()=>{active=true;update(start.x,start.y);},420);
+    });
+    chart.addEventListener("pointermove",event=>{
+      if(!active){if(start&&Math.hypot(event.clientX-start.x,event.clientY-start.y)>9)hide();return;}
+      event.preventDefault();update(event.clientX,event.clientY);
+    },{passive:false});
+    chart.addEventListener("pointerup",hide);
+    chart.addEventListener("pointercancel",hide);
+    chart.addEventListener("pointerleave",()=>{if(active)hide();});
   }
   async function openAsset(symbol){
     state.previousScreen=state.screen;
