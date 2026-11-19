@@ -65,3 +65,11 @@
 - Не выполнять merge и production deploy в рамках этого цикла.
 - Не считать скриншотную/preview-проверку физическим тестом на iPhone Telegram WebView.
 - Временные отметки и дедлайны писать в Asia/Yekaterinburg (UTC+5).
+
+
+### Обновление — 2026-11-19 23:18 EKB
+- Агентские попытки: #444 завершилась `no-safe-patch`; #445 и #446 завершились отказом валидатора из-за завышенного вердикта при непроверенных пунктах. Handoff PR #451, dispatch packets #447/#449/#450 не являются реализацией.
+- Чтобы не терять окно, подготовлен ручной CSS-only implementation PR #452 (`design/premium-wallet-stage1-20261119-ekb`): wallet islands, mode-specific DEMO/ИИ accents + aura, 4-tab floating navigation, safe-area spacing, reduced-motion. DOM, handlers, API и торговая логика не менялись.
+- PR #452: GitHub Actions typecheck/tests и clean UI screenshots запущены; до завершения CI и просмотра артефактов не считать принятым. Физический iPhone Telegram WebView не проверен.
+- Дедлайн задач скорректирован на 2026-11-19 23:30 EKB по 20-минутному окну владельца.
+- LIVE остаётся disabled; AI paper-only. Merge/deploy/реальные торговые операции не выполнялись.
