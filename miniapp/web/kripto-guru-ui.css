@@ -1740,3 +1740,7 @@ html[data-theme="dark"] #kg-ai-form{background:rgba(28,28,30,.76)!important;bord
 .kg-ai-history-search{width:100%;min-height:44px;margin:12px 0;padding:0 14px;border:1px solid var(--kg-line);border-radius:14px;background:var(--kg-bg);color:var(--kg-ink);font:inherit;font-size:13px}
 .kg-ai-history-search::placeholder{color:var(--kg-muted)}
 .kg-ai-history-search:focus-visible{outline:2px solid var(--kg-blue);outline-offset:2px}
+
+.kg-income-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:16px 0 20px;padding:5px;border:1px solid var(--kg-line);border-radius:18px;background:var(--kg-surface-2)}
+.kg-income-tabs button{min-height:44px;border:0;border-radius:13px;background:transparent;color:var(--kg-muted);font-size:13px;font-weight:700}
+.kg-income-tabs button.is-active{background:var(--kg-card);color:var(--kg-ink);box-shadow:0 2px 9px rgba(18,24,40,.08)}
