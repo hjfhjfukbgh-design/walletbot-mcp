@@ -624,6 +624,20 @@ async function liveOperationView(env: Env, scopedEnv: Env, userId: string, handl
     status = "unknown";
   }
   if (status === "unknown") {
+    const priorResult = operation.result && typeof operation.result === "object"
+      ? operation.result as Json
+      : {};
+    const priorReason = String(priorResult.reason ?? "");
+    if (priorReason === "position_exists_before_execute" || priorReason === "position_check_failed") {
+      // The order was deliberately NOT sent. A position observed in this state
+      // cannot be attributed to our handle, even if its timestamp looks recent.
+      reconciliation = {
+        positionDetected: priorReason === "position_exists_before_execute",
+        message: priorReason === "position_exists_before_execute"
+          ? "До отправки ордера уже обнаружена позиция. Она не относится к этой операции автоматически; требуется ручная проверка."
+          : "Не удалось проверить позицию до отправки. Ордер не отправлялся; требуется ручная проверка.",
+      };
+    } else {
     const client = await connectWalt(scopedEnv).catch(() => null);
     if (!client) {
       reconciliation = { positionDetected: false, message: "Walt недоступен для read-only сверки. Не повторяйте ордер." };
@@ -662,6 +676,7 @@ async function liveOperationView(env: Env, scopedEnv: Env, userId: string, handl
       } catch {
         reconciliation = { positionDetected: false, message: "Не удалось сверить позицию через Walt. Статус остаётся UNKNOWN; не повторяйте ордер." };
       }
+    }
     }
   }
 
