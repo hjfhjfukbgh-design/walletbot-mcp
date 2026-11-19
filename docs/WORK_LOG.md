@@ -976,3 +976,11 @@
 - **PR:** #361, head `d4529c54e025052634b5bde517f2935922a5c680`, ready for review.
 - **Проверки:** run `44444020562` — test/typecheck PASS; run `44444020564` — Playwright screenshot/contract job PASS.
 - **Решение:** не мержить отдельно от shell/design-token workstreams: библиотека изолирована и пока не подключена к production DOM. Это исключает бессмысленный deploy и даёт командам A/B интегрировать её в общий UI.
+
+
+### 2026-11-19T07:26:52.648+05:00 — дополнительный baseline review рынка
+
+- **Статус:** завершено
+- **Источник:** `clean-catalog-390x844.png` из artifact `kripto-guru-clean-ui-previews`.
+- **Подтверждено:** рынок показывает только 2 product tiles вместо Crypto/Futures/Favorites; heatmap слишком насыщенная и контрастная относительно Walt; bottom navigation перекрывает нижние строки списка активов; строка плеча видна в каталоге, хотя wallet favorites по новому ТЗ должны показывать цену/PnL/sparkline без плеча.
+- **Маршрут:** #359 — палитра/продукты; #358 — safe-area и bottom navigation; #359 — wallet favorites card styling.
