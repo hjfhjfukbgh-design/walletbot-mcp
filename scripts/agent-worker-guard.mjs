@@ -64,22 +64,22 @@ export function findUnverifiedReferences(report, selectedPaths, sourceText) {
   const source = String(sourceText || "");
   const warnings = new Set();
 
-  const pathPattern = /(?:`|\\b)((?:miniapp|src|test|tests)\\/[A-Za-z0-9_./-]+)(?:`|\\b)/g;
+  const pathPattern = /\b((?:miniapp|src|test|tests)\/[A-Za-z0-9_./-]+)\b/g;
   for (const match of String(report || "").matchAll(pathPattern)) {
     const path = match[1].replace(/[),.;:]+$/, "");
     if (!available.has(path)) warnings.add("Путь не входит в фактически прочитанный контекст: " + path);
   }
 
-  const selectorPattern = /`(#[A-Za-z][A-Za-z0-9_-]*|\\[data-[A-Za-z0-9_-]+(?:=(?:"[^"]*"|'[^']*'))?\\])`/g;
+  const selectorPattern = /(#[A-Za-z][A-Za-z0-9_-]*|\[data-[A-Za-z0-9_-]+(?:="[^"]*"|'[^']*')?\])/g;
   for (const match of String(report || "").matchAll(selectorPattern)) {
     if (!source.includes(match[1])) warnings.add("UI selector не найден в переданных исходниках: " + match[1]);
   }
 
-  const endpointPattern = /\\b(GET|POST|PUT|PATCH|DELETE)\\s+`?(\\/api\\/[A-Za-z0-9_/?{}.-]+)`?/gi;
+  const endpointPattern = /\b(GET|POST|PUT|PATCH|DELETE)\s+(\/api\/[A-Za-z0-9_/?{}.-]+)/gi;
   for (const match of String(report || "").matchAll(endpointPattern)) {
     const method = match[1].toUpperCase();
     const path = match[2];
-    const route = method + " " + path.replace(/^\\/api\\//, "");
+    const route = method + " " + path.replace(/^\/api\//, "");
     if (!source.includes(route) && !source.includes(path))
       warnings.add("Backend route не найден в переданных исходниках: " + method + " " + path);
   }
