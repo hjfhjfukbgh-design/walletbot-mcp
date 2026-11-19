@@ -1157,3 +1157,10 @@
 
 - **PR #420:** replaces the generic profile accordion with read-only Account & Mode, Walt Wallet, General, Trading and AI islands. Mode, Walt readiness, Telegram theme and AI paper status are rendered from existing app state; Russian language is the only static setting. No new controls or API calls.
 - **Head:** `b462b436cb068da7cfdc55e9d4c787ff1fd4cb7b`; CI and screenshot checks pending. Issue #358 remains open until acceptance checks pass.
+
+### 2026-11-19T08:19:00+05:00 — Profile settings islands merged
+
+- **PR #420:** merged to main; merge commit `9bc0c4db5351fc1260be712eb7f3fe56b8a4f1a8`.
+- **QA #420:** run `44451657346` — npm ci, JS syntax, typecheck and npm tests PASS; deploy skipped. Run `44451657266` — Playwright clean UI screenshots/contract scenarios PASS.
+- **Profile behavior:** mode, Walt readiness, Telegram theme and AI paper status are sourced from current state. No fake action rows or unsupported settings were added.
+- **Issue #358:** closed as completed.
