@@ -163,7 +163,8 @@ jobs:
             }
             if (!report) throw new Error("Role analysis failed: " + lastError);
             // Reject unsupported file paths, selectors and API routes before assigning a report verdict.
-            const evidenceWarnings = findUnverifiedReferences(report, selected, context);
+            const validationSource = selected.map(path => fs.existsSync(path) ? fs.readFileSync(path, "utf8") : "").join("\n");
+            const evidenceWarnings = findUnverifiedReferences(report, selected, validationSource);
             if (evidenceWarnings.length) {
               report += "\n\n### Автоматическая проверка ссылок\n" + evidenceWarnings.map(item => "- NOT VERIFIED: " + item).join("\n");
             }
