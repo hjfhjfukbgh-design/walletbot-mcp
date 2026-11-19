@@ -876,3 +876,10 @@
 - Validation at log time: deploy workflow test job passed npm ci, syntax checks, npm run typecheck, and npm test; screenshot workflow run 44438972921 was still in progress. No merge or production deploy performed.
 - Agent audit: issue #203 is agent-blocked; no open issues currently carry agent-ready. Team A/B/C have backlog issues but many are agent-blocked; scheduled fan-out run 44430732436 completed its claim job but skipped worker execution (zero eligible tasks). Orchestrator run 44428508319 skipped specialist execution; its shell log also showed unescaped backticks in a summary string (orchestrator-ready, agent-ready) being interpreted as commands. A previous worker execution 44413048813 failed with unknown status. The worker workflows call Gemini API using GitHub secrets; project billing/free-tier status is unverified, so no worker dispatch was triggered.
 - Deployment gate remains: production deploy only after Cloudflare zero-cost allowance is verified; no financial writes or LIVE orders.
+
+
+## 2026-11-19T06:46:00+05:00 — LIVE preview regression tests merged; AI paper screenshot assertion refined
+- PR #357 reviewed: tests cover Walt prepare preview with contractId 0, unsupported-market rejection before prepare, and blocking a second open when a position exists. All Walt calls are mocked; no execute call is made by preview tests.
+- CI run 44437997298: test job passed; deploy job skipped (pull request). PR #357 squash-merged as 44dda2744267d9b0b5a4aa549867e774f1b2dbea.
+- PR #356 screenshot gate still failed at the AI paper recovery assertion after the first fixture adjustment. Refined the scenario to verify the final virtual ledger balances and only retry when a pending idempotency key remains, rather than requiring one exact UI message. Commit 4e5912b12a2384bbf59624cb62892df979a70dfd. New workflow run was not yet visible at log time.
+- No production deployment performed; Cloudflare zero-cost allowance remains unverified.
