@@ -1719,3 +1719,9 @@ html[data-theme="dark"] #kg-companion-screen .kg-ai-form{background:rgba(28,28,3
 html[data-theme="dark"] .kg-nav{background:rgba(28,28,30,.76);border-color:rgba(255,255,255,.10);box-shadow:0 10px 36px rgba(0,0,0,.36)}
 html[data-theme="dark"] .kg-asset-actions{background:rgba(28,28,30,.90)}
 html[data-theme="dark"] .kg-glass-surface{background:rgba(28,28,30,.76);border-color:rgba(255,255,255,.10)}
+
+.kg-wallet-positions-heading{display:flex;align-items:center;gap:9px}
+.kg-wallet-positions-heading h2{margin-right:auto}
+.kg-wallet-positions-heading .kg-mode-badge{font-size:9px;min-height:22px;padding-inline:8px}
+.kg-wallet-position-row{min-height:62px}
+.kg-wallet-position-row .kg-wallet-row-value{font-size:12px}
