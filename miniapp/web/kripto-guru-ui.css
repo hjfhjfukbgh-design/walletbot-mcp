@@ -1132,41 +1132,41 @@ button.kg-wallet-avatar{padding:0;appearance:none;cursor:pointer}
 @media(max-width:360px){.kg-ticket-autoclose-fields{grid-template-columns:1fr}}
 
 /* Kripto Guru dark surface overrides */
-.kg-screen.is-active{background:#0b1018}
-.kg-subscreen{background:#0b1018;color:#eef3fa}
-html,body{background:#0b1018;color:#eef3fa}
-.kg-balance-card,.kg-favorite,.kg-list,.kg-asset-row,.kg-discover-card,.kg-search-toggle,.kg-search-close,#kg-market-search,.kg-recent-chip,.kg-ipo-card,.kg-category,.kg-top-item,.kg-market-row,.kg-unavailable-panel,.kg-empty-inline,.kg-empty-card,.kg-position,.kg-close-position,.kg-bonus-card,.kg-settings-note,.kg-back,.kg-badge,.kg-asset-large-icon,.kg-chart-card,.kg-timeframes,.kg-asset-actions,.kg-modal-card,.kg-asset-about,.kg-ai-history-item,.kg-ai-messages,.kg-ai-form,.kg-ai-menu,.kg-ai-new-chat,.kg-ai-limits,.kg-ai-welcome,.kg-gemini-icon-button,.kg-gemini-tools button{background:#141c27;color:#eef3fa;border-color:rgba(173,190,211,.12)}
-.kg-nav{background:rgba(20,28,39,.88);border-color:rgba(173,190,211,.14)}
-.kg-muted,.kg-page-title p,.kg-card-copy small,.kg-row-copy small,.kg-favorite small,.kg-unavailable-row>strong,.kg-discover-icon,.kg-chevron,.kg-search-toggle,.kg-search-close,#kg-market-search,.kg-market-copy small,.kg-unavailable-icon,.kg-unavailable-panel p,.kg-empty-inline,.kg-empty-card,.kg-position-meta,.kg-history-copy small,.kg-bonus-card p,.kg-settings-note,.kg-nav button,.kg-subscreen .kg-asset-identity small,.kg-detail-row span,.kg-ticket-volume,.kg-ticket-available,.kg-ticket-preview,#kg-lev-warning,.kg-ai-head p,.kg-ai-history-item small,.kg-ai-disclaimer,.kg-ai-menu-head small,.kg-ai-limit-row,.kg-gemini-model,#kg-companion-screen .kg-ai-welcome>p,.kg-gemini-tools button,.kg-gemini-composer-icon,#kg-companion-screen .kg-ai-disclaimer{color:#94a3b8}
-.kg-primary,.kg-ai-new-chat,#kg-companion-screen .kg-ai-form button{background:#3989f4;color:#fff}
-.kg-primary{box-shadow:0 4px 16px rgba(57,137,244,.28)}
+.kg-screen.is-active{background:var(--kg-bg)}
+.kg-subscreen{background:var(--kg-bg);color:var(--kg-ink)}
+html,body{background:var(--kg-bg);color:var(--kg-ink)}
+.kg-balance-card,.kg-favorite,.kg-list,.kg-asset-row,.kg-discover-card,.kg-search-toggle,.kg-search-close,#kg-market-search,.kg-recent-chip,.kg-ipo-card,.kg-category,.kg-top-item,.kg-market-row,.kg-unavailable-panel,.kg-empty-inline,.kg-empty-card,.kg-position,.kg-close-position,.kg-bonus-card,.kg-settings-note,.kg-back,.kg-badge,.kg-asset-large-icon,.kg-chart-card,.kg-timeframes,.kg-asset-actions,.kg-modal-card,.kg-asset-about,.kg-ai-history-item,.kg-ai-messages,.kg-ai-form,.kg-ai-menu,.kg-ai-new-chat,.kg-ai-limits,.kg-ai-welcome,.kg-gemini-icon-button,.kg-gemini-tools button{background:var(--kg-card);color:var(--kg-ink);border-color:var(--kg-line)}
+.kg-nav{background:rgba(20,28,39,.88);border-color:var(--kg-line)}
+.kg-muted,.kg-page-title p,.kg-card-copy small,.kg-row-copy small,.kg-favorite small,.kg-unavailable-row>strong,.kg-discover-icon,.kg-chevron,.kg-search-toggle,.kg-search-close,#kg-market-search,.kg-market-copy small,.kg-unavailable-icon,.kg-unavailable-panel p,.kg-empty-inline,.kg-empty-card,.kg-position-meta,.kg-history-copy small,.kg-bonus-card p,.kg-settings-note,.kg-nav button,.kg-subscreen .kg-asset-identity small,.kg-detail-row span,.kg-ticket-volume,.kg-ticket-available,.kg-ticket-preview,#kg-lev-warning,.kg-ai-head p,.kg-ai-history-item small,.kg-ai-disclaimer,.kg-ai-menu-head small,.kg-ai-limit-row,.kg-gemini-model,#kg-companion-screen .kg-ai-welcome>p,.kg-gemini-tools button,.kg-gemini-composer-icon,#kg-companion-screen .kg-ai-disclaimer{color:var(--kg-muted)}
+.kg-primary,.kg-ai-new-chat,#kg-companion-screen .kg-ai-form button{background:var(--kg-blue);color:#fff}
+.kg-primary{box-shadow:0 4px 16px color-mix(in srgb,var(--kg-blue) 28%,transparent)}
 .kg-primary:hover{opacity:.94}
-.kg-currency-icon{background:rgba(25,166,107,.15);color:#19a66b}
-.kg-asset-icon{background:#1b2634;color:#94a3b8}
-.kg-discover-icon.is-green{background:rgba(25,166,107,.15);color:#19a66b}
-.kg-category-icon.is-blue{background:rgba(57,137,244,.18);color:#3989f4}
-.kg-category.is-selected{border-color:#3989f4;background:#1b2634}
+.kg-currency-icon{background:color-mix(in srgb,var(--kg-green) 15%,transparent);color:var(--kg-green)}
+.kg-asset-icon{background:var(--kg-surface-2);color:var(--kg-muted)}
+.kg-discover-icon.is-green{background:color-mix(in srgb,var(--kg-green) 15%,transparent);color:var(--kg-green)}
+.kg-category-icon.is-blue{background:color-mix(in srgb,var(--kg-blue) 18%,transparent);color:var(--kg-blue)}
+.kg-category.is-selected{border-color:var(--kg-blue);background:var(--kg-surface-2)}
 .kg-category-icon.is-orange{background:rgba(233,151,25,.18);color:#e99719}
 .kg-category-icon.is-purple{background:rgba(146,100,213,.18);color:#9264d5}
 .kg-category-icon.is-teal{background:rgba(35,168,141,.18);color:#23a88d}
-.kg-sort{background:#1b2634}
-.kg-sort button.is-selected,.kg-timeframes button.is-selected{background:#141c27;color:#3989f4}
-.kg-fav-remove,.kg-close-position{background:rgba(226,83,96,.18);color:#e25360}
-.kg-nav button.is-active{background:rgba(57,137,244,.18);color:#3989f4}
-.kg-ticket{background:#141c27;color:#eef3fa}
-.kg-ticket-close,.kg-ticket-heading,.kg-ticket-actions .kg-badge,.kg-leverage-value button{background:#1b2634;color:#eef3fa}
-.kg-ticket-amount input{color:#eef3fa;caret-color:#3989f4}
-.kg-toast{background:#1b2634;color:#eef3fa}
-.kg-ai-message.is-user>div{background:#3989f4;color:#fff}
-.kg-ai-message.is-assistant>div{background:#1b2634;color:#eef3fa}
-.kg-gemini-home{background:radial-gradient(ellipse 72% 35% at 50% 43%,rgba(57,137,244,.14),transparent 72%),#0b1018}
-.kg-gemini-icon-button{background:rgba(27,38,52,.7);color:#eef3fa;border-color:rgba(173,190,211,.16)}
-.kg-gemini-tools button{background:rgba(27,38,52,.65);color:#eef3fa}
-#kg-companion-screen .kg-ai-form{background:rgba(20,28,39,.82);border-color:rgba(173,190,211,.18)}
-#kg-ai-send{background:#3989f4;color:#fff}
-.kg-ai-menu{background:#141c27;color:#eef3fa}
-.kg-ai-menu-head button{background:#1b2634;color:#eef3fa}
-#kg-companion-screen .kg-ai-message.is-user>div{background:rgba(57,137,244,.25);color:#eef3fa}
+.kg-sort{background:var(--kg-surface-2)}
+.kg-sort button.is-selected,.kg-timeframes button.is-selected{background:var(--kg-card);color:var(--kg-blue)}
+.kg-fav-remove,.kg-close-position{background:color-mix(in srgb,var(--kg-red) 18%,transparent);color:var(--kg-red)}
+.kg-nav button.is-active{background:color-mix(in srgb,var(--kg-blue) 18%,transparent);color:var(--kg-blue)}
+.kg-ticket{background:var(--kg-card);color:var(--kg-ink)}
+.kg-ticket-close,.kg-ticket-heading,.kg-ticket-actions .kg-badge,.kg-leverage-value button{background:var(--kg-surface-2);color:var(--kg-ink)}
+.kg-ticket-amount input{color:var(--kg-ink);caret-color:var(--kg-blue)}
+.kg-toast{background:var(--kg-surface-2);color:var(--kg-ink)}
+.kg-ai-message.is-user>div{background:var(--kg-blue);color:#fff}
+.kg-ai-message.is-assistant>div{background:var(--kg-surface-2);color:var(--kg-ink)}
+.kg-gemini-home{background:radial-gradient(ellipse 72% 35% at 50% 43%,color-mix(in srgb,var(--kg-blue) 14%,transparent),transparent 72%),var(--kg-bg)}
+.kg-gemini-icon-button{background:color-mix(in srgb,var(--kg-surface-2) 70%,transparent);color:var(--kg-ink);border-color:var(--kg-line)}
+.kg-gemini-tools button{background:color-mix(in srgb,var(--kg-surface-2) 65%,transparent);color:var(--kg-ink)}
+#kg-companion-screen .kg-ai-form{background:color-mix(in srgb,var(--kg-card) 82%,transparent);border-color:var(--kg-line)}
+#kg-ai-send{background:var(--kg-blue);color:#fff}
+.kg-ai-menu{background:var(--kg-card);color:var(--kg-ink)}
+.kg-ai-menu-head button{background:var(--kg-surface-2);color:var(--kg-ink)}
+#kg-companion-screen .kg-ai-message.is-user>div{background:color-mix(in srgb,var(--kg-blue) 25%,transparent);color:var(--kg-ink)}
 
 
 
