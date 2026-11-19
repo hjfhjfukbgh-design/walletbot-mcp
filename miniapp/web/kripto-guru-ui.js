@@ -391,7 +391,7 @@
         const label=!group.date?"Дата не указана":dayKey(group.date)===dayKey(today)?"Сегодня":dayKey(group.date)===dayKey(yesterday)?"Вчера":group.date.toLocaleDateString("ru-RU",{day:"numeric",month:"long"});
         const rows=group.items.map(e=>{
           const side=String(e.side||"").toLowerCase(),pnl=Number(e.netPnlUsd??e.pnlUsd??e.pnl),raw=String(e.event||e.type||e.status||"").toLowerCase();
-          const closed=/close|closed|закрыт/.test(raw),opened=/open|opened|открыт/.test(raw);
+          const closed=/close|closed|закрыт|закрытие/.test(raw),opened=/open|opened|открыт|открытие/.test(raw);
           const action=opened?"Открыта позиция":closed?"Закрыта позиция":e.event||e.type||e.status||"Операция";
           const pnlClass=Number.isFinite(pnl)?(pnl>=0?"kg-positive":"kg-negative"):"kg-muted";
           const icon=closed?"−":opened?"+":"·",iconClass=closed?"is-close":opened?"is-open":"";
