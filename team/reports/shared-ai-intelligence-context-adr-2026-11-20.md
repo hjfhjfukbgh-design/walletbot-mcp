@@ -38,7 +38,7 @@ The current `TradingEngine` SQLite schema in `src/trading/engine.ts:80-104` cont
 - `ai_paper_accounts`: `user_id`, virtual balance, `status`, strategy ID/version, risk config JSON, created/updated timestamps.
 - `ai_paper_ledger`: idempotency key, kind, amount, balance before/after, reference ID, created timestamp.
 - `ai_paper_positions`: symbol, side, quantity, entry price, margin, leverage, fees/slippage, stop/take-profit, open/closed status, timestamps and `close_json`.
-- `ai_paper_decisions`: tick ID, strategy ID/version, market snapshot hash, symbol, BUY/SELL/HOLD signal, rationale, confidence, observed price, risk pass/rejection reason, linked position ID and created timestamp.
+- `ai_paper_decisions`: tick ID, strategy ID/version, market snapshot hash, symbol, BUY/SELL/HOLD signal, rationale, confidence, observed price, risk pass/rejection reason, linked position ID and created timestamp. Draft PR #616 adds a separate `snapshot_retrieved_at` field; `created_at` remains the decision-record timestamp.
 
 Existing read routes are:
 - `GET /ai/paper/status` — `src/trading/engine.ts:154-160`, status projection in `:842-866`.
@@ -48,17 +48,17 @@ Existing read routes are:
 
 **Gaps confirmed from the current schema:**
 - `ai_paper_accounts` stores a status and strategy, but no durable session ID, started-at, expiry, stop reason, authorization scope, or revocation record.
-- `ai_paper_decisions` stores a `market_snapshot_hash` and one `observed_price`, but no full immutable snapshot payload or source-reference list. A hash alone cannot reconstruct the snapshot.
+- `ai_paper_decisions` on main stores a `market_snapshot_hash` and one `observed_price`, but no full immutable snapshot payload or source-reference list. Draft PR #616 adds `snapshot_retrieved_at` separately from decision `created_at`, but a hash alone still cannot reconstruct the snapshot.
 - `ai_paper_ledger` is a financial-operation ledger, not a complete audit-event stream for every analysis, risk rejection, scheduler action or session transition.
 - The current API exposes status, decisions and positions, but no user-facing read route for the AI PAPER ledger.
 
-A draft, unmerged implementation in [PR #616](https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/616) generates a public Hyperliquid snapshot in `src/ai-paper.ts:116-140`, hashes it, and sends it to Gemini. It persists the hash and selected observed price with the decision; it does not yet persist the complete snapshot payload. This PR is Draft and is not part of main. The future context contract must not imply that the snapshot can be reconstructed from the hash.
+A draft, unmerged implementation in [PR #616](https://github.com/hjfhjfukbgh-design/walletbot-mcp/pull/616) generates a public Hyperliquid snapshot, hashes it, and sends it to Gemini. It now persists `snapshotRetrievedAt` separately from decision `createdAt`, but the public contract response exposes no per-quote exchange timestamp: `snapshotRetrievedAt` is when the Worker retrieved the response, not when Hyperliquid says the quote was observed. The 10-minute check measures time since Worker retrieval, not upstream quote age. The full snapshot payload is still not persisted; a hash cannot reconstruct it. This PR is Draft and is not part of main.
 
 ### 2.3 Market and news evidence
 
 - `src/prices.ts:20-56` reads public Hyperliquid `metaAndAssetCtxs` data and maps symbol, price, 24h volume, funding and 24h change.
 - `src/prices.ts:3-14` reads public mid prices.
-- The draft AI PAPER generator in PR #616 uses the public Hyperliquid source, a server observation timestamp, and a maximum mark age of 10 minutes (`src/ai-paper.ts:17-18, 116-140`).
+- The draft AI PAPER generator in PR #616 uses the public Hyperliquid source, a Worker retrieval timestamp, and a maximum 10-minute age since retrieval (`src/ai-paper.ts:17-18, 140-145`). The upstream response does not provide a per-quote observation timestamp, so this is not proof of exchange-side quote freshness.
 - No `src/analyst.ts`, news ingestion service, Analyst findings table, or persistent market-snapshot table exists in `src/`. `src/strategy/grid.ts` is a trading/grid strategy module, not an AI Analyst.
 - `team/reports/role-analyst-issue-445-44626257711.md` is a Mini App capability report, not an Analyst runtime implementation.
 
@@ -142,7 +142,7 @@ The existing AI PAPER fields map to this envelope as follows:
 - position data comes from `ai_paper_positions`;
 - funding/withdrawal/open/close accounting comes from `ai_paper_ledger`;
 - session status and strategy ID/version come from `ai_paper_accounts`;
-- full market snapshot payload and Analyst findings are currently missing and must be persisted by future work.
+- the full market snapshot payload and Analyst findings are currently missing and must be persisted by future work. PR #616's retrieval timestamp does not substitute for a source-provided observation timestamp.
 
 ### 3.3 Snapshot and Analyst finding records
 
@@ -152,6 +152,8 @@ Proposed immutable snapshot record:
 type MarketSnapshotV1 = EvidenceMeta & {
   schemaVersion: "kg.market-snapshot.v1";
   source: "hyperliquid-public" | string;
+  retrievedAt: string;
+  sourceObservedAt: string | null;
   markets: Array<{
     symbol: string;
     price: string;
@@ -235,10 +237,10 @@ Anti-circularity rules:
 
 ## 6. Freshness and provenance policy
 
-- Every market observation carries provider/source, symbol, observed timestamp, ingest timestamp and immutable content hash.
-- The draft AI PAPER implementation in PR #616 currently uses a 10-minute maximum mark age for decision generation (`src/ai-paper.ts:17-18`). This is a proposed implementation detail under review, not a universal TTL for all context sources.
+- Every market snapshot carries provider/source, symbol, Worker `retrievedAt`, optional provider `sourceObservedAt` (null when unavailable), and immutable content hash.
+- The draft AI PAPER implementation in PR #616 checks that Worker `retrievedAt` is no more than 10 minutes old when persisting the decision (`src/ai-paper.ts:17-18, 140-145, 256-258`). This is not an upstream quote-age guarantee and is not a universal TTL for all context sources.
 - News freshness must be source-specific. No news source or TTL is implemented; do not invent a global news age. Until a policy is approved, findings without a verifiable publication/retrieval timestamp are `unknown` and cannot satisfy a strategy's required-evidence gate.
-- A saved decision remains a historical fact even after its market snapshot becomes stale. Companion may explain it as historical, with the observation time, but must not present it as a current recommendation.
+- A saved decision remains a historical fact even after its market snapshot becomes stale. Companion may explain it as historical, with the Worker retrieval time and a clear note that no upstream quote timestamp was supplied, but must not present it as a current recommendation.
 - Hash mismatch, missing snapshot payload, or missing source references must be represented explicitly; a hash is an integrity fingerprint, not a replacement for the underlying snapshot.
 
 ## 7. Failure states and required behavior
@@ -301,8 +303,8 @@ Do not create a third top-level mode called AI. Do not infer AI LIVE readiness f
 3. Manual DEMO and AI PAPER accounts/positions never mix.
 4. LIVE Manual and future AI LIVE evidence are distinct; no AI LIVE context is returned before the authorization/audit contract exists.
 5. Fresh/stale/missing/partial evidence states are explicit and deterministic.
-6. Market snapshot hash is checked against the persisted immutable payload.
-7. AI PAPER decision includes snapshot ID/hash, observed timestamp, strategy version and Analyst finding IDs used.
+6. Market snapshot hash is checked against a persisted immutable payload; `retrievedAt` is distinguished from provider `sourceObservedAt` and is never presented as an exchange timestamp.
+7. AI PAPER decision includes snapshot ID/hash, Worker retrieval timestamp, optional provider observation timestamp, strategy version and Analyst finding IDs used.
 8. Companion explains a saved decision from persisted rationale/evidence without a second model-generated rationale.
 9. Missing/stale required evidence blocks new AI PAPER decisions.
 10. Analyst finding provenance includes original public source refs, publication/retrieval timestamps and content hash.
