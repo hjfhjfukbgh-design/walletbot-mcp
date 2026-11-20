@@ -977,7 +977,7 @@ export class TradingEngine {
     return Response.json({ ok: true });
   }
 
-  private recordAiPaperDecision(body: Record<string, unknown>): Response {
+  private async recordAiPaperDecision(body: Record<string, unknown>): Promise<Response> {
     const userId = String(body.userId ?? "");
     const tickId = String(body.tickId ?? "");
     const strategyId = String(body.strategyId ?? "");
@@ -1035,6 +1035,11 @@ export class TradingEngine {
         return Response.json({ ok: false, error: "Цена решения не совпадает с сохранённым снимком рынка." }, { status: 400 });
       try { snapshotJson = JSON.stringify(snapshotPayload); } catch { return Response.json({ ok: false, error: "Не удалось сериализовать снимок рынка." }, { status: 400 }); }
       if (snapshotJson.length > 32_768) return Response.json({ ok: false, error: "Снимок рынка превышает допустимый размер." }, { status: 413 });
+      if (!/^[a-f0-9]{64}$/i.test(marketSnapshotHash)) return Response.json({ ok: false, error: "Некорректный SHA-256 снимка рынка." }, { status: 400 });
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(snapshotJson));
+      const computedHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      if (computedHash !== marketSnapshotHash.toLowerCase())
+        return Response.json({ ok: false, error: "SHA-256 не соответствует содержимому снимка рынка." }, { status: 400 });
     }
     const id = crypto.randomUUID();
     let duplicate = false;
