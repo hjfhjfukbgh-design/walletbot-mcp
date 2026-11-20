@@ -194,7 +194,8 @@ export class TradingEngine {
             );
             pendingState = "external_outcome_unknown";
           } else {
-            this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?", userId, tickId);
+            // Expired pre-external claim remains as a fencing-token counter; claim() advances the token.
+            pendingState = null;
           }
         });
         if (row) return Response.json({ ok: true, state: "completed", decision: {
@@ -827,7 +828,7 @@ export class TradingEngine {
   private claimAiPaperDecision(body: Record<string, unknown>): Response {
     const userId = String(body.userId ?? "");
     const tickId = String(body.tickId ?? "");
-    if (!/^\\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
+    if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
       return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
 
     const now = Date.now();
@@ -893,7 +894,7 @@ export class TradingEngine {
     const userId = String(body.userId ?? "");
     const tickId = String(body.tickId ?? "");
     const fencingToken = Number(body.fencingToken);
-    if (!/^\\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
+    if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
         !Number.isSafeInteger(fencingToken) || fencingToken < 1)
       return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
     const now = Date.now();
@@ -920,7 +921,7 @@ export class TradingEngine {
     const userId = String(body.userId ?? "");
     const tickId = String(body.tickId ?? "");
     const fencingToken = Number(body.fencingToken);
-    if (!/^\\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
+    if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
         !Number.isSafeInteger(fencingToken) || fencingToken < 1)
       return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
     const now = Date.now();
@@ -938,7 +939,7 @@ export class TradingEngine {
     const tickId = String(body.tickId ?? "");
     const fencingToken = Number(body.fencingToken);
     const safeToRetry = body.safeToRetry === true;
-    if (!/^\\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
+    if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
         !Number.isSafeInteger(fencingToken) || fencingToken < 1)
       return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
     const now = Date.now();
@@ -953,7 +954,10 @@ export class TradingEngine {
         return;
       }
       if (row.external_started_at === null || (safeToRetry && row.state === "external_started")) {
-        this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?", userId, tickId);
+        this.ctx.storage.sql.exec(
+          "UPDATE ai_paper_decision_runs SET state = 'retryable', external_started_at = NULL, lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ? AND fencing_token = ?",
+          now, now, userId, tickId, fencingToken,
+        );
       } else {
         this.ctx.storage.sql.exec(
           "UPDATE ai_paper_decision_runs SET state = 'external_outcome_unknown', lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ? AND fencing_token = ?",
@@ -982,6 +986,9 @@ export class TradingEngine {
     const riskPass = body.riskPass;
     const rejectionReason = body.rejectionReason === undefined || body.rejectionReason === null ? null : String(body.rejectionReason).trim();
     const positionId = body.positionId === undefined || body.positionId === null ? null : String(body.positionId);
+    const fencingToken = body.fencingToken === undefined ? null : Number(body.fencingToken);
+    if (fencingToken !== null && (!Number.isSafeInteger(fencingToken) || fencingToken < 1))
+      return Response.json({ ok: false, error: "Некорректный fencing token AI paper." }, { status: 400 });
     if (!/^\d{1,20}$/.test(userId) ||
         !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
         !/^[A-Za-z0-9._:-]{1,64}$/.test(strategyId) ||
@@ -1028,6 +1035,17 @@ export class TradingEngine {
           this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?", userId, tickId);
         } else conflict = true;
         return;
+      }
+      if (fencingToken !== null) {
+        const claim = this.ctx.storage.sql.exec(
+          "SELECT state, lease_expires_at, fencing_token FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?",
+          userId, tickId,
+        ).toArray()[0] as { state: string; lease_expires_at: number; fencing_token: number } | undefined;
+        if (!claim || Number(claim.fencing_token) !== fencingToken || claim.state !== "external_started" ||
+            Number(claim.lease_expires_at) <= now) {
+          conflict = true;
+          return;
+        }
       }
       if (!Number.isSafeInteger(serverObservedAt) || serverObservedAt <= 0 ||
           serverObservedAt > now || now - serverObservedAt > AI_PAPER_MARK_MAX_AGE_MS) {
