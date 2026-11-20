@@ -804,6 +804,11 @@ export class TradingEngine {
     }
 
     const now = Date.now();
+    const serverObservedAt = body.serverObservedAt === undefined ? now : Number(body.serverObservedAt);
+    if (!Number.isSafeInteger(serverObservedAt) || serverObservedAt <= 0 ||
+        serverObservedAt > now || now - serverObservedAt > AI_PAPER_MARK_MAX_AGE_MS) {
+      return Response.json({ ok: false, error: "Серверная котировка отсутствует, устарела или имеет неверное время." }, { status: 400 });
+    }
     const id = crypto.randomUUID();
     let duplicate = false;
     let conflict = false;
@@ -832,7 +837,7 @@ export class TradingEngine {
       this.ctx.storage.sql.exec(
         "INSERT INTO ai_paper_decisions(id,user_id,tick_id,strategy_id,strategy_version,market_snapshot_hash,symbol,signal,rationale,confidence,observed_price,risk_pass,rejection_reason,position_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         id, userId, tickId, strategyId, strategyVersion, marketSnapshotHash, symbol, signal, rationale,
-        confidence, observedPrice, riskPass ? 1 : 0, rejectionReason, positionId, now,
+        confidence, observedPrice, riskPass ? 1 : 0, rejectionReason, positionId, serverObservedAt,
       );
     });
     if (conflict) return Response.json({ ok: false, error: "Tick id уже записан с другим решением." }, { status: 409 });
