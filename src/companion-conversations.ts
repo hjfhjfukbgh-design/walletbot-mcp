@@ -40,7 +40,7 @@ export class CompanionConversation {
     this.identityValid=!!match;
     this.tenantId=match?.[1] ?? "";
     this.conversationId=match?.[2] ?? "";
-    this.sql.exec(\`CREATE TABLE IF NOT EXISTS companion_conversation (
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS companion_conversation (
       conversation_id TEXT PRIMARY KEY,
       tenant_id TEXT NOT NULL,
       mode TEXT NOT NULL,
@@ -48,8 +48,8 @@ export class CompanionConversation {
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       next_sequence INTEGER NOT NULL DEFAULT 1
-    )\`);
-    this.sql.exec(\`CREATE TABLE IF NOT EXISTS companion_messages (
+    )`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS companion_messages (
       sequence INTEGER NOT NULL,
       ordinal INTEGER NOT NULL,
       role TEXT NOT NULL CHECK(role IN ('user','assistant')),
@@ -57,8 +57,8 @@ export class CompanionConversation {
       sources_json TEXT,
       created_at INTEGER NOT NULL,
       PRIMARY KEY(sequence,ordinal)
-    )\`);
-    this.sql.exec(\`CREATE TABLE IF NOT EXISTS companion_requests (
+    )`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS companion_requests (
       request_id TEXT PRIMARY KEY,
       sequence INTEGER NOT NULL UNIQUE,
       state TEXT NOT NULL,
@@ -72,7 +72,7 @@ export class CompanionConversation {
       provider_call_started_at INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
-    )\`);
+    )`);
     this.sql.exec("CREATE INDEX IF NOT EXISTS companion_requests_state_sequence ON companion_requests(state,sequence)");
     this.sql.exec("CREATE INDEX IF NOT EXISTS companion_requests_lease ON companion_requests(state,lease_expires_at)");
   }
