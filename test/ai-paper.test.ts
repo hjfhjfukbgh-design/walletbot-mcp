@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { runAiPaperDecision } from "../src/ai-paper";
 import type { Env } from "../src/env";
 import type { ContractInfo } from "../src/strategy/grid";
@@ -243,7 +243,7 @@ describe("runAiPaperDecision", () => {
         if (path.startsWith("/ai/paper/status")) return Response.json({ status: "active" });
         writes++;
         return Response.json({ ok: true }, { status: 201 });
-      },
+      }),
     };
     const timeout = await runAiPaperDecision(makeEnv(), "123456789", "manual-run-timeout", {
       ...common,
@@ -269,6 +269,7 @@ describe("runAiPaperDecision", () => {
     let modelCalls = 0;
     const result = await runAiPaperDecision(env, "123456789", "manual-run-bad-risk-config", {
       now: () => NOW,
+      engineRequest: claimAwareEngine(async () => Response.json({ status: "active" })),
       getContracts: async () => contracts,
       fetcher: async () => { modelCalls++; return geminiResponse("{}"); },
     });
