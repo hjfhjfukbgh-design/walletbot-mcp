@@ -263,3 +263,40 @@ For example, 1,000 completed messages/day would be roughly 4,000–10,000 row wr
 ## Conclusion
 
 The current bug is a lost-update race in KV read-modify-write, not a failure of JavaScript's single-threaded execution. A per-tenant/per-conversation SQLite Durable Object with a durable FIFO, atomic claim/fencing, and request replay is the recommended fix. The provider call must remain outside database transactions, and the design must explicitly handle the ambiguous crash window rather than promising exactly-once external calls. Account-specific cost and quota headroom remain unverified until checked in Cloudflare.
+
+
+## 11. 2026-11-20 Team Lead addendum — current Cloudflare retry semantics
+
+This addendum records two current platform behaviors that must be carried into implementation and tests. It does not change the recommendation above.
+
+### 11.1 Durable Object stub automatic retries
+
+Cloudflare documents automatic retries for retryable Durable Object `fetch()`/RPC failures (updated 2026-11-05): the runtime can retry a call when it may not have reached the object, or when the connection drops and delivery is ambiguous. In the ambiguous-delivery case, the same request identity is used and the DO rejects the retry if the first attempt already arrived; the handler does not run twice by default. Explicitly marking a method with `retryable()` changes that behavior and is only safe for truly idempotent operations.
+
+Implementation requirements:
+- Do not mark enqueue/process/finalize methods retryable unless their complete effects are idempotent under duplicate invocation.
+- Preserve application-level `requestId` and durable state checks regardless of platform retry behavior; platform request identity is not a replacement for user-action idempotency across separate HTTP requests.
+- Map ambiguous stub-call errors to a retriable client status only when the persisted request state can be queried safely. Do not create a new logical request ID automatically.
+- Add a test or explicit mock contract for a stub call that reaches the DO but loses its response; a retry must not duplicate the queued user message or Gemini generation.
+
+Primary source: https://developers.cloudflare.com/durable-objects/best-practices/automatic-retries/
+
+### 11.2 Alarm retry exhaustion and recovery
+
+Alarms are at-least-once, but automatic retries after an uncaught failure are bounded to six retries with exponential backoff. Cloudflare specifically recommends catching errors and scheduling a new alarm before returning if the application requires retries to continue beyond that bounded retry series.
+
+Implementation requirements:
+- Alarm processing must re-read SQLite state and be idempotent; it must never infer provider-call success merely because an alarm ran.
+- If transient failures are caught, persist the retry/backoff state and call `setAlarm()` for a future attempt before returning successfully.
+- If the bounded platform retries are exhausted, there must still be a durable recovery path (for example a later scheduled alarm or explicit operator/user retry) and a visible stalled/unknown state. Do not leave queued work silently stranded.
+- Add tests for repeated downstream failures, retry counter/backoff, alarm re-arming, and terminal `provider_outcome_unknown` handling after the provider-call boundary.
+
+Primary source: https://developers.cloudflare.com/durable-objects/api/alarms/
+
+### 11.3 Verification boundary
+
+Current repository evidence still shows the legacy KV read-modify-write lifecycle in `src/companion.ts`: conversation load around lines 114–128, Gemini fetch around 180–200, and whole-conversation KV write around 232–241. `wrangler.toml` currently binds `ENGINE` and `COMPANION_QUOTA`, but no `COMPANION_CONVERSATIONS` binding. The global quota DO remains separate and must not become the per-conversation serialization point.
+
+No Cloudflare account plan, live usage, or overage setting was inspected. Cost/headroom remains NOT VERIFIED.
+
+This addendum is a required design input for #632 and does not itself authorize a binding migration, production deploy, or paid usage.
