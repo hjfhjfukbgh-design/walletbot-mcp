@@ -1,7 +1,8 @@
 import { applyEntrySlippage, closePosition, checkTrigger, manualCloseTrigger, openPosition, unrealizedPnl, type Position, type PositionInput } from "./positions";
 import { MONEY_SCALE, PRICE_SCALE, divRound, feeMicro, notionalMicro, parseFixed } from "./money";
+import { riskLimits } from "../env";
 
-interface EngineEnv { HYPERLIQUID_WS_URL?: string; ENGINE_MAX_QUOTE_AGE_MS?: string; ENGINE_DISABLE_SOCKET?: string; }
+interface EngineEnv { HYPERLIQUID_WS_URL?: string; ENGINE_MAX_QUOTE_AGE_MS?: string; ENGINE_DISABLE_SOCKET?: string; MAX_ORDER_PCT?: string; MAX_TOTAL_EXPOSURE_PCT?: string; MAX_DAILY_LOSS_PCT?: string; STOP_LOSS_PCT?: string; ALLOWED_MARKETS?: string; }
 interface Quote { price: bigint; observedAt: number; }
 const MAX_AGE_DEFAULT = 10_000;
 const WATCHDOG_MS = 30_000;
@@ -582,7 +583,40 @@ export class TradingEngine {
       if (!account) { invalidDecision = true; return; }
       if (account.status !== "active") { sessionInactive = true; return; }
       const before = BigInt(account.balance_micro);
+      if (before < 0n) { invalidDecision = true; return; }
       if (before < reserve) { insufficient = true; return; }
+
+      // Risk limits are server-owned Worker bindings. Missing/malformed values
+      // fail closed; never accept risk limits from the model or request body.
+      const rawMaxOrderPct = this.env.MAX_ORDER_PCT;
+      const rawMaxExposurePct = this.env.MAX_TOTAL_EXPOSURE_PCT;
+      const validPct = (value: string | undefined): boolean =>
+        value !== undefined && value.trim() !== "" &&
+        Number.isFinite(Number(value)) && Number(value) > 0 && Number(value) <= 100;
+      if (!validPct(rawMaxOrderPct) || !validPct(rawMaxExposurePct)) {
+        invalidDecision = true;
+        return;
+      }
+      const limits = riskLimits(this.env as Parameters<typeof riskLimits>[0]);
+      const maxOrderPpm = parseFixed(String(limits.maxOrderPct), 1_000_000n, 6);
+      const maxExposurePpm = parseFixed(String(limits.maxTotalExposurePct), 1_000_000n, 6);
+      if (maxOrderPpm <= 0n || maxOrderPpm > 100_000_000n ||
+          maxExposurePpm <= 0n || maxExposurePpm > 100_000_000n) {
+        invalidDecision = true;
+        return;
+      }
+      const openMarginRow = this.ctx.storage.sql.exec(
+        "SELECT COALESCE(SUM(CAST(margin_micro AS INTEGER)), 0) AS margin_micro FROM ai_paper_positions WHERE user_id = ? AND status = 'open'",
+        userId,
+      ).toArray()[0] as { margin_micro: number | string } | undefined;
+      const openMargin = BigInt(String(openMarginRow?.margin_micro ?? "0"));
+      const equity = before + openMargin;
+      const maxOrderReserve = divRound(equity * maxOrderPpm, 100n * 1_000_000n, "floor");
+      const maxAggregateMargin = divRound(equity * maxExposurePpm, 100n * 1_000_000n, "floor");
+      if (equity <= 0n || reserve > maxOrderReserve || openMargin + margin > maxAggregateMargin) {
+        positionLimitExceeded = true;
+        return;
+      }
       balanceAfter = before - reserve;
 
       this.ctx.storage.sql.exec(
