@@ -346,7 +346,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       userId: userA, tickId, fencingToken: tokenA, strategyId: "gemini-paper", strategyVersion: "1",
       marketSnapshotHash: "d".repeat(64), symbol: "BTC", signal: "buy",
       rationale: "Stable request replay test.", confidence: 0.8, observedPrice: "50000", riskPass: true,
-      serverObservedAt: Date.now(),
+      snapshotRetrievedAt: Date.now(),
     });
     expect(recorded.status).toBe(201);
 
@@ -388,7 +388,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       userId: userD, tickId: fencingTick, strategyId: "gemini-paper", strategyVersion: "1",
       marketSnapshotHash: "e".repeat(64), symbol: "BTC", signal: "hold",
       rationale: "Fencing token test.", confidence: 0.5, observedPrice: "50000", riskPass: true,
-      serverObservedAt: Date.now(),
+      snapshotRetrievedAt: Date.now(),
     };
     const staleFinalize = await post(stub, "/ai/paper/decision", { ...decisionBase, fencingToken: firstToken });
     expect(staleFinalize.status).toBe(409);
@@ -412,14 +412,14 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       rationale: "Server snapshot validated.", confidence: 0.8, observedPrice: "50000", riskPass: true,
     };
     const noClaim = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: "tick-server-mark-no-claim", serverObservedAt: Date.now(),
+      ...base, tickId: "tick-server-mark-no-claim", snapshotRetrievedAt: Date.now(),
     });
     expect(noClaim.status).toBe(400);
 
     const staleTick = "tick-server-mark-stale";
     const staleToken = await claimGeminiDecision(stub, owner, staleTick);
     const stale = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: staleTick, fencingToken: staleToken, serverObservedAt: Date.now() - 10 * 60_000 - 1,
+      ...base, tickId: staleTick, fencingToken: staleToken, snapshotRetrievedAt: Date.now() - 10 * 60_000 - 1,
     });
     expect(stale.status).toBe(400);
     await post(stub, "/ai/paper/decision/unknown", { userId: owner, tickId: staleTick, fencingToken: staleToken });
@@ -427,7 +427,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const futureTick = "tick-server-mark-future";
     const futureToken = await claimGeminiDecision(stub, owner, futureTick);
     const future = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: futureTick, fencingToken: futureToken, serverObservedAt: Date.now() + 5_000,
+      ...base, tickId: futureTick, fencingToken: futureToken, snapshotRetrievedAt: Date.now() + 5_000,
     });
     expect(future.status).toBe(400);
     await post(stub, "/ai/paper/decision/unknown", { userId: owner, tickId: futureTick, fencingToken: futureToken });
@@ -436,14 +436,15 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const freshTick = "tick-server-mark-fresh";
     const freshToken = await claimGeminiDecision(stub, owner, freshTick);
     const fresh = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: freshTick, fencingToken: freshToken, serverObservedAt: freshAt,
+      ...base, tickId: freshTick, fencingToken: freshToken, snapshotRetrievedAt: freshAt,
     });
     expect(fresh.status).toBe(201);
     const decisions = await stub.fetch("https://engine.test/ai/paper/decisions?userId=" + owner);
-    const body = await decisions.json() as { decisions: Array<{ createdAt: number }> };
-    expect(body.decisions[0].createdAt).toBe(freshAt);
+    const body = await decisions.json() as { decisions: Array<{ createdAt: number; snapshotRetrievedAt: number | null }> };
+    expect(body.decisions[0].snapshotRetrievedAt).toBe(freshAt);
+    expect(body.decisions[0].createdAt).toBeGreaterThanOrEqual(freshAt);
     const retry = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: freshTick, fencingToken: freshToken, serverObservedAt: freshAt - 10 * 60_000 - 1,
+      ...base, tickId: freshTick, fencingToken: freshToken, snapshotRetrievedAt: freshAt - 10 * 60_000 - 1,
     });
     expect(retry.status).toBe(200);
     expect(retry.body.duplicate).toBe(true);
