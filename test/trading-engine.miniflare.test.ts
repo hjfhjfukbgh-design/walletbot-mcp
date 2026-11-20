@@ -312,6 +312,48 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect((await history.json() as { decisions: unknown[] }).decisions).toHaveLength(0);
   });
 
+  it("claims AI paper runs once per tenant/tick and replays the completed ledger row", async () => {
+    const stub = await boot();
+    const userA = "777777771";
+    const userB = "888888881";
+    const tickId = "stable-tick-claim-001";
+    const claimA = await post(stub, "/ai/paper/decision/claim", { userId: userA, tickId });
+    expect(claimA.status).toBe(200);
+    expect(claimA.body).toMatchObject({ ok: true, state: "claimed" });
+
+    const concurrentRetry = await post(stub, "/ai/paper/decision/claim", { userId: userA, tickId });
+    expect(concurrentRetry.status).toBe(409);
+    expect(concurrentRetry.body.state).toBe("in_progress");
+
+    const sameTickOtherUser = await post(stub, "/ai/paper/decision/claim", { userId: userB, tickId });
+    expect(sameTickOtherUser.status).toBe(200);
+    expect(sameTickOtherUser.body.state).toBe("claimed");
+
+    const recorded = await post(stub, "/ai/paper/decision", {
+      userId: userA, tickId, strategyId: "gemini-paper", strategyVersion: "1",
+      marketSnapshotHash: "d".repeat(64), symbol: "BTC", signal: "buy",
+      rationale: "Stable request replay test.", confidence: 0.8, observedPrice: "50000", riskPass: true,
+      serverObservedAt: Date.now(),
+    });
+    expect(recorded.status).toBe(201);
+
+    const lookup = await stub.fetch("https://engine.test/ai/paper/decision?userId=" + userA + "&tickId=" + tickId);
+    expect(lookup.status).toBe(200);
+    expect(await lookup.json()).toMatchObject({
+      ok: true, state: "completed",
+      decision: { tickId, symbol: "BTC", signal: "buy", rationale: "Stable request replay test." },
+    });
+
+    const replay = await post(stub, "/ai/paper/decision/claim", { userId: userA, tickId });
+    expect(replay.status).toBe(200);
+    expect(replay.body).toMatchObject({ ok: true, state: "completed", decision: { id: recorded.body.id, tickId } });
+
+    await post(stub, "/ai/paper/decision/release", { userId: userB, tickId });
+    const retryOtherUser = await post(stub, "/ai/paper/decision/claim", { userId: userB, tickId });
+    expect(retryOtherUser.status).toBe(200);
+    expect(retryOtherUser.body.state).toBe("claimed");
+  });
+
   it("records only fresh non-future server observation timestamps for AI paper decisions", async () => {
     const stub = await boot();
     const owner = "777777771";
