@@ -30,7 +30,7 @@ Do **not** use a JavaScript mutex, Promise chain, KV lock, or `blockConcurrencyW
 - `src/tenants.ts:13-45` scopes KV keys with the authenticated Telegram user ID (the `tenant:${userId}:` prefix). This is useful tenant isolation for KV keys, but it does not make a multi-step read/fetch/write atomic.
 - `src/index.ts:31` routes Companion API requests to `handleCompanionApi`.
 - `miniapp/web/kripto-guru-ui.js:871-882` has a `companionBusy` flag around the current UI send action. This prevents a second send from that UI instance while it is busy; it does not coordinate another tab, device, Worker invocation, or a retry after a network timeout.
-- `test/companion.test.ts:547-580` tests concurrent quota reservations. The suite does not currently exercise two simultaneous chat writes to the same conversation.
+- `test/companion.test.ts:597-606` tests concurrent sliding-window quota reservations, and `:608-631` tests atomic multi-quota reservation. The suite does not currently exercise two simultaneous chat writes to the same conversation. It also lacked an explicit concurrent fixed-window daily-cap test on main; Draft PR #631 adds that regression test.
 
 ### 1.2 Why the current flow can lose messages
 
