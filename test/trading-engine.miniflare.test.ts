@@ -521,14 +521,14 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   });
 
   it.each([
-    ["missing", undefined, Date.now()],
-    ["malformed", "not-a-price", Date.now()],
-    ["stale", "50000", Date.now() - 10 * 60_000 - 1],
-    ["future", "50000", Date.now() + 2_000],
-    ["zero", "0", Date.now()],
-  ])("rejects %s AI paper marks", (_kind, price, createdAt) => {
+    ["missing", () => undefined, (now: number) => now],
+    ["malformed", () => "not-a-price", (now: number) => now],
+    ["stale", () => "50000", (now: number) => now - 10 * 60_000 - 1],
+    ["future", () => "50000", (now: number) => now + 2_000],
+    ["zero", () => "0", (now: number) => now],
+  ])("rejects %s AI paper marks", (_kind: string, price: () => unknown, timestamp: (now: number) => number) => {
     const now = Date.now();
-    expect(parseFreshAiPaperMark(price, createdAt, now)).toBeNull();
+    expect(parseFreshAiPaperMark(price(), timestamp(now), now)).toBeNull();
   });
 
   it("accepts a fresh positive AI paper decision mark using fixed-point arithmetic", () => {
