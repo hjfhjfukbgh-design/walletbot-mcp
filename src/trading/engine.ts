@@ -629,12 +629,13 @@ export class TradingEngine {
       const decisionObservedAt = Number(decision.created_at);
       const decisionMark = parseDecimal8(decision.observed_price);
       const latestEntryDecision = this.ctx.storage.sql.exec(
-        "SELECT id FROM ai_paper_decisions WHERE user_id = ? AND symbol = ? ORDER BY created_at DESC, id DESC LIMIT 1",
+        "SELECT MAX(created_at) AS created_at FROM ai_paper_decisions WHERE user_id = ? AND symbol = ?",
         userId, symbol,
-      ).toArray()[0] as { id: string } | undefined;
+      ).toArray()[0] as { created_at: number | null } | undefined;
       if (!Number.isSafeInteger(decisionObservedAt) || decisionObservedAt <= 0 ||
           decisionObservedAt > now + 1_000 || now - decisionObservedAt > AI_PAPER_MARK_MAX_AGE_MS ||
-          decisionMark === null || decisionMark <= 0n || latestEntryDecision?.id !== decision.id) {
+          decisionMark === null || decisionMark <= 0n ||
+          Number(latestEntryDecision?.created_at) !== decisionObservedAt) {
         invalidMark = true;
         return;
       }
