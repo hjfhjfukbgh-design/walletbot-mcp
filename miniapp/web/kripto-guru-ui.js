@@ -765,6 +765,7 @@
   }
   async function deleteCompanionConversation(id){
     if(!id||state.companionBusy)return;
+    if(state.companionPending?.conversationId===id){notify("Сначала завершите ожидающий запрос Companion.");return;}
     state.companionBusy=true;
     try{
       const removedActive=state.companionId===id;
@@ -788,6 +789,7 @@
   }
   async function openCompanionConversation(id){
     if(state.companionBusy)return;
+    if(state.companionPending){notify("Сначала завершите ожидающий запрос Companion.");return;}
     try{
       const conversation=await invoke("companion.get",id);
       state.companionId=conversation.id;
@@ -824,6 +826,7 @@
     catch{state.companionLimits=null;renderCompanionLimits();}
   }
   function newCompanionConversation(focus=true){
+    if(state.companionPending){notify("Сначала завершите ожидающий запрос Companion.");return;}
     state.companionId=null;state.companionMessages=[];state.companionAttachments=[];
     renderCompanionMode();renderCompanionMessages();renderCompanionAttachments();renderCompanionHistory();setCompanionMenu(false);
     if(focus)$("#kg-ai-input").focus();
@@ -916,9 +919,11 @@
         }else if(!error?.retryable)throw error;
       }
       if(status?.state==="completed")return loadCompletedCompanionResult(pending,status);
+      if(status?.state==="processing"&&!pending.notifiedProcessing){notify("ИИ обрабатывает сообщение…");pending.notifiedProcessing=true;}
       if(status?.state==="failed")throw {code:"COMPANION_FAILED",message:"Запрос не был выполнен. Проверьте лимиты и отправьте новое сообщение."};
       if(status?.state==="provider_outcome_unknown")throw {code:"PROVIDER_OUTCOME_UNKNOWN",message:"Результат запроса к ИИ неизвестен. Автоматический повтор запрещён; проверьте историю диалога."};
       if(status?.state==="queued"){
+        if(!pending.notifiedQueued){notify("Сообщение ожидает очереди. Запрос будет продолжен с тем же ID.");pending.notifiedQueued=true;}
         try{
           const resumed=await invoke("companion.send",pending.message,pending.conversationId,pending.attachments,pending.mode,pending.requestId);
           if(completedCompanionResult(resumed))return resumed;
