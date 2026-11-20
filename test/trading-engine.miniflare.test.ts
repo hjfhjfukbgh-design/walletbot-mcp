@@ -334,8 +334,8 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     });
     expect(fresh.status).toBe(201);
     const decisions = await stub.fetch("https://engine.test/ai/paper/decisions?userId=" + owner);
-    const body = await decisions.json() as { decisions: Array<{ created_at: number }> };
-    expect(body.decisions[0].created_at).toBe(freshAt);
+    const body = await decisions.json() as { decisions: Array<{ createdAt: number }> };
+    expect(body.decisions[0].createdAt).toBe(freshAt);
   });
 
   it("bounds AI paper decision history queries", async () => {
