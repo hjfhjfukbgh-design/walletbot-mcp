@@ -27,7 +27,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
 
   beforeEach(async () => { await mf?.dispose(); mf = undefined; objectName = "engine-test-" + (++testSequence); });
 
-  async function boot() {
+  async function boot(envOverrides: Record<string, string> = {}) {
     mf = new Miniflare({
       workers: [{
         config: {
@@ -37,6 +37,12 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
             ENGINE: { type: "durable-object", worker: "engine-test", exportName: "TradingEngine" },
             ENGINE_MAX_QUOTE_AGE_MS: { type: "text", value: "10000" },
             ENGINE_DISABLE_SOCKET: { type: "text", value: "true" },
+            MAX_ORDER_PCT: { type: "text", value: "100" },
+            MAX_TOTAL_EXPOSURE_PCT: { type: "text", value: "100" },
+            MAX_DAILY_LOSS_PCT: { type: "text", value: "5" },
+            STOP_LOSS_PCT: { type: "text", value: "5" },
+            ALLOWED_MARKETS: { type: "text", value: "*" },
+            ...Object.fromEntries(Object.entries(envOverrides).map(([key, value]) => [key, { type: "text", value }])),
           },
           exports: {
             TradingEngine: { type: "durable-object", storage: "sqlite" },
@@ -382,6 +388,99 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect((await positions.json() as { positions: unknown[] }).positions).toHaveLength(0);
     const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userA);
     expect(await status.json()).toMatchObject({ aiBalanceMicro: (10n * U).toString(), openPositions: 0 });
+  });
+
+  it("enforces server-owned AI paper max-order reserve as a percentage of equity", async () => {
+    const stub = await boot({ MAX_ORDER_PCT: "5" });
+    const owner = "333333333";
+    await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-max-order-cap" });
+    await startAiPaper(stub, owner);
+    const decision = await post(stub, "/ai/paper/decision", {
+      userId: owner, tickId: "tick-max-order-cap", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "c".repeat(64), symbol: "BTC", signal: "buy", rationale: "Approved.",
+      confidence: 0.8, observedPrice: "50000", riskPass: true,
+    });
+    const rejected = await post(stub, "/ai/paper/position/open", {
+      userId: owner, decisionId: decision.body.id, idempotencyKey: "open-over-max-order",
+      symbol: "BTC", side: "long", qtyUnits: "0.01", entryPrice: "50000",
+      marginMicro: (6n * U).toString(), leverage: "2", feeMicro: "0", slippageMicro: "0",
+    });
+    expect(rejected.status).toBe(409);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
+    expect(await status.json()).toMatchObject({ aiBalanceMicro: (100n * U).toString(), openPositions: 0 });
+    const positions = await stub.fetch("https://engine.test/ai/paper/positions?userId=" + owner);
+    expect((await positions.json() as { positions: unknown[] }).positions).toHaveLength(0);
+
+    const withinDecision = await post(stub, "/ai/paper/decision", {
+      userId: owner, tickId: "tick-max-order-at-cap", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "f".repeat(64), symbol: "BTC", signal: "buy", rationale: "At configured cap.",
+      confidence: 0.8, observedPrice: "50000", riskPass: true,
+    });
+    const within = await post(stub, "/ai/paper/position/open", {
+      userId: owner, decisionId: withinDecision.body.id, idempotencyKey: "open-at-max-order-cap",
+      symbol: "BTC", side: "long", qtyUnits: "0.01", entryPrice: "50000",
+      marginMicro: (5n * U).toString(), leverage: "2", feeMicro: "0", slippageMicro: "0",
+    });
+    expect(within.status).toBe(201);
+  });
+
+  it("atomically enforces aggregate AI paper exposure under concurrent opens", async () => {
+    const stub = await boot({ MAX_TOTAL_EXPOSURE_PCT: "50" });
+    const owner = "444444444";
+    await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-total-exposure-cap" });
+    await startAiPaper(stub, owner);
+
+    const btcDecision = await post(stub, "/ai/paper/decision", {
+      userId: owner, tickId: "tick-total-exposure-btc", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "d".repeat(64), symbol: "BTC", signal: "buy", rationale: "Approved.",
+      confidence: 0.8, observedPrice: "50000", riskPass: true,
+    });
+    const ethDecision = await post(stub, "/ai/paper/decision", {
+      userId: owner, tickId: "tick-total-exposure-eth", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "e".repeat(64), symbol: "ETH", signal: "buy", rationale: "Approved.",
+      confidence: 0.8, observedPrice: "2500", riskPass: true,
+    });
+    const results = await Promise.all([
+      post(stub, "/ai/paper/position/open", {
+        userId: owner, decisionId: btcDecision.body.id, idempotencyKey: "open-total-exposure-btc",
+        symbol: "BTC", side: "long", qtyUnits: "0.01", entryPrice: "50000",
+        marginMicro: (30n * U).toString(), leverage: "2", feeMicro: "0", slippageMicro: "0",
+      }),
+      post(stub, "/ai/paper/position/open", {
+        userId: owner, decisionId: ethDecision.body.id, idempotencyKey: "open-total-exposure-eth",
+        symbol: "ETH", side: "long", qtyUnits: "0.1", entryPrice: "2500",
+        marginMicro: (30n * U).toString(), leverage: "2", feeMicro: "0", slippageMicro: "0",
+      }),
+    ]);
+    expect(results.filter(result => result.status === 201)).toHaveLength(1);
+    expect(results.filter(result => result.status === 409)).toHaveLength(1);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
+    expect(await status.json()).toMatchObject({ aiBalanceMicro: (70n * U).toString(), openPositions: 1 });
+  });
+
+  it.each([
+    ["missing max-order binding", { MAX_ORDER_PCT: "" }],
+    ["malformed max-order binding", { MAX_ORDER_PCT: "not-a-number" }],
+    ["missing aggregate-exposure binding", { MAX_TOTAL_EXPOSURE_PCT: "" }],
+    ["malformed aggregate-exposure binding", { MAX_TOTAL_EXPOSURE_PCT: "Infinity" }],
+  ])("fails closed for %s", async (_label, overrides) => {
+    const stub = await boot(overrides as Record<string, string>);
+    const owner = "555555555";
+    await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-invalid-risk-binding" });
+    await startAiPaper(stub, owner);
+    const decision = await post(stub, "/ai/paper/decision", {
+      userId: owner, tickId: "tick-invalid-risk-binding-" + _label.replaceAll(" ", "-"), strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "a".repeat(64), symbol: "BTC", signal: "buy", rationale: "Approved.",
+      confidence: 0.8, observedPrice: "50000", riskPass: true,
+    });
+    const rejected = await post(stub, "/ai/paper/position/open", {
+      userId: owner, decisionId: decision.body.id, idempotencyKey: "open-invalid-risk-binding-" + _label.replaceAll(" ", "-"),
+      symbol: "BTC", side: "long", qtyUnits: "0.01", entryPrice: "50000",
+      marginMicro: (1n * U).toString(), leverage: "2", feeMicro: "0", slippageMicro: "0",
+    });
+    expect(rejected.status).toBe(409);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
+    expect(await status.json()).toMatchObject({ aiBalanceMicro: (100n * U).toString(), openPositions: 0 });
   });
 
   it("allows AI paper leverage up to 10 and rejects higher leverage without mutating the virtual account", async () => {
