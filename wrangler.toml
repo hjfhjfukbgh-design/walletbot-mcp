@@ -10,6 +10,10 @@ class_name = "TradingEngine"
 name = "COMPANION_QUOTA"
 class_name = "CompanionQuota"
 
+[[durable_objects.bindings]]
+name = "COMPANION_CONVERSATIONS"
+class_name = "CompanionConversation"
+
 [[migrations]]
 tag = "engine_v1"
 new_sqlite_classes = ["TradingEngine"]
@@ -17,6 +21,10 @@ new_sqlite_classes = ["TradingEngine"]
 [[migrations]]
 tag = "companion_quota_v1"
 new_sqlite_classes = ["CompanionQuota"]
+
+[[migrations]]
+tag = "companion_conversations_v1"
+new_sqlite_classes = ["CompanionConversation"]
 
 [assets]
 directory = "./miniapp/web"

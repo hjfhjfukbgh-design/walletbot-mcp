@@ -1,6 +1,7 @@
 export interface Env {
   ENGINE: DurableObjectNamespace;
   COMPANION_QUOTA: DurableObjectNamespace;
+  COMPANION_CONVERSATIONS?: DurableObjectNamespace;
   ENGINE_MAX_QUOTE_AGE_MS?: string;
   STATE: KVNamespace;
   ASSETS?: Fetcher;
