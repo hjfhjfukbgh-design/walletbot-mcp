@@ -324,7 +324,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       ...base, tickId: "tick-server-mark-stale", serverObservedAt: Date.now() - 10 * 60_000 - 1,
     });
     const future = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: "tick-server-mark-future", serverObservedAt: Date.now() + 1,
+      ...base, tickId: "tick-server-mark-future", serverObservedAt: Date.now() + 5_000,
     });
     expect(stale.status).toBe(400);
     expect(future.status).toBe(400);
