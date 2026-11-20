@@ -440,8 +440,10 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     });
     expect(fresh.status).toBe(201);
     const decisions = await stub.fetch("https://engine.test/ai/paper/decisions?userId=" + owner);
-    const body = await decisions.json() as { decisions: Array<{ createdAt: number; snapshotRetrievedAt: number | null }> };
+    const body = await decisions.json() as { decisions: Array<{ createdAt: number; snapshotRetrievedAt: number | null; riskPass: boolean; riskEvaluated: boolean }> };
     expect(body.decisions[0].snapshotRetrievedAt).toBe(freshAt);
+    expect(body.decisions[0].riskPass).toBe(false);
+    expect(body.decisions[0].riskEvaluated).toBe(false);
     expect(body.decisions[0].createdAt).toBeGreaterThanOrEqual(freshAt);
     const retry = await post(stub, "/ai/paper/decision", {
       ...base, tickId: freshTick, fencingToken: freshToken, snapshotRetrievedAt: freshAt,
