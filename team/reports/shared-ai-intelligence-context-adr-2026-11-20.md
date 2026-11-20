@@ -38,7 +38,7 @@ The current `TradingEngine` SQLite schema in `src/trading/engine.ts:80-104` cont
 - `ai_paper_accounts`: `user_id`, virtual balance, `status`, strategy ID/version, risk config JSON, created/updated timestamps.
 - `ai_paper_ledger`: idempotency key, kind, amount, balance before/after, reference ID, created timestamp.
 - `ai_paper_positions`: symbol, side, quantity, entry price, margin, leverage, fees/slippage, stop/take-profit, open/closed status, timestamps and `close_json`.
-- `ai_paper_decisions`: tick ID, strategy ID/version, market snapshot hash, symbol, BUY/SELL/HOLD signal, rationale, confidence, observed price, risk pass/rejection reason, linked position ID and created timestamp. Draft PR #616 adds a separate `snapshot_retrieved_at` field; `created_at` remains the decision-record timestamp.
+- `ai_paper_decisions`: tick ID, strategy ID/version, market snapshot hash, symbol, BUY/SELL/HOLD signal, rationale, confidence, observed price, risk pass/rejection reason, linked position ID and created timestamp. Draft PR #616 adds separate `snapshot_retrieved_at` and `risk_evaluated` fields; `created_at` remains the decision-record timestamp. For its analysis-only `gemini-paper` strategy, `riskPass=false` and `riskEvaluated=false` mean “not evaluated”, not “risk rejected”.
 
 Existing read routes are:
 - `GET /ai/paper/status` — `src/trading/engine.ts:154-160`, status projection in `:842-866`.
@@ -129,16 +129,33 @@ type EvidenceMeta = {
   evidenceId: string;
   sourceType: string;
   sourceRecordId: string;
-  observedAt: string | null;
-  recordedAt: string;
+  observedAt: string | null;     // null if the provider supplies no source timestamp
+  recordedAt: string;            // time received/persisted by our service
   contentHash: string | null;
   freshness: "fresh" | "stale" | "missing" | "unknown" | "not_applicable";
   maxAgeSeconds: number | null;
 };
+
+type DecisionEvidence = EvidenceMeta & {
+  decisionId: string;
+  signal: "buy" | "sell" | "hold";
+  rationale: string;
+  riskEvaluated: boolean;
+  riskPass: boolean | null;      // null when riskEvaluated is false
+  rejectionReason: string | null;
+  snapshotRetrievedAt: string | null;
+};
+
+type SnapshotEvidence = EvidenceMeta & {
+  snapshotId: string;
+  source: string;
+  retrievedAt: string;
+  sourceObservedAt: string | null;
+};
 ```
 
 The existing AI PAPER fields map to this envelope as follows:
-- decision ID, tick ID, strategy ID/version, signal, symbol, rationale, confidence, risk pass/rejection, position ID and created timestamp come from `ai_paper_decisions`;
+- decision ID, tick ID, strategy ID/version, signal, symbol, rationale, confidence, `riskEvaluated`, risk pass/rejection, position ID, snapshot retrieval time and decision creation time come from `ai_paper_decisions`; if `riskEvaluated=false`, context maps `riskPass` to null and must not call the decision rejected;
 - position data comes from `ai_paper_positions`;
 - funding/withdrawal/open/close accounting comes from `ai_paper_ledger`;
 - session status and strategy ID/version come from `ai_paper_accounts`;
