@@ -927,7 +927,7 @@ export class TradingEngine {
     const now = Date.now();
     this.ctx.storage.transactionSync(() => {
       this.ctx.storage.sql.exec(
-        "UPDATE ai_paper_decision_runs SET state = 'external_outcome_unknown', external_started_at = COALESCE(external_started_at, ?), lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ? AND fencing_token = ?",
+        "UPDATE ai_paper_decision_runs SET state = 'external_outcome_unknown', external_started_at = COALESCE(external_started_at, ?), lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ? AND fencing_token = ? AND state IN ('claimed', 'external_started')",
         now, now, now, userId, tickId, fencingToken,
       );
     });
