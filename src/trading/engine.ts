@@ -492,7 +492,7 @@ export class TradingEngine {
         !decimalPattern.test(entryPrice) || Number(entryPrice) <= 0 ||
         !/^(?:0|[1-9]\d{0,18})$/.test(rawMargin) || BigInt(rawMargin) <= 0n ||
         !/^(?:0|[1-9]\d{0,18})$/.test(rawFees) || !/^(?:0|[1-9]\d{0,18})$/.test(rawSlippage) ||
-        !Number.isSafeInteger(leverage) || leverage < 1 || leverage > 3 ||
+        !Number.isSafeInteger(leverage) || leverage < 1 || leverage > 10 ||
         (stopLossPrice !== null && (!decimalPattern.test(stopLossPrice) || Number(stopLossPrice) <= 0)) ||
         (takeProfitPrice !== null && (!decimalPattern.test(takeProfitPrice) || Number(takeProfitPrice) <= 0))) {
       return Response.json({ ok: false, error: "Некорректные параметры открытия AI paper позиции." }, { status: 400 });
