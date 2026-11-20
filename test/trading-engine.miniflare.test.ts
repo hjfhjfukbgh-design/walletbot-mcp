@@ -419,7 +419,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const staleTick = "tick-server-mark-stale";
     const staleToken = await claimGeminiDecision(stub, owner, staleTick);
     const stale = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: staleTick, fencingToken: staleToken, snapshotRetrievedAt: Date.now() - 10 * 60_000 - 1,
+      ...base, tickId: staleTick, fencingToken: staleToken, snapshotRetrievedAt: Date.now() - 10 * 60_000 - 1, snapshotPayload: { source: "hyperliquid-public", retrievedAt: Date.now() - 10 * 60_000 - 1, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
     });
     expect(stale.status).toBe(400);
     await post(stub, "/ai/paper/decision/unknown", { userId: owner, tickId: staleTick, fencingToken: staleToken });
@@ -427,7 +427,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const futureTick = "tick-server-mark-future";
     const futureToken = await claimGeminiDecision(stub, owner, futureTick);
     const future = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: futureTick, fencingToken: futureToken, snapshotRetrievedAt: Date.now() + 5_000,
+      ...base, tickId: futureTick, fencingToken: futureToken, snapshotRetrievedAt: Date.now() + 5_000, snapshotPayload: { source: "hyperliquid-public", retrievedAt: Date.now() + 5_000, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
     });
     expect(future.status).toBe(400);
     await post(stub, "/ai/paper/decision/unknown", { userId: owner, tickId: futureTick, fencingToken: futureToken });
@@ -436,7 +436,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const freshTick = "tick-server-mark-fresh";
     const freshToken = await claimGeminiDecision(stub, owner, freshTick);
     const fresh = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: freshTick, fencingToken: freshToken, snapshotRetrievedAt: freshAt,
+      ...base, tickId: freshTick, fencingToken: freshToken, snapshotRetrievedAt: freshAt, snapshotPayload: { source: "hyperliquid-public", retrievedAt: freshAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
     });
     expect(fresh.status).toBe(201);
     const decisions = await stub.fetch("https://engine.test/ai/paper/decisions?userId=" + owner);
