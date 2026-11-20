@@ -514,6 +514,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const btc = await paperDecision(stub, owner, "BTC", "buy", "50000", "tick-daily-unrealized-btc");
     const opened = await paperOpen(stub, owner, btc.body.id, "BTC", "long", "0.01", "50000", 25n * U, "open-daily-unrealized-btc", U, U);
     expect(opened.status).toBe(201);
+    await new Promise(resolve => setTimeout(resolve, 5));
     const mark = await paperDecision(stub, owner, "BTC", "hold", "49700", "tick-daily-unrealized-btc-mark");
     expect(mark.status).toBe(201);
     const eth = await paperDecision(stub, owner, "ETH", "buy", "2500", "tick-daily-unrealized-eth");
@@ -539,8 +540,8 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const mark = await paperDecision(stub, owner, "BTC", "hold", "50000", "tick-invalid-mark-refresh-" + kind);
     expect(mark.status).toBe(201);
     await mutateEngineSql(
-      "UPDATE ai_paper_decisions SET created_at = ?, observed_price = ? WHERE id = ? AND user_id = ?",
-      timestamp(Date.now()), markPrice, mark.body.id, owner,
+      "UPDATE ai_paper_decisions SET created_at = ?, observed_price = ? WHERE user_id = ? AND symbol = ?",
+      timestamp(Date.now()), markPrice, owner, "BTC",
     );
     const eth = await paperDecision(stub, owner, "ETH", "buy", "2500", "tick-invalid-mark-eth-" + kind);
     const rejected = await paperOpen(stub, owner, eth.body.id, "ETH", "long", "0.1", "2500", U, "open-invalid-mark-eth-" + kind);
@@ -571,13 +572,15 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const btc = await paperDecision(stub, owner, "BTC", "buy", "50000", "tick-multi-mark-btc");
     const openedBtc = await paperOpen(stub, owner, btc.body.id, "BTC", "long", "0.01", "50000", 25n * U, "open-multi-mark-btc", U, U);
     expect(openedBtc.status).toBe(201);
+    await new Promise(resolve => setTimeout(resolve, 5));
     const eth = await paperDecision(stub, owner, "ETH", "buy", "2500", "tick-multi-mark-eth");
     const openedEth = await paperOpen(stub, owner, eth.body.id, "ETH", "long", "0.1", "2500", 25n * U, "open-multi-mark-eth", U, U);
     expect(openedEth.status).toBe(201);
+    await new Promise(resolve => setTimeout(resolve, 5));
     const btcRefresh = await paperDecision(stub, owner, "BTC", "hold", "50000", "tick-multi-mark-btc-refresh");
     await mutateEngineSql(
-      "UPDATE ai_paper_decisions SET created_at = ? WHERE id = ? AND user_id = ?",
-      Date.now() - 10 * 60_000 - 1, btcRefresh.body.id, owner,
+      "UPDATE ai_paper_decisions SET created_at = ? WHERE user_id = ? AND symbol = ?",
+      Date.now() - 10 * 60_000 - 1, owner, "BTC",
     );
     const sol = await paperDecision(stub, owner, "SOL", "buy", "150", "tick-multi-mark-sol");
     const rejected = await paperOpen(stub, owner, sol.body.id, "SOL", "long", "1", "150", U, "open-multi-mark-sol");
