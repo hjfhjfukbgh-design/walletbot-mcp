@@ -457,7 +457,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(replayBody.decision.snapshotPayload).toEqual(savedSnapshot);
     const alteredReplay = await post(stub, "/ai/paper/decision", {
       ...base, tickId: freshTick, fencingToken: freshToken, snapshotRetrievedAt: freshAt,
-      snapshotPayload: { ...savedSnapshot, markets: [{ symbol: "BTC", price: "50001", volume24hUsd: 50_000_000 }] },
+      snapshotPayload: { ...savedSnapshot, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_001 }] },
     });
     expect(alteredReplay.status).toBe(409);
   });
