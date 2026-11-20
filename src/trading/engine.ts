@@ -1048,7 +1048,11 @@ export class TradingEngine {
       ).toArray()[0] as Record<string, unknown> | undefined;
       if (existing) {
         decisionId = String(existing.id);
-        const same = String(existing.strategy_id) === strategyId &&
+        const savedSnapshot = strategyId === "gemini-paper"
+          ? this.ctx.storage.sql.exec("SELECT payload_json FROM ai_paper_market_snapshots WHERE snapshot_hash = ?", marketSnapshotHash).toArray()[0] as { payload_json: string } | undefined
+          : undefined;
+        const sameSnapshot = strategyId !== "gemini-paper" || Boolean(savedSnapshot && savedSnapshot.payload_json === snapshotJson);
+        const same = sameSnapshot && String(existing.strategy_id) === strategyId &&
           String(existing.strategy_version) === strategyVersion &&
           String(existing.market_snapshot_hash) === marketSnapshotHash &&
           String(existing.signal) === signal &&
