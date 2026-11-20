@@ -412,6 +412,39 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect((await positions.json() as { positions: unknown[] }).positions).toHaveLength(0);
   });
 
+  it("enforces aggregate AI paper open-margin exposure across distinct symbols", async () => {
+    const stub = await boot({ MAX_TOTAL_EXPOSURE_PCT: "50" });
+    const owner = "444444444";
+    await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-total-exposure-cap" });
+    await startAiPaper(stub, owner);
+
+    const btcDecision = await post(stub, "/ai/paper/decision", {
+      userId: owner, tickId: "tick-total-exposure-btc", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "d".repeat(64), symbol: "BTC", signal: "buy", rationale: "Approved.",
+      confidence: 0.8, observedPrice: "50000", riskPass: true,
+    });
+    const first = await post(stub, "/ai/paper/position/open", {
+      userId: owner, decisionId: btcDecision.body.id, idempotencyKey: "open-total-exposure-btc",
+      symbol: "BTC", side: "long", qtyUnits: "0.01", entryPrice: "50000",
+      marginMicro: (40n * U).toString(), leverage: "2", feeMicro: "0", slippageMicro: "0",
+    });
+    expect(first.status).toBe(201);
+
+    const ethDecision = await post(stub, "/ai/paper/decision", {
+      userId: owner, tickId: "tick-total-exposure-eth", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "e".repeat(64), symbol: "ETH", signal: "buy", rationale: "Approved.",
+      confidence: 0.8, observedPrice: "2500", riskPass: true,
+    });
+    const rejected = await post(stub, "/ai/paper/position/open", {
+      userId: owner, decisionId: ethDecision.body.id, idempotencyKey: "open-total-exposure-eth",
+      symbol: "ETH", side: "long", qtyUnits: "0.1", entryPrice: "2500",
+      marginMicro: (20n * U).toString(), leverage: "2", feeMicro: "0", slippageMicro: "0",
+    });
+    expect(rejected.status).toBe(409);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
+    expect(await status.json()).toMatchObject({ aiBalanceMicro: (60n * U).toString(), openPositions: 1 });
+  });
+
   it("allows AI paper leverage up to 10 and rejects higher leverage without mutating the virtual account", async () => {
     const stub = await boot();
     const owner = "111111111";
