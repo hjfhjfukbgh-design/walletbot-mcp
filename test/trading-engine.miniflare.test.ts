@@ -1,5 +1,5 @@
 import { applyAdverseSlippage, applyEntrySlippage } from "../src/trading/positions";
-import { parseFreshAiPaperMark } from "../src/trading/engine";
+import { ensureAiPaperDecisionColumns, parseFreshAiPaperMark } from "../src/trading/engine";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { Miniflare } from "miniflare";
 import { build } from "esbuild";
@@ -8,6 +8,42 @@ const P = 100_000_000n;
 const U = 1_000_000n;
 const userId = "123456789";
 type EngineStub = any;
+
+
+describe("AI PAPER decision schema migration", () => {
+  it("adds only columns missing from a legacy decisions table", () => {
+    const statements: string[] = [];
+    const sql = {
+      exec(query: string) {
+        statements.push(query);
+        return { toArray: () => [{ name: "id" }, { name: "user_id" }, { name: "created_at" }] };
+      },
+    };
+    ensureAiPaperDecisionColumns(sql);
+    expect(statements).toEqual([
+      "PRAGMA table_info(ai_paper_decisions)",
+      "ALTER TABLE ai_paper_decisions ADD COLUMN snapshot_retrieved_at INTEGER NOT NULL DEFAULT 0",
+      "ALTER TABLE ai_paper_decisions ADD COLUMN risk_evaluated INTEGER NOT NULL DEFAULT 0",
+    ]);
+  });
+
+  it("does not alter a schema that already has both columns", () => {
+    const statements: string[] = [];
+    const sql = {
+      exec(query: string) {
+        statements.push(query);
+        return { toArray: () => [{ name: "snapshot_retrieved_at" }, { name: "risk_evaluated" }] };
+      },
+    };
+    ensureAiPaperDecisionColumns(sql);
+    expect(statements).toEqual(["PRAGMA table_info(ai_paper_decisions)"]);
+  });
+
+  it("does not swallow schema inspection errors", () => {
+    const sql = { exec() { throw new Error("sqlite unavailable"); } };
+    expect(() => ensureAiPaperDecisionColumns(sql)).toThrow("sqlite unavailable");
+  });
+});
 
 describe("TradingEngine SQLite integration (Miniflare)", () => {
   let source = "";
