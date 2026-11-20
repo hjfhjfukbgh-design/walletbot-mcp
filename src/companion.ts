@@ -65,7 +65,12 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       if (!/^[a-f0-9-]{36}$/i.test(conversationId)) return json({ ok: false, error: "Некорректный ID диалога." }, 400);
       const stub = conversationStub(env, userId, conversationId);
       const status = await stub.fetch("https://companion-conversation/status?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(conversationId) + "&requestId=" + encodeURIComponent(requestMatch[1]));
-      const payload = await status.json().catch(() => ({}));
+      const payload = await status.json().catch(() => ({})) as { state?: string };
+      if (status.ok && payload.state === "completed") {
+        const historyResponse = await stub.fetch("https://companion-conversation/conversation?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(conversationId));
+        const historyPayload = await historyResponse.json().catch(() => ({})) as { conversation?: Conversation };
+        if (historyPayload.conversation) await writeConversationIndex(scoped, historyPayload.conversation);
+      }
       return json(payload, status.status);
     }
 
@@ -176,6 +181,9 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     });
     const enqueued = await enqueueResponse.json().catch(() => ({})) as { state?: string; response?: { answer?: string; sources?: CompanionSource[] }; error?: string };
     if (!enqueueResponse.ok && enqueueResponse.status !== 202) return json({ ok: false, error: enqueued.error ?? "Не удалось поставить сообщение в очередь." }, enqueueResponse.status);
+    const initialHistory = await stub.fetch("https://companion-conversation/conversation?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(conversationId));
+    const initialPayload = await initialHistory.json().catch(() => ({})) as { conversation?: Conversation };
+    if (initialPayload.conversation) await writeConversationIndex(scoped, initialPayload.conversation);
     if (enqueued.state === "completed" && enqueued.response) {
       const historyResponse = await stub.fetch("https://companion-conversation/conversation?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(conversationId));
       const historyPayload = await historyResponse.json().catch(() => ({})) as { conversation?: Conversation };
