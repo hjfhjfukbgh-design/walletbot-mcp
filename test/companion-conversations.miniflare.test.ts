@@ -202,4 +202,37 @@ describe("CompanionConversation SQLite integration",()=>{
     expect(late.body.state).toBe("provider_outcome_unknown");
   });
 
+
+  it("imports legacy history only when its SHA-256 matches, is idempotent, and deletes tenant-scoped data",async()=>{
+    const {stub}=await boot();
+    const object=stub(tenantA);
+    const legacy={
+      id:conversationId,title:"Legacy",mode:"general",
+      createdAt:"2026-11-19T10:00:00.000Z",updatedAt:"2026-11-19T10:05:00.000Z",
+      messages:[
+        {role:"user",content:"Вопрос из KV",createdAt:"2026-11-19T10:01:00.000Z"},
+        {role:"assistant",content:"Ответ из KV",createdAt:"2026-11-19T10:02:00.000Z"},
+      ],
+    };
+    const hash=async(value:unknown)=>{
+      const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify(value)));
+      return Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,"0")).join("");
+    };
+    const contentHash=await hash(legacy);
+    const imported=await post(object,"/import",{...identity(tenantA),conversation:legacy,contentHash});
+    expect(imported.status).toBe(201);
+    expect(imported.body).toMatchObject({ok:true,duplicate:false,importedMessages:2,contentHash});
+    const duplicate=await post(object,"/import",{...identity(tenantA),conversation:legacy,contentHash});
+    expect(duplicate.status).toBe(200);
+    expect(duplicate.body.duplicate).toBe(true);
+    const mismatch=await post(object,"/import",{...identity(tenantA),conversation:{...legacy,title:"Tampered"},contentHash});
+    expect(mismatch.status).toBe(409);
+    const history=await get(object,"/conversation?tenantId="+tenantA+"&conversationId="+conversationId);
+    expect(history.body.conversation.messages.map((message:any)=>message.content)).toEqual(["Вопрос из KV","Ответ из KV"]);
+    const deleted=await object.fetch("https://conversation.test/conversation?tenantId="+tenantA+"&conversationId="+conversationId,{method:"DELETE"});
+    expect(deleted.status).toBe(200);
+    const afterDelete=await get(object,"/conversation?tenantId="+tenantA+"&conversationId="+conversationId);
+    expect(afterDelete.status).toBe(404);
+  });
+
 });
