@@ -312,10 +312,10 @@ Do not create a third top-level mode called AI. Do not infer AI LIVE readiness f
 
 ## 12. Implementation-sized follow-ups
 
-1. **Shared context service and contract v1:** create the typed envelope, tenant-scoped aggregator and permission/freshness tests.
-2. **Analyst pipeline:** ingest public market/news sources into versioned findings with provenance; no user-specific account access.
-3. **AI PAPER evidence persistence:** persist the immutable market snapshot and exact Analyst finding references alongside every decision; add fail-closed evidence checks.
-4. **Companion read-only explanation:** connect the context provider to Companion and explain saved decisions, positions, ledger and audit events without execution permissions.
+1. **#637 — Shared context contract v1:** typed envelope, tenant-scoped read-only aggregator, provenance/freshness and permission tests. Blocked until this ADR is accepted.
+2. **#638 — Analyst pipeline:** public market/news ingestion and versioned findings with provenance; depends on #637.
+3. **#639 — AI PAPER evidence persistence:** immutable snapshot payloads and exact Analyst finding refs on decisions; depends on #637, PR #616 and scheduler #635.
+4. **#640 — Companion explanation:** read-only explanation of saved decisions/positions/ledger using context evidence; depends on #637 and Companion API migration #633.
 
 ## Conclusion
 
