@@ -228,4 +228,39 @@ describe("window.KriptoGuruAPI contract", () => {
       name: "KriptoGuruApiError", code: "API_ERROR", status: 503, retryable: true,
     });
   });
+
+  it("sends stable Companion request and conversation IDs and exposes authenticated status polling", async () => {
+    const calls=[];
+    const fetchMock=vi.fn(async(input,init={})=>{
+      calls.push({url:String(input),method:init.method||"GET",body:init.body?JSON.parse(String(init.body)):null,authorization:init.headers?.Authorization});
+      if(String(input)==="/api/companion/chat")return json({ok:true,state:"queued",conversationId:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",requestId:"req-ui-stable-0001"},202);
+      if(String(input)==="/api/companion/requests/req-ui-stable-0001?conversationId=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")return json({ok:true,requestId:"req-ui-stable-0001",state:"processing"});
+      throw new Error("Unexpected request: "+String(input));
+    });
+    const api=loadApi(fetchMock);
+    const queued=await api.companion.send("Привет","bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",[],"general","req-ui-stable-0001");
+    expect(queued).toMatchObject({ok:true,state:"queued",requestId:"req-ui-stable-0001"});
+    const status=await api.companion.status("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","req-ui-stable-0001");
+    expect(status).toMatchObject({ok:true,state:"processing"});
+    expect(calls).toEqual([
+      {
+        url:"/api/companion/chat",method:"POST",
+        body:{message:"Привет",mode:"general",conversationId:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",requestId:"req-ui-stable-0001"},
+        authorization:"tma signed-telegram-init-data",
+      },
+      {
+        url:"/api/companion/requests/req-ui-stable-0001?conversationId=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        method:"GET",body:null,authorization:"tma signed-telegram-init-data",
+      },
+    ]);
+  });
+
+  it("rejects Companion status requests without both stable identifiers", async () => {
+    const fetchMock=vi.fn();
+    const api=loadApi(fetchMock);
+    await expect(api.companion.status("","req-ui-stable-0001")).rejects.toMatchObject({code:"VALIDATION_ERROR"});
+    await expect(api.companion.status("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","")).rejects.toMatchObject({code:"VALIDATION_ERROR"});
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
 });
