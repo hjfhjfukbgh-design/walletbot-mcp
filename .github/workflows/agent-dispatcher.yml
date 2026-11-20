@@ -93,3 +93,5 @@ jobs:
       base_branch: ${{ matrix.base_branch }}
     secrets:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+# Immediate queue pulse after CEO-confirmed two-level UI contract; 2026-11-20 EKB.
