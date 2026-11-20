@@ -384,6 +384,54 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(await status.json()).toMatchObject({ aiBalanceMicro: (10n * U).toString(), openPositions: 0 });
   });
 
+  it("rejects AI paper leverage above 3 without mutating the virtual account", async () => {
+    const stub = await boot();
+    const owner = "111111111";
+    await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-max-leverage-01" });
+    await startAiPaper(stub, owner);
+    const decision = await post(stub, "/ai/paper/decision", {
+      userId: owner, tickId: "tick-max-leverage-01", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "a".repeat(64), symbol: "BTC", signal: "buy", rationale: "Approved.",
+      confidence: 0.8, observedPrice: "50000", riskPass: true,
+    });
+    const rejected = await post(stub, "/ai/paper/position/open", {
+      userId: owner, decisionId: decision.body.id, idempotencyKey: "open-max-leverage-01",
+      symbol: "BTC", side: "long", qtyUnits: "0.01", entryPrice: "50000",
+      marginMicro: (10n * U).toString(), leverage: "4", feeMicro: "0", slippageMicro: "0",
+    });
+    expect(rejected.status).toBe(400);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
+    expect(await status.json()).toMatchObject({ aiBalanceMicro: (100n * U).toString(), openPositions: 0 });
+    const positions = await stub.fetch("https://engine.test/ai/paper/positions?userId=" + owner);
+    expect((await positions.json() as { positions: unknown[] }).positions).toHaveLength(0);
+  });
+
+  it("atomically caps AI paper accounts at three open positions under concurrent requests", async () => {
+    const stub = await boot();
+    const owner = "222222222";
+    await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-three-position-cap" });
+    await startAiPaper(stub, owner);
+    const symbols = ["BTC", "ETH", "SOL", "XRP"];
+    const results = await Promise.all(symbols.map(async (symbol, index) => {
+      const decision = await post(stub, "/ai/paper/decision", {
+        userId: owner, tickId: "tick-three-cap-" + index, strategyId: "ma-crossover", strategyVersion: "1",
+        marketSnapshotHash: String(index + 1).repeat(64), symbol, signal: "buy", rationale: "Approved.",
+        confidence: 0.8, observedPrice: "100", riskPass: true,
+      });
+      return post(stub, "/ai/paper/position/open", {
+        userId: owner, decisionId: decision.body.id, idempotencyKey: "open-three-cap-" + index,
+        symbol, side: "long", qtyUnits: "1", entryPrice: "100",
+        marginMicro: (10n * U).toString(), leverage: "2", feeMicro: "0", slippageMicro: "0",
+      });
+    }));
+    expect(results.filter(result => result.status === 201)).toHaveLength(3);
+    expect(results.filter(result => result.status === 409)).toHaveLength(1);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
+    expect(await status.json()).toMatchObject({ aiBalanceMicro: (70n * U).toString(), openPositions: 3 });
+    const positions = await stub.fetch("https://engine.test/ai/paper/positions?userId=" + owner);
+    expect((await positions.json() as { positions: unknown[] }).positions).toHaveLength(3);
+  });
+
   it("prevents a second open AI paper position for the same tenant and symbol", async () => {
     const stub = await boot();
     const userId = "111111111";
