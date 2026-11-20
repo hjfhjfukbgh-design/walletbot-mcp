@@ -588,7 +588,7 @@ describe("AI Companion API", () => {
     const e=isolatedEnv();
     const fetchMock=vi.fn(async()=>Response.json({candidates:[{content:{parts:[{text:"Сохранённый ответ"}]}}]}));
     vi.stubGlobal("fetch",fetchMock);
-    const request={message:"Проверка replay",requestId:"req-replay-0001"};
+    const request={message:"Проверка replay",requestId:"req-replay-0001",conversationId:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"};
     const first=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify(request)});
     expect(first.status).toBe(200);
     const firstBody=await first.json() as {conversationId:string;answer:string};
