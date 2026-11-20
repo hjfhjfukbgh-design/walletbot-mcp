@@ -16,6 +16,7 @@ import { findContract } from "./walt";
 import { tenantEnv } from "./tenants";
 import { feeMicro, MONEY_SCALE, notionalMicro, parseFixed, PRICE_SCALE, pnlMicro } from "./trading/money";
 import { closeManualTrade, manualPositionsView, openManualTrade } from "./manual";
+import { runAiPaperDecision } from "./ai-paper";
 
 type Json = Record<string, unknown>;
 
@@ -90,6 +91,13 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         return livePositionView(scopedEnv, url.searchParams.get("symbol") ?? "");
       case "POST product-mode":
         return updateProductMode(scopedEnv, telegramUserId, body);
+      case "POST ai/paper/decision/run": {
+        if (url.searchParams.has("userId")) return fail("ID пользователя берётся только из Telegram initData.", 400);
+        const state = await loadState(scopedEnv);
+        if (normalizeProductMode(state.productMode) !== "ai")
+          return fail("Выберите режим AI Trading перед запуском AI PAPER анализа.", 409);
+        return runAiPaperDecision(env, telegramUserId, body.requestId);
+      }
       case "POST ai/paper/session/start":
         return startAiPaperSession(scopedEnv, telegramUserId);
       case "POST ai/paper/session/stop":
