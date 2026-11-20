@@ -936,12 +936,12 @@
   function renderProductMode(){
     const method=state.productMode==="ai"?"AI Piper":"Ручная";
     const market=state.marketMode==="live"?"LIVE":"DEMO";
-    $("#kg-market-mode [data-market-mode]").forEach(button=>{
+    $$("#kg-market-mode [data-market-mode]").forEach(button=>{
       const selected=button.dataset.marketMode===state.marketMode;
       button.classList.toggle("is-active",selected);
       button.setAttribute("aria-pressed",String(selected));
     });
-    $("#kg-product-mode [data-product-mode]").forEach(button=>{
+    $$("#kg-product-mode [data-product-mode]").forEach(button=>{
       const selected=button.dataset.productMode===state.productMode;
       button.classList.toggle("is-active",selected);
       button.setAttribute("aria-pressed",String(selected));
@@ -953,7 +953,7 @@
     const modeClass=state.productMode==="ai"?"kg-mode-badge kg-mode-badge--ai":"kg-mode-badge kg-mode-badge--demo";
     if(assetBadge){assetBadge.className=modeClass;assetBadge.textContent=market+" · "+method;}
     if(ticketBadge){ticketBadge.className=modeClass;ticketBadge.textContent=market+" · "+method;}
-    $("#kg-profile-mode-switch [data-profile-mode]").forEach(button=>{const active=button.dataset.profileMode===state.productMode;button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));});
+    $$("#kg-profile-mode-switch [data-profile-mode]").forEach(button=>{const active=button.dataset.profileMode===state.productMode;button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));});
     const modeBadge=$("#kg-wallet-mode-badge");
     if(modeBadge){modeBadge.className="kg-mode-badge "+(state.productMode==="ai"?"kg-mode-badge--ai":"kg-mode-badge--demo");modeBadge.textContent=market+" · "+method;}
     renderProfileSettings();
