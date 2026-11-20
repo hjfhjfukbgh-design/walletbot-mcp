@@ -37,6 +37,11 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
             ENGINE: { type: "durable-object", worker: "engine-test", exportName: "TradingEngine" },
             ENGINE_MAX_QUOTE_AGE_MS: { type: "text", value: "10000" },
             ENGINE_DISABLE_SOCKET: { type: "text", value: "true" },
+            MAX_ORDER_PCT: { type: "text", value: "5" },
+            MAX_TOTAL_EXPOSURE_PCT: { type: "text", value: "50" },
+            MAX_DAILY_LOSS_PCT: { type: "text", value: "5" },
+            STOP_LOSS_PCT: { type: "text", value: "5" },
+            ALLOWED_MARKETS: { type: "text", value: "*" },
           },
           exports: {
             TradingEngine: { type: "durable-object", storage: "sqlite" },
@@ -382,6 +387,28 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect((await positions.json() as { positions: unknown[] }).positions).toHaveLength(0);
     const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + userA);
     expect(await status.json()).toMatchObject({ aiBalanceMicro: (10n * U).toString(), openPositions: 0 });
+  });
+
+  it("enforces server-owned AI paper max-order reserve as a percentage of equity", async () => {
+    const stub = await boot();
+    const owner = "333333333";
+    await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-max-order-cap" });
+    await startAiPaper(stub, owner);
+    const decision = await post(stub, "/ai/paper/decision", {
+      userId: owner, tickId: "tick-max-order-cap", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "c".repeat(64), symbol: "BTC", signal: "buy", rationale: "Approved.",
+      confidence: 0.8, observedPrice: "50000", riskPass: true,
+    });
+    const rejected = await post(stub, "/ai/paper/position/open", {
+      userId: owner, decisionId: decision.body.id, idempotencyKey: "open-over-max-order",
+      symbol: "BTC", side: "long", qtyUnits: "0.01", entryPrice: "50000",
+      marginMicro: (6n * U).toString(), leverage: "2", feeMicro: "0", slippageMicro: "0",
+    });
+    expect(rejected.status).toBe(409);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
+    expect(await status.json()).toMatchObject({ aiBalanceMicro: (100n * U).toString(), openPositions: 0 });
+    const positions = await stub.fetch("https://engine.test/ai/paper/positions?userId=" + owner);
+    expect((await positions.json() as { positions: unknown[] }).positions).toHaveLength(0);
   });
 
   it("allows AI paper leverage up to 10 and rejects higher leverage without mutating the virtual account", async () => {
