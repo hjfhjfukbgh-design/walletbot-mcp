@@ -8,6 +8,7 @@ import { env as baseEnv, memoryQuota } from "./helpers";
 function isolatedEnv(seed: Record<string, string> = {}, quotaSeed: Record<string, number> = {}): Env {
   const e = baseEnv();
   e.COMPANION_QUOTA = memoryQuota(quotaSeed);
+  e.COMPANION_CONVERSATIONS = memoryConversationNamespace();
   const values = new Map<string, string>(Object.entries(seed));
   e.STATE = {
     get: async (key: string, type?: string) => {
@@ -28,6 +29,92 @@ function isolatedEnv(seed: Record<string, string> = {}, quotaSeed: Record<string
   e.GEMINI_API_KEY = "test-gemini-secret";
   return e;
 }
+
+
+function memoryConversationNamespace(): DurableObjectNamespace {
+  type Msg={role:"user"|"assistant";content:string;createdAt:string;sources?:Array<{title:string;url:string}>};
+  type Row={requestId:string;sequence:number;state:string;mode:string;userContent:string;attachments:unknown[];token:number;providerStarted:boolean;response?:any};
+  type Store={tenantId:string;conversationId:string;mode:string;title:string;createdAt:string;updatedAt:string;messages:Msg[];nextSequence:number;requests:Map<string,Row>;migrationHash?:string};
+  const stores=new Map<string,Store>();
+  return {
+    idFromName:(name:string)=>name,
+    get:(name:string)=>({fetch:async(input:RequestInfo|URL,init?:RequestInit)=>{
+      const request=input instanceof Request?input:new Request(input,init),url=new URL(request.url);
+      const match=name.match(/^tenant:(\d{1,20}):conversation:([a-f0-9-]{36})$/i);
+      if(!match)return Response.json({ok:false},{status:500});
+      const tenantId=match[1],conversationId=match[2];
+      const auth=(tenant:string,id:string)=>tenant===tenantId&&id.toLowerCase()===conversationId.toLowerCase();
+      if(request.method==="GET"){
+        const tenant=url.searchParams.get("tenantId")??"",id=url.searchParams.get("conversationId")??"";
+        if(!auth(tenant,id))return Response.json({ok:false},{status:403});
+        const store=stores.get(name);
+        if(url.pathname==="/conversation")return store?Response.json({ok:true,conversation:{id:conversationId,title:store.title,mode:store.mode,createdAt:store.createdAt,updatedAt:store.updatedAt,messages:store.messages}}):Response.json({ok:false},{status:404});
+        if(url.pathname==="/status"){
+          const row=store?.requests.get(url.searchParams.get("requestId")??"");
+          return row?Response.json({ok:true,requestId:row.requestId,state:row.state,sequence:row.sequence,response:row.response??null}):Response.json({ok:false},{status:404});
+        }
+        return Response.json({ok:false},{status:404});
+      }
+      if(request.method==="DELETE"&&url.pathname==="/conversation"){
+        if(!auth(url.searchParams.get("tenantId")??"",url.searchParams.get("conversationId")??""))return Response.json({ok:false},{status:403});
+        stores.delete(name);return Response.json({ok:true});
+      }
+      if(request.method!=="POST")return Response.json({ok:false},{status:405});
+      const body=await request.json() as any;
+      if(!auth(body.tenantId,body.conversationId))return Response.json({ok:false},{status:403});
+      let store=stores.get(name);
+      if(url.pathname==="/import"){
+        if(!body.conversation||typeof body.contentHash!=="string")return Response.json({ok:false},{status:400});
+        if(store)return store.migrationHash===body.contentHash?Response.json({ok:true,duplicate:true,importedMessages:store.messages.length}):Response.json({ok:false},{status:409});
+        const legacy=body.conversation;
+        store={tenantId,conversationId,mode:legacy.mode??"general",title:legacy.title,createdAt:legacy.createdAt,updatedAt:legacy.updatedAt,messages:legacy.messages??[],nextSequence:(legacy.messages?.length??0)+1,requests:new Map(),migrationHash:body.contentHash};
+        stores.set(name,store);return Response.json({ok:true,duplicate:false,importedMessages:store.messages.length},{status:201});
+      }
+      if(url.pathname==="/enqueue"){
+        if(!store){store={tenantId,conversationId,mode:body.mode,title:body.title,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),messages:[],nextSequence:1,requests:new Map()};stores.set(name,store);}
+        if(store.mode!==body.mode)return Response.json({ok:false,error:"mode conflict"},{status:409});
+        const old=store.requests.get(body.requestId);
+        if(old){
+          if(old.userContent!==body.userContent||JSON.stringify(old.attachments)!==JSON.stringify(body.attachments??[]))return Response.json({ok:false},{status:409});
+          return Response.json({ok:true,duplicate:true,requestId:old.requestId,state:old.state,sequence:old.sequence,response:old.response});
+        }
+        const row:Row={requestId:body.requestId,sequence:store.nextSequence++,state:"queued",mode:body.mode,userContent:body.userContent,attachments:body.attachments??[],token:0,providerStarted:false};
+        store.requests.set(row.requestId,row);return Response.json({ok:true,duplicate:false,requestId:row.requestId,state:"queued",sequence:row.sequence},{status:202});
+      }
+      if(!store)return Response.json({ok:false},{status:404});
+      const row=store.requests.get(body.requestId);
+      if(!row)return Response.json({ok:false},{status:404});
+      if(url.pathname==="/claim"){
+        if(row.state==="completed")return Response.json({ok:true,state:"completed",duplicate:true,response:row.response});
+        if(row.state==="failed"||row.state==="provider_outcome_unknown")return Response.json({ok:false,state:row.state},{status:409});
+        if(row.state==="processing")return Response.json({ok:true,state:"processing"},{status:202});
+        const earlier=[...store.requests.values()].find(x=>x.sequence<row.sequence&&!["completed","failed","provider_outcome_unknown"].includes(x.state));
+        if(earlier)return Response.json({ok:true,state:"queued",blockedBy:earlier.requestId},{status:202});
+        row.state="processing";row.token++;
+        return Response.json({ok:true,state:"claimed",requestId:row.requestId,sequence:row.sequence,fencingToken:row.token,leaseExpiresAt:Date.now()+60_000,userContent:row.userContent,attachments:row.attachments});
+      }
+      if(url.pathname==="/provider-started"){
+        if(row.state!=="processing"||row.token!==body.fencingToken)return Response.json({ok:false},{status:409});
+        row.providerStarted=true;return Response.json({ok:true,state:"processing"});
+      }
+      if(url.pathname==="/finalize"){
+        if(row.state==="completed")return Response.json({ok:true,duplicate:true,state:"completed",response:row.response});
+        if(row.state!=="processing"||row.token!==body.fencingToken||!row.providerStarted)return Response.json({ok:false},{status:409});
+        const response={answer:body.answer,sources:body.sources??[],conversationId};
+        store.messages.push({role:"user",content:row.userContent,createdAt:new Date().toISOString()},{role:"assistant",content:body.answer,createdAt:new Date().toISOString(),...(body.sources?.length?{sources:body.sources}:{})});
+        store.messages=store.messages.slice(-20);store.updatedAt=new Date().toISOString();row.state="completed";row.response=response;
+        return Response.json({ok:true,duplicate:false,state:"completed",response});
+      }
+      if(url.pathname==="/fail"){
+        if(row.state!=="processing"||row.token!==body.fencingToken)return Response.json({ok:false},{status:409});
+        row.state=body.providerNotCalled?"failed":row.providerStarted?"provider_outcome_unknown":"failed";
+        return Response.json({ok:true,state:row.state});
+      }
+      return Response.json({ok:false},{status:404});
+    }}) as unknown as DurableObjectStub,
+  } as unknown as DurableObjectNamespace;
+}
+
 
 async function signedInitData(botToken: string, userId: string, authDate = Math.floor(Date.now() / 1000)): Promise<string> {
   const params = new URLSearchParams({
