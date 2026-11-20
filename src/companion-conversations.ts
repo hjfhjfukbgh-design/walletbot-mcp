@@ -2,7 +2,7 @@ type Mode = "general" | "learning" | "research";
 type RequestState = "queued" | "processing" | "completed" | "failed" | "provider_outcome_unknown";
 type Sql = DurableObjectStorage["sql"];
 type ConversationRow = { conversation_id:string; tenant_id:string; mode:Mode; title:string; created_at:number; updated_at:number; next_sequence:number };
-type RequestRow = { request_id:string; sequence:number; state:RequestState; user_content:string; attachments_json:string|null; response_json:string|null; error_code:string|null; lease_expires_at:number|null; fencing_token:number; provider_call_started_at:number|null; created_at:number; updated_at:number };
+type RequestRow = { request_id:string; sequence:number; state:RequestState; mode:Mode; user_content:string; attachments_json:string|null; response_json:string|null; error_code:string|null; lease_expires_at:number|null; fencing_token:number; provider_call_started_at:number|null; created_at:number; updated_at:number };
 
 const TENANT_RE = /^\d{1,20}$/;
 const CONVERSATION_RE = /^[a-f0-9-]{36}$/i;
