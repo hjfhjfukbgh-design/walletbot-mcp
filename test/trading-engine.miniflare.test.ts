@@ -365,6 +365,27 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const tokenC = Number(claimC.body.fencingToken);
     await post(stub, "/ai/paper/decision/external-started", { userId: userC, tickId: unknownTick, fencingToken: tokenC });
     await post(stub, "/ai/paper/decision/unknown", { userId: userC, tickId: unknownTick, fencingToken: tokenC });
+    const userD = "666666661";
+    const fencingTick = "fencing-token-test-01";
+    const firstClaim = await post(stub, "/ai/paper/decision/claim", { userId: userD, tickId: fencingTick });
+    const firstToken = Number(firstClaim.body.fencingToken);
+    await post(stub, "/ai/paper/decision/external-started", { userId: userD, tickId: fencingTick, fencingToken: firstToken });
+    await post(stub, "/ai/paper/decision/release", { userId: userD, tickId: fencingTick, fencingToken: firstToken, safeToRetry: true });
+    const secondClaim = await post(stub, "/ai/paper/decision/claim", { userId: userD, tickId: fencingTick });
+    const secondToken = Number(secondClaim.body.fencingToken);
+    expect(secondToken).toBeGreaterThan(firstToken);
+    await post(stub, "/ai/paper/decision/external-started", { userId: userD, tickId: fencingTick, fencingToken: secondToken });
+    const decisionBase = {
+      userId: userD, tickId: fencingTick, strategyId: "gemini-paper", strategyVersion: "1",
+      marketSnapshotHash: "e".repeat(64), symbol: "BTC", signal: "hold",
+      rationale: "Fencing token test.", confidence: 0.5, observedPrice: "50000", riskPass: true,
+      serverObservedAt: Date.now(),
+    };
+    const staleFinalize = await post(stub, "/ai/paper/decision", { ...decisionBase, fencingToken: firstToken });
+    expect(staleFinalize.status).toBe(409);
+    const currentFinalize = await post(stub, "/ai/paper/decision", { ...decisionBase, fencingToken: secondToken });
+    expect(currentFinalize.status).toBe(201);
+
     const unknownLookup = await stub.fetch("https://engine.test/ai/paper/decision?userId=" + userC + "&tickId=" + unknownTick);
     expect(unknownLookup.status).toBe(409);
     expect(await unknownLookup.json()).toMatchObject({ state: "external_outcome_unknown" });
