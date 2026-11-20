@@ -346,7 +346,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       userId: userA, tickId, fencingToken: tokenA, strategyId: "gemini-paper", strategyVersion: "1",
       marketSnapshotHash: "d".repeat(64), symbol: "BTC", signal: "buy",
       rationale: "Stable request replay test.", confidence: 0.8, observedPrice: "50000", riskPass: false, riskEvaluated: false,
-      snapshotRetrievedAt: Date.now(),
+      snapshotRetrievedAt: Date.now(), snapshotPayload: { source: "hyperliquid-public", retrievedAt: Date.now(), markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
     });
     expect(recorded.status).toBe(201);
 
@@ -388,7 +388,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       userId: userD, tickId: fencingTick, strategyId: "gemini-paper", strategyVersion: "1",
       marketSnapshotHash: "e".repeat(64), symbol: "BTC", signal: "hold",
       rationale: "Fencing token test.", confidence: 0.5, observedPrice: "50000", riskPass: false, riskEvaluated: false,
-      snapshotRetrievedAt: Date.now(),
+      snapshotRetrievedAt: Date.now(), snapshotPayload: { source: "hyperliquid-public", retrievedAt: Date.now(), markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
     };
     const staleFinalize = await post(stub, "/ai/paper/decision", { ...decisionBase, fencingToken: firstToken });
     expect(staleFinalize.status).toBe(409);
@@ -412,7 +412,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       rationale: "Server snapshot validated.", confidence: 0.8, observedPrice: "50000", riskPass: false, riskEvaluated: false,
     };
     const noClaim = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: "tick-server-mark-no-claim", snapshotRetrievedAt: Date.now(),
+      ...base, tickId: "tick-server-mark-no-claim", snapshotRetrievedAt: Date.now(), snapshotPayload: { source: "hyperliquid-public", retrievedAt: Date.now(), markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
     });
     expect(noClaim.status).toBe(400);
 
