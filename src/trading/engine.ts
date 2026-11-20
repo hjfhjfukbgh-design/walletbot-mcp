@@ -1039,8 +1039,7 @@ export class TradingEngine {
           Number(existing.risk_pass) === (riskPass ? 1 : 0) &&
           Number(existing.risk_evaluated) === (riskEvaluated ? 1 : 0) &&
           (existing.rejection_reason === null ? rejectionReason === null : String(existing.rejection_reason) === rejectionReason) &&
-          (existing.position_id === null ? positionId === null : String(existing.position_id) === positionId) &&
-          Number(existing.snapshot_retrieved_at) === snapshotRetrievedAt;
+          (existing.position_id === null ? positionId === null : String(existing.position_id) === positionId);
         if (same) {
           duplicate = true;
           this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?", userId, tickId);
