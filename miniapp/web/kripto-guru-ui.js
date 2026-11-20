@@ -958,7 +958,7 @@
     if(modeBadge){modeBadge.className="kg-mode-badge "+(state.productMode==="ai"?"kg-mode-badge--ai":"kg-mode-badge--demo");modeBadge.textContent=market+" · "+method;}
     renderProfileSettings();
     const paperSummary=$("#kg-ai-paper-summary");
-    if(paperSummary)paperSummary.hidden=state.productMode!=="ai"&&state.aiPaper?.status!=="active";
+    if(paperSummary)paperSummary.hidden=!(state.marketMode==="demo"&&state.productMode==="ai")&&state.aiPaper?.status!=="active";
     renderAiPaperSessionControls();
   }
   function renderAiPaperSessionControls(){
