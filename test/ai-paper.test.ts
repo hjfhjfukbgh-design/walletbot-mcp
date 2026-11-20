@@ -156,6 +156,37 @@ describe("runAiPaperDecision", () => {
     expect(writes).toBe(0);
   });
 
+  it("fails closed on Gemini timeout and incomplete candidates without persisting", async () => {
+    let writes = 0;
+    const common = {
+      now: () => NOW,
+      getContracts: async () => contracts,
+      consumeQuota: async () => Response.json({ ok: true }),
+      engineRequest: async (path: string) => {
+        if (path.startsWith("/ai/paper/status")) return Response.json({ status: "active" });
+        writes++;
+        return Response.json({ ok: true }, { status: 201 });
+      },
+    };
+    const timeout = await runAiPaperDecision(makeEnv(), "123456789", "manual-run-timeout", {
+      ...common,
+      fetcher: async () => { throw new Error("timeout"); },
+    });
+    expect(timeout.status).toBe(503);
+    expect(writes).toBe(0);
+
+    const incomplete = await runAiPaperDecision(makeEnv(), "123456789", "manual-run-incomplete", {
+      ...common,
+      fetcher: async () => Response.json({
+        candidates: [{ finishReason: "MAX_TOKENS", content: { parts: [{ text: JSON.stringify({
+          signal: "buy", symbol: "BTC", rationale: "partial", confidence: 0.8,
+        }) }] } }],
+      }),
+    });
+    expect(incomplete.status).toBe(502);
+    expect(writes).toBe(0);
+  });
+
   it("fails closed when the server risk configuration is missing", async () => {
     const env = { ...makeEnv(), MAX_DAILY_LOSS_PCT: "" } as unknown as Env;
     let modelCalls = 0;
