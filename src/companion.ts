@@ -7,6 +7,7 @@ type CompanionMode = "general" | "learning" | "research";
 type Conversation = { id: string; title: string; createdAt: string; updatedAt: string; messages: ChatMessage[]; mode?: CompanionMode };
 
 const PREFIX = "companion:conversation:";
+const LEGACY_PREFIX = "companion:legacy:";
 const MAX_MESSAGE_CHARS = 4_000;
 const MAX_STORED_MESSAGES = 20;
 const MAX_CONTEXT_MESSAGES = 8;
@@ -43,19 +44,50 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     if (req.method === "GET" && path === "/api/companion/conversations") {
       const page = await scoped.STATE.list({ prefix: PREFIX, limit: 50 });
       const conversations = await Promise.all(page.keys.map(async ({ name }) => {
-        const item = await scoped.STATE.get<Conversation>(name, "json");
-        return item ? { id: item.id, title: item.title, createdAt: item.createdAt, updatedAt: item.updatedAt, messageCount: item.messages.length, mode: item.mode ?? "general" } : null;
+        const item = await scoped.STATE.get<Record<string, unknown>>(name, "json");
+        if (!item || typeof item.id !== "string") return null;
+        const messages = Array.isArray(item.messages) ? item.messages : [];
+        return {
+          id: item.id,
+          title: typeof item.title === "string" ? item.title : "Диалог",
+          createdAt: typeof item.createdAt === "string" ? item.createdAt : "",
+          updatedAt: typeof item.updatedAt === "string" ? item.updatedAt : "",
+          messageCount: Number.isSafeInteger(item.messageCount) ? Number(item.messageCount) : messages.length,
+          mode: item.mode === "learning" || item.mode === "research" ? item.mode : "general",
+        };
       }));
       return json({ ok: true, conversations: conversations.filter(Boolean).sort((a, b) => b!.updatedAt.localeCompare(a!.updatedAt)) });
     }
 
+    const requestMatch = path.match(/^\/api\/companion\/requests\/([A-Za-z0-9._:-]{8,128})$/);
+    if (requestMatch && req.method === "GET") {
+      const conversationId = new URL(req.url).searchParams.get("conversationId") ?? "";
+      if (!/^[a-f0-9-]{36}$/i.test(conversationId)) return json({ ok: false, error: "Некорректный ID диалога." }, 400);
+      const stub = conversationStub(env, userId, conversationId);
+      const status = await stub.fetch("https://companion-conversation/status?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(conversationId) + "&requestId=" + encodeURIComponent(requestMatch[1]));
+      const payload = await status.json().catch(() => ({}));
+      return json(payload, status.status);
+    }
+
     const match = path.match(/^\/api\/companion\/conversations\/([a-f0-9-]{36})$/i);
     if (match && req.method === "GET") {
-      const conversation = await scoped.STATE.get<Conversation>(PREFIX + match[1], "json");
-      return conversation ? json({ ok: true, conversation }) : json({ ok: false, error: "Диалог не найден." }, 404);
+      const id = match[1];
+      const legacy = await scoped.STATE.get<Conversation>(PREFIX + id, "json");
+      if (legacy && Array.isArray(legacy.messages)) await importLegacyConversation(env, userId, scoped, legacy);
+      const stub = conversationStub(env, userId, id);
+      const response = await stub.fetch("https://companion-conversation/conversation?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(id));
+      const payload = await response.json().catch(() => ({})) as { conversation?: Conversation };
+      if (!response.ok || !payload.conversation) return json({ ok: false, error: "Диалог не найден." }, 404);
+      await writeConversationIndex(scoped, payload.conversation);
+      return json({ ok: true, conversation: payload.conversation });
     }
     if (match && req.method === "DELETE") {
-      await scoped.STATE.delete(PREFIX + match[1]);
+      const id = match[1];
+      const stub = conversationStub(env, userId, id);
+      const response = await stub.fetch("https://companion-conversation/conversation?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(id), { method: "DELETE" });
+      if (!response.ok) return json({ ok: false, error: "Не удалось удалить диалог." }, response.status);
+      await scoped.STATE.delete(PREFIX + id);
+      await scoped.STATE.delete(LEGACY_PREFIX + id);
       return json({ ok: true });
     }
 
@@ -64,7 +96,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     if (!env.GEMINI_API_KEY)
       return json({ ok: false, error: "ИИ временно не настроен: отсутствует серверный ключ Gemini." }, 503);
 
-    const body = await req.json().catch(() => ({})) as { message?: unknown; conversationId?: unknown; attachments?: unknown; mode?: unknown };
+    const body = await req.json().catch(() => ({})) as { message?: unknown; conversationId?: unknown; requestId?: unknown; attachments?: unknown; mode?: unknown };
     const message = typeof body.message === "string" ? body.message.trim() : "";
     if (body.mode !== undefined && body.mode !== "general" && body.mode !== "learning" && body.mode !== "research") return json({ ok: false, error: "Неизвестный режим AI Companion." }, 400);
     const mode: CompanionMode = body.mode === "learning" ? "learning" : body.mode === "research" ? "research" : "general";
@@ -111,28 +143,66 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     if (message.length > MAX_MESSAGE_CHARS)
       return json({ ok: false, error: `Сообщение слишком длинное. Максимум ${MAX_MESSAGE_CHARS} символов.` }, 413);
 
-    let conversation: Conversation;
     const requestedId = typeof body.conversationId === "string" ? body.conversationId : "";
+    const conversationId = requestedId || crypto.randomUUID();
+    if (requestedId && !/^[a-f0-9-]{36}$/i.test(requestedId)) return json({ ok: false, error: "Некорректный ID диалога." }, 400);
     if (!requestedId) {
       const existingConversations = await scoped.STATE.list({ prefix: PREFIX, limit: MAX_CONVERSATIONS });
-      if (existingConversations.keys.length >= MAX_CONVERSATIONS) {
-        return json({ ok: false, error: "Достигнут лимит в 50 диалогов. Удалите старый диалог, чтобы создать новый." }, 409);
-      }
+      if (existingConversations.keys.length >= MAX_CONVERSATIONS) return json({ ok: false, error: "Достигнут лимит в 50 диалогов. Удалите старый диалог, чтобы создать новый." }, 409);
     }
     if (requestedId) {
-      if (!/^[a-f0-9-]{36}$/i.test(requestedId)) return json({ ok: false, error: "Некорректный ID диалога." }, 400);
-      const existing = await scoped.STATE.get<Conversation>(PREFIX + requestedId, "json");
-      if (!existing) return json({ ok: false, error: "Диалог не найден." }, 404);
-      const existingMode = existing.mode ?? "general";
-      if (existingMode !== mode) return json({ ok: false, error: "Режим диалога нельзя менять в середине истории. Создайте новый чат для другого режима." }, 409);
-      conversation = { ...existing, mode: existingMode };
-    } else {
-      const now = new Date().toISOString();
-      conversation = { id: crypto.randomUUID(), title: (message || attachments.map(file => file.name).join(", ") || "Вложения").slice(0, 72), createdAt: now, updatedAt: now, messages: [], mode };
+      const legacy = await scoped.STATE.get<Conversation>(PREFIX + requestedId, "json");
+      if (legacy && Array.isArray(legacy.messages)) {
+        if ((legacy.mode ?? "general") !== mode) return json({ ok: false, error: "Режим диалога нельзя менять в середине истории. Создайте новый чат для другого режима." }, 409);
+        await importLegacyConversation(env, userId, scoped, legacy);
+      } else {
+        const existingResponse = await conversationStub(env, userId, requestedId).fetch("https://companion-conversation/conversation?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(requestedId));
+        if (!existingResponse.ok) return json({ ok: false, error: "Диалог не найден." }, 404);
+        const existingPayload = await existingResponse.json() as { conversation: Conversation };
+        if ((existingPayload.conversation.mode ?? "general") !== mode) return json({ ok: false, error: "Режим диалога нельзя менять в середине истории. Создайте новый чат для другого режима." }, 409);
+      }
     }
 
+    const requestId = typeof body.requestId === "string" ? body.requestId : crypto.randomUUID();
+    if (!/^[A-Za-z0-9._:-]{8,128}$/.test(requestId)) return json({ ok: false, error: "Некорректный requestId." }, 400);
     const userContent = message || "Проанализируй приложенные файлы.";
-    const history = [...conversation.messages, { role: "user" as const, content: userContent, createdAt: new Date().toISOString() }].slice(-MAX_CONTEXT_MESSAGES);
+    const attachmentLabel = attachments.length ? "\n[Вложения: " + attachments.map(file => file.name).join(", ") + "]" : "";
+    const storedUserContent = userContent + attachmentLabel;
+    const title = (message || attachments.map(file => file.name).join(", ") || "Вложения").slice(0, 72);
+    const stub = conversationStub(env, userId, conversationId);
+    const enqueueResponse = await stub.fetch("https://companion-conversation/enqueue", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tenantId: userId, conversationId, requestId, userContent: storedUserContent, attachments, mode, title }),
+    });
+    const enqueued = await enqueueResponse.json().catch(() => ({})) as { state?: string; response?: { answer?: string; sources?: CompanionSource[] }; error?: string };
+    if (!enqueueResponse.ok && enqueueResponse.status !== 202) return json({ ok: false, error: enqueued.error ?? "Не удалось поставить сообщение в очередь." }, enqueueResponse.status);
+    if (enqueued.state === "completed" && enqueued.response) {
+      const historyResponse = await stub.fetch("https://companion-conversation/conversation?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(conversationId));
+      const historyPayload = await historyResponse.json().catch(() => ({})) as { conversation?: Conversation };
+      if (historyPayload.conversation) await writeConversationIndex(scoped, historyPayload.conversation);
+      return json({ ok: true, conversationId, requestId, answer: enqueued.response.answer ?? "", sources: enqueued.response.sources ?? [], conversation: historyPayload.conversation, duplicate: true });
+    }
+    const claimResponse = await stub.fetch("https://companion-conversation/claim", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tenantId: userId, conversationId, requestId, leaseMs: 60_000 }),
+    });
+    const claim = await claimResponse.json().catch(() => ({})) as { state?: string; fencingToken?: number; userContent?: string; attachments?: typeof attachments; error?: string };
+    if (!claimResponse.ok || claim.state !== "claimed") {
+      if (claim.state === "completed") {
+        const historyResponse = await stub.fetch("https://companion-conversation/conversation?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(conversationId));
+        const historyPayload = await historyResponse.json().catch(() => ({})) as { conversation?: Conversation };
+        return json({ ok: true, conversationId, requestId, answer: "", sources: [], conversation: historyPayload.conversation, duplicate: true });
+      }
+      return json({ ok: true, conversationId, requestId, state: claim.state ?? "queued" }, 202);
+    }
+    const fencingToken = Number(claim.fencingToken);
+    const historyResponse = await stub.fetch("https://companion-conversation/conversation?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(conversationId));
+    const historyPayload = await historyResponse.json().catch(() => ({})) as { conversation?: Conversation };
+    const conversation: Conversation = historyPayload.conversation ?? {
+      id: conversationId, title, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messages: [], mode,
+    };
+    if ((conversation.mode ?? "general") !== mode) return json({ ok: false, error: "Режим диалога нельзя менять в середине истории." }, 409);
+    const history = [...conversation.messages, { role: "user" as const, content: storedUserContent, createdAt: new Date().toISOString() }].slice(-MAX_CONTEXT_MESSAGES);
     const model = (mode === "research" ? "gemini-2.5-flash-lite" : env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim();
     if (!/^[a-zA-Z0-9._-]{1,80}$/.test(model)) return json({ ok: false, error: "Некорректная настройка модели Gemini." }, 500);
 
@@ -243,6 +313,43 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     console.error("[companion] request failed", error instanceof Error ? error.message : "unknown error");
     return json({ ok: false, error: "Внутренняя ошибка AI Companion." }, 500);
   }
+}
+
+
+function conversationStub(env:Env,userId:string,conversationId:string):DurableObjectStub {
+  if(!env.COMPANION_CONVERSATIONS) throw new Error("COMPANION_CONVERSATIONS binding is not configured");
+  const name="tenant:"+userId+":conversation:"+conversationId;
+  return env.COMPANION_CONVERSATIONS.get(env.COMPANION_CONVERSATIONS.idFromName(name));
+}
+async function sha256Hex(value:string):Promise<string> {
+  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,"0")).join("");
+}
+async function writeConversationIndex(scoped:Env,conversation:Conversation):Promise<void> {
+  const index={id:conversation.id,title:conversation.title,createdAt:conversation.createdAt,updatedAt:conversation.updatedAt,messageCount:conversation.messages.length,mode:conversation.mode??"general"};
+  try { await scoped.STATE.put(PREFIX+conversation.id,JSON.stringify(index)); }
+  catch(error) { console.error("[companion] conversation index update failed:",error instanceof Error?error.name:"unknown"); }
+}
+async function importLegacyConversation(env:Env,userId:string,scoped:Env,conversation:Conversation):Promise<void> {
+  const stub=conversationStub(env,userId,conversation.id);
+  const serialized=JSON.stringify(conversation);
+  const contentHash=await sha256Hex(serialized);
+  const response=await stub.fetch("https://companion-conversation/import",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({tenantId:userId,conversationId:conversation.id,conversation,contentHash}),
+  });
+  const result=await response.json().catch(()=>({})) as {error?:string};
+  if(!response.ok) throw new Error(result.error??"Legacy conversation import failed");
+  try {
+    await scoped.STATE.put(LEGACY_PREFIX+conversation.id,serialized,{expirationTtl:7*24*60*60});
+    await writeConversationIndex(scoped,conversation);
+  } catch(error) { console.error("[companion] legacy backup/index write failed:",error instanceof Error?error.name:"unknown"); }
+}
+async function failConversationRequest(stub:DurableObjectStub,tenantId:string,conversationId:string,requestId:string,fencingToken:number,errorCode:string,providerNotCalled=false):Promise<void> {
+  await stub.fetch("https://companion-conversation/fail",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({tenantId,conversationId,requestId,fencingToken,errorCode,providerNotCalled}),
+  }).catch(()=>null);
 }
 
 function json(data: unknown, status = 200): Response {
