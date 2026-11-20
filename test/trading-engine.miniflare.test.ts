@@ -458,6 +458,31 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(await status.json()).toMatchObject({ aiBalanceMicro: (70n * U).toString(), openPositions: 1 });
   });
 
+  it.each([
+    ["missing max-order binding", { MAX_ORDER_PCT: "" }],
+    ["malformed max-order binding", { MAX_ORDER_PCT: "not-a-number" }],
+    ["missing aggregate-exposure binding", { MAX_TOTAL_EXPOSURE_PCT: "" }],
+    ["malformed aggregate-exposure binding", { MAX_TOTAL_EXPOSURE_PCT: "Infinity" }],
+  ])("fails closed for %s", async (_label, overrides) => {
+    const stub = await boot(overrides as Record<string, string>);
+    const owner = "555555555";
+    await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-invalid-risk-binding" });
+    await startAiPaper(stub, owner);
+    const decision = await post(stub, "/ai/paper/decision", {
+      userId: owner, tickId: "tick-invalid-risk-binding-" + _label, strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "a".repeat(64), symbol: "BTC", signal: "buy", rationale: "Approved.",
+      confidence: 0.8, observedPrice: "50000", riskPass: true,
+    });
+    const rejected = await post(stub, "/ai/paper/position/open", {
+      userId: owner, decisionId: decision.body.id, idempotencyKey: "open-invalid-risk-binding-" + _label,
+      symbol: "BTC", side: "long", qtyUnits: "0.01", entryPrice: "50000",
+      marginMicro: (1n * U).toString(), leverage: "2", feeMicro: "0", slippageMicro: "0",
+    });
+    expect(rejected.status).toBe(409);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
+    expect(await status.json()).toMatchObject({ aiBalanceMicro: (100n * U).toString(), openPositions: 0 });
+  });
+
   it("allows AI paper leverage up to 10 and rejects higher leverage without mutating the virtual account", async () => {
     const stub = await boot();
     const owner = "111111111";
