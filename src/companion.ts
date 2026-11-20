@@ -13,7 +13,16 @@ const MAX_CONTEXT_MESSAGES = 8;
 const MAX_OUTPUT_TOKENS = 450;
 const RATE_LIMIT = 8;
 const RATE_WINDOW_SECONDS = 60;
+const DEFAULT_DAILY_LIMIT = 50;
+const MAX_DAILY_LIMIT = 1_000;
 const MAX_CONVERSATIONS = 50;
+
+function dailyLimitFor(env: Env): number {
+  const configured = Number((env as Env & { COMPANION_DAILY_LIMIT?: string }).COMPANION_DAILY_LIMIT);
+  return Number.isSafeInteger(configured) && configured >= 1 && configured <= MAX_DAILY_LIMIT
+    ? configured
+    : DEFAULT_DAILY_LIMIT;
+}
 
 export async function handleCompanionApi(req: Request, env: Env): Promise<Response> {
   if (req.method !== "GET" && req.method !== "POST" && req.method !== "DELETE")
@@ -32,6 +41,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       return json({ ok: true, limits: {
         messagesPerWindow: RATE_LIMIT,
         rateWindowSeconds: RATE_WINDOW_SECONDS,
+        messagesPerDay: dailyLimitFor(env),
         maxMessageChars: MAX_MESSAGE_CHARS,
         maxStoredMessages: MAX_STORED_MESSAGES,
         maxContextMessages: MAX_CONTEXT_MESSAGES,
@@ -144,12 +154,19 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       limit: RATE_LIMIT,
       windowSeconds: RATE_WINDOW_SECONDS,
     }];
+    const quotaDay = new Date(quotaNow).toISOString().slice(0, 10);
     if (mode === "research") {
-      const researchDay = new Date(quotaNow).toISOString().slice(0, 10);
       quotaLimits.push(
-        { key: "research:global:" + researchDay, limit: 20, windowSeconds: 48 * 60 * 60, sliding: false },
-        { key: "research:user:" + userId + ":" + researchDay, limit: 5, windowSeconds: 48 * 60 * 60, sliding: false },
+        { key: "research:global:" + quotaDay, limit: 20, windowSeconds: 48 * 60 * 60, sliding: false },
+        { key: "research:user:" + userId + ":" + quotaDay, limit: 5, windowSeconds: 48 * 60 * 60, sliding: false },
       );
+    } else {
+      quotaLimits.push({
+        key: "general:daily:" + userId + ":" + quotaDay,
+        limit: dailyLimitFor(env),
+        windowSeconds: 48 * 60 * 60,
+        sliding: false,
+      });
     }
     let quotaResponse: Response;
     try {
@@ -165,10 +182,14 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     }
     const quotaResult = await quotaResponse.json().catch(() => ({})) as { exhausted?: { key?: string } };
     if (quotaResponse.status === 429) {
-      const researchLimit = String(quotaResult.exhausted?.key ?? "").startsWith("research:");
+      const exhaustedKey = String(quotaResult.exhausted?.key ?? "");
+      const researchLimit = exhaustedKey.startsWith("research:");
+      const dailyLimit = exhaustedKey.startsWith("general:daily:");
       return json({ ok: false, error: researchLimit
         ? "Дневной бесплатный лимит веб-исследований исчерпан. Попробуйте завтра."
-        : "Слишком много сообщений. Подождите минуту." }, 429);
+        : dailyLimit
+          ? "Дневной лимит обычных сообщений исчерпан. Попробуйте завтра."
+          : "Слишком много сообщений за минуту. Подождите немного." }, 429);
     }
     if (!quotaResponse.ok) {
       console.error("[companion] quota coordinator rejected request:", quotaResponse.status);
