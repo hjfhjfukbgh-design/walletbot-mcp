@@ -93,10 +93,12 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext): 
         return updateProductMode(scopedEnv, telegramUserId, body);
       case "POST ai/paper/decision/run": {
         if (url.searchParams.has("userId")) return fail("ID пользователя берётся только из Telegram initData.", 400);
-        const state = await loadState(scopedEnv);
-        if (normalizeProductMode(state.productMode) !== "ai")
-          return fail("Выберите режим AI Trading перед запуском AI PAPER анализа.", 409);
-        return runAiPaperDecision(env, telegramUserId, body.requestId);
+        return runAiPaperDecision(env, telegramUserId, body.requestId, {
+          isAiMode: async () => {
+            const state = await loadState(scopedEnv);
+            return normalizeProductMode(state.productMode) === "ai";
+          },
+        });
       }
       case "POST ai/paper/session/start":
         return startAiPaperSession(scopedEnv, telegramUserId);
