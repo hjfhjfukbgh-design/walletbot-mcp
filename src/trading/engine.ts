@@ -492,7 +492,7 @@ export class TradingEngine {
         !decimalPattern.test(entryPrice) || Number(entryPrice) <= 0 ||
         !/^(?:0|[1-9]\d{0,18})$/.test(rawMargin) || BigInt(rawMargin) <= 0n ||
         !/^(?:0|[1-9]\d{0,18})$/.test(rawFees) || !/^(?:0|[1-9]\d{0,18})$/.test(rawSlippage) ||
-        !Number.isSafeInteger(leverage) || leverage < 1 || leverage > 100 ||
+        !Number.isSafeInteger(leverage) || leverage < 1 || leverage > 3 ||
         (stopLossPrice !== null && (!decimalPattern.test(stopLossPrice) || Number(stopLossPrice) <= 0)) ||
         (takeProfitPrice !== null && (!decimalPattern.test(takeProfitPrice) || Number(takeProfitPrice) <= 0))) {
       return Response.json({ ok: false, error: "Некорректные параметры открытия AI paper позиции." }, { status: 400 });
@@ -511,6 +511,7 @@ export class TradingEngine {
     let conflict = false;
     let insufficient = false;
     let openPositionExists = false;
+    let positionLimitExceeded = false;
     let invalidDecision = false;
     let sessionInactive = false;
     let balanceAfter = 0n;
@@ -569,6 +570,12 @@ export class TradingEngine {
       ).toArray()[0] as { id: string } | undefined;
       if (existingOpen) { openPositionExists = true; return; }
 
+      const openCount = this.ctx.storage.sql.exec(
+        "SELECT COUNT(*) AS count FROM ai_paper_positions WHERE user_id = ? AND status = 'open'",
+        userId,
+      ).toArray()[0] as { count: number } | undefined;
+      if (Number(openCount?.count ?? 0) >= 3) { positionLimitExceeded = true; return; }
+
       const account = this.ctx.storage.sql.exec(
         "SELECT balance_micro, status FROM ai_paper_accounts WHERE user_id = ?", userId,
       ).toArray()[0] as { balance_micro: string; status: string } | undefined;
@@ -601,6 +608,7 @@ export class TradingEngine {
     if (invalidDecision) return Response.json({ ok: false, error: "Нет действующего одобренного AI paper решения или счёта для этой позиции." }, { status: 409 });
     if (sessionInactive) return Response.json({ ok: false, error: "AI paper сессия остановлена. Запустите её явно перед открытием позиции." }, { status: 409 });
     if (openPositionExists) return Response.json({ ok: false, error: "Для этого инструмента уже открыта AI paper позиция." }, { status: 409 });
+    if (positionLimitExceeded) return Response.json({ ok: false, error: "Достигнут лимит в три одновременно открытые AI paper позиции." }, { status: 409 });
     if (insufficient) return Response.json({ ok: false, error: "Недостаточно средств на AI paper счёте для маржи и резервов." }, { status: 409 });
     return Response.json({ ok: true, positionId, duplicate, balanceMicro: duplicate ? undefined : balanceAfter.toString() }, { status: duplicate ? 200 : 201 });
   }
