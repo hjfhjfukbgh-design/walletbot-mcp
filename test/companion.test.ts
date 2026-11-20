@@ -573,7 +573,7 @@ describe("AI Companion API", () => {
     const e=isolatedEnv({["tenant:111:companion:conversation:"+id]:JSON.stringify(legacy)});
     const first=await call(e,"111","/api/companion/conversations/"+id);
     expect(first.status).toBe(200);
-    const body=await first.json() as {conversation:TestTestConversation};
+    const body=await first.json() as {conversation:TestConversation};
     expect(body.conversation.messages.map(message=>message.content)).toEqual(["Старый вопрос","Старый ответ"]);
     const backup=await e.STATE.get("tenant:111:companion:legacy:"+id,"json") as TestConversation;
     expect(backup.messages).toHaveLength(2);
