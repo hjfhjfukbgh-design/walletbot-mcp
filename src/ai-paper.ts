@@ -272,7 +272,7 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId: un
     persisted = true;
     return response({
       ok: true, tickId, marketSnapshotHash, snapshotRetrievedAt,
-      decision: parsed.decision, persisted: true, duplicate: recordBody.duplicate === true,
+      decision: { ...parsed.decision, snapshotPayload }, persisted: true, duplicate: recordBody.duplicate === true,
     }, recordResponse.status);
   } finally {
     if (!persisted && !released) {
