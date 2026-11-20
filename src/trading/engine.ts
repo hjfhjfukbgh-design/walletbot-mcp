@@ -626,6 +626,18 @@ export class TradingEngine {
       }
 
       const now = Date.now();
+      const decisionObservedAt = Number(decision.created_at);
+      const decisionMark = parseDecimal8(decision.observed_price);
+      const latestEntryDecision = this.ctx.storage.sql.exec(
+        "SELECT id FROM ai_paper_decisions WHERE user_id = ? AND symbol = ? ORDER BY created_at DESC, id DESC LIMIT 1",
+        userId, symbol,
+      ).toArray()[0] as { id: string } | undefined;
+      if (!Number.isSafeInteger(decisionObservedAt) || decisionObservedAt <= 0 ||
+          decisionObservedAt > now + 1_000 || now - decisionObservedAt > AI_PAPER_MARK_MAX_AGE_MS ||
+          decisionMark === null || decisionMark <= 0n || latestEntryDecision?.id !== decision.id) {
+        invalidMark = true;
+        return;
+      }
       const markFor = (market: string): bigint | null => {
         const row = this.ctx.storage.sql.exec(
           "SELECT observed_price, created_at FROM ai_paper_decisions WHERE user_id = ? AND symbol = ? ORDER BY created_at DESC, id DESC LIMIT 1",
@@ -652,7 +664,7 @@ export class TradingEngine {
         const marginValue = /^\d{1,20}$/.test(row.margin_micro) ? BigInt(row.margin_micro) : -1n;
         const openFees = /^\d{1,20}$/.test(row.fees_micro) ? BigInt(row.fees_micro) : -1n;
         const openSlippage = /^\d{1,20}$/.test(row.slippage_micro) ? BigInt(row.slippage_micro) : -1n;
-        if (mark === null || quantity === null || quantity <= 0n || entry === null || entry <= 0n ||
+        if (mark === null || mark <= 0n || quantity === null || quantity <= 0n || entry === null || entry <= 0n ||
             marginValue < 0n || openFees < 0n || openSlippage < 0n ||
             (row.side !== "long" && row.side !== "short")) {
           invalidMark = true;
