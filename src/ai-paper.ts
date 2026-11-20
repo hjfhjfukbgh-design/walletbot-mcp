@@ -54,7 +54,7 @@ async function defaultConsumeQuota(env: Env, quotas: Array<{ key: string; limit:
 
 /** Generate and persist one AI PAPER decision. Never opens or closes positions. */
 export async function runAiPaperDecision(env: Env, userId: string, requestId?: unknown, dependencies: AiPaperDependencies = {}): Promise<Response> {
-  if (!/^\\d{1,20}$/.test(userId)) return response({ ok: false, error: "Не подтверждён пользователь Telegram." }, 401);
+  if (!/^\d{1,20}$/.test(userId)) return response({ ok: false, error: "Не подтверждён пользователь Telegram." }, 401);
   const tickId = typeof requestId === "string" ? requestId.trim() : "";
   if (!/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
     return response({ ok: false, error: "Передайте стабильный requestId для запуска AI PAPER." }, 400);
