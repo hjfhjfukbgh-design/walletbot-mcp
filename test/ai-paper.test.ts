@@ -78,7 +78,7 @@ describe("runAiPaperDecision", () => {
     expect(recorded).toHaveLength(1);
     expect(recorded[0]).toMatchObject({
       userId: "123456789", tickId: "manual-run-0001", strategyId: "gemini-paper",
-      symbol: "BTC", signal: "buy", observedPrice: "50000.00", serverObservedAt: NOW,
+      symbol: "BTC", signal: "buy", observedPrice: "50000.00", snapshotRetrievedAt: NOW,
       riskPass: true, positionId: null,
     });
     expect(recorded[0]).not.toHaveProperty("leverage");
@@ -113,7 +113,7 @@ describe("runAiPaperDecision", () => {
         recordCalls++;
         stored = {
           tickId: body?.tickId, marketSnapshotHash: body?.marketSnapshotHash,
-          observedAt: body?.serverObservedAt, symbol: body?.symbol, signal: body?.signal,
+          snapshotRetrievedAt: body?.snapshotRetrievedAt, symbol: body?.symbol, signal: body?.signal,
           rationale: body?.rationale, confidence: body?.confidence,
         };
         claimed = false;
