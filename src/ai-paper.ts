@@ -88,6 +88,7 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId: un
         symbol: decision.symbol,
         rationale: decision.rationale,
         confidence: decision.confidence,
+        snapshotPayload: decision.snapshotPayload,
       },
       persisted: true,
       duplicate: true,
@@ -160,7 +161,7 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId: un
       const decision = claimBody.decision as Json;
       return response({
         ok: true, tickId, marketSnapshotHash: decision.marketSnapshotHash, snapshotRetrievedAt: decision.snapshotRetrievedAt,
-        decision: { signal: decision.signal, symbol: decision.symbol, rationale: decision.rationale, confidence: decision.confidence },
+        decision: { signal: decision.signal, symbol: decision.symbol, rationale: decision.rationale, confidence: decision.confidence, snapshotPayload: decision.snapshotPayload },
         persisted: true, duplicate: true,
       }, 200);
     }
