@@ -469,7 +469,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-invalid-risk-binding" });
     await startAiPaper(stub, owner);
     const decision = await post(stub, "/ai/paper/decision", {
-      userId: owner, tickId: "tick-invalid-risk-binding-" + _label, strategyId: "ma-crossover", strategyVersion: "1",
+      userId: owner, tickId: "tick-invalid-risk-binding-" + _label.replaceAll(" ", "-"), strategyId: "ma-crossover", strategyVersion: "1",
       marketSnapshotHash: "a".repeat(64), symbol: "BTC", signal: "buy", rationale: "Approved.",
       confidence: 0.8, observedPrice: "50000", riskPass: true,
     });
