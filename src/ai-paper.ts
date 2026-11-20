@@ -12,6 +12,7 @@ type AiPaperDependencies = {
   fetcher?: typeof fetch;
   engineRequest?: (path: string, body?: Json) => Promise<Response>;
   consumeQuota?: (quotas: Array<{ key: string; limit: number; windowSeconds: number; sliding?: boolean }>) => Promise<Response>;
+  isAiMode?: () => Promise<boolean>;
 };
 const MAX_MARKETS_IN_PROMPT = 10;
 const MAX_MARK_AGE_MS = 10 * 60_000;
@@ -94,6 +95,13 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId?: u
   }
   if (lookupResponse.status !== 404)
     return response({ ok: false, error: "Не удалось проверить историю AI PAPER. Запрос не отправлен." }, 503);
+
+  if (dependencies.isAiMode) {
+    let enabled = false;
+    try { enabled = await dependencies.isAiMode(); }
+    catch { return response({ ok: false, error: "Не удалось проверить выбранный способ торговли. Запуск отменён." }, 503); }
+    if (!enabled) return response({ ok: false, error: "Выберите AI Piper перед новым запуском AI PAPER." }, 409);
+  }
 
   if (!env.GEMINI_API_KEY) return response({ ok: false, error: "Gemini временно не настроен." }, 503);
   if (!serverRiskConfigValid(env)) return response({ ok: false, error: "Серверные лимиты AI PAPER не настроены корректно." }, 503);
