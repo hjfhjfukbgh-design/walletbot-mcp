@@ -47,7 +47,7 @@ function parseDecimal8(value: unknown): bigint | null {
 export function parseFreshAiPaperMark(value: unknown, createdAt: unknown, now = Date.now()): bigint | null {
   const observedAt = Number(createdAt);
   if (!Number.isSafeInteger(observedAt) || observedAt <= 0 ||
-      observedAt > now + 1_000 || now - observedAt > AI_PAPER_MARK_MAX_AGE_MS) return null;
+      observedAt > now || now - observedAt > AI_PAPER_MARK_MAX_AGE_MS) return null;
   const price = parseDecimal8(value);
   return price !== null && price > 0n ? price : null;
 }
