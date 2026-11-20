@@ -165,6 +165,7 @@ export class CompanionConversation {
       if(sources.length>10) return json({ok:false,error:"Слишком много источников в истории."},400);
       messages.push({role:message.role,content:message.content,createdAt,sources});
     }
+    const legacyTitle=legacy.title as string;
     const mode=(legacy.mode ?? "general") as Mode;
     const createdAt=Date.parse(typeof legacy.createdAt==="string"?legacy.createdAt:"");
     const updatedAt=Date.parse(typeof legacy.updatedAt==="string"?legacy.updatedAt:"");
@@ -178,7 +179,7 @@ export class CompanionConversation {
         return {status:409 as const,body:{ok:false,error:"В Durable Object уже есть история; перезапись миграцией запрещена."}};
       }
       this.sql.exec("INSERT INTO companion_conversation(conversation_id,tenant_id,mode,title,created_at,updated_at,next_sequence,migration_hash) VALUES(?,?,?,?,?,?,?,?)",
-        this.conversationId,this.tenantId,mode,legacy.title.slice(0,72),createdAt,updatedAt,messages.length+1,suppliedHash);
+        this.conversationId,this.tenantId,mode,legacyTitle.slice(0,72),createdAt,updatedAt,messages.length+1,suppliedHash);
       for(let i=0;i<messages.length;i++) {
         const message=messages[i];
         this.sql.exec("INSERT INTO companion_messages(sequence,ordinal,role,content,sources_json,created_at) VALUES(?,?,?,?,?,?)",
