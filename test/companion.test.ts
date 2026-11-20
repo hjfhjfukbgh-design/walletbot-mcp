@@ -67,10 +67,10 @@ function memoryConversationNamespace(): DurableObjectNamespace {
       let store=stores.get(name);
       if(url.pathname==="/import"){
         if(!body.conversation||typeof body.contentHash!=="string")return Response.json({ok:false},{status:400});
-        if(store)return store.migrationHash===body.contentHash?Response.json({ok:true,duplicate:true,importedMessages:store.messages.length}):Response.json({ok:false},{status:409});
+        if(store)return store.migrationHash===body.contentHash?Response.json({ok:true,duplicate:true,importedMessages:store.messages.length,contentHash:body.contentHash}):Response.json({ok:false},{status:409});
         const legacy=body.conversation;
         store={tenantId,conversationId,mode:legacy.mode??"general",title:legacy.title,createdAt:legacy.createdAt,updatedAt:legacy.updatedAt,messages:legacy.messages??[],nextSequence:(legacy.messages?.length??0)+1,requests:new Map(),migrationHash:body.contentHash};
-        stores.set(name,store);return Response.json({ok:true,duplicate:false,importedMessages:store.messages.length},{status:201});
+        stores.set(name,store);return Response.json({ok:true,duplicate:false,importedMessages:store.messages.length,contentHash:body.contentHash},{status:201});
       }
       if(url.pathname==="/enqueue"){
         if(!store){store={tenantId,conversationId,mode:body.mode,title:body.title,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),messages:[],nextSequence:1,requests:new Map()};stores.set(name,store);}
