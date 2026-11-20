@@ -153,8 +153,13 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId?: u
   } catch { return response({ ok: false, error: "Gemini не ответил вовремя. Решение не создано." }, 503); }
   if (!modelResponse.ok) return response({ ok: false, error: "Gemini временно отклонил запрос. Решение не создано." }, 503);
 
-  const payload = await modelResponse.json().catch(() => ({})) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-  const raw = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
+  const payload = await modelResponse.json().catch(() => ({})) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>;
+  };
+  const candidate = payload.candidates?.[0];
+  if (!candidate || candidate.finishReason !== "STOP")
+    return response({ ok: false, error: "Gemini не завершил ответ корректным образом. Решение не создано." }, 502);
+  const raw = candidate.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
   const parsed = parseAiPaperDecision(raw, markets.map((market) => market.symbol));
   if (!parsed.ok) return response({ ok: false, error: "Gemini вернул некорректное решение: " + parsed.reason }, 502);
 
