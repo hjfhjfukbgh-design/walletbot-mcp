@@ -534,6 +534,8 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   it("accepts a fresh positive AI paper decision mark using fixed-point arithmetic", () => {
     const now = Date.now();
     expect(parseFreshAiPaperMark("50000.125", now, now)).toBe(5_000_012_500_000n);
+    expect(parseFreshAiPaperMark("50000", now - 10 * 60_000, now)).toBe(5_000_000_000_000n);
+    expect(parseFreshAiPaperMark("50000", now + 1_000, now)).toBe(5_000_000_000_000n);
   });
 
   it("allows AI paper leverage up to 10 and rejects higher leverage without mutating the virtual account", async () => {
