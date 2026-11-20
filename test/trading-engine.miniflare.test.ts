@@ -78,6 +78,28 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     return post(stub, "/quote", { symbol: "BTC", price: price.toString(), observedAt: Date.now() });
   }
 
+  async function mutateEngineSql(query: string, ...params: unknown[]) {
+    const namespace = await mf!.getDurableObjectNamespace("ENGINE");
+    const storage = await (mf as any).getDurableObjectStorage("ENGINE", namespace.idFromName(objectName));
+    storage.sql.exec(query, ...params);
+  }
+
+  async function paperDecision(stub: EngineStub, owner: string, symbol: string, signal: "buy" | "sell" | "hold", price: string, tick: string) {
+    return post(stub, "/ai/paper/decision", {
+      userId: owner, tickId: tick, strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "b".repeat(64), symbol, signal, rationale: "Validated server snapshot.",
+      confidence: 0.8, observedPrice: price, riskPass: true,
+    });
+  }
+
+  async function paperOpen(stub: EngineStub, owner: string, decisionId: string, symbol: string, side: "long" | "short", qty: string, entry: string, margin: bigint, key: string, fee = 0n, slip = 0n) {
+    return post(stub, "/ai/paper/position/open", {
+      userId: owner, decisionId, idempotencyKey: key, symbol, side,
+      qtyUnits: qty, entryPrice: entry, marginMicro: margin.toString(),
+      leverage: "2", feeMicro: fee.toString(), slippageMicro: slip.toString(),
+    });
+  }
+
   async function open(stub: EngineStub, marginMicro: bigint, limits = { maxOrderBps: "10000", maxTotalExposureBps: "10000", maxDailyLossBps: "500" }, forUser = userId) {
     return post(stub, "/open", {
       userId: forUser, mode: "demo", symbol: "BTC", side: "long",
@@ -456,6 +478,89 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(results.filter(result => result.status === 409)).toHaveLength(1);
     const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
     expect(await status.json()).toMatchObject({ aiBalanceMicro: (70n * U).toString(), openPositions: 1 });
+  });
+
+  it("blocks new AI paper opens after UTC-day realized net loss breaches the server limit", async () => {
+    const stub = await boot();
+    const owner = "666666661";
+    await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-daily-realized-loss" });
+    await startAiPaper(stub, owner);
+    const btc = await paperDecision(stub, owner, "BTC", "buy", "50000", "tick-daily-realized-btc");
+    const opened = await paperOpen(stub, owner, btc.body.id, "BTC", "long", "0.01", "50000", 25n * U, "open-daily-realized-btc", U, U);
+    expect(opened.status).toBe(201);
+    const closed = await post(stub, "/ai/paper/position/close", {
+      userId: owner, positionId: opened.body.positionId, idempotencyKey: "close-daily-realized-btc",
+      exitPrice: "40000", closeFeeMicro: "0", closeSlippageMicro: "0", fundingMicro: "0",
+    });
+    expect(closed.status).toBe(201);
+    expect(BigInt(closed.body.close.netPnlMicro)).toBeLessThan(-5n * U);
+
+    const eth = await paperDecision(stub, owner, "ETH", "buy", "2500", "tick-daily-realized-eth");
+    const sol = await paperDecision(stub, owner, "SOL", "buy", "150", "tick-daily-realized-sol");
+    const results = await Promise.all([
+      paperOpen(stub, owner, eth.body.id, "ETH", "long", "0.1", "2500", U, "open-daily-realized-eth"),
+      paperOpen(stub, owner, sol.body.id, "SOL", "long", "1", "150", U, "open-daily-realized-sol"),
+    ]);
+    expect(results.every(result => result.status === 409)).toBe(true);
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
+    expect(await status.json()).toMatchObject({ aiBalanceMicro: (73n * U).toString(), openPositions: 0 });
+  });
+
+  it("includes fee-aware unrealized loss from every open symbol in the daily stop", async () => {
+    const stub = await boot();
+    const owner = "666666662";
+    await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-daily-unrealized-loss" });
+    await startAiPaper(stub, owner);
+    const btc = await paperDecision(stub, owner, "BTC", "buy", "50000", "tick-daily-unrealized-btc");
+    const opened = await paperOpen(stub, owner, btc.body.id, "BTC", "long", "0.01", "50000", 25n * U, "open-daily-unrealized-btc", U, U);
+    expect(opened.status).toBe(201);
+    const mark = await paperDecision(stub, owner, "BTC", "hold", "49700", "tick-daily-unrealized-btc-mark");
+    expect(mark.status).toBe(201);
+    const eth = await paperDecision(stub, owner, "ETH", "buy", "2500", "tick-daily-unrealized-eth");
+    const rejected = await paperOpen(stub, owner, eth.body.id, "ETH", "long", "0.1", "2500", U, "open-daily-unrealized-eth");
+    expect(rejected.status).toBe(409);
+    expect(String(rejected.body.error)).toContain("дневный лимит");
+    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
+    expect(await status.json()).toMatchObject({ openPositions: 1 });
+  });
+
+  it.each([
+    ["stale", (now: number) => now - 10 * 60_000 - 1, "50000"],
+    ["future", (now: number) => now + 2_000, "50000"],
+    ["malformed", (now: number) => now, "not-a-price"],
+  ])("fails closed when an open symbol has a %s decision mark", async (kind, timestamp, markPrice) => {
+    const stub = await boot();
+    const owner = "666666663";
+    await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-invalid-mark-" + kind });
+    await startAiPaper(stub, owner);
+    const btc = await paperDecision(stub, owner, "BTC", "buy", "50000", "tick-invalid-mark-btc-" + kind);
+    const opened = await paperOpen(stub, owner, btc.body.id, "BTC", "long", "0.01", "50000", 25n * U, "open-invalid-mark-btc-" + kind, U, U);
+    expect(opened.status).toBe(201);
+    const mark = await paperDecision(stub, owner, "BTC", "hold", "50000", "tick-invalid-mark-refresh-" + kind);
+    expect(mark.status).toBe(201);
+    await mutateEngineSql(
+      "UPDATE ai_paper_decisions SET created_at = ?, observed_price = ? WHERE id = ? AND user_id = ?",
+      timestamp(Date.now()), markPrice, mark.body.id, owner,
+    );
+    const eth = await paperDecision(stub, owner, "ETH", "buy", "2500", "tick-invalid-mark-eth-" + kind);
+    const rejected = await paperOpen(stub, owner, eth.body.id, "ETH", "long", "0.1", "2500", U, "open-invalid-mark-eth-" + kind);
+    expect(rejected.status).toBe(409);
+    expect(String(rejected.body.error)).toContain("свежего ценового снимка");
+  });
+
+  it("fails closed when any open symbol is missing its latest decision mark", async () => {
+    const stub = await boot();
+    const owner = "666666664";
+    await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-missing-mark" });
+    await startAiPaper(stub, owner);
+    const btc = await paperDecision(stub, owner, "BTC", "buy", "50000", "tick-missing-mark-btc");
+    const opened = await paperOpen(stub, owner, btc.body.id, "BTC", "long", "0.01", "50000", 25n * U, "open-missing-mark-btc", U, U);
+    expect(opened.status).toBe(201);
+    await mutateEngineSql("DELETE FROM ai_paper_decisions WHERE user_id = ? AND symbol = ?", owner, "BTC");
+    const eth = await paperDecision(stub, owner, "ETH", "buy", "2500", "tick-missing-mark-eth");
+    const rejected = await paperOpen(stub, owner, eth.body.id, "ETH", "long", "0.1", "2500", U, "open-missing-mark-eth");
+    expect(rejected.status).toBe(409);
+    expect(String(rejected.body.error)).toContain("свежего ценового снимка");
   });
 
   it.each([
