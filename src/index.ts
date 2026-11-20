@@ -10,8 +10,9 @@ import { send } from "./telegram";
 import { monitorManualTrades } from "./manual";
 import { TradingEngine } from "./trading/engine";
 import { CompanionQuota } from "./companion-quota";
+import { CompanionConversation } from "./companion-conversations";
 
-export { TradingEngine, CompanionQuota };
+export { TradingEngine, CompanionQuota, CompanionConversation };
 import { COMMANDS, tg, timingSafeEqual, type TgUpdate } from "./telegram";
 
 export default {
