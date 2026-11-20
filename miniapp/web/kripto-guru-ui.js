@@ -979,14 +979,16 @@
       if(kind==="decision"){
         const signal=row.signal==="long"?"ЛОНГ":row.signal==="short"?"ШОРТ":String(row.signal||"НЕТ СИГНАЛА").toUpperCase();
         title.textContent=(row.symbol||"—")+" · "+signal;
-        detail.textContent=(row.riskPass?"Риск пройден":"Отклонено")+(row.rejectionReason?": "+row.rejectionReason:row.rationale?": "+row.rationale:"");
+        detail.textContent=row.riskEvaluated===true
+          ?(row.riskPass?"Риск пройден":"Отклонено")+(row.rejectionReason?": "+row.rejectionReason:row.rationale?": "+row.rationale:"")
+          :"Проверка риска не выполнялась"+(row.rationale?": "+row.rationale:"");
       }else{
         title.textContent=(row.symbol||"—")+" · "+(row.side==="short"?"ШОРТ":"ЛОНГ");
         detail.textContent="Вход "+(row.entryPrice==null?"—":money(row.entryPrice))+" · маржа "+(row.marginUsd==null?"—":money(row.marginUsd))+(row.leverage?" · "+row.leverage+"×":"")+(kind==="closed"?" · "+(dateText(row.closedAt)||"закрыта"):" · "+(dateText(row.openedAt)||"открыта"));
       }
       main.append(title,detail);
       const badge=document.createElement("span");badge.className="kg-ai-paper-history-state";
-      badge.textContent=kind==="decision"?(row.riskPass?"PASS":"SKIP"):(kind==="closed"?"Закрыта":"Открыта");
+      badge.textContent=kind==="decision"?(row.riskEvaluated===true?(row.riskPass?"ПРОЙДЕН":"ОТКЛОНЁН"):"АНАЛИЗ"):(kind==="closed"?"Закрыта":"Открыта");
       li.append(main,badge);list.append(li);
     }
   }
