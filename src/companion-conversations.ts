@@ -208,6 +208,10 @@ export class CompanionConversation {
       if(row.state==="completed") return {status:200 as const,body:{ok:true,state:"completed",duplicate:true}};
       if(row.state!=="processing"||row.fencing_token!==token)
         return {status:409 as const,body:{ok:false,state:row.state,error:"Исполнитель больше не владеет запросом."}};
+      if(row.lease_expires_at===null || row.lease_expires_at<=now) {
+        this.sql.exec("UPDATE companion_requests SET state='queued',lease_expires_at=NULL,updated_at=? WHERE request_id=? AND provider_call_started_at IS NULL",now,requestId);
+        return {status:409 as const,body:{ok:false,state:"queued",error:"Срок аренды истёк до обращения к провайдеру. Запрос нужно получить заново."}};
+      }
       this.sql.exec("UPDATE companion_requests SET provider_call_started_at=COALESCE(provider_call_started_at,?),updated_at=? WHERE request_id=?",now,now,requestId);
       return {status:200 as const,body:{ok:true,state:"processing",providerStarted:true}};
     });
@@ -241,6 +245,10 @@ export class CompanionConversation {
       }
       if(row.state!=="processing"||row.fencing_token!==token||row.provider_call_started_at===null)
         return {status:409 as const,body:{ok:false,state:row.state,error:"Устаревший исполнитель или провайдер не был запущен."}};
+      if(row.lease_expires_at===null || row.lease_expires_at<=now) {
+        this.sql.exec("UPDATE companion_requests SET state='provider_outcome_unknown',error_code='provider_outcome_unknown',lease_expires_at=NULL,updated_at=? WHERE request_id=?",now,requestId);
+        return {status:409 as const,body:{ok:false,state:"provider_outcome_unknown",error:"Срок аренды истёк после начала обращения к провайдеру. Повтор запрещён."}};
+      }
       const conversation=this.sql.exec("SELECT conversation_id FROM companion_conversation WHERE conversation_id=?",this.conversationId).toArray()[0];
       if(!conversation) return {status:404 as const,body:{ok:false,error:"Диалог не найден."}};
       this.sql.exec("INSERT INTO companion_messages(sequence,ordinal,role,content,sources_json,created_at) VALUES(?,?,?,?,?,?)",
@@ -269,6 +277,11 @@ export class CompanionConversation {
       if(row.state==="completed") return {status:409 as const,body:{ok:false,state:row.state,error:"Запрос уже завершён."}};
       if(row.state!=="processing"||row.fencing_token!==token)
         return {status:409 as const,body:{ok:false,state:row.state,error:"Исполнитель больше не владеет запросом."}};
+      if(row.lease_expires_at===null || row.lease_expires_at<=now) {
+        const expiredState=row.provider_call_started_at!==null?"provider_outcome_unknown":"queued";
+        this.sql.exec("UPDATE companion_requests SET state=?,error_code=?,lease_expires_at=NULL,updated_at=? WHERE request_id=?",expiredState,expiredState==="queued"?null:"provider_outcome_unknown",now,requestId);
+        return {status:409 as const,body:{ok:false,state:expiredState,error:"Срок аренды истёк; результат обработан fail-closed."}};
+      }
       const unknown=row.provider_call_started_at!==null;
       const state=unknown?"provider_outcome_unknown":"failed";
       this.sql.exec("UPDATE companion_requests SET state=?,error_code=?,lease_expires_at=NULL,updated_at=? WHERE request_id=?",state,errorCode,now,requestId);

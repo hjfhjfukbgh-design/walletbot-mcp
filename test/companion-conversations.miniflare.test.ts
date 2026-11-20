@@ -186,4 +186,18 @@ describe("CompanionConversation SQLite integration",()=>{
     const history=await get(second.stub(tenantA),"/conversation?tenantId="+tenantA+"&conversationId="+conversationId);
     expect(history.body.conversation.messages.map((m:any)=>m.content)).toEqual(["Persist me","Saved"]);
   });
+
+  it("rejects finalize after lease expiry even before another worker reclaims it",async()=>{
+    const {stub}=await boot();
+    const object=stub(tenantA);
+    await enqueue(object,tenantA,"request-expired-finalize","Slow provider");
+    const claim=await post(object,"/claim",{...identity(tenantA),requestId:"request-expired-finalize",leaseMs:1000});
+    const token=Number(claim.body.fencingToken);
+    await post(object,"/provider-started",{...identity(tenantA),requestId:"request-expired-finalize",fencingToken:token});
+    await new Promise(resolve=>setTimeout(resolve,1_050));
+    const late=await post(object,"/finalize",{...identity(tenantA),requestId:"request-expired-finalize",fencingToken:token,answer:"Late result"});
+    expect(late.status).toBe(409);
+    expect(late.body.state).toBe("provider_outcome_unknown");
+  });
+
 });
