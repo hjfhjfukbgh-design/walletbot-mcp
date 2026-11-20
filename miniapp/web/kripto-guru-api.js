@@ -352,9 +352,9 @@
     },
     async status(conversationId, requestId) {
       const id = String(conversationId || "").trim();
-      const request = String(requestId || "").trim();
-      if (!id || !request) throw new KriptoGuruApiError({ code: "VALIDATION_ERROR", message: "Отсутствует идентификатор запроса Companion." });
-      return request("/api/companion/requests/" + encodeURIComponent(request) + "?conversationId=" + encodeURIComponent(id));
+      const requestIdValue = String(requestId || "").trim();
+      if (!id || !requestIdValue) throw new KriptoGuruApiError({ code: "VALIDATION_ERROR", message: "Отсутствует идентификатор запроса Companion." });
+      return request("/api/companion/requests/" + encodeURIComponent(requestIdValue) + "?conversationId=" + encodeURIComponent(id));
     },
     async remove(conversationId) {
       return request("/api/companion/conversations/" + encodeURIComponent(String(conversationId)), { method: "DELETE" });
