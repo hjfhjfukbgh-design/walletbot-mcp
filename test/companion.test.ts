@@ -573,7 +573,7 @@ describe("AI Companion API", () => {
     const e=isolatedEnv({["tenant:111:companion:conversation:"+id]:JSON.stringify(legacy)});
     const first=await call(e,"111","/api/companion/conversations/"+id);
     expect(first.status).toBe(200);
-    const body=await first.json() as {conversation:TestConversation};
+    const body=await first.json() as {conversation:TestTestConversation};
     expect(body.conversation.messages.map(message=>message.content)).toEqual(["Старый вопрос","Старый ответ"]);
     const backup=await e.STATE.get("tenant:111:companion:legacy:"+id,"json") as TestConversation;
     expect(backup.messages).toHaveLength(2);
@@ -581,7 +581,7 @@ describe("AI Companion API", () => {
     expect(index).toMatchObject({messageCount:2,mode:"learning"});
     const second=await call(e,"111","/api/companion/conversations/"+id);
     expect(second.status).toBe(200);
-    expect((await second.json() as {conversation:Conversation}).conversation.messages).toHaveLength(2);
+    expect((await second.json() as {conversation:TestConversation}).conversation.messages).toHaveLength(2);
   });
 
   it("replays a completed requestId without another Gemini call and exposes status", async () => {
@@ -643,7 +643,7 @@ describe("AI Companion API", () => {
     expect((await resumed.json() as {answer:string}).answer).toBe("Второй ответ");
     expect(calls).toBe(3);
     const history=await call(e,"111","/api/companion/conversations/"+conversationId);
-    expect((await history.json() as {conversation:Conversation}).conversation.messages.map(message=>message.content)).toEqual([
+    expect((await history.json() as {conversation:TestConversation}).conversation.messages.map(message=>message.content)).toEqual([
       "Начало","Начальный ответ","Первое в очереди","Первый ответ","Второе в очереди","Второй ответ",
     ]);
   });
