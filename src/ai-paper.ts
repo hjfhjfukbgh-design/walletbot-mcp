@@ -54,17 +54,49 @@ async function defaultConsumeQuota(env: Env, quotas: Array<{ key: string; limit:
 
 /** Generate and persist one AI PAPER decision. Never opens or closes positions. */
 export async function runAiPaperDecision(env: Env, userId: string, requestId?: unknown, dependencies: AiPaperDependencies = {}): Promise<Response> {
-  if (!/^\d{1,20}$/.test(userId)) return response({ ok: false, error: "Не подтверждён пользователь Telegram." }, 401);
-  if (!env.GEMINI_API_KEY) return response({ ok: false, error: "Gemini временно не настроен." }, 503);
-  if (!serverRiskConfigValid(env)) return response({ ok: false, error: "Серверные лимиты AI PAPER не настроены корректно." }, 503);
-  const tickId = typeof requestId === "string" && requestId.trim() ? requestId.trim() : crypto.randomUUID();
-  if (!/^[A-Za-z0-9._:-]{8,128}$/.test(tickId)) return response({ ok: false, error: "Некорректный ключ запуска AI PAPER." }, 400);
+  if (!/^\\d{1,20}$/.test(userId)) return response({ ok: false, error: "Не подтверждён пользователь Telegram." }, 401);
+  const tickId = typeof requestId === "string" ? requestId.trim() : "";
+  if (!/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
+    return response({ ok: false, error: "Передайте стабильный requestId для запуска AI PAPER." }, 400);
 
   const now = dependencies.now ?? Date.now;
   const engineRequest = dependencies.engineRequest ?? ((path, body) => defaultEngineRequest(env, path, body));
   const consumeQuota = dependencies.consumeQuota ?? ((quotas) => defaultConsumeQuota(env, quotas));
   const getContracts = dependencies.getContracts ?? publicContracts;
   const fetcher = dependencies.fetcher ?? fetch;
+
+  // Replay durable decisions before checking session state, API keys, quota or market data.
+  let lookupResponse: Response;
+  try {
+    lookupResponse = await engineRequest("/ai/paper/decision?userId=" + encodeURIComponent(userId) + "&tickId=" + encodeURIComponent(tickId));
+  } catch {
+    return response({ ok: false, error: "Не удалось проверить повторный запуск AI PAPER. Запрос не отправлен." }, 503);
+  }
+  if (lookupResponse.ok) {
+    const existing = await lookupResponse.json().catch(() => ({})) as Json;
+    const decision = existing.decision as Json | undefined;
+    if (existing.state !== "completed" || !decision)
+      return response({ ok: false, error: "Некорректный ответ хранилища AI PAPER." }, 503);
+    return response({
+      ok: true,
+      tickId,
+      marketSnapshotHash: decision.marketSnapshotHash,
+      observedAt: decision.observedAt,
+      decision: {
+        signal: decision.signal,
+        symbol: decision.symbol,
+        rationale: decision.rationale,
+        confidence: decision.confidence,
+      },
+      persisted: true,
+      duplicate: true,
+    }, 200);
+  }
+  if (lookupResponse.status !== 404)
+    return response({ ok: false, error: "Не удалось проверить историю AI PAPER. Запрос не отправлен." }, 503);
+
+  if (!env.GEMINI_API_KEY) return response({ ok: false, error: "Gemini временно не настроен." }, 503);
+  if (!serverRiskConfigValid(env)) return response({ ok: false, error: "Серверные лимиты AI PAPER не настроены корректно." }, 503);
 
   let statusResponse: Response;
   try { statusResponse = await engineRequest("/ai/paper/status?userId=" + encodeURIComponent(userId)); }
@@ -99,88 +131,119 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId?: u
   const marketSnapshotHash = await sha256Hex(JSON.stringify(snapshotPayload));
   const utcDay = new Date(snapshotAt).toISOString().slice(0, 10);
 
-  let quotaResponse: Response;
+  // One durable claim per (Telegram userId, tickId) prevents concurrent retries
+  // from consuming quota or invoking Gemini more than once.
+  let claimResponse: Response;
   try {
-    quotaResponse = await consumeQuota([
-      { key: "ai-paper:global:" + utcDay, limit: 20, windowSeconds: 86_400 },
-      { key: "ai-paper:user:" + userId + ":" + utcDay, limit: 5, windowSeconds: 86_400 },
-      { key: "ai-paper:rate:" + userId, limit: 1, windowSeconds: 60, sliding: true },
-    ]);
-  } catch { return response({ ok: false, error: "Лимитер Gemini недоступен. Запрос не отправлен." }, 503); }
-  if (quotaResponse.status === 429) return response({ ok: false, error: "Бесплатный лимит AI PAPER на сегодня исчерпан. Попробуйте позже." }, 429);
-  if (!quotaResponse.ok) return response({ ok: false, error: "Не удалось подтвердить бесплатную квоту Gemini. Запрос не отправлен." }, 503);
+    claimResponse = await engineRequest("/ai/paper/decision/claim", { userId, tickId });
+  } catch {
+    return response({ ok: false, error: "Не удалось зарезервировать запуск AI PAPER. Запрос не отправлен." }, 503);
+  }
+  const claimBody = await claimResponse.json().catch(() => ({})) as Json;
+  if (claimResponse.status === 409)
+    return response({ ok: false, error: "Этот запуск AI PAPER уже выполняется. Повторите запрос с тем же requestId позже." }, 409);
+  if (!claimResponse.ok || claimBody.state !== "claimed") {
+    if (claimBody.state === "completed" && claimBody.decision) {
+      const decision = claimBody.decision as Json;
+      return response({
+        ok: true, tickId, marketSnapshotHash: decision.marketSnapshotHash, observedAt: decision.observedAt,
+        decision: { signal: decision.signal, symbol: decision.symbol, rationale: decision.rationale, confidence: decision.confidence },
+        persisted: true, duplicate: true,
+      }, 200);
+    }
+    return response({ ok: false, error: "Не удалось подтвердить запуск AI PAPER. Запрос не отправлен." }, 503);
+  }
 
-  const model = (env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim();
-  if (!/^[a-zA-Z0-9._-]{1,80}$/.test(model)) return response({ ok: false, error: "Некорректная настройка модели Gemini." }, 503);
-  const systemPrompt = [
-    "Ты формируешь только аналитическое решение для AI PAPER Kripto Guru.",
-    "Используй исключительно переданный серверный снимок рынка. Не придумывай цены и не используй внешние данные.",
-    "Выбери один символ из списка и верни строго JSON с четырьмя полями: signal (buy|sell|hold), symbol, rationale, confidence (0..1).",
-    "Не добавляй markdown, кодовые блоки или другие поля.",
-    "Не задавай userId, tenantId, observedPrice, riskPass, positionId, leverage, quantity, margin, fees, slippage или лимиты риска.",
-    "Это только решение для виртуального AI PAPER счёта; не утверждай, что ордер исполнен.",
-  ].join(" ");
-
-  let modelResponse: Response;
+  let persisted = false;
   try {
-    modelResponse = await fetcher("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: "user", parts: [{ text: "Серверный снимок рынка JSON:\n" + JSON.stringify(snapshotPayload) }] }],
-        generationConfig: {
-          temperature: 0.1, maxOutputTokens: 256, responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              signal: { type: "STRING", enum: ["buy", "sell", "hold"] },
-              symbol: { type: "STRING" }, rationale: { type: "STRING" }, confidence: { type: "NUMBER" },
+    let quotaResponse: Response;
+    try {
+      quotaResponse = await consumeQuota([
+        { key: "ai-paper:global:" + utcDay, limit: 20, windowSeconds: 86_400 },
+        { key: "ai-paper:user:" + userId + ":" + utcDay, limit: 5, windowSeconds: 86_400 },
+        { key: "ai-paper:rate:" + userId, limit: 1, windowSeconds: 60, sliding: true },
+      ]);
+    } catch { return response({ ok: false, error: "Лимитер Gemini недоступен. Запрос не отправлен." }, 503); }
+    if (quotaResponse.status === 429) return response({ ok: false, error: "Бесплатный лимит AI PAPER на сегодня исчерпан. Попробуйте позже." }, 429);
+    if (!quotaResponse.ok) return response({ ok: false, error: "Не удалось подтвердить бесплатную квоту Gemini. Запрос не отправлен." }, 503);
+
+    const model = (env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim();
+    if (!/^[a-zA-Z0-9._-]{1,80}$/.test(model)) return response({ ok: false, error: "Некорректная настройка модели Gemini." }, 503);
+    const systemPrompt = [
+      "Ты формируешь только аналитическое решение для AI PAPER Kripto Guru.",
+      "Используй исключительно переданный серверный снимок рынка. Не придумывай цены и не используй внешние данные.",
+      "Выбери один символ из списка и верни строго JSON с четырьмя полями: signal (buy|sell|hold), symbol, rationale, confidence (0..1).",
+      "Не добавляй markdown, кодовые блоки или другие поля.",
+      "Не задавай userId, tenantId, observedPrice, riskPass, positionId, leverage, quantity, margin, fees, slippage или лимиты риска.",
+      "Это только решение для виртуального AI PAPER счёта; не утверждай, что ордер исполнен.",
+    ].join(" ");
+
+    let modelResponse: Response;
+    try {
+      modelResponse = await fetcher("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: "user", parts: [{ text: "Серверный снимок рынка JSON:\n" + JSON.stringify(snapshotPayload) }] }],
+          generationConfig: {
+            temperature: 0.1, maxOutputTokens: 256, responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                signal: { type: "STRING", enum: ["buy", "sell", "hold"] },
+                symbol: { type: "STRING" }, rationale: { type: "STRING" }, confidence: { type: "NUMBER" },
+              },
+              required: ["signal", "symbol", "rationale", "confidence"],
+              propertyOrdering: ["signal", "symbol", "rationale", "confidence"],
             },
-            required: ["signal", "symbol", "rationale", "confidence"],
-            propertyOrdering: ["signal", "symbol", "rationale", "confidence"],
           },
-        },
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        ],
-      }),
-      signal: AbortSignal.timeout(15_000),
+          safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+          ],
+        }),
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch { return response({ ok: false, error: "Gemini не ответил вовремя. Решение не создано." }, 503); }
+    if (!modelResponse.ok) return response({ ok: false, error: "Gemini временно отклонил запрос. Решение не создано." }, 503);
+
+    const payload = await modelResponse.json().catch(() => ({})) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>;
+    };
+    const candidate = payload.candidates?.[0];
+    if (!candidate || candidate.finishReason !== "STOP")
+      return response({ ok: false, error: "Gemini не завершил ответ корректным образом. Решение не создано." }, 502);
+    const raw = candidate.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
+    const parsed = parseAiPaperDecision(raw, markets.map((market) => market.symbol));
+    if (!parsed.ok) return response({ ok: false, error: "Gemini вернул некорректное решение: " + parsed.reason }, 502);
+
+    const selected = markets.find((market) => market.symbol === parsed.decision.symbol);
+    const recordedAt = now();
+    if (!selected || !Number.isSafeInteger(selected.observedAt) || selected.observedAt <= 0 ||
+        selected.observedAt > recordedAt || recordedAt - selected.observedAt > MAX_MARK_AGE_MS)
+      return response({ ok: false, error: "Снимок рынка устарел до завершения анализа. Решение не создано." }, 409);
+
+    const recordResponse = await engineRequest("/ai/paper/decision", {
+      userId, tickId, strategyId: "gemini-paper", strategyVersion: "1", marketSnapshotHash,
+      symbol: parsed.decision.symbol, signal: parsed.decision.signal, rationale: parsed.decision.rationale,
+      confidence: parsed.decision.confidence, observedPrice: selected.price,
+      serverObservedAt: selected.observedAt,
+      riskPass: true, rejectionReason: null, positionId: null,
     });
-  } catch { return response({ ok: false, error: "Gemini не ответил вовремя. Решение не создано." }, 503); }
-  if (!modelResponse.ok) return response({ ok: false, error: "Gemini временно отклонил запрос. Решение не создано." }, 503);
-
-  const payload = await modelResponse.json().catch(() => ({})) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>;
-  };
-  const candidate = payload.candidates?.[0];
-  if (!candidate || candidate.finishReason !== "STOP")
-    return response({ ok: false, error: "Gemini не завершил ответ корректным образом. Решение не создано." }, 502);
-  const raw = candidate.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
-  const parsed = parseAiPaperDecision(raw, markets.map((market) => market.symbol));
-  if (!parsed.ok) return response({ ok: false, error: "Gemini вернул некорректное решение: " + parsed.reason }, 502);
-
-  const selected = markets.find((market) => market.symbol === parsed.decision.symbol);
-  const recordedAt = now();
-  if (!selected || !Number.isSafeInteger(selected.observedAt) || selected.observedAt <= 0 ||
-      selected.observedAt > recordedAt || recordedAt - selected.observedAt > MAX_MARK_AGE_MS)
-    return response({ ok: false, error: "Снимок рынка устарел до завершения анализа. Решение не создано." }, 409);
-
-  const recordResponse = await engineRequest("/ai/paper/decision", {
-    userId, tickId, strategyId: "gemini-paper", strategyVersion: "1", marketSnapshotHash,
-    symbol: parsed.decision.symbol, signal: parsed.decision.signal, rationale: parsed.decision.rationale,
-    confidence: parsed.decision.confidence, observedPrice: selected.price,
-    serverObservedAt: selected.observedAt,
-    riskPass: true, rejectionReason: null, positionId: null,
-  });
-  const recordBody = await recordResponse.json().catch(() => ({})) as Json;
-  if (!recordResponse.ok)
-    return response({ ok: false, error: String(recordBody.error ?? "Не удалось сохранить AI PAPER решение."), tickId }, recordResponse.status);
-  return response({
-    ok: true, tickId, marketSnapshotHash, observedAt: selected.observedAt,
-    decision: parsed.decision, persisted: true, duplicate: recordBody.duplicate === true,
-  }, recordResponse.status);
+    const recordBody = await recordResponse.json().catch(() => ({})) as Json;
+    if (!recordResponse.ok)
+      return response({ ok: false, error: String(recordBody.error ?? "Не удалось сохранить AI PAPER решение."), tickId }, recordResponse.status);
+    persisted = true;
+    return response({
+      ok: true, tickId, marketSnapshotHash, observedAt: selected.observedAt,
+      decision: parsed.decision, persisted: true, duplicate: recordBody.duplicate === true,
+    }, recordResponse.status);
+  } finally {
+    if (!persisted) {
+      try { await engineRequest("/ai/paper/decision/release", { userId, tickId }); } catch {}
+    }
+  }
 }
