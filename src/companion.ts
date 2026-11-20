@@ -200,13 +200,14 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tenantId: userId, conversationId, requestId, leaseMs: 60_000 }),
     });
-    const claim = await claimResponse.json().catch(() => ({})) as { state?: string; fencingToken?: number; userContent?: string; attachments?: typeof attachments; error?: string };
+    const claim = await claimResponse.json().catch(() => ({})) as { state?: string; fencingToken?: number; userContent?: string; attachments?: typeof attachments; response?: { answer?: string; sources?: CompanionSource[] }; error?: string };
     if (!claimResponse.ok || claim.state !== "claimed") {
       if (claim.state === "provider_outcome_unknown" || claim.state === "failed") return json({ ok: false, state: claim.state, error: claim.error ?? "Запрос не может быть автоматически повторён." }, 409);
       if (claim.state === "completed") {
         const historyResponse = await stub.fetch("https://companion-conversation/conversation?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(conversationId));
         const historyPayload = await historyResponse.json().catch(() => ({})) as { conversation?: Conversation };
-        return json({ ok: true, conversationId, requestId, answer: "", sources: [], conversation: historyPayload.conversation, duplicate: true });
+        if (historyPayload.conversation) await writeConversationIndex(scoped,historyPayload.conversation);
+        return json({ ok: true, conversationId, requestId, answer: claim.response?.answer ?? "", sources: claim.response?.sources ?? [], conversation: historyPayload.conversation, duplicate: true });
       }
       return json({ ok: true, conversationId, requestId, state: claim.state ?? "queued" }, 202);
     }
