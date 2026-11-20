@@ -366,7 +366,13 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
 
     const replay = await post(stub, "/ai/paper/decision/claim", { userId: userA, tickId });
     expect(replay.status).toBe(200);
-    expect(replay.body).toMatchObject({ ok: true, state: "completed", decision: { id: recorded.body.id, tickId } });
+    expect(replay.body).toMatchObject({
+      ok: true, state: "completed",
+      decision: {
+        id: recorded.body.id, tickId,
+        snapshotPayload: { source: "hyperliquid-public", markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
+      },
+    });
 
     const tokenB = Number(sameTickOtherUser.body.fencingToken);
     await post(stub, "/ai/paper/decision/release", { userId: userB, tickId, fencingToken: tokenB });
