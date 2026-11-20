@@ -444,7 +444,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(body.decisions[0].snapshotRetrievedAt).toBe(freshAt);
     expect(body.decisions[0].createdAt).toBeGreaterThanOrEqual(freshAt);
     const retry = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: freshTick, fencingToken: freshToken, snapshotRetrievedAt: freshAt - 10 * 60_000 - 1,
+      ...base, tickId: freshTick, fencingToken: freshToken, snapshotRetrievedAt: freshAt,
     });
     expect(retry.status).toBe(200);
     expect(retry.body.duplicate).toBe(true);
