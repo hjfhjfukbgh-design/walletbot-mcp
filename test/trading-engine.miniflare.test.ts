@@ -331,8 +331,10 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(sameTickOtherUser.status).toBe(200);
     expect(sameTickOtherUser.body.state).toBe("claimed");
 
+    const tokenA = Number(claimA.body.fencingToken);
+    await post(stub, "/ai/paper/decision/external-started", { userId: userA, tickId, fencingToken: tokenA });
     const recorded = await post(stub, "/ai/paper/decision", {
-      userId: userA, tickId, strategyId: "gemini-paper", strategyVersion: "1",
+      userId: userA, tickId, fencingToken: tokenA, strategyId: "gemini-paper", strategyVersion: "1",
       marketSnapshotHash: "d".repeat(64), symbol: "BTC", signal: "buy",
       rationale: "Stable request replay test.", confidence: 0.8, observedPrice: "50000", riskPass: true,
       serverObservedAt: Date.now(),
@@ -350,10 +352,25 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(replay.status).toBe(200);
     expect(replay.body).toMatchObject({ ok: true, state: "completed", decision: { id: recorded.body.id, tickId } });
 
-    await post(stub, "/ai/paper/decision/release", { userId: userB, tickId });
+    const tokenB = Number(sameTickOtherUser.body.fencingToken);
+    await post(stub, "/ai/paper/decision/release", { userId: userB, tickId, fencingToken: tokenB });
     const retryOtherUser = await post(stub, "/ai/paper/decision/claim", { userId: userB, tickId });
     expect(retryOtherUser.status).toBe(200);
     expect(retryOtherUser.body.state).toBe("claimed");
+    expect(Number(retryOtherUser.body.fencingToken)).toBeGreaterThan(tokenB);
+
+    const userC = "999999991";
+    const unknownTick = "provider-unknown-001";
+    const claimC = await post(stub, "/ai/paper/decision/claim", { userId: userC, tickId: unknownTick });
+    const tokenC = Number(claimC.body.fencingToken);
+    await post(stub, "/ai/paper/decision/external-started", { userId: userC, tickId: unknownTick, fencingToken: tokenC });
+    await post(stub, "/ai/paper/decision/unknown", { userId: userC, tickId: unknownTick, fencingToken: tokenC });
+    const unknownLookup = await stub.fetch("https://engine.test/ai/paper/decision?userId=" + userC + "&tickId=" + unknownTick);
+    expect(unknownLookup.status).toBe(409);
+    expect(await unknownLookup.json()).toMatchObject({ state: "external_outcome_unknown" });
+    const unknownRetry = await post(stub, "/ai/paper/decision/claim", { userId: userC, tickId: unknownTick });
+    expect(unknownRetry.status).toBe(409);
+    expect(unknownRetry.body.state).toBe("external_outcome_unknown");
   });
 
   it("records only fresh non-future server observation timestamps for AI paper decisions", async () => {
