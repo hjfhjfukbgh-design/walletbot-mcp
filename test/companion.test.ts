@@ -80,7 +80,8 @@ describe("AI Companion API", () => {
     let sentHeaders: Headers | undefined;
     let sentBody: Record<string, unknown> | undefined;
     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
-      expect(String(input)).toContain("/v1beta/models/gemini-3.5-flash-lite:generateContent");
+      const expectedModel = e.GEMINI_MODEL || "gemini-3.5-flash-lite";
+      expect(String(input)).toContain("/v1beta/models/" + expectedModel + ":generateContent");
       sentHeaders = new Headers(init?.headers);
       sentBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
       return Response.json({ candidates: [{ content: { parts: [{ text: "Привет! Я на связи." }] } }] });
@@ -227,6 +228,57 @@ describe("AI Companion API", () => {
     });
     expect(response.status).toBe(502);
     expect(await response.json()).toMatchObject({ error: expect.stringContaining("проверяемых источников") });
+  });
+
+  it("uses an explicitly configured Gemini model for general Companion", async () => {
+    const e = isolatedEnv();
+    e.GEMINI_MODEL = "gemini-3.1-flash-lite";
+    let requestedUrl = "";
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      requestedUrl = String(input);
+      return Response.json({ candidates: [{ content: { parts: [{ text: "Ответ." }] } }] });
+    });
+    const response = await call(e, "111", "/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Проверка модели" }),
+    });
+    expect(response.status).toBe(200);
+    expect(requestedUrl).toContain("/models/gemini-3.1-flash-lite:generateContent");
+  });
+
+  it("enforces a configurable 50-message daily fair-use cap per user", async () => {
+    const day = new Date().toISOString().slice(0, 10);
+    const e = isolatedEnv({}, { ["general:daily:111:" + day]: 49 });
+    (e as Env & { COMPANION_DAILY_LIMIT?: string }).COMPANION_DAILY_LIMIT = "50";
+    const fetchMock = vi.fn(async () => Response.json({ candidates: [{ content: { parts: [{ text: "Принято." }] } }] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const allowed = await call(e, "111", "/api/companion/chat", {
+      method: "POST", body: JSON.stringify({ message: "Ещё одно сообщение" }),
+    });
+    expect(allowed.status).toBe(200);
+    const blocked = await call(e, "111", "/api/companion/chat", {
+      method: "POST", body: JSON.stringify({ message: "Пятьдесят первое" }),
+    });
+    expect(blocked.status).toBe(429);
+    expect(await blocked.json()).toMatchObject({ error: expect.stringContaining("Дневной лимит обычных сообщений") });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the general daily fair-use cap isolated per Telegram user", async () => {
+    const day = new Date().toISOString().slice(0, 10);
+    const e = isolatedEnv({}, { ["general:daily:111:" + day]: 50 });
+    const fetchMock = vi.fn(async () => Response.json({ candidates: [{ content: { parts: [{ text: "Ответ." }] } }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const blocked = await call(e, "111", "/api/companion/chat", {
+      method: "POST", body: JSON.stringify({ message: "Мой лимит исчерпан" }),
+    });
+    const otherUser = await call(e, "222", "/api/companion/chat", {
+      method: "POST", body: JSON.stringify({ message: "У другого пользователя лимит свой" }),
+    });
+    expect(blocked.status).toBe(429);
+    expect(otherUser.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("blocks research when the free-tier daily budget guard is exhausted", async () => {
