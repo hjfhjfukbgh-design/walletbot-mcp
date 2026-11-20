@@ -349,11 +349,12 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
 
     const tokenA = Number(claimA.body.fencingToken);
     await post(stub, "/ai/paper/decision/external-started", { userId: userA, tickId, fencingToken: tokenA });
+    const recordedAt = Date.now();
     const recorded = await post(stub, "/ai/paper/decision", {
       userId: userA, tickId, fencingToken: tokenA, strategyId: "gemini-paper", strategyVersion: "1",
       marketSnapshotHash: "d".repeat(64), symbol: "BTC", signal: "buy",
       rationale: "Stable request replay test.", confidence: 0.8, observedPrice: "50000", riskPass: false, riskEvaluated: false,
-      snapshotRetrievedAt: Date.now(), snapshotPayload: { source: "hyperliquid-public", retrievedAt: Date.now(), markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
+      snapshotRetrievedAt: recordedAt, snapshotPayload: { source: "hyperliquid-public", retrievedAt: recordedAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
     });
     expect(recorded.status).toBe(201);
 
@@ -435,23 +436,26 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(badHash.status).toBe(400);
     await post(stub, "/ai/paper/decision/unknown", { userId: owner, tickId: badHashTick, fencingToken: badHashToken });
 
+    const noClaimAt = Date.now();
     const noClaim = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: "tick-server-mark-no-claim", snapshotRetrievedAt: Date.now(), snapshotPayload: { source: "hyperliquid-public", retrievedAt: Date.now(), markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
+      ...base, tickId: "tick-server-mark-no-claim", snapshotRetrievedAt: noClaimAt, snapshotPayload: { source: "hyperliquid-public", retrievedAt: noClaimAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
     });
     expect(noClaim.status).toBe(400);
 
     const staleTick = "tick-server-mark-stale";
     const staleToken = await claimGeminiDecision(stub, owner, staleTick);
+    const staleAt = Date.now() - 10 * 60_000 - 1;
     const stale = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: staleTick, fencingToken: staleToken, snapshotRetrievedAt: Date.now() - 10 * 60_000 - 1, snapshotPayload: { source: "hyperliquid-public", retrievedAt: Date.now() - 10 * 60_000 - 1, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
+      ...base, tickId: staleTick, fencingToken: staleToken, snapshotRetrievedAt: staleAt, snapshotPayload: { source: "hyperliquid-public", retrievedAt: staleAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
     });
     expect(stale.status).toBe(400);
     await post(stub, "/ai/paper/decision/unknown", { userId: owner, tickId: staleTick, fencingToken: staleToken });
 
     const futureTick = "tick-server-mark-future";
     const futureToken = await claimGeminiDecision(stub, owner, futureTick);
+    const futureAt = Date.now() + 5_000;
     const future = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: futureTick, fencingToken: futureToken, snapshotRetrievedAt: Date.now() + 5_000, snapshotPayload: { source: "hyperliquid-public", retrievedAt: Date.now() + 5_000, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
+      ...base, tickId: futureTick, fencingToken: futureToken, snapshotRetrievedAt: futureAt, snapshotPayload: { source: "hyperliquid-public", retrievedAt: futureAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
     });
     expect(future.status).toBe(400);
     await post(stub, "/ai/paper/decision/unknown", { userId: owner, tickId: futureTick, fencingToken: futureToken });
