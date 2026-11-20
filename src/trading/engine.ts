@@ -163,7 +163,7 @@ export class TradingEngine {
       if (request.method === "GET" && url.pathname === "/ai/paper/decision") {
         const userId = url.searchParams.get("userId") ?? "";
         const tickId = url.searchParams.get("tickId") ?? "";
-        if (!/^\\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
+        if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
           return Response.json({ ok: false, error: "Некорректные параметры решения AI paper." }, { status: 400 });
         const row = this.ctx.storage.sql.exec(
           "SELECT id, tick_id, market_snapshot_hash, symbol, signal, rationale, confidence, created_at FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? ORDER BY created_at DESC, id DESC LIMIT 1",
@@ -792,7 +792,7 @@ export class TradingEngine {
   private claimAiPaperDecision(body: Record<string, unknown>): Response {
     const userId = String(body.userId ?? "");
     const tickId = String(body.tickId ?? "");
-    if (!/^\\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
+    if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
       return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
 
     const now = Date.now();
@@ -840,7 +840,7 @@ export class TradingEngine {
   private releaseAiPaperDecision(body: Record<string, unknown>): Response {
     const userId = String(body.userId ?? "");
     const tickId = String(body.tickId ?? "");
-    if (!/^\\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
+    if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
       return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
     this.ctx.storage.transactionSync(() => {
       const existing = this.ctx.storage.sql.exec(
