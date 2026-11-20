@@ -103,6 +103,7 @@ export class TradingEngine {
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decisions_user_created ON ai_paper_decisions(user_id, created_at)");
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decisions_user_tick ON ai_paper_decisions(user_id, tick_id, created_at DESC)");
     sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decision_runs (user_id TEXT NOT NULL, tick_id TEXT NOT NULL, lease_expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(user_id, tick_id))");
+    sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decision_runs_lease ON ai_paper_decision_runs(lease_expires_at)");
     sql.exec("CREATE INDEX IF NOT EXISTS live_operations_user_status ON live_operations(user_id, status, updated_at)");
     this.restorePositions();
     const snapshot = sql.exec("SELECT value FROM engine_meta WHERE key = 'snapshot'").toArray()[0] as { value?: string } | undefined;
@@ -305,6 +306,7 @@ export class TradingEngine {
     let existing: Record<string, unknown> | undefined;
     let claimed = false;
     this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE lease_expires_at <= ?", now);
       existing = this.ctx.storage.sql.exec(
         "SELECT user_id, status FROM live_operations WHERE handle = ?", handle,
       ).toArray()[0] as Record<string, unknown> | undefined;
