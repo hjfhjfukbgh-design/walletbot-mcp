@@ -890,11 +890,19 @@ export class TradingEngine {
         );
       }
     });
-    if (existing) return Response.json({ ok: true, state: "completed", decision: {
-      id: existing.id, tickId: existing.tick_id, marketSnapshotHash: existing.market_snapshot_hash,
-      symbol: existing.symbol, signal: existing.signal, rationale: existing.rationale,
-      confidence: existing.confidence === null ? null : Number(existing.confidence), riskPass: Number(existing.risk_pass) === 1, riskEvaluated: Number(existing.risk_evaluated) === 1, rejectionReason: existing.rejection_reason, snapshotRetrievedAt: Number(existing.snapshot_retrieved_at) || null, createdAt: Number(existing.created_at),
-    } });
+    if (existing) {
+      const savedSnapshot = this.ctx.storage.sql.exec(
+        "SELECT payload_json FROM ai_paper_market_snapshots WHERE snapshot_hash = ?",
+        String(existing.market_snapshot_hash),
+      ).toArray()[0] as { payload_json: string } | undefined;
+      let snapshotPayload: unknown = null;
+      try { snapshotPayload = savedSnapshot ? JSON.parse(savedSnapshot.payload_json) : null; } catch {}
+      return Response.json({ ok: true, state: "completed", decision: {
+        id: existing.id, tickId: existing.tick_id, marketSnapshotHash: existing.market_snapshot_hash,
+        snapshotPayload, symbol: existing.symbol, signal: existing.signal, rationale: existing.rationale,
+        confidence: existing.confidence === null ? null : Number(existing.confidence), riskPass: Number(existing.risk_pass) === 1, riskEvaluated: Number(existing.risk_evaluated) === 1, rejectionReason: existing.rejection_reason, snapshotRetrievedAt: Number(existing.snapshot_retrieved_at) || null, createdAt: Number(existing.created_at),
+      } });
+    }
     if (outcomeUnknown) return Response.json({ ok: false, state: "external_outcome_unknown", error: "Внешний вызов мог завершиться до сохранения результата. Автоматический повтор заблокирован." }, { status: 409 });
     if (inProgress) return Response.json({ ok: false, state: "in_progress", error: "Запуск AI PAPER уже выполняется." }, { status: 409 });
     return Response.json({ ok: true, state: "claimed", leaseExpiresAt, fencingToken });
