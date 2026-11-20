@@ -445,11 +445,16 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(body.decisions[0].riskPass).toBe(false);
     expect(body.decisions[0].riskEvaluated).toBe(false);
     expect(body.decisions[0].createdAt).toBeGreaterThanOrEqual(freshAt);
+    const savedSnapshot = { source: "hyperliquid-public", retrievedAt: freshAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] };
     const retry = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: freshTick, fencingToken: freshToken, snapshotRetrievedAt: freshAt,
+      ...base, tickId: freshTick, fencingToken: freshToken, snapshotRetrievedAt: freshAt, snapshotPayload: savedSnapshot,
     });
     expect(retry.status).toBe(200);
     expect(retry.body.duplicate).toBe(true);
+    const replay = await stub.fetch("https://engine.test/ai/paper/decision?userId=" + owner + "&tickId=" + freshTick);
+    const replayBody = await replay.json() as { state: string; decision: { snapshotPayload: unknown } };
+    expect(replayBody.state).toBe("completed");
+    expect(replayBody.decision.snapshotPayload).toEqual(savedSnapshot);
   });
 
   it("bounds AI paper decision history queries", async () => {
