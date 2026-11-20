@@ -5,7 +5,7 @@ import { publicContracts } from "./prices";
 import { parseAiPaperDecision } from "./service";
 
 type Json = Record<string, unknown>;
-type SnapshotMarket = { symbol: string; price: string; volume24hUsd: number; observedAt: number };
+type SnapshotMarket = { symbol: string; price: string; volume24hUsd: number };
 type AiPaperDependencies = {
   now?: () => number;
   getContracts?: () => Promise<ContractInfo[]>;
@@ -82,7 +82,7 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId: un
       ok: true,
       tickId,
       marketSnapshotHash: decision.marketSnapshotHash,
-      observedAt: decision.observedAt,
+      snapshotRetrievedAt: decision.snapshotRetrievedAt,
       decision: {
         signal: decision.signal,
         symbol: decision.symbol,
@@ -132,16 +132,17 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId: un
     .slice(0, MAX_MARKETS_IN_PROMPT)
     .map(({ contract, symbol, volume }) => ({
       symbol, price: formatPrice(Number(contract.price), Number(contract.priceDecimals ?? 8)) ?? "",
-      volume24hUsd: volume, observedAt: 0,
+      volume24hUsd: volume,
     }))
     .filter((market) => market.price !== "");
   if (!markets.length) return response({ ok: false, error: "Нет рынков с валидной котировкой и серверным allowlist." }, 503);
 
-  const snapshotAt = now();
-  for (const market of markets) market.observedAt = snapshotAt;
-  const snapshotPayload = { source: "hyperliquid-public", observedAt: snapshotAt, markets };
+  // Hyperliquid's public contract response has no per-quote source timestamp;
+  // this records when the Worker retrieved the data, not an exchange-observed time.
+  const snapshotRetrievedAt = now();
+  const snapshotPayload = { source: "hyperliquid-public", retrievedAt: snapshotRetrievedAt, markets };
   const marketSnapshotHash = await sha256Hex(JSON.stringify(snapshotPayload));
-  const utcDay = new Date(snapshotAt).toISOString().slice(0, 10);
+  const utcDay = new Date(snapshotRetrievedAt).toISOString().slice(0, 10);
 
   // One durable claim per (Telegram userId, tickId) prevents concurrent retries
   // from consuming quota or invoking Gemini more than once.
@@ -158,7 +159,7 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId: un
     if (claimBody.state === "completed" && claimBody.decision) {
       const decision = claimBody.decision as Json;
       return response({
-        ok: true, tickId, marketSnapshotHash: decision.marketSnapshotHash, observedAt: decision.observedAt,
+        ok: true, tickId, marketSnapshotHash: decision.marketSnapshotHash, snapshotRetrievedAt: decision.snapshotRetrievedAt,
         decision: { signal: decision.signal, symbol: decision.symbol, rationale: decision.rationale, confidence: decision.confidence },
         persisted: true, duplicate: true,
       }, 200);
@@ -253,15 +254,15 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId: un
 
     const selected = markets.find((market) => market.symbol === parsed.decision.symbol);
     const recordedAt = now();
-    if (!selected || !Number.isSafeInteger(selected.observedAt) || selected.observedAt <= 0 ||
-        selected.observedAt > recordedAt || recordedAt - selected.observedAt > MAX_MARK_AGE_MS)
+    if (!selected || !Number.isSafeInteger(snapshotRetrievedAt) || snapshotRetrievedAt <= 0 ||
+        snapshotRetrievedAt > recordedAt || recordedAt - snapshotRetrievedAt > MAX_MARK_AGE_MS)
       return response({ ok: false, error: "Снимок рынка устарел до завершения анализа. Решение не создано." }, 409);
 
     const recordResponse = await engineRequest("/ai/paper/decision", {
       userId, tickId, fencingToken, strategyId: "gemini-paper", strategyVersion: "1", marketSnapshotHash,
       symbol: parsed.decision.symbol, signal: parsed.decision.signal, rationale: parsed.decision.rationale,
       confidence: parsed.decision.confidence, observedPrice: selected.price,
-      serverObservedAt: selected.observedAt,
+      snapshotRetrievedAt,
       riskPass: true, rejectionReason: null, positionId: null,
     });
     const recordBody = await recordResponse.json().catch(() => ({})) as Json;
@@ -269,7 +270,7 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId: un
       return response({ ok: false, error: String(recordBody.error ?? "Не удалось сохранить AI PAPER решение."), tickId }, recordResponse.status);
     persisted = true;
     return response({
-      ok: true, tickId, marketSnapshotHash, observedAt: selected.observedAt,
+      ok: true, tickId, marketSnapshotHash, snapshotRetrievedAt,
       decision: parsed.decision, persisted: true, duplicate: recordBody.duplicate === true,
     }, recordResponse.status);
   } finally {
