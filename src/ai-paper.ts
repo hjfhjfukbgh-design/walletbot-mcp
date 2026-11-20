@@ -263,7 +263,7 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId: un
       symbol: parsed.decision.symbol, signal: parsed.decision.signal, rationale: parsed.decision.rationale,
       confidence: parsed.decision.confidence, observedPrice: selected.price,
       snapshotRetrievedAt,
-      riskPass: true, rejectionReason: null, positionId: null,
+      riskPass: false, riskEvaluated: false, rejectionReason: null, positionId: null,
     });
     const recordBody = await recordResponse.json().catch(() => ({})) as Json;
     if (!recordResponse.ok)
