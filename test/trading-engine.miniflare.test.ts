@@ -27,7 +27,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
 
   beforeEach(async () => { await mf?.dispose(); mf = undefined; objectName = "engine-test-" + (++testSequence); });
 
-  async function boot() {
+  async function boot(envOverrides: Record<string, string> = {}) {
     mf = new Miniflare({
       workers: [{
         config: {
@@ -37,11 +37,12 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
             ENGINE: { type: "durable-object", worker: "engine-test", exportName: "TradingEngine" },
             ENGINE_MAX_QUOTE_AGE_MS: { type: "text", value: "10000" },
             ENGINE_DISABLE_SOCKET: { type: "text", value: "true" },
-            MAX_ORDER_PCT: { type: "text", value: "5" },
-            MAX_TOTAL_EXPOSURE_PCT: { type: "text", value: "50" },
+            MAX_ORDER_PCT: { type: "text", value: "100" },
+            MAX_TOTAL_EXPOSURE_PCT: { type: "text", value: "100" },
             MAX_DAILY_LOSS_PCT: { type: "text", value: "5" },
             STOP_LOSS_PCT: { type: "text", value: "5" },
             ALLOWED_MARKETS: { type: "text", value: "*" },
+            ...Object.fromEntries(Object.entries(envOverrides).map(([key, value]) => [key, { type: "text", value }])),
           },
           exports: {
             TradingEngine: { type: "durable-object", storage: "sqlite" },
@@ -390,7 +391,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   });
 
   it("enforces server-owned AI paper max-order reserve as a percentage of equity", async () => {
-    const stub = await boot();
+    const stub = await boot({ MAX_ORDER_PCT: "5" });
     const owner = "333333333";
     await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-max-order-cap" });
     await startAiPaper(stub, owner);
