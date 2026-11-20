@@ -384,7 +384,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(await status.json()).toMatchObject({ aiBalanceMicro: (10n * U).toString(), openPositions: 0 });
   });
 
-  it("rejects AI paper leverage above 3 without mutating the virtual account", async () => {
+  it("allows AI paper leverage up to 10 and rejects higher leverage without mutating the virtual account", async () => {
     const stub = await boot();
     const owner = "111111111";
     await post(stub, "/ai/paper/fund", { userId: owner, amountMicro: (100n * U).toString(), idempotencyKey: "fund-max-leverage-01" });
@@ -397,13 +397,27 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const rejected = await post(stub, "/ai/paper/position/open", {
       userId: owner, decisionId: decision.body.id, idempotencyKey: "open-max-leverage-01",
       symbol: "BTC", side: "long", qtyUnits: "0.01", entryPrice: "50000",
-      marginMicro: (10n * U).toString(), leverage: "4", feeMicro: "0", slippageMicro: "0",
+      marginMicro: (10n * U).toString(), leverage: "11", feeMicro: "0", slippageMicro: "0",
     });
     expect(rejected.status).toBe(400);
-    const status = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
-    expect(await status.json()).toMatchObject({ aiBalanceMicro: (100n * U).toString(), openPositions: 0 });
-    const positions = await stub.fetch("https://engine.test/ai/paper/positions?userId=" + owner);
-    expect((await positions.json() as { positions: unknown[] }).positions).toHaveLength(0);
+    const statusAfterReject = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
+    expect(await statusAfterReject.json()).toMatchObject({ aiBalanceMicro: (100n * U).toString(), openPositions: 0 });
+    const positionsAfterReject = await stub.fetch("https://engine.test/ai/paper/positions?userId=" + owner);
+    expect((await positionsAfterReject.json() as { positions: unknown[] }).positions).toHaveLength(0);
+
+    const maxDecision = await post(stub, "/ai/paper/decision", {
+      userId: owner, tickId: "tick-max-leverage-10", strategyId: "ma-crossover", strategyVersion: "1",
+      marketSnapshotHash: "b".repeat(64), symbol: "BTC", signal: "buy", rationale: "Approved at max leverage.",
+      confidence: 0.8, observedPrice: "50000", riskPass: true,
+    });
+    const accepted = await post(stub, "/ai/paper/position/open", {
+      userId: owner, decisionId: maxDecision.body.id, idempotencyKey: "open-max-leverage-10",
+      symbol: "BTC", side: "long", qtyUnits: "0.02", entryPrice: "50000",
+      marginMicro: (10n * U).toString(), leverage: "10", feeMicro: "0", slippageMicro: "0",
+    });
+    expect(accepted.status).toBe(201);
+    const statusAtMax = await stub.fetch("https://engine.test/ai/paper/status?userId=" + owner);
+    expect(await statusAtMax.json()).toMatchObject({ aiBalanceMicro: (90n * U).toString(), openPositions: 1 });
   });
 
   it("atomically caps AI paper accounts at three open positions under concurrent requests", async () => {
