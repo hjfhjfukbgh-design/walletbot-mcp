@@ -151,10 +151,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     const requestedId = typeof body.conversationId === "string" ? body.conversationId : "";
     const conversationId = requestedId || crypto.randomUUID();
     if (requestedId && !/^[a-f0-9-]{36}$/i.test(requestedId)) return json({ ok: false, error: "Некорректный ID диалога." }, 400);
-    if (!requestedId) {
-      const existingConversations = await scoped.STATE.list({ prefix: PREFIX, limit: MAX_CONVERSATIONS });
-      if (existingConversations.keys.length >= MAX_CONVERSATIONS) return json({ ok: false, error: "Достигнут лимит в 50 диалогов. Удалите старый диалог, чтобы создать новый." }, 409);
-    }
+    let isNewConversation = !requestedId;
     if (requestedId) {
       const legacy = await scoped.STATE.get<Conversation>(PREFIX + requestedId, "json");
       if (legacy && Array.isArray(legacy.messages)) {
@@ -162,10 +159,19 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
         await importLegacyConversation(env, userId, scoped, legacy);
       } else {
         const existingResponse = await conversationStub(env, userId, requestedId).fetch("https://companion-conversation/conversation?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(requestedId));
-        if (!existingResponse.ok) return json({ ok: false, error: "Диалог не найден." }, 404);
-        const existingPayload = await existingResponse.json() as { conversation: Conversation };
-        if ((existingPayload.conversation.mode ?? "general") !== mode) return json({ ok: false, error: "Режим диалога нельзя менять в середине истории. Создайте новый чат для другого режима." }, 409);
+        if (existingResponse.ok) {
+          const existingPayload = await existingResponse.json() as { conversation: Conversation };
+          if ((existingPayload.conversation.mode ?? "general") !== mode) return json({ ok: false, error: "Режим диалога нельзя менять в середине истории. Создайте новый чат для другого режима." }, 409);
+        } else if (!legacy && existingResponse.status === 404) {
+          isNewConversation = true;
+        } else {
+          return json({ ok: false, error: "Диалог не найден." }, 404);
+        }
       }
+    }
+    if (isNewConversation) {
+      const existingConversations = await scoped.STATE.list({ prefix: PREFIX, limit: MAX_CONVERSATIONS });
+      if (existingConversations.keys.length >= MAX_CONVERSATIONS) return json({ ok: false, error: "Достигнут лимит в 50 диалогов. Удалите старый диалог, чтобы создать новый." }, 409);
     }
 
     const requestId = typeof body.requestId === "string" ? body.requestId : crypto.randomUUID();
