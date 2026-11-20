@@ -466,6 +466,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     ["zero max-order binding", { MAX_ORDER_PCT: "0" }],
     ["negative max-order binding", { MAX_ORDER_PCT: "-1" }],
     ["out-of-range aggregate-exposure binding", { MAX_TOTAL_EXPOSURE_PCT: "100.01" }],
+    ["negative aggregate-exposure binding", { MAX_TOTAL_EXPOSURE_PCT: "-1" }],
   ])("fails closed for %s", async (_label, overrides) => {
     const stub = await boot(overrides as Record<string, string>);
     const owner = "555555555";
