@@ -39,7 +39,9 @@ function geminiResponse(text: string): Response {
 function claimAwareEngine(handler: (path: string, body?: Record<string, unknown>) => Promise<Response>) {
   return async (path: string, body?: Record<string, unknown>): Promise<Response> => {
     if (path.startsWith("/ai/paper/decision?")) return Response.json({ ok: false }, { status: 404 });
-    if (path === "/ai/paper/decision/claim") return Response.json({ ok: true, state: "claimed" });
+    if (path === "/ai/paper/decision/claim") return Response.json({ ok: true, state: "claimed", fencingToken: 1 });
+    if (path === "/ai/paper/decision/external-started") return Response.json({ ok: true, state: "external_started" });
+    if (path === "/ai/paper/decision/unknown") return Response.json({ ok: true, state: "external_outcome_unknown" });
     if (path === "/ai/paper/decision/release") return Response.json({ ok: true });
     return handler(path, body);
   };
@@ -101,8 +103,10 @@ describe("runAiPaperDecision", () => {
         if (stored) return Response.json({ ok: true, state: "completed", decision: stored });
         if (claimed) return Response.json({ ok: false, state: "in_progress" }, { status: 409 });
         claimed = true;
-        return Response.json({ ok: true, state: "claimed" });
+        return Response.json({ ok: true, state: "claimed", fencingToken: 1 });
       }
+      if (path === "/ai/paper/decision/external-started") return Response.json({ ok: true, state: "external_started" });
+      if (path === "/ai/paper/decision/unknown") return Response.json({ ok: true, state: "external_outcome_unknown" });
       if (path === "/ai/paper/decision/release") { claimed = false; return Response.json({ ok: true }); }
       if (path.startsWith("/ai/paper/status")) { statusCalls++; return Response.json({ status: "active" }); }
       if (path === "/ai/paper/decision") {
@@ -139,6 +143,39 @@ describe("runAiPaperDecision", () => {
     expect(statusCalls).toBe(1);
     expect(recordCalls).toBe(1);
     expect(modeChecks).toBe(1);
+  });
+
+  it("does not repeat quota or Gemini after an ambiguous external-call failure", async () => {
+    const env = makeEnv();
+    let state: "new" | "external_started" | "external_outcome_unknown" = "new";
+    let quotaCalls = 0;
+    let modelCalls = 0;
+    const engineRequest = async (path: string): Promise<Response> => {
+      if (path.startsWith("/ai/paper/decision?")) {
+        if (state === "external_outcome_unknown")
+          return Response.json({ ok: false, state, error: "Внешний результат неизвестен." }, { status: 409 });
+        return Response.json({ ok: false }, { status: 404 });
+      }
+      if (path === "/ai/paper/decision/claim") return Response.json({ ok: true, state: "claimed", fencingToken: 7 });
+      if (path === "/ai/paper/decision/external-started") { state = "external_started"; return Response.json({ ok: true }); }
+      if (path === "/ai/paper/decision/unknown") { state = "external_outcome_unknown"; return Response.json({ ok: true }); }
+      if (path === "/ai/paper/status?userId=123456789") return Response.json({ status: "active" });
+      return Response.json({ ok: true });
+    };
+    const dependencies = {
+      now: () => NOW,
+      engineRequest,
+      getContracts: async () => contracts,
+      consumeQuota: async () => { quotaCalls++; return Response.json({ ok: true }); },
+      fetcher: async () => { modelCalls++; throw new Error("connection dropped after request may have reached provider"); },
+    };
+    const first = await runAiPaperDecision(env, "123456789", "stable-request-unknown-01", dependencies);
+    const retry = await runAiPaperDecision(env, "123456789", "stable-request-unknown-01", dependencies);
+    expect(first.status).toBe(503);
+    expect(retry.status).toBe(409);
+    expect(await retry.json()).toMatchObject({ state: "external_outcome_unknown" });
+    expect(quotaCalls).toBe(1);
+    expect(modelCalls).toBe(1);
   });
 
   it("blocks new AI PAPER analysis when method is not AI, without spending quota or calling Gemini", async () => {
