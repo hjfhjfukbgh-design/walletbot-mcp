@@ -312,6 +312,32 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect((await history.json() as { decisions: unknown[] }).decisions).toHaveLength(0);
   });
 
+  it("records only fresh non-future server observation timestamps for AI paper decisions", async () => {
+    const stub = await boot();
+    const owner = "777777771";
+    const base = {
+      userId: owner, strategyId: "gemini-paper", strategyVersion: "1",
+      marketSnapshotHash: "c".repeat(64), symbol: "BTC", signal: "buy",
+      rationale: "Server snapshot validated.", confidence: 0.8, observedPrice: "50000", riskPass: true,
+    };
+    const stale = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: "tick-server-mark-stale", serverObservedAt: Date.now() - 10 * 60_000 - 1,
+    });
+    const future = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: "tick-server-mark-future", serverObservedAt: Date.now() + 1,
+    });
+    expect(stale.status).toBe(400);
+    expect(future.status).toBe(400);
+    const freshAt = Date.now();
+    const fresh = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: "tick-server-mark-fresh", serverObservedAt: freshAt,
+    });
+    expect(fresh.status).toBe(201);
+    const decisions = await stub.fetch("https://engine.test/ai/paper/decisions?userId=" + owner);
+    const body = await decisions.json() as { decisions: Array<{ created_at: number }> };
+    expect(body.decisions[0].created_at).toBe(freshAt);
+  });
+
   it("bounds AI paper decision history queries", async () => {
     const stub = await boot();
     const response = await stub.fetch("https://engine.test/ai/paper/decisions?userId=111111111&limit=1000");
