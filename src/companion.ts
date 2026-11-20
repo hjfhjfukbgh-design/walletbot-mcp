@@ -373,8 +373,9 @@ async function importLegacyConversation(env:Env,userId:string,scoped:Env,convers
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({tenantId:userId,conversationId:conversation.id,conversation,contentHash}),
   });
-  const result=await response.json().catch(()=>({})) as {error?:string};
-  if(!response.ok) throw new Error(result.error??"Legacy conversation import failed");
+  const result=await response.json().catch(()=>({})) as {error?:string;importedMessages?:number;contentHash?:string};
+  if(!response.ok || result.contentHash!==contentHash || result.importedMessages!==conversation.messages.length)
+    throw new Error(result.error??"Legacy conversation import verification failed");
   try {
     await scoped.STATE.put(LEGACY_PREFIX+conversation.id,serialized,{expirationTtl:7*24*60*60});
     await writeConversationIndex(scoped,conversation);
