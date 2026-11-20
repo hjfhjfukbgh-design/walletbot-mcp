@@ -192,8 +192,10 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId: un
       ]);
     } catch { return response({ ok: false, error: "Лимитер Gemini недоступен. Запрос не отправлен." }, 503); }
     if (quotaResponse.status === 429) {
-      await engineRequest("/ai/paper/decision/release", { userId, tickId, fencingToken, safeToRetry: true }).catch(() => undefined);
-      released = true;
+      try {
+        const releaseResponse = await engineRequest("/ai/paper/decision/release", { userId, tickId, fencingToken, safeToRetry: true });
+        released = releaseResponse.ok;
+      } catch {}
       return response({ ok: false, error: "Бесплатный лимит AI PAPER на сегодня исчерпан. Попробуйте позже." }, 429);
     }
     if (!quotaResponse.ok) return response({ ok: false, error: "Не удалось подтвердить бесплатную квоту Gemini. Повтор заблокирован до проверки состояния." }, 503);
