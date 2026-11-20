@@ -474,7 +474,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       confidence: 0.8, observedPrice: "50000", riskPass: true,
     });
     const rejected = await post(stub, "/ai/paper/position/open", {
-      userId: owner, decisionId: decision.body.id, idempotencyKey: "open-invalid-risk-binding-" + _label,
+      userId: owner, decisionId: decision.body.id, idempotencyKey: "open-invalid-risk-binding-" + _label.replaceAll(" ", "-"),
       symbol: "BTC", side: "long", qtyUnits: "0.01", entryPrice: "50000",
       marginMicro: (1n * U).toString(), leverage: "2", feeMicro: "0", slippageMicro: "0",
     });
