@@ -655,7 +655,8 @@ export class TradingEngine {
         userId,
       ).toArray() as Array<{ symbol: string; side: string; qty_units: string; entry_price: string; margin_micro: string; fees_micro: string; slippage_micro: string }>;
       let openMargin = 0n;
-      let unrealized = 0n;
+      let unrealizedEquity = 0n;
+      let unrealizedDailyPnl = 0n;
       for (const row of openRows) {
         const mark = markFor(row.symbol);
         const quantity = parseDecimal8(row.qty_units);
@@ -677,7 +678,10 @@ export class TradingEngine {
         const delta = row.side === "long" ? mark - entry : entry - mark;
         const gross = quantity * delta / 10_000_000_000n;
         openMargin += marginValue;
-        unrealized += gross - openFees - openSlippage - exitFeeEstimate - exitSlippageEstimate;
+        // Entry costs already reduced free balance; do not subtract them twice from equity.
+        unrealizedEquity += gross - exitFeeEstimate - exitSlippageEstimate;
+        // Daily PnL includes the complete round-trip cost of the still-open position.
+        unrealizedDailyPnl += gross - openFees - openSlippage - exitFeeEstimate - exitSlippageEstimate;
       }
 
       // Realized PnL uses durable close results, never ledger payout amounts.
@@ -700,7 +704,7 @@ export class TradingEngine {
         realizedToday += BigInt(close.netPnlMicro);
       }
 
-      const equity = before + openMargin + unrealized;
+      const equity = before + openMargin + unrealizedEquity;
       if (equity <= 0n) { positionLimitExceeded = true; return; }
       const maxOrderReserve = divRound(equity * maxOrderPpm, 100n * 1_000_000n, "floor");
       const maxAggregateMargin = divRound(equity * maxExposurePpm, 100n * 1_000_000n, "floor");
@@ -726,7 +730,7 @@ export class TradingEngine {
         return;
       }
       // Include the proposed order's entry costs and a conservative same-rate exit-cost estimate.
-      const dailyPnlAfterEntry = realizedToday + unrealized -
+      const dailyPnlAfterEntry = realizedToday + unrealizedDailyPnl -
         newFees - newSlippage - newExitFeeEstimate - newExitSlippageEstimate;
       const dailyLossLimit = divRound(equity * maxDailyLossPpm, 100n * 1_000_000n, "floor");
       if (dailyLossLimit <= 0n || dailyPnlAfterEntry <= -dailyLossLimit) {
