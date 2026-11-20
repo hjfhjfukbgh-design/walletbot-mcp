@@ -102,6 +102,7 @@ export class TradingEngine {
     sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decisions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tick_id TEXT NOT NULL, strategy_id TEXT NOT NULL, strategy_version TEXT NOT NULL, market_snapshot_hash TEXT NOT NULL, symbol TEXT NOT NULL, signal TEXT NOT NULL, rationale TEXT NOT NULL, confidence REAL, observed_price TEXT NOT NULL, risk_pass INTEGER NOT NULL, risk_evaluated INTEGER NOT NULL DEFAULT 0, rejection_reason TEXT, position_id TEXT, snapshot_retrieved_at INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, UNIQUE(user_id, tick_id, symbol))");
     try { sql.exec("ALTER TABLE ai_paper_decisions ADD COLUMN snapshot_retrieved_at INTEGER NOT NULL DEFAULT 0"); } catch { /* Column already exists. */ }
     try { sql.exec("ALTER TABLE ai_paper_decisions ADD COLUMN risk_evaluated INTEGER NOT NULL DEFAULT 0"); } catch { /* Column already exists. */ }
+    sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_market_snapshots (snapshot_hash TEXT PRIMARY KEY, source TEXT NOT NULL, retrieved_at INTEGER NOT NULL, payload_json TEXT NOT NULL, created_at INTEGER NOT NULL)");
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decisions_user_created ON ai_paper_decisions(user_id, created_at)");
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decisions_user_tick ON ai_paper_decisions(user_id, tick_id, created_at DESC)");
     sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decision_runs (user_id TEXT NOT NULL, tick_id TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'claimed', lease_expires_at INTEGER NOT NULL, external_started_at INTEGER, fencing_token INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(user_id, tick_id))");
@@ -200,11 +201,16 @@ export class TradingEngine {
             pendingState = null;
           }
         });
-        if (row) return Response.json({ ok: true, state: "completed", decision: {
-          id: row.id, tickId: row.tick_id, marketSnapshotHash: row.market_snapshot_hash,
+        if (row) {
+          const savedSnapshot = this.ctx.storage.sql.exec("SELECT payload_json FROM ai_paper_market_snapshots WHERE snapshot_hash = ?", String(row.market_snapshot_hash)).toArray()[0] as { payload_json: string } | undefined;
+          let snapshotPayload: unknown = null;
+          try { snapshotPayload = savedSnapshot ? JSON.parse(savedSnapshot.payload_json) : null; } catch {}
+          return Response.json({ ok: true, state: "completed", decision: {
+          id: row.id, tickId: row.tick_id, marketSnapshotHash: row.market_snapshot_hash, snapshotPayload,
           symbol: row.symbol, signal: row.signal, rationale: row.rationale,
           confidence: row.confidence === null ? null : Number(row.confidence), riskPass: Number(row.risk_pass) === 1, riskEvaluated: Number(row.risk_evaluated) === 1, rejectionReason: row.rejection_reason, snapshotRetrievedAt: Number(row.snapshot_retrieved_at) || null, createdAt: Number(row.created_at),
         } });
+        }
         if (pendingState === "external_outcome_unknown")
           return Response.json({ ok: false, state: pendingState, error: "Внешний вызов мог завершиться до сохранения результата. Автоматический повтор заблокирован." }, { status: 409 });
         if (pendingState === "in_progress")
@@ -1015,8 +1021,21 @@ export class TradingEngine {
 
     const now = Date.now();
     const snapshotRetrievedAt = body.snapshotRetrievedAt === undefined ? now : Number(body.snapshotRetrievedAt);
-    if (strategyId === "gemini-paper" && body.snapshotRetrievedAt === undefined)
-      return Response.json({ ok: false, error: "Для Gemini PAPER требуется время получения серверного снимка." }, { status: 400 });
+    const snapshotPayload = body.snapshotPayload;
+    let snapshotJson = "";
+    if (strategyId === "gemini-paper") {
+      if (body.snapshotRetrievedAt === undefined || !snapshotPayload || typeof snapshotPayload !== "object" || Array.isArray(snapshotPayload))
+        return Response.json({ ok: false, error: "Для Gemini PAPER требуется полный серверный снимок рынка." }, { status: 400 });
+      const snapshot = snapshotPayload as Record<string, unknown>;
+      const markets = snapshot.markets;
+      if (snapshot.source !== "hyperliquid-public" || Number(snapshot.retrievedAt) !== snapshotRetrievedAt || !Array.isArray(markets) || markets.length < 1 || markets.length > 10)
+        return Response.json({ ok: false, error: "Некорректный серверный снимок рынка." }, { status: 400 });
+      const selected = markets.find((item) => item && typeof item === "object" && String((item as Record<string, unknown>).symbol) === symbol) as Record<string, unknown> | undefined;
+      if (!selected || String(selected.price) !== observedPrice || !Number.isFinite(Number(selected.volume24hUsd)) || Number(selected.volume24hUsd) < 0)
+        return Response.json({ ok: false, error: "Цена решения не совпадает с сохранённым снимком рынка." }, { status: 400 });
+      try { snapshotJson = JSON.stringify(snapshotPayload); } catch { return Response.json({ ok: false, error: "Не удалось сериализовать снимок рынка." }, { status: 400 }); }
+      if (snapshotJson.length > 32_768) return Response.json({ ok: false, error: "Снимок рынка превышает допустимый размер." }, { status: 413 });
+    }
     const id = crypto.randomUUID();
     let duplicate = false;
     let conflict = false;
@@ -1061,6 +1080,11 @@ export class TradingEngine {
           snapshotRetrievedAt > now || now - snapshotRetrievedAt > AI_PAPER_MARK_MAX_AGE_MS) {
         invalidTimestamp = true;
         return;
+      }
+      if (strategyId === "gemini-paper") {
+        const priorSnapshot = this.ctx.storage.sql.exec("SELECT payload_json FROM ai_paper_market_snapshots WHERE snapshot_hash = ?", marketSnapshotHash).toArray()[0] as { payload_json: string } | undefined;
+        if (priorSnapshot && priorSnapshot.payload_json !== snapshotJson) { conflict = true; return; }
+        this.ctx.storage.sql.exec("INSERT OR IGNORE INTO ai_paper_market_snapshots(snapshot_hash,source,retrieved_at,payload_json,created_at) VALUES(?,?,?,?,?)", marketSnapshotHash, "hyperliquid-public", snapshotRetrievedAt, snapshotJson, now);
       }
       this.ctx.storage.sql.exec(
         "INSERT INTO ai_paper_decisions(id,user_id,tick_id,strategy_id,strategy_version,market_snapshot_hash,symbol,signal,rationale,confidence,observed_price,risk_pass,risk_evaluated,rejection_reason,position_id,snapshot_retrieved_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
