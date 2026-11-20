@@ -36,6 +36,15 @@ function geminiResponse(text: string): Response {
   return Response.json({ candidates: [{ content: { parts: [{ text }] }, finishReason: "STOP" }] });
 }
 
+function claimAwareEngine(handler: (path: string, body?: Record<string, unknown>) => Promise<Response>) {
+  return async (path: string, body?: Record<string, unknown>): Promise<Response> => {
+    if (path.startsWith("/ai/paper/decision?")) return Response.json({ ok: false }, { status: 404 });
+    if (path === "/ai/paper/decision/claim") return Response.json({ ok: true, state: "claimed" });
+    if (path === "/ai/paper/decision/release") return Response.json({ ok: true });
+    return handler(path, body);
+  };
+}
+
 describe("runAiPaperDecision", () => {
   it("uses server market data and strict model output, then records one tenant-scoped decision", async () => {
     const env = makeEnv();
@@ -47,11 +56,11 @@ describe("runAiPaperDecision", () => {
       now: () => NOW,
       getContracts: async () => contracts,
       consumeQuota: async () => Response.json({ ok: true, allowed: true }),
-      engineRequest: async (path, body) => {
+      engineRequest: claimAwareEngine(async (path, body) => {
         if (path.startsWith("/ai/paper/status")) return Response.json({ status: "active", aiBalanceMicro: "100000000" });
         recorded.push(body ?? {});
         return Response.json({ ok: true, id: "decision-1", duplicate: false }, { status: 201 });
-      },
+      }),
       fetcher: async (input, init) => {
         expect(String(input)).toContain("gemini-2.5-flash-lite:generateContent");
         const request = JSON.parse(String(init?.body)) as { contents: Array<{ parts: Array<{ text: string }> }> };
@@ -74,12 +83,80 @@ describe("runAiPaperDecision", () => {
     expect(recorded[0]).not.toHaveProperty("qtyUnits");
   });
 
+  it("replays a completed requestId without a second quota reservation or Gemini call", async () => {
+    const env = makeEnv();
+    let claimed = false;
+    let stored: Record<string, unknown> | null = null;
+    let quotaCalls = 0;
+    let modelCalls = 0;
+    let statusCalls = 0;
+    let recordCalls = 0;
+    const engineRequest = async (path: string, body?: Record<string, unknown>): Promise<Response> => {
+      if (path.startsWith("/ai/paper/decision?")) {
+        return stored
+          ? Response.json({ ok: true, state: "completed", decision: stored })
+          : Response.json({ ok: false }, { status: 404 });
+      }
+      if (path === "/ai/paper/decision/claim") {
+        if (stored) return Response.json({ ok: true, state: "completed", decision: stored });
+        if (claimed) return Response.json({ ok: false, state: "in_progress" }, { status: 409 });
+        claimed = true;
+        return Response.json({ ok: true, state: "claimed" });
+      }
+      if (path === "/ai/paper/decision/release") { claimed = false; return Response.json({ ok: true }); }
+      if (path.startsWith("/ai/paper/status")) { statusCalls++; return Response.json({ status: "active" }); }
+      if (path === "/ai/paper/decision") {
+        recordCalls++;
+        stored = {
+          tickId: body?.tickId, marketSnapshotHash: body?.marketSnapshotHash,
+          observedAt: body?.serverObservedAt, symbol: body?.symbol, signal: body?.signal,
+          rationale: body?.rationale, confidence: body?.confidence,
+        };
+        claimed = false;
+        return Response.json({ ok: true, id: "decision-replayed", duplicate: false }, { status: 201 });
+      }
+      return Response.json({ ok: false }, { status: 404 });
+    };
+    const dependencies = {
+      now: () => NOW,
+      engineRequest,
+      getContracts: async () => contracts,
+      consumeQuota: async () => { quotaCalls++; return Response.json({ ok: true }); },
+      fetcher: async () => { modelCalls++; return geminiResponse(JSON.stringify({
+        signal: "buy", symbol: "BTC", rationale: "Повторяемое решение.", confidence: 0.75,
+      })); },
+    };
+    const first = await runAiPaperDecision(env, "123456789", "stable-request-0001", dependencies);
+    const second = await runAiPaperDecision(env, "123456789", "stable-request-0001", dependencies);
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(200);
+    expect(await second.json()).toMatchObject({ ok: true, tickId: "stable-request-0001", duplicate: true,
+      decision: { signal: "buy", symbol: "BTC", confidence: 0.75 } });
+    expect(quotaCalls).toBe(1);
+    expect(modelCalls).toBe(1);
+    expect(statusCalls).toBe(1);
+    expect(recordCalls).toBe(1);
+  });
+
+  it("requires a caller-supplied stable requestId before any engine, quota or model call", async () => {
+    const engineRequest = vi.fn(async () => Response.json({ ok: false }, { status: 404 }));
+    const quota = vi.fn(async () => Response.json({ ok: true }));
+    const model = vi.fn(async () => geminiResponse("{}"));
+    const result = await runAiPaperDecision(makeEnv(), "123456789", undefined, {
+      engineRequest, consumeQuota: quota, fetcher: model,
+    });
+    expect(result.status).toBe(400);
+    expect(engineRequest).not.toHaveBeenCalled();
+    expect(quota).not.toHaveBeenCalled();
+    expect(model).not.toHaveBeenCalled();
+  });
+
   it("does not call Gemini or record a decision when the AI PAPER session is stopped", async () => {
     let modelCalls = 0;
     let writes = 0;
     const result = await runAiPaperDecision(makeEnv(), "123456789", "manual-run-stopped", {
       now: () => NOW,
-      engineRequest: async () => Response.json({ status: "stopped" }),
+      engineRequest: claimAwareEngine(async () => Response.json({ status: "stopped" })),
       getContracts: async () => contracts,
       consumeQuota: async () => Response.json({ ok: true }),
       fetcher: async () => { modelCalls++; return geminiResponse("{}"); },
@@ -95,11 +172,11 @@ describe("runAiPaperDecision", () => {
       now: () => NOW,
       getContracts: async () => contracts,
       consumeQuota: async () => Response.json({ ok: true }),
-      engineRequest: async (path) => {
+      engineRequest: claimAwareEngine(async (path) => {
         if (path.startsWith("/ai/paper/status")) return Response.json({ status: "active" });
         writes++;
         return Response.json({ ok: true }, { status: 201 });
-      },
+      }),
       fetcher: async () => geminiResponse(JSON.stringify({
         signal: "buy", symbol: "BTC", rationale: "unsafe", confidence: 0.9,
         observedPrice: "1", riskPass: true, userId: "999999999",
@@ -115,7 +192,7 @@ describe("runAiPaperDecision", () => {
       now: () => NOW,
       getContracts: async () => [{ ...contracts[0], price: 0 }],
       consumeQuota: async () => Response.json({ ok: true }),
-      engineRequest: async () => Response.json({ status: "active" }),
+      engineRequest: claimAwareEngine(async () => Response.json({ status: "active" })),
       fetcher: async () => { modelCalls++; return geminiResponse("{}"); },
     });
     expect(result.status).toBe(503);
@@ -128,7 +205,7 @@ describe("runAiPaperDecision", () => {
       now: () => NOW,
       getContracts: async () => contracts,
       consumeQuota: async () => Response.json({ ok: false }, { status: 429 }),
-      engineRequest: async () => Response.json({ status: "active" }),
+      engineRequest: claimAwareEngine(async () => Response.json({ status: "active" })),
       fetcher: async () => { modelCalls++; return geminiResponse("{}"); },
     });
     expect(result.status).toBe(429);
@@ -142,11 +219,11 @@ describe("runAiPaperDecision", () => {
       now: () => clock,
       getContracts: async () => contracts,
       consumeQuota: async () => Response.json({ ok: true }),
-      engineRequest: async (path) => {
+      engineRequest: claimAwareEngine(async (path) => {
         if (path.startsWith("/ai/paper/status")) return Response.json({ status: "active" });
         writes++;
         return Response.json({ ok: true }, { status: 201 });
-      },
+      }),
       fetcher: async () => {
         clock = NOW + 10 * 60_000 + 1;
         return geminiResponse(JSON.stringify({ signal: "hold", symbol: "BTC", rationale: "Снимок устарел.", confidence: 0.5 }));
@@ -162,7 +239,7 @@ describe("runAiPaperDecision", () => {
       now: () => NOW,
       getContracts: async () => contracts,
       consumeQuota: async () => Response.json({ ok: true }),
-      engineRequest: async (path: string) => {
+      engineRequest: claimAwareEngine(async (path: string) => {
         if (path.startsWith("/ai/paper/status")) return Response.json({ status: "active" });
         writes++;
         return Response.json({ ok: true }, { status: 201 });
