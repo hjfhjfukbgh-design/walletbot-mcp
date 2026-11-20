@@ -14,6 +14,8 @@ name: Kripto Guru — continuous agent dispatcher
 # Queue pass: drain prioritized product queue; max three workers per pass. 2026-11-20 CEO reconfirmed two-mode DEMO/LIVE hierarchy and triad architecture. Sort ready tasks by issue number so P0 design #441 is selected before newly created Companion/AI-context tasks.
 
 on:
+  issues:
+    types: [labeled]
   push:
     paths:
       - '.github/workflows/agent-dispatcher.yml'
@@ -33,6 +35,7 @@ concurrency:
 
 jobs:
   select:
+    if: github.event_name != 'issues' || github.event.label.name == 'agent-ready'
     concurrency:
       group: kripto-guru-queue-claim
       cancel-in-progress: false
