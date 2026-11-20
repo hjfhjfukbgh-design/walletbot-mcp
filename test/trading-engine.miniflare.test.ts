@@ -397,11 +397,12 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const secondToken = Number(secondClaim.body.fencingToken);
     expect(secondToken).toBeGreaterThan(firstToken);
     await post(stub, "/ai/paper/decision/external-started", { userId: userD, tickId: fencingTick, fencingToken: secondToken });
+    const decisionAt = Date.now();
     const decisionBase = {
       userId: userD, tickId: fencingTick, strategyId: "gemini-paper", strategyVersion: "1",
       marketSnapshotHash: "e".repeat(64), symbol: "BTC", signal: "hold",
       rationale: "Fencing token test.", confidence: 0.5, observedPrice: "50000", riskPass: false, riskEvaluated: false,
-      snapshotRetrievedAt: Date.now(), snapshotPayload: { source: "hyperliquid-public", retrievedAt: Date.now(), markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
+      snapshotRetrievedAt: decisionAt, snapshotPayload: { source: "hyperliquid-public", retrievedAt: decisionAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
     };
     const staleFinalize = await post(stub, "/ai/paper/decision", { ...decisionBase, fencingToken: firstToken });
     expect(staleFinalize.status).toBe(409);
