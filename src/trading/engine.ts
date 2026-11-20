@@ -605,11 +605,19 @@ export class TradingEngine {
         invalidDecision = true;
         return;
       }
-      const openMarginRow = this.ctx.storage.sql.exec(
-        "SELECT COALESCE(SUM(CAST(margin_micro AS INTEGER)), 0) AS margin_micro FROM ai_paper_positions WHERE user_id = ? AND status = 'open'",
+      // margin_micro is stored as decimal TEXT to preserve exact fixed-point
+      // values beyond SQLite's signed 64-bit integer range. Sum in JS BigInt;
+      // SQLite SUM(CAST(...)) can overflow or silently narrow large balances.
+      const openMarginRows = this.ctx.storage.sql.exec(
+        "SELECT margin_micro FROM ai_paper_positions WHERE user_id = ? AND status = 'open'",
         userId,
-      ).toArray()[0] as { margin_micro: number | string } | undefined;
-      const openMargin = BigInt(String(openMarginRow?.margin_micro ?? "0"));
+      ).toArray() as Array<{ margin_micro: string }>;
+      let openMargin = 0n;
+      for (const row of openMarginRows) {
+        const margin = BigInt(row.margin_micro);
+        if (margin < 0n) { invalidDecision = true; return; }
+        openMargin += margin;
+      }
       const equity = before + openMargin;
       const maxOrderReserve = divRound(equity * maxOrderPpm, 100n * 1_000_000n, "floor");
       const maxAggregateMargin = divRound(equity * maxExposurePpm, 100n * 1_000_000n, "floor");
