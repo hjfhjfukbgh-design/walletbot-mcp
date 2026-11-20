@@ -561,6 +561,103 @@ describe("AI Companion API", () => {
 });
 
 
+
+  it("lazily imports legacy KV history with a verified hash and retains a rollback backup", async () => {
+    const id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const legacy={id,title:"Старый диалог",createdAt:"2026-11-19T10:00:00.000Z",updatedAt:"2026-11-19T10:05:00.000Z",mode:"learning",messages:[
+      {role:"user",content:"Старый вопрос",createdAt:"2026-11-19T10:01:00.000Z"},
+      {role:"assistant",content:"Старый ответ",createdAt:"2026-11-19T10:02:00.000Z"},
+    ]};
+    const e=isolatedEnv({["tenant:111:companion:conversation:"+id]:JSON.stringify(legacy)});
+    const first=await call(e,"111","/api/companion/conversations/"+id);
+    expect(first.status).toBe(200);
+    const body=await first.json() as {conversation:Conversation};
+    expect(body.conversation.messages.map(message=>message.content)).toEqual(["Старый вопрос","Старый ответ"]);
+    const backup=await e.STATE.get("tenant:111:companion:legacy:"+id,"json") as Conversation;
+    expect(backup.messages).toHaveLength(2);
+    const index=await e.STATE.get("tenant:111:companion:conversation:"+id,"json") as {messageCount:number;mode:string};
+    expect(index).toMatchObject({messageCount:2,mode:"learning"});
+    const second=await call(e,"111","/api/companion/conversations/"+id);
+    expect(second.status).toBe(200);
+    expect((await second.json() as {conversation:Conversation}).conversation.messages).toHaveLength(2);
+  });
+
+  it("replays a completed requestId without another Gemini call and exposes status", async () => {
+    const e=isolatedEnv();
+    const fetchMock=vi.fn(async()=>Response.json({candidates:[{content:{parts:[{text:"Сохранённый ответ"}]}}]}));
+    vi.stubGlobal("fetch",fetchMock);
+    const request={message:"Проверка replay",requestId:"req-replay-0001"};
+    const first=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify(request)});
+    expect(first.status).toBe(200);
+    const firstBody=await first.json() as {conversationId:string;answer:string};
+    const replay=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify(request)});
+    expect(replay.status).toBe(200);
+    expect((await replay.json() as {answer:string}).answer).toBe(firstBody.answer);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const status=await call(e,"111","/api/companion/requests/req-replay-0001?conversationId="+firstBody.conversationId);
+    expect(status.status).toBe(200);
+    expect(await status.json()).toMatchObject({state:"completed"});
+  });
+
+  it("rejects requestId reuse with different message content", async () => {
+    const e=isolatedEnv();
+    const fetchMock=vi.fn(async()=>Response.json({candidates:[{content:{parts:[{text:"Ответ"}]}}]}));
+    vi.stubGlobal("fetch",fetchMock);
+    const first=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({message:"Первый",requestId:"req-conflict-01"})});
+    expect(first.status).toBe(200);
+    const conflict=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({message:"Другой",requestId:"req-conflict-01"})});
+    expect(conflict.status).toBe(409);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("queues concurrent messages in FIFO order and permits safe same-request resubmission after predecessor completes", async () => {
+    const e=isolatedEnv();
+    let releaseFirst:(value:Response)=>void=()=>{};
+    let startedFirst:()=>void=()=>{};
+    const started=new Promise<void>(resolve=>{startedFirst=resolve;});
+    const pending=new Promise<Response>(resolve=>{releaseFirst=resolve;});
+    let calls=0;
+    vi.stubGlobal("fetch",async()=>{
+      calls++;
+      if(calls===1)return Response.json({candidates:[{content:{parts:[{text:"Начальный ответ"}]}}]});
+      if(calls===2){startedFirst();return pending;}
+      return Response.json({candidates:[{content:{parts:[{text:"Второй ответ"}]}}]});
+    });
+    const initial=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({message:"Начало"})});
+    const conversationId=(await initial.json() as {conversationId:string}).conversationId;
+    const firstPromise=call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({message:"Первое в очереди",conversationId,requestId:"req-fifo-0001"})});
+    await started;
+    const secondBody={message:"Второе в очереди",conversationId,requestId:"req-fifo-0002"};
+    const queued=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify(secondBody)});
+    expect(queued.status).toBe(202);
+    expect(await queued.json()).toMatchObject({state:"queued",requestId:"req-fifo-0002"});
+    expect(calls).toBe(2);
+    releaseFirst(Response.json({candidates:[{content:{parts:[{text:"Первый ответ"}]}}]}));
+    expect((await firstPromise).status).toBe(200);
+    const queuedStatus=await call(e,"111","/api/companion/requests/req-fifo-0002?conversationId="+conversationId);
+    expect(await queuedStatus.json()).toMatchObject({state:"queued"});
+    const resumed=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify(secondBody)});
+    expect(resumed.status).toBe(200);
+    expect((await resumed.json() as {answer:string}).answer).toBe("Второй ответ");
+    expect(calls).toBe(3);
+    const history=await call(e,"111","/api/companion/conversations/"+conversationId);
+    expect((await history.json() as {conversation:Conversation}).conversation.messages.map(message=>message.content)).toEqual([
+      "Начало","Начальный ответ","Первое в очереди","Первый ответ","Второе в очереди","Второй ответ",
+    ]);
+  });
+
+  it("deletes the Durable Object history and both KV index and legacy backup", async () => {
+    const e=isolatedEnv();
+    vi.stubGlobal("fetch",async()=>Response.json({candidates:[{content:{parts:[{text:"Удаляемый ответ"}]}}]}));
+    const created=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({message:"Удалить"})});
+    const {conversationId}=await created.json() as {conversationId:string};
+    const deleted=await call(e,"111","/api/companion/conversations/"+conversationId,{method:"DELETE"});
+    expect(deleted.status).toBe(200);
+    const read=await call(e,"111","/api/companion/conversations/"+conversationId);
+    expect(read.status).toBe(404);
+    expect(await e.STATE.get("tenant:111:companion:conversation:"+conversationId)).toBeNull();
+  });
+
 describe("CompanionQuota Durable Object SQLite integration", () => {
   let source = "";
   let root = "";
