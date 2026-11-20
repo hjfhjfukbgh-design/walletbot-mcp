@@ -168,6 +168,7 @@ export async function runAiPaperDecision(env: Env, userId: string, requestId?: u
     userId, tickId, strategyId: "gemini-paper", strategyVersion: "1", marketSnapshotHash,
     symbol: parsed.decision.symbol, signal: parsed.decision.signal, rationale: parsed.decision.rationale,
     confidence: parsed.decision.confidence, observedPrice: selected.price,
+    serverObservedAt: selected.observedAt,
     riskPass: true, rejectionReason: null, positionId: null,
   });
   const recordBody = await recordResponse.json().catch(() => ({})) as Json;
