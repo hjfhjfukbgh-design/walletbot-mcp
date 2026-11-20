@@ -37,7 +37,7 @@ function safeSymbol(v: unknown): string {
 }
 
 const AI_PAPER_MARK_MAX_AGE_MS = 10 * 60_000;
-const DECIMAL_8_PATTERN = /^(?:0|[1-9]\\d{0,15})(?:\\.\\d{1,8})?$/;
+const DECIMAL_8_PATTERN = /^(?:0|[1-9]\d{0,15})(?:\.\d{1,8})?$/;
 function parseDecimal8(value: unknown): bigint | null {
   const raw = String(value ?? "");
   if (!DECIMAL_8_PATTERN.test(raw)) return null;
@@ -649,9 +649,9 @@ export class TradingEngine {
         const mark = markFor(row.symbol);
         const quantity = parseDecimal8(row.qty_units);
         const entry = parseDecimal8(row.entry_price);
-        const marginValue = /^\\d{1,20}$/.test(row.margin_micro) ? BigInt(row.margin_micro) : -1n;
-        const openFees = /^\\d{1,20}$/.test(row.fees_micro) ? BigInt(row.fees_micro) : -1n;
-        const openSlippage = /^\\d{1,20}$/.test(row.slippage_micro) ? BigInt(row.slippage_micro) : -1n;
+        const marginValue = /^\d{1,20}$/.test(row.margin_micro) ? BigInt(row.margin_micro) : -1n;
+        const openFees = /^\d{1,20}$/.test(row.fees_micro) ? BigInt(row.fees_micro) : -1n;
+        const openSlippage = /^\d{1,20}$/.test(row.slippage_micro) ? BigInt(row.slippage_micro) : -1n;
         if (mark === null || quantity === null || quantity <= 0n || entry === null || entry <= 0n ||
             marginValue < 0n || openFees < 0n || openSlippage < 0n ||
             (row.side !== "long" && row.side !== "short")) {
@@ -682,7 +682,7 @@ export class TradingEngine {
         let close: { netPnlMicro?: string };
         try { close = JSON.parse(row.close_json) as { netPnlMicro?: string }; }
         catch { invalidMark = true; return; }
-        if (typeof close.netPnlMicro !== "string" || !/^(?:0|-?[1-9]\\d{0,19})$/.test(close.netPnlMicro)) {
+        if (typeof close.netPnlMicro !== "string" || !/^(?:0|-?[1-9]\d{0,19})$/.test(close.netPnlMicro)) {
           invalidMark = true;
           return;
         }
