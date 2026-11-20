@@ -5,9 +5,12 @@ import { handleCompanionApi } from "../src/companion";
 import type { Env } from "../src/env";
 import { env as baseEnv, memoryQuota } from "./helpers";
 
+type TestConversation = { id:string; title:string; createdAt:string; updatedAt:string; mode?:string; messages:Array<{role:"user"|"assistant";content:string;createdAt:string;sources?:Array<{title:string;url:string}>}> };
+
 function isolatedEnv(seed: Record<string, string> = {}, quotaSeed: Record<string, number> = {}): Env {
   const e = baseEnv();
   e.COMPANION_QUOTA = memoryQuota(quotaSeed);
+  e.COMPANION_CONVERSATIONS = memoryConversationNamespace();
   const values = new Map<string, string>(Object.entries(seed));
   e.STATE = {
     get: async (key: string, type?: string) => {
@@ -28,6 +31,92 @@ function isolatedEnv(seed: Record<string, string> = {}, quotaSeed: Record<string
   e.GEMINI_API_KEY = "test-gemini-secret";
   return e;
 }
+
+
+function memoryConversationNamespace(): DurableObjectNamespace {
+  type Msg={role:"user"|"assistant";content:string;createdAt:string;sources?:Array<{title:string;url:string}>};
+  type Row={requestId:string;sequence:number;state:string;mode:string;userContent:string;attachments:unknown[];token:number;providerStarted:boolean;response?:any};
+  type Store={tenantId:string;conversationId:string;mode:string;title:string;createdAt:string;updatedAt:string;messages:Msg[];nextSequence:number;requests:Map<string,Row>;migrationHash?:string};
+  const stores=new Map<string,Store>();
+  return {
+    idFromName:(name:string)=>name,
+    get:(name:string)=>({fetch:async(input:RequestInfo|URL,init?:RequestInit)=>{
+      const request=input instanceof Request?input:new Request(input,init),url=new URL(request.url);
+      const match=name.match(/^tenant:(\d{1,20}):conversation:([a-f0-9-]{36})$/i);
+      if(!match)return Response.json({ok:false},{status:500});
+      const tenantId=match[1],conversationId=match[2];
+      const auth=(tenant:string,id:string)=>tenant===tenantId&&id.toLowerCase()===conversationId.toLowerCase();
+      if(request.method==="GET"){
+        const tenant=url.searchParams.get("tenantId")??"",id=url.searchParams.get("conversationId")??"";
+        if(!auth(tenant,id))return Response.json({ok:false},{status:403});
+        const store=stores.get(name);
+        if(url.pathname==="/conversation")return store?Response.json({ok:true,conversation:{id:conversationId,title:store.title,mode:store.mode,createdAt:store.createdAt,updatedAt:store.updatedAt,messages:store.messages}}):Response.json({ok:false},{status:404});
+        if(url.pathname==="/status"){
+          const row=store?.requests.get(url.searchParams.get("requestId")??"");
+          return row?Response.json({ok:true,requestId:row.requestId,state:row.state,sequence:row.sequence,response:row.response??null}):Response.json({ok:false},{status:404});
+        }
+        return Response.json({ok:false},{status:404});
+      }
+      if(request.method==="DELETE"&&url.pathname==="/conversation"){
+        if(!auth(url.searchParams.get("tenantId")??"",url.searchParams.get("conversationId")??""))return Response.json({ok:false},{status:403});
+        stores.delete(name);return Response.json({ok:true});
+      }
+      if(request.method!=="POST")return Response.json({ok:false},{status:405});
+      const body=await request.json() as any;
+      if(!auth(body.tenantId,body.conversationId))return Response.json({ok:false},{status:403});
+      let store=stores.get(name);
+      if(url.pathname==="/import"){
+        if(!body.conversation||typeof body.contentHash!=="string")return Response.json({ok:false},{status:400});
+        if(store)return store.migrationHash===body.contentHash?Response.json({ok:true,duplicate:true,importedMessages:store.messages.length,contentHash:body.contentHash}):Response.json({ok:false},{status:409});
+        const legacy=body.conversation;
+        store={tenantId,conversationId,mode:legacy.mode??"general",title:legacy.title,createdAt:legacy.createdAt,updatedAt:legacy.updatedAt,messages:legacy.messages??[],nextSequence:(legacy.messages?.length??0)+1,requests:new Map(),migrationHash:body.contentHash};
+        stores.set(name,store);return Response.json({ok:true,duplicate:false,importedMessages:store.messages.length,contentHash:body.contentHash},{status:201});
+      }
+      if(url.pathname==="/enqueue"){
+        if(!store){store={tenantId,conversationId,mode:body.mode,title:body.title,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),messages:[],nextSequence:1,requests:new Map()};stores.set(name,store);}
+        if(store.mode!==body.mode)return Response.json({ok:false,error:"mode conflict"},{status:409});
+        const old=store.requests.get(body.requestId);
+        if(old){
+          if(old.userContent!==body.userContent||JSON.stringify(old.attachments)!==JSON.stringify(body.attachments??[]))return Response.json({ok:false},{status:409});
+          return Response.json({ok:true,duplicate:true,requestId:old.requestId,state:old.state,sequence:old.sequence,response:old.response});
+        }
+        const row:Row={requestId:body.requestId,sequence:store.nextSequence++,state:"queued",mode:body.mode,userContent:body.userContent,attachments:body.attachments??[],token:0,providerStarted:false};
+        store.requests.set(row.requestId,row);return Response.json({ok:true,duplicate:false,requestId:row.requestId,state:"queued",sequence:row.sequence},{status:202});
+      }
+      if(!store)return Response.json({ok:false},{status:404});
+      const row=store.requests.get(body.requestId);
+      if(!row)return Response.json({ok:false},{status:404});
+      if(url.pathname==="/claim"){
+        if(row.state==="completed")return Response.json({ok:true,state:"completed",duplicate:true,response:row.response});
+        if(row.state==="failed"||row.state==="provider_outcome_unknown")return Response.json({ok:false,state:row.state},{status:409});
+        if(row.state==="processing")return Response.json({ok:true,state:"processing"},{status:202});
+        const earlier=[...store.requests.values()].find(x=>x.sequence<row.sequence&&!["completed","failed","provider_outcome_unknown"].includes(x.state));
+        if(earlier)return Response.json({ok:true,state:"queued",blockedBy:earlier.requestId},{status:202});
+        row.state="processing";row.token++;
+        return Response.json({ok:true,state:"claimed",requestId:row.requestId,sequence:row.sequence,fencingToken:row.token,leaseExpiresAt:Date.now()+60_000,userContent:row.userContent,attachments:row.attachments});
+      }
+      if(url.pathname==="/provider-started"){
+        if(row.state!=="processing"||row.token!==body.fencingToken)return Response.json({ok:false},{status:409});
+        row.providerStarted=true;return Response.json({ok:true,state:"processing"});
+      }
+      if(url.pathname==="/finalize"){
+        if(row.state==="completed")return Response.json({ok:true,duplicate:true,state:"completed",response:row.response});
+        if(row.state!=="processing"||row.token!==body.fencingToken||!row.providerStarted)return Response.json({ok:false},{status:409});
+        const response={answer:body.answer,sources:body.sources??[],conversationId};
+        store.messages.push({role:"user",content:row.userContent,createdAt:new Date().toISOString()},{role:"assistant",content:body.answer,createdAt:new Date().toISOString(),...(body.sources?.length?{sources:body.sources}:{})});
+        store.messages=store.messages.slice(-20);store.updatedAt=new Date().toISOString();row.state="completed";row.response=response;
+        return Response.json({ok:true,duplicate:false,state:"completed",response});
+      }
+      if(url.pathname==="/fail"){
+        if(row.state!=="processing"||row.token!==body.fencingToken)return Response.json({ok:false},{status:409});
+        row.state=body.providerNotCalled?"failed":row.providerStarted?"provider_outcome_unknown":"failed";
+        return Response.json({ok:true,state:row.state});
+      }
+      return Response.json({ok:false},{status:404});
+    }}) as unknown as DurableObjectStub,
+  } as unknown as DurableObjectNamespace;
+}
+
 
 async function signedInitData(botToken: string, userId: string, authDate = Math.floor(Date.now() / 1000)): Promise<string> {
   const params = new URLSearchParams({
@@ -473,6 +562,104 @@ describe("AI Companion API", () => {
   });
 });
 
+
+
+  it("lazily imports legacy KV history with a verified hash and retains a rollback backup", async () => {
+    const id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const legacy={id,title:"Старый диалог",createdAt:"2026-11-19T10:00:00.000Z",updatedAt:"2026-11-19T10:05:00.000Z",mode:"learning",messages:[
+      {role:"user",content:"Старый вопрос",createdAt:"2026-11-19T10:01:00.000Z"},
+      {role:"assistant",content:"Старый ответ",createdAt:"2026-11-19T10:02:00.000Z"},
+    ]};
+    const e=isolatedEnv({["tenant:111:companion:conversation:"+id]:JSON.stringify(legacy)});
+    const first=await call(e,"111","/api/companion/conversations/"+id);
+    expect(first.status).toBe(200);
+    const body=await first.json() as {conversation:TestConversation};
+    expect(body.conversation.messages.map(message=>message.content)).toEqual(["Старый вопрос","Старый ответ"]);
+    const backup=await e.STATE.get("tenant:111:companion:legacy:"+id,"json") as TestConversation;
+    expect(backup.messages).toHaveLength(2);
+    const index=await e.STATE.get("tenant:111:companion:conversation:"+id,"json") as {messageCount:number;mode:string};
+    expect(index).toMatchObject({messageCount:2,mode:"learning"});
+    const second=await call(e,"111","/api/companion/conversations/"+id);
+    expect(second.status).toBe(200);
+    expect((await second.json() as {conversation:TestConversation}).conversation.messages).toHaveLength(2);
+  });
+
+  it("replays a completed requestId without another Gemini call and exposes status", async () => {
+    const e=isolatedEnv();
+    const fetchMock=vi.fn(async()=>Response.json({candidates:[{content:{parts:[{text:"Сохранённый ответ"}]}}]}));
+    vi.stubGlobal("fetch",fetchMock);
+    const request={message:"Проверка replay",requestId:"req-replay-0001",conversationId:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"};
+    const first=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify(request)});
+    expect(first.status).toBe(200);
+    const firstBody=await first.json() as {conversationId:string;answer:string};
+    const replay=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({...request,conversationId:firstBody.conversationId})});
+    expect(replay.status).toBe(200);
+    expect((await replay.json() as {answer:string}).answer).toBe(firstBody.answer);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const status=await call(e,"111","/api/companion/requests/req-replay-0001?conversationId="+firstBody.conversationId);
+    expect(status.status).toBe(200);
+    expect(await status.json()).toMatchObject({state:"completed"});
+  });
+
+  it("rejects requestId reuse with different message content", async () => {
+    const e=isolatedEnv();
+    const fetchMock=vi.fn(async()=>Response.json({candidates:[{content:{parts:[{text:"Ответ"}]}}]}));
+    vi.stubGlobal("fetch",fetchMock);
+    const first=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({message:"Первый",requestId:"req-conflict-01"})});
+    expect(first.status).toBe(200);
+    const conversationId=(await first.json() as {conversationId:string}).conversationId;
+    const conflict=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({message:"Другой",requestId:"req-conflict-01",conversationId})});
+    expect(conflict.status).toBe(409);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("queues concurrent messages in FIFO order and permits safe same-request resubmission after predecessor completes", async () => {
+    const e=isolatedEnv();
+    let releaseFirst:(value:Response)=>void=()=>{};
+    let startedFirst:()=>void=()=>{};
+    const started=new Promise<void>(resolve=>{startedFirst=resolve;});
+    const pending=new Promise<Response>(resolve=>{releaseFirst=resolve;});
+    let calls=0;
+    vi.stubGlobal("fetch",async()=>{
+      calls++;
+      if(calls===1)return Response.json({candidates:[{content:{parts:[{text:"Начальный ответ"}]}}]});
+      if(calls===2){startedFirst();return pending;}
+      return Response.json({candidates:[{content:{parts:[{text:"Второй ответ"}]}}]});
+    });
+    const initial=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({message:"Начало"})});
+    const conversationId=(await initial.json() as {conversationId:string}).conversationId;
+    const firstPromise=call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({message:"Первое в очереди",conversationId,requestId:"req-fifo-0001"})});
+    await started;
+    const secondBody={message:"Второе в очереди",conversationId,requestId:"req-fifo-0002"};
+    const queued=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify(secondBody)});
+    expect(queued.status).toBe(202);
+    expect(await queued.json()).toMatchObject({state:"queued",requestId:"req-fifo-0002"});
+    expect(calls).toBe(2);
+    releaseFirst(Response.json({candidates:[{content:{parts:[{text:"Первый ответ"}]}}]}));
+    expect((await firstPromise).status).toBe(200);
+    const queuedStatus=await call(e,"111","/api/companion/requests/req-fifo-0002?conversationId="+conversationId);
+    expect(await queuedStatus.json()).toMatchObject({state:"queued"});
+    const resumed=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify(secondBody)});
+    expect(resumed.status).toBe(200);
+    expect((await resumed.json() as {answer:string}).answer).toBe("Второй ответ");
+    expect(calls).toBe(3);
+    const history=await call(e,"111","/api/companion/conversations/"+conversationId);
+    expect((await history.json() as {conversation:TestConversation}).conversation.messages.map(message=>message.content)).toEqual([
+      "Начало","Начальный ответ","Первое в очереди","Первый ответ","Второе в очереди","Второй ответ",
+    ]);
+  });
+
+  it("deletes the Durable Object history and both KV index and legacy backup", async () => {
+    const e=isolatedEnv();
+    vi.stubGlobal("fetch",async()=>Response.json({candidates:[{content:{parts:[{text:"Удаляемый ответ"}]}}]}));
+    const created=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({message:"Удалить"})});
+    const {conversationId}=await created.json() as {conversationId:string};
+    const deleted=await call(e,"111","/api/companion/conversations/"+conversationId,{method:"DELETE"});
+    expect(deleted.status).toBe(200);
+    const read=await call(e,"111","/api/companion/conversations/"+conversationId);
+    expect(read.status).toBe(404);
+    expect(await e.STATE.get("tenant:111:companion:conversation:"+conversationId)).toBeNull();
+  });
 
 describe("CompanionQuota Durable Object SQLite integration", () => {
   let source = "";

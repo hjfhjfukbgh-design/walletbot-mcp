@@ -1,7 +1,7 @@
 type Mode = "general" | "learning" | "research";
 type RequestState = "queued" | "processing" | "completed" | "failed" | "provider_outcome_unknown";
 type Sql = DurableObjectStorage["sql"];
-type ConversationRow = { conversation_id:string; tenant_id:string; mode:Mode; title:string; created_at:number; updated_at:number; next_sequence:number };
+type ConversationRow = { conversation_id:string; tenant_id:string; mode:Mode; title:string; created_at:number; updated_at:number; next_sequence:number; migration_hash:string|null };
 type RequestRow = { request_id:string; sequence:number; state:RequestState; mode:Mode; user_content:string; attachments_json:string|null; response_json:string|null; error_code:string|null; lease_expires_at:number|null; fencing_token:number; provider_call_started_at:number|null; created_at:number; updated_at:number };
 
 const TENANT_RE = /^\d{1,20}$/;
@@ -47,8 +47,10 @@ export class CompanionConversation {
       title TEXT NOT NULL,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
-      next_sequence INTEGER NOT NULL DEFAULT 1
+      next_sequence INTEGER NOT NULL DEFAULT 1,
+      migration_hash TEXT
     )`);
+    try { this.sql.exec("ALTER TABLE companion_conversation ADD COLUMN migration_hash TEXT"); } catch {}
     this.sql.exec(`CREATE TABLE IF NOT EXISTS companion_messages (
       sequence INTEGER NOT NULL,
       ordinal INTEGER NOT NULL,
@@ -85,6 +87,11 @@ export class CompanionConversation {
         return json({ok:false,error:"Доступ к диалогу запрещён."},403);
       return this.readConversation();
     }
+    if(request.method==="DELETE" && url.pathname==="/conversation") {
+      if(!this.authorized(url.searchParams.get("tenantId"),url.searchParams.get("conversationId")))
+        return json({ok:false,error:"Доступ к диалогу запрещён."},403);
+      return this.deleteConversation();
+    }
     if(request.method==="GET" && url.pathname==="/status") {
       if(!this.authorized(url.searchParams.get("tenantId"),url.searchParams.get("conversationId")))
         return json({ok:false,error:"Доступ к диалогу запрещён."},403);
@@ -99,6 +106,7 @@ export class CompanionConversation {
         return json({ok:false,error:"Доступ к диалогу запрещён."},403);
       switch(url.pathname) {
         case "/enqueue": return this.enqueue(body);
+        case "/import": return this.importLegacy(body);
         case "/claim": return this.claim(body);
         case "/provider-started": return this.providerStarted(body);
         case "/finalize": return this.finalize(body);
@@ -129,6 +137,68 @@ export class CompanionConversation {
     return typeof tenant==="string" && TENANT_RE.test(tenant) && tenant===this.tenantId &&
       typeof conversation==="string" && CONVERSATION_RE.test(conversation) &&
       conversation.toLowerCase()===this.conversationId.toLowerCase();
+  }
+
+  private async importLegacy(body:Record<string,unknown>):Promise<Response> {
+    const raw=body.conversation;
+    const suppliedHash=typeof body.contentHash==="string"?body.contentHash:"";
+    if(!raw || typeof raw!=="object" || !/^[a-f0-9]{64}$/.test(suppliedHash))
+      return json({ok:false,error:"Некорректные данные миграции."},400);
+    const legacy=raw as Record<string,unknown>;
+    if(legacy.id!==this.conversationId || !isMode(legacy.mode ?? "general") ||
+       typeof legacy.title!=="string" || !Array.isArray(legacy.messages) || legacy.messages.length>MAX_STORED_MESSAGES)
+      return json({ok:false,error:"История диалога не прошла проверку."},400);
+    const serialized=safeJson(legacy);
+    if(!serialized) return json({ok:false,error:"Не удалось проверить историю диалога."},400);
+    const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(serialized));
+    const actualHash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
+    if(actualHash!==suppliedHash) return json({ok:false,error:"Контрольная сумма истории не совпала."},409);
+    const messages:Array<{role:"user"|"assistant";content:string;createdAt:number;sources:unknown[]}>=[];
+    for(const rawMessage of legacy.messages) {
+      if(!rawMessage || typeof rawMessage!=="object") return json({ok:false,error:"Некорректное сообщение в истории."},400);
+      const message=rawMessage as Record<string,unknown>;
+      if((message.role!=="user"&&message.role!=="assistant")||typeof message.content!=="string"||message.content.length>MAX_ANSWER_CHARS)
+        return json({ok:false,error:"Некорректное сообщение в истории."},400);
+      const createdAt=Date.parse(typeof message.createdAt==="string"?message.createdAt:"");
+      if(!Number.isFinite(createdAt)) return json({ok:false,error:"Некорректная дата сообщения."},400);
+      const sources=Array.isArray(message.sources)?message.sources:[];
+      if(sources.length>10) return json({ok:false,error:"Слишком много источников в истории."},400);
+      messages.push({role:message.role,content:message.content,createdAt,sources});
+    }
+    const legacyTitle=legacy.title as string;
+    const mode=(legacy.mode ?? "general") as Mode;
+    const createdAt=Date.parse(typeof legacy.createdAt==="string"?legacy.createdAt:"");
+    const updatedAt=Date.parse(typeof legacy.updatedAt==="string"?legacy.updatedAt:"");
+    if(!Number.isFinite(createdAt)||!Number.isFinite(updatedAt)) return json({ok:false,error:"Некорректные даты диалога."},400);
+    const now=Date.now();
+    const result=this.sqlTransaction(()=>{
+      const existing=this.sql.exec("SELECT tenant_id,migration_hash FROM companion_conversation WHERE conversation_id=?",this.conversationId).toArray()[0] as {tenant_id:string;migration_hash:string|null}|undefined;
+      if(existing) {
+        if(existing.tenant_id!==this.tenantId) return {status:403 as const,body:{ok:false,error:"Доступ к диалогу запрещён."}};
+        if(existing.migration_hash===suppliedHash) return {status:200 as const,body:{ok:true,duplicate:true,importedMessages:messages.length,contentHash:suppliedHash}};
+        return {status:409 as const,body:{ok:false,error:"В Durable Object уже есть история; перезапись миграцией запрещена."}};
+      }
+      this.sql.exec("INSERT INTO companion_conversation(conversation_id,tenant_id,mode,title,created_at,updated_at,next_sequence,migration_hash) VALUES(?,?,?,?,?,?,?,?)",
+        this.conversationId,this.tenantId,mode,legacyTitle.slice(0,72),createdAt,updatedAt,messages.length+1,suppliedHash);
+      for(let i=0;i<messages.length;i++) {
+        const message=messages[i];
+        this.sql.exec("INSERT INTO companion_messages(sequence,ordinal,role,content,sources_json,created_at) VALUES(?,?,?,?,?,?)",
+          i+1,0,message.role,message.content,message.sources.length?JSON.stringify(message.sources):null,message.createdAt);
+      }
+      return {status:201 as const,body:{ok:true,duplicate:false,importedMessages:messages.length,contentHash:suppliedHash,verifiedAt:now}};
+    });
+    return json(result.body,result.status);
+  }
+
+  private deleteConversation():Response {
+    this.sqlTransaction(()=>{
+      this.sql.exec("DELETE FROM companion_requests");
+      this.sql.exec("DELETE FROM companion_messages");
+      this.sql.exec("DELETE FROM companion_conversation WHERE conversation_id=? AND tenant_id=?",this.conversationId,this.tenantId);
+    });
+    void this.ctx.storage.deleteAlarm().catch(()=>{});
+    void this.ctx.storage.delete("companion_alarm_failures").catch(()=>{});
+    return json({ok:true});
   }
 
   private enqueue(body:Record<string,unknown>):Response {
@@ -282,7 +352,8 @@ export class CompanionConversation {
         this.sql.exec("UPDATE companion_requests SET state=?,error_code=?,lease_expires_at=NULL,updated_at=? WHERE request_id=?",expiredState,expiredState==="queued"?null:"provider_outcome_unknown",now,requestId);
         return {status:409 as const,body:{ok:false,state:expiredState,error:"Срок аренды истёк; результат обработан fail-closed."}};
       }
-      const unknown=row.provider_call_started_at!==null;
+      const providerNotCalled=body.providerNotCalled===true;
+      const unknown=row.provider_call_started_at!==null && !providerNotCalled;
       const state=unknown?"provider_outcome_unknown":"failed";
       this.sql.exec("UPDATE companion_requests SET state=?,error_code=?,lease_expires_at=NULL,updated_at=? WHERE request_id=?",state,errorCode,now,requestId);
       return {status:200 as const,body:{ok:true,state}};
