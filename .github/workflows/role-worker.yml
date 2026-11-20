@@ -631,6 +631,83 @@ jobs:
             --title "${ROLE} handoff for issue #${ISSUE_NUMBER}" \
             --body "Report-only handoff: the worker did not publish an implementation patch (analysis-only or no-safe-patch). This is not a statement that the role is forbidden from source changes. Human review and a narrower follow-up task may be required."
 
+      - name: Preserve failed implementation diagnostics
+        if: always()
+        shell: bash
+        env:
+          ROLE: ${{ inputs.role }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          RUN_ID: ${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/worker-diagnostics
+          mode="$(cat /tmp/worker-mode.txt 2>/dev/null || echo unknown)"
+          printf 'role=%s\nissue=%s\nrun=%s\njob_status=%s\nmode=%s\n' "$ROLE" "$ISSUE_NUMBER" "$RUN_ID" "$JOB_STATUS" "$mode" > /tmp/worker-diagnostics/metadata.txt
+          if [ -f /tmp/worker.patch ]; then cp /tmp/worker.patch /tmp/worker-diagnostics/generated.patch; fi
+          if [ -f /tmp/worker-checks.txt ]; then cp /tmp/worker-checks.txt /tmp/worker-diagnostics/checks.txt; fi
+          if [ -f /tmp/worker-review.json ]; then cp /tmp/worker-review.json /tmp/worker-diagnostics/second-model-review.json; fi
+          if [ -f /tmp/worker-report.md ]; then cp /tmp/worker-report.md /tmp/worker-diagnostics/role-report.md; fi
+          git diff --no-ext-diff --binary > /tmp/worker-diagnostics/applied-source.diff
+          git status --short > /tmp/worker-diagnostics/git-status.txt
+          echo "Preserved worker diagnostics (mode=$mode, job_status=$JOB_STATUS)."
+
+      - name: Upload worker diagnostics artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: worker-diagnostics-issue-${{ inputs.issue_number }}-run-${{ github.run_id }}
+          path: /tmp/worker-diagnostics/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish failed implementation handoff
+        if: always() && job.status == 'failure' && steps.patch.outcome == 'success' && (steps.checks.outputs.mode == 'code' || steps.checks.outputs.mode == 'css-append' || steps.checks.outputs.mode == 'ts-append')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROLE: ${{ inputs.role }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          RUN_ID: ${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mode="$(cat /tmp/worker-mode.txt 2>/dev/null || echo unknown)"
+          branch="agent/${ROLE,,}-failed-handoff-${ISSUE_NUMBER}-${RUN_ID}"
+          mkdir -p team/reports
+          report="team/reports/failed-implementation-${ROLE,,}-issue-${ISSUE_NUMBER}-${RUN_ID}.md"
+          {
+            echo "# Failed implementation handoff — issue #${ISSUE_NUMBER}"
+            echo
+            echo "- Role: ${ROLE}"
+            echo "- Run: ${RUN_ID}"
+            echo "- Job status: ${JOB_STATUS}"
+            echo "- Patch mode: ${mode}"
+            echo "- Acceptance: NOT PASSED; this is diagnostic material, not an implementation PR."
+            echo
+            echo "## Runtime checks"
+            if [ -f /tmp/worker-checks.txt ]; then cat /tmp/worker-checks.txt; else echo "Checks did not produce a report."; fi
+            echo
+            echo "## Review"
+            if [ -f /tmp/worker-review.json ]; then cat /tmp/worker-review.json; else echo "Second-model review did not produce a verdict."; fi
+            echo
+            echo "## Files"
+            echo "- `failed-implementation-...patch`: original generated patch, not merged or applied by this handoff."
+            echo "- `failed-implementation-...diff`: source diff present in the runner after checks."
+            echo "- Downloadable Actions artifact contains metadata and raw diagnostics."
+          } > "$report"
+          if [ -f /tmp/worker.patch ]; then cp /tmp/worker.patch "team/reports/failed-implementation-${ROLE,,}-issue-${ISSUE_NUMBER}-${RUN_ID}.patch"; fi
+          git diff --no-ext-diff --binary > "team/reports/failed-implementation-${ROLE,,}-issue-${ISSUE_NUMBER}-${RUN_ID}.diff"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add "$report" "team/reports/failed-implementation-${ROLE,,}-issue-${ISSUE_NUMBER}-${RUN_ID}.patch" "team/reports/failed-implementation-${ROLE,,}-issue-${ISSUE_NUMBER}-${RUN_ID}.diff" 2>/dev/null || git add "$report" "team/reports/failed-implementation-${ROLE,,}-issue-${ISSUE_NUMBER}-${RUN_ID}.diff"
+          git commit -m "Preserve failed implementation diagnostics for issue #${ISSUE_NUMBER}"
+          git push origin "$branch"
+          gh pr create --draft --base "${{ inputs.base_branch }}" --head "$branch" \
+            --title "${ROLE} failed implementation handoff for issue #${ISSUE_NUMBER}" \
+            --body "Diagnostic-only handoff for failed worker run ${RUN_ID}. Generated patch and runner diff are preserved for human debugging. Runtime checks and/or independent review did not pass. This PR contains no accepted implementation and must not be merged as a product change."
+
       - name: Finalize durable queue state
         if: always()
         env:
