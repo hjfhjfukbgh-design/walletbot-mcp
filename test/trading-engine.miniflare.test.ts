@@ -317,12 +317,14 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const userA = "777777771";
     const userB = "888888881";
     const tickId = "stable-tick-claim-001";
-    const claimA = await post(stub, "/ai/paper/decision/claim", { userId: userA, tickId });
-    expect(claimA.status).toBe(200);
+    const sameUserClaims = await Promise.all([
+      post(stub, "/ai/paper/decision/claim", { userId: userA, tickId }),
+      post(stub, "/ai/paper/decision/claim", { userId: userA, tickId }),
+    ]);
+    expect(sameUserClaims.map((result) => result.status).sort()).toEqual([200, 409]);
+    const claimA = sameUserClaims.find((result) => result.status === 200)!;
+    const concurrentRetry = sameUserClaims.find((result) => result.status === 409)!;
     expect(claimA.body).toMatchObject({ ok: true, state: "claimed" });
-
-    const concurrentRetry = await post(stub, "/ai/paper/decision/claim", { userId: userA, tickId });
-    expect(concurrentRetry.status).toBe(409);
     expect(concurrentRetry.body.state).toBe("in_progress");
 
     const sameTickOtherUser = await post(stub, "/ai/paper/decision/claim", { userId: userB, tickId });
