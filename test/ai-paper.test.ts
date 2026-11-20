@@ -74,7 +74,10 @@ describe("runAiPaperDecision", () => {
     expect(result.status).toBe(201);
     const body = await result.json() as Record<string, any>;
     expect(body).toMatchObject({ ok: true, tickId: "manual-run-0001", persisted: true, duplicate: false });
-    expect(body.decision).toMatchObject({ signal: "buy", symbol: "BTC", confidence: 0.82 });
+    expect(body.decision).toMatchObject({
+      signal: "buy", symbol: "BTC", confidence: 0.82,
+      snapshotPayload: { source: "hyperliquid-public", retrievedAt: NOW, markets: [{ symbol: "BTC", price: "50000.00", volume24hUsd: 50_000_000 }, { symbol: "ETH", price: "2500.00", volume24hUsd: 20_000_000 }] },
+    });
     expect(recorded).toHaveLength(1);
     expect(recorded[0]).toMatchObject({
       userId: "123456789", tickId: "manual-run-0001", strategyId: "gemini-paper",
