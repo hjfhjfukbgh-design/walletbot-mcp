@@ -43,7 +43,7 @@
     recent:(()=>{try{return JSON.parse(localStorage.getItem("kg:recent:v1")||"[]").filter(x=>typeof x==="string").slice(0,8);}catch{return[];}})(),
     editFavorites:false, selected:null, selectedMarket:null, interval:"15m", side:"long", leverage:1, maxLeverage:1,
     margin:0, preview:null, history:[], wallet:null, capabilities:{}, sort:"up", previewSeq:0, confirmPayload:null,
-    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[], aiPaper:null, aiPaperLoading:false, aiPaperActionBusy:false, aiPaperOpenPositions:[], aiPaperClosedPositions:[], aiPaperDecisions:[], aiPaperHistoryErrors:null, aiPaperTransfer:(()=>{try{const v=JSON.parse(sessionStorage.getItem("kg:ai-paper-transfer:v1")||"null");return v&&["fund","withdraw"].includes(v.kind)&&typeof v.amountUsd==="string"&&typeof v.key==="string"?v:null;}catch{return null;}})()
+    autoclose:false, busy:false, companionId:null, companionMessages:[], companionConversations:[], companionLimits:null, companionInitialized:false, companionBusy:false, companionPending:null, companionMode:"general", companionAttachments:[], companionRecorder:null, companionRecordChunks:[], aiPaper:null, aiPaperLoading:false, aiPaperActionBusy:false, aiPaperOpenPositions:[], aiPaperClosedPositions:[], aiPaperDecisions:[], aiPaperHistoryErrors:null, aiPaperTransfer:(()=>{try{const v=JSON.parse(sessionStorage.getItem("kg:ai-paper-transfer:v1")||"null");return v&&["fund","withdraw"].includes(v.kind)&&typeof v.amountUsd==="string"&&typeof v.key==="string"?v:null;}catch{return null;}})()
   };
   let marketLoadEpoch=0,marketRefreshInFlight=false,marketLastUpdatedAt=0,marketSearchTimer=0,marketVisibilityListenerInstalled=false;
   const hasNumericValue = value => value!==null&&value!==undefined&&value!==""&&Number.isFinite(Number(value));
@@ -765,6 +765,7 @@
   }
   async function deleteCompanionConversation(id){
     if(!id||state.companionBusy)return;
+    if(state.companionPending?.conversationId===id){notify("Сначала завершите ожидающий запрос Companion.");return;}
     state.companionBusy=true;
     try{
       const removedActive=state.companionId===id;
@@ -788,6 +789,7 @@
   }
   async function openCompanionConversation(id){
     if(state.companionBusy)return;
+    if(state.companionPending){notify("Сначала завершите ожидающий запрос Companion.");return;}
     try{
       const conversation=await invoke("companion.get",id);
       state.companionId=conversation.id;
@@ -824,6 +826,7 @@
     catch{state.companionLimits=null;renderCompanionLimits();}
   }
   function newCompanionConversation(focus=true){
+    if(state.companionPending){notify("Сначала завершите ожидающий запрос Companion.");return;}
     state.companionId=null;state.companionMessages=[];state.companionAttachments=[];
     renderCompanionMode();renderCompanionMessages();renderCompanionAttachments();renderCompanionHistory();setCompanionMenu(false);
     if(focus)$("#kg-ai-input").focus();
@@ -868,19 +871,130 @@
       window.setTimeout(()=>{if(state.companionRecorder===recorder&&recorder.state==="recording"){recorder.stop();notify("Запись остановлена (лимит 90 секунд).");}},90_000);
     }catch(error){notify(error?.name==="NotAllowedError"?"Разрешите доступ к микрофону в настройках Telegram.":"Не удалось включить микрофон: "+(error.message||"ошибка доступа"));}
   }
+  function companionRequestUuid(){
+    try{if(window.crypto?.randomUUID)return window.crypto.randomUUID();}catch{}
+    const bytes=new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+    const hex=Array.from(bytes,value=>value.toString(16).padStart(2,"0")).join("");
+    return hex.slice(0,8)+"-"+hex.slice(8,12)+"-"+hex.slice(12,16)+"-"+hex.slice(16,20)+"-"+hex.slice(20);
+  }
+  const companionDelay=ms=>new Promise(resolve=>window.setTimeout(resolve,ms));
+  function sameCompanionAttachments(a,b){
+    return a.length===b.length&&a.every((file,index)=>{
+      const other=b[index];
+      return other&&file.name===other.name&&file.size===other.size&&file.mimeType===other.mimeType&&file.dataBase64===other.dataBase64;
+    });
+  }
+  function completedCompanionResult(result){
+    return result&&result.ok===true&&!result.state&&typeof result.answer==="string";
+  }
+  async function loadCompletedCompanionResult(pending,status){
+    const response=status?.response||{};
+    let conversation=null;
+    try{conversation=await invoke("companion.get",pending.conversationId);}catch{}
+    return {
+      ok:true,conversationId:pending.conversationId,requestId:pending.requestId,
+      answer:typeof response.answer==="string"?response.answer:"",
+      sources:Array.isArray(response.sources)?response.sources:[],
+      conversation,
+    };
+  }
+  async function pollCompanionRequest(pending){
+    const delays=[500,750,1000,1500,2000,2500,3000,4000,4000,5000];
+    for(let attempt=0;attempt<delays.length;attempt++){
+      let status=null;
+      try{
+        status=await invoke("companion.status",pending.conversationId,pending.requestId);
+      }catch(error){
+        if(error?.status===404||error?.code==="API_ERROR"){
+          try{
+            const retry=await invoke("companion.send",pending.message,pending.conversationId,pending.attachments,pending.mode,pending.requestId);
+            if(completedCompanionResult(retry))return retry;
+            if(retry.state==="failed")throw {code:"COMPANION_FAILED",message:"Запрос завершился без ответа. Отправьте новое сообщение."};
+            if(retry.state==="provider_outcome_unknown")throw {code:"PROVIDER_OUTCOME_UNKNOWN",message:"Результат запроса к ИИ неизвестен. Повтор автоматически не выполнялся, чтобы не создать дубликат."};
+          }catch(retryError){
+            if(retryError?.code==="COMPANION_FAILED"||retryError?.code==="PROVIDER_OUTCOME_UNKNOWN")throw retryError;
+          }
+        }else if(!error?.retryable)throw error;
+      }
+      if(status?.state==="completed")return loadCompletedCompanionResult(pending,status);
+      if(status?.state==="processing"&&!pending.notifiedProcessing){notify("ИИ обрабатывает сообщение…");pending.notifiedProcessing=true;}
+      if(status?.state==="failed")throw {code:"COMPANION_FAILED",message:"Запрос не был выполнен. Проверьте лимиты и отправьте новое сообщение."};
+      if(status?.state==="provider_outcome_unknown")throw {code:"PROVIDER_OUTCOME_UNKNOWN",message:"Результат запроса к ИИ неизвестен. Автоматический повтор запрещён; проверьте историю диалога."};
+      if(status?.state==="queued"){
+        if(!pending.notifiedQueued){notify("Сообщение ожидает очереди. Запрос будет продолжен с тем же ID.");pending.notifiedQueued=true;}
+        try{
+          const resumed=await invoke("companion.send",pending.message,pending.conversationId,pending.attachments,pending.mode,pending.requestId);
+          if(completedCompanionResult(resumed))return resumed;
+          if(resumed.state==="failed")throw {code:"COMPANION_FAILED",message:"Запрос не был выполнен. Отправьте новое сообщение."};
+          if(resumed.state==="provider_outcome_unknown")throw {code:"PROVIDER_OUTCOME_UNKNOWN",message:"Результат запроса к ИИ неизвестен. Автоматический повтор запрещён."};
+        }catch(error){
+          if(error?.code==="COMPANION_FAILED"||error?.code==="PROVIDER_OUTCOME_UNKNOWN")throw error;
+        }
+      }
+      await companionDelay(delays[attempt]);
+    }
+    throw {code:"PENDING_TIMEOUT",message:"Запрос ещё обрабатывается. Нажмите «Отправить» ещё раз с тем же текстом — продолжим тот же запрос без дубликата.",retryable:true};
+  }
+  async function sendCompanionRequest(pending){
+    try{
+      const result=await invoke("companion.send",pending.message,pending.conversationId,pending.attachments,pending.mode,pending.requestId);
+      if(completedCompanionResult(result))return result;
+      if(result.state==="failed")throw {code:"COMPANION_FAILED",message:"Запрос не был выполнен. Отправьте новое сообщение."};
+      if(result.state==="provider_outcome_unknown")throw {code:"PROVIDER_OUTCOME_UNKNOWN",message:"Результат запроса к ИИ неизвестен. Автоматический повтор запрещён."};
+      return await pollCompanionRequest(pending);
+    }catch(error){
+      if(error?.code==="COMPANION_FAILED"||error?.code==="PROVIDER_OUTCOME_UNKNOWN")throw error;
+      if(error?.retryable||error?.code==="TIMEOUT"||error?.code==="NETWORK_ERROR"||error?.code==="PENDING_TIMEOUT")
+        return await pollCompanionRequest(pending);
+      throw error;
+    }
+  }
   async function sendCompanionMessage(event){
     event?.preventDefault();
-    const input=$("#kg-ai-input"), message=input.value.trim();
-    if((!message&&!state.companionAttachments.length)||state.companionBusy)return;
+    const input=$("#kg-ai-input"), inputMessage=input.value.trim();
+    if((!inputMessage&&!state.companionAttachments.length)||state.companionBusy)return;
+    const attachments=state.companionAttachments.map(({name,size,mimeType,dataBase64})=>({name,size,mimeType,dataBase64}));
+    let pending=state.companionPending;
+    if(pending){
+      if(pending.inputMessage!==inputMessage||pending.mode!==state.companionMode||!sameCompanionAttachments(pending.attachments,attachments)){
+        notify("Предыдущий запрос ещё не завершён. Повторите его с тем же текстом и вложениями.");
+        return;
+      }
+    }else{
+      pending={
+        requestId:companionRequestUuid(),
+        conversationId:state.companionId||companionRequestUuid(),
+        inputMessage,
+        message:inputMessage||"Проанализируй приложенные файлы.",
+        attachments,
+        mode:state.companionMode,
+      };
+      state.companionPending=pending;
+    }
+    state.companionId=pending.conversationId;
     state.companionBusy=true;$("#kg-ai-send").disabled=true;input.disabled=true;
     try{
-      const result=await invoke("companion.send",message||"Проанализируй приложенные файлы.",state.companionId,state.companionAttachments.map(({name,mimeType,dataBase64})=>({name,mimeType,dataBase64})),state.companionMode);
-      state.companionId=result.conversationId;
-      state.companionMessages=result.conversation?.messages||[...state.companionMessages,{role:"user",content:message},{role:"assistant",content:result.answer}];
-      input.value="";state.companionAttachments=[];renderCompanionAttachments();renderCompanionMessages();await loadCompanionConversations();
-    }catch(error){notify(normalizeError(error).message);}
-    finally{state.companionBusy=false;$("#kg-ai-send").disabled=false;input.disabled=false;input.focus();}
+      const result=await sendCompanionRequest(pending);
+      state.companionId=result.conversationId||pending.conversationId;
+      state.companionMessages=result.conversation?.messages||[
+        ...state.companionMessages,
+        {role:"user",content:pending.message},
+        {role:"assistant",content:result.answer||"",...(result.sources?.length?{sources:result.sources}:{})},
+      ];
+      state.companionPending=null;
+      input.value="";state.companionAttachments=[];
+      renderCompanionAttachments();renderCompanionMessages();await loadCompanionConversations();
+    }catch(error){
+      const normalized=normalizeError(error);
+      if(normalized.code!=="PENDING_TIMEOUT")state.companionPending=null;
+      notify(normalized.message);
+    }finally{
+      state.companionBusy=false;$("#kg-ai-send").disabled=false;input.disabled=false;input.focus();
+    }
   }
+
   function renderProfileSettings(){
     const mode=$("#kg-profile-mode");
     if(mode)mode.textContent=state.productMode==="ai"?"ИИ · ВИРТУАЛЬНЫЙ":"DEMO";

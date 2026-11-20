@@ -337,13 +337,24 @@
       const data = await request("/api/companion/conversations/" + encodeURIComponent(String(conversationId)));
       return data.conversation;
     },
-    async send(message, conversationId, attachments = [], mode = "general") {
+    async send(message, conversationId, attachments = [], mode = "general", requestId) {
       const data = await request("/api/companion/chat", {
         method: "POST",
-        body: { message: String(message), mode: String(mode), ...(conversationId ? { conversationId: String(conversationId) } : {}), ...(attachments.length ? { attachments } : {}) },
+        body: {
+          message: String(message), mode: String(mode),
+          ...(conversationId ? { conversationId: String(conversationId) } : {}),
+          ...(requestId ? { requestId: String(requestId) } : {}),
+          ...(attachments.length ? { attachments } : {}),
+        },
         timeoutMs: 30_000,
       });
       return data;
+    },
+    async status(conversationId, requestId) {
+      const id = String(conversationId || "").trim();
+      const requestIdValue = String(requestId || "").trim();
+      if (!id || !requestIdValue) throw new KriptoGuruApiError({ code: "VALIDATION_ERROR", message: "Отсутствует идентификатор запроса Companion." });
+      return request("/api/companion/requests/" + encodeURIComponent(requestIdValue) + "?conversationId=" + encodeURIComponent(id));
     },
     async remove(conversationId) {
       return request("/api/companion/conversations/" + encodeURIComponent(String(conversationId)), { method: "DELETE" });
