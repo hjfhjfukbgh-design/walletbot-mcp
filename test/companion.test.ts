@@ -281,6 +281,51 @@ describe("AI Companion API", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("falls back to the default daily cap for invalid COMPANION_DAILY_LIMIT values", async () => {
+    const day = new Date().toISOString().slice(0, 10);
+    const fetchMock = vi.fn(async () => Response.json({ candidates: [{ content: { parts: [{ text: "Ответ." }] } }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    for (const invalid of ["0", "-1", "1001", "not-a-number", "1.5"]) {
+      const e = isolatedEnv({}, { ["general:daily:111:" + day]: 49 });
+      (e as Env & { COMPANION_DAILY_LIMIT?: string }).COMPANION_DAILY_LIMIT = invalid;
+      const allowed = await call(e, "111", "/api/companion/chat", {
+        method: "POST", body: JSON.stringify({ message: "Проверка безопасного значения по умолчанию" }),
+      });
+      const blocked = await call(e, "111", "/api/companion/chat", {
+        method: "POST", body: JSON.stringify({ message: "Проверка лимита по умолчанию" }),
+      });
+      expect(allowed.status, invalid).toBe(200);
+      expect(blocked.status, invalid).toBe(429);
+    }
+  });
+
+  it("resets the general daily cap at UTC midnight", async () => {
+    const e = isolatedEnv();
+    (e as Env & { COMPANION_DAILY_LIMIT?: string }).COMPANION_DAILY_LIMIT = "1";
+    const fetchMock = vi.fn(async () => Response.json({ candidates: [{ content: { parts: [{ text: "Ответ." }] } }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-11-20T23:59:59.000Z"));
+      const beforeMidnight = await call(e, "111", "/api/companion/chat", {
+        method: "POST", body: JSON.stringify({ message: "До полуночи" }),
+      });
+      const blockedBeforeReset = await call(e, "111", "/api/companion/chat", {
+        method: "POST", body: JSON.stringify({ message: "Лимит до сброса" }),
+      });
+      vi.setSystemTime(new Date("2026-11-21T00:00:01.000Z"));
+      const afterMidnight = await call(e, "111", "/api/companion/chat", {
+        method: "POST", body: JSON.stringify({ message: "После полуночи" }),
+      });
+      expect(beforeMidnight.status).toBe(200);
+      expect(blockedBeforeReset.status).toBe(429);
+      expect(afterMidnight.status).toBe(200);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("blocks research when the free-tier daily budget guard is exhausted", async () => {
     const day = new Date().toISOString().slice(0, 10);
     const e = isolatedEnv({}, { ["research:global:" + day]: 20 });
@@ -603,6 +648,16 @@ describe("CompanionQuota Durable Object SQLite integration", () => {
     expect(results.filter(result => result.status === 200)).toHaveLength(3);
     expect(results.filter(result => result.status === 429)).toHaveLength(5);
     expect(results.filter(result => result.body.ok === true)).toHaveLength(3);
+  });
+
+  it("enforces the fixed-window daily fair-use cap under concurrent requests", async () => {
+    const stub = await boot();
+    const results = await Promise.all(Array.from({ length: 8 }, () => consume(stub, [
+      { key: "general:daily:111:2026-11-20", limit: 3, windowSeconds: 172_800, sliding: false },
+    ])));
+
+    expect(results.filter(result => result.status === 200)).toHaveLength(3);
+    expect(results.filter(result => result.status === 429)).toHaveLength(5);
   });
 
   it("reserves multiple quotas atomically when the global research limit is exhausted", async () => {
