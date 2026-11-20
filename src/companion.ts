@@ -188,6 +188,7 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     });
     const claim = await claimResponse.json().catch(() => ({})) as { state?: string; fencingToken?: number; userContent?: string; attachments?: typeof attachments; error?: string };
     if (!claimResponse.ok || claim.state !== "claimed") {
+      if (claim.state === "provider_outcome_unknown" || claim.state === "failed") return json({ ok: false, state: claim.state, error: claim.error ?? "Запрос не может быть автоматически повторён." }, 409);
       if (claim.state === "completed") {
         const historyResponse = await stub.fetch("https://companion-conversation/conversation?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(conversationId));
         const historyPayload = await historyResponse.json().catch(() => ({})) as { conversation?: Conversation };
@@ -205,6 +206,12 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
     const history = [...conversation.messages, { role: "user" as const, content: storedUserContent, createdAt: new Date().toISOString() }].slice(-MAX_CONTEXT_MESSAGES);
     const model = (mode === "research" ? "gemini-2.5-flash-lite" : env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim();
     if (!/^[a-zA-Z0-9._-]{1,80}$/.test(model)) return json({ ok: false, error: "Некорректная настройка модели Gemini." }, 500);
+
+    const providerMarker = await stub.fetch("https://companion-conversation/provider-started", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tenantId: userId, conversationId, requestId, fencingToken }),
+    });
+    if (!providerMarker.ok) return json({ ok: false, state: "stalled", error: "Не удалось зафиксировать запуск запроса. Повтор не выполнялся." }, 409);
 
     // Reserve all applicable quotas atomically; KV read-modify-write is race-prone.
     const quotaNow = Date.now();
@@ -231,18 +238,21 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       });
     } catch (error) {
       console.error("[companion] quota coordinator unavailable:", error instanceof Error ? error.name : "unknown");
-      return json({ ok: false, error: "Лимитер временно недоступен. Запрос не отправлен; попробуйте позже." }, 503);
+      await failConversationRequest(stub,userId,conversationId,requestId,fencingToken,"quota_coordinator_unknown");
+      return json({ ok: false, state: "provider_outcome_unknown", error: "Лимитер не подтвердил результат. Автоматический повтор запрещён." }, 503);
     }
     const quotaResult = await quotaResponse.json().catch(() => ({})) as { exhausted?: { key?: string } };
     if (quotaResponse.status === 429) {
       const researchLimit = String(quotaResult.exhausted?.key ?? "").startsWith("research:");
-      return json({ ok: false, error: researchLimit
+      await failConversationRequest(stub,userId,conversationId,requestId,fencingToken,"quota_exhausted",true);
+      return json({ ok: false, state: "failed", error: researchLimit
         ? "Дневной бесплатный лимит веб-исследований исчерпан. Попробуйте завтра."
         : "Слишком много сообщений. Подождите минуту." }, 429);
     }
     if (!quotaResponse.ok) {
       console.error("[companion] quota coordinator rejected request:", quotaResponse.status);
-      return json({ ok: false, error: "Не удалось проверить лимиты. Запрос не отправлен; попробуйте позже." }, 503);
+      await failConversationRequest(stub,userId,conversationId,requestId,fencingToken,"quota_coordinator_error");
+      return json({ ok: false, state: "provider_outcome_unknown", error: "Не удалось подтвердить резерв лимита. Автоматический повтор запрещён." }, 503);
     }
 
     let response: Response;
@@ -266,23 +276,28 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       });
     } catch (error) {
       console.error("[companion] Gemini request failed:", error instanceof Error ? error.name : "unknown");
-      return json({ ok: false, error: "Gemini не ответил вовремя. Попробуйте ещё раз." }, 504);
+      await failConversationRequest(stub,userId,conversationId,requestId,fencingToken,"gemini_outcome_unknown");
+      return json({ ok: false, state: "provider_outcome_unknown", error: "Gemini не подтвердил результат. Повтор запроса не выполнялся." }, 504);
     }
 
     const payload = await response.json().catch(() => null) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>; webSearchQueries?: string[] } }>; error?: { message?: string } } | null;
     if (!response.ok) {
       const providerMessage = payload?.error?.message ?? "unknown provider error";
       console.error("[companion] Gemini API rejected request:", response.status, providerMessage.slice(0, 300));
-      if (response.status === 429) return json({ ok: false, error: "Лимит запросов Gemini исчерпан. Попробуйте через минуту." }, 429);
-      if (response.status === 401 || response.status === 403) return json({ ok: false, error: "Gemini отклонил API-ключ. Нужно проверить ключ в настройках сервера." }, 503);
-      if (response.status === 404 && mode === "research") return json({ ok: false, error: "Модель Gemini 2.5 Flash-Lite недоступна для этого API-ключа. Веб-поиск не будет переключён на платный режим." }, 503);
-      if (response.status === 404) return json({ ok: false, error: "Выбранная модель Gemini недоступна. Проверьте настройку GEMINI_MODEL." }, 503);
-      if (response.status === 400 && mode === "research") return json({ ok: false, error: "Google Search grounding недоступен для текущей модели или API-ключа. Источники не подменялись." }, 503);
-      if (response.status === 400) return json({ ok: false, error: "Gemini отклонил формат запроса. Проверьте настройки модели." }, 502);
-      return json({ ok: false, error: "Сервис Gemini временно недоступен. Попробуйте ещё раз." }, response.status >= 500 ? 503 : 502);
+      await failConversationRequest(stub,userId,conversationId,requestId,fencingToken,"gemini_provider_error");
+      if (response.status === 429) return json({ ok: false, state: "provider_outcome_unknown", error: "Лимит запросов Gemini исчерпан. Предыдущий результат не повторяется автоматически." }, 429);
+      if (response.status === 401 || response.status === 403) return json({ ok: false, state: "provider_outcome_unknown", error: "Gemini отклонил API-ключ. Нужно проверить ключ в настройках сервера." }, 503);
+      if (response.status === 404 && mode === "research") return json({ ok: false, state: "provider_outcome_unknown", error: "Модель Gemini 2.5 Flash-Lite недоступна для этого API-ключа. Веб-поиск не будет переключён на платный режим." }, 503);
+      if (response.status === 404) return json({ ok: false, state: "provider_outcome_unknown", error: "Выбранная модель Gemini недоступна. Проверьте настройку GEMINI_MODEL." }, 503);
+      if (response.status === 400 && mode === "research") return json({ ok: false, state: "provider_outcome_unknown", error: "Google Search grounding недоступен для текущей модели или API-ключа. Источники не подменялись." }, 503);
+      if (response.status === 400) return json({ ok: false, state: "provider_outcome_unknown", error: "Gemini отклонил формат запроса. Проверьте настройки модели." }, 502);
+      return json({ ok: false, state: "provider_outcome_unknown", error: "Сервис Gemini временно недоступен. Автоматический повтор запрещён." }, response.status >= 500 ? 503 : 502);
     }
     const answer = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
-    if (!answer) return json({ ok: false, error: "ИИ вернул пустой ответ. Попробуйте переформулировать вопрос." }, 502);
+    if (!answer) {
+      await failConversationRequest(stub,userId,conversationId,requestId,fencingToken,"empty_model_response");
+      return json({ ok: false, state: "provider_outcome_unknown", error: "ИИ вернул пустой ответ. Автоматический повтор запрещён." }, 502);
+    }
     const groundingChunks = payload?.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
     const sourceMap = new Map<string, CompanionSource>();
     if (mode === "research") {
@@ -299,16 +314,22 @@ export async function handleCompanionApi(req: Request, env: Env): Promise<Respon
       }
     }
     const sources = Array.from(sourceMap.values()).slice(0, 10);
-    if (mode === "research" && !sources.length)
-      return json({ ok: false, error: "Поиск не вернул проверяемых источников. Ответ не будет выдан как исследование; попробуйте уточнить запрос." }, 502);
+    if (mode === "research" && !sources.length) {
+      await failConversationRequest(stub,userId,conversationId,requestId,fencingToken,"research_sources_missing");
+      return json({ ok: false, state: "provider_outcome_unknown", error: "Поиск не вернул проверяемых источников. Ответ не будет выдан как исследование; повтор запрещён." }, 502);
+    }
 
-    const now = new Date().toISOString();
-    const attachmentLabel = attachments.length ? "\n[Вложения: " + attachments.map(file => file.name).join(", ") + "]" : "";
-    const updatedMessages: ChatMessage[] = [...conversation.messages, { role: "user", content: userContent + attachmentLabel, createdAt: now }, { role: "assistant", content: answer, createdAt: now, ...(sources.length ? { sources } : {}) }];
-    conversation.messages = updatedMessages.slice(-MAX_STORED_MESSAGES);
-    conversation.updatedAt = now;
-    await scoped.STATE.put(PREFIX + conversation.id, JSON.stringify(conversation));
-    return json({ ok: true, conversationId: conversation.id, answer, sources, conversation });
+    const finalizeResponse = await stub.fetch("https://companion-conversation/finalize", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tenantId: userId, conversationId, requestId, fencingToken, answer, sources }),
+    });
+    const finalized = await finalizeResponse.json().catch(() => ({})) as { error?: string; state?: string; response?: unknown };
+    if (!finalizeResponse.ok) return json({ ok: false, state: finalized.state ?? "provider_outcome_unknown", error: finalized.error ?? "Не удалось сохранить ответ. Результат не будет повторён автоматически." }, finalizeResponse.status);
+    const savedResponse = await stub.fetch("https://companion-conversation/conversation?tenantId=" + encodeURIComponent(userId) + "&conversationId=" + encodeURIComponent(conversationId));
+    const savedPayload = await savedResponse.json().catch(() => ({})) as { conversation?: Conversation };
+    const savedConversation = savedPayload.conversation ?? conversation;
+    await writeConversationIndex(scoped,savedConversation);
+    return json({ ok: true, conversationId, requestId, answer, sources, conversation: savedConversation });
   } catch (error) {
     console.error("[companion] request failed", error instanceof Error ? error.message : "unknown error");
     return json({ ok: false, error: "Внутренняя ошибка AI Companion." }, 500);
