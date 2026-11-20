@@ -345,7 +345,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const recorded = await post(stub, "/ai/paper/decision", {
       userId: userA, tickId, fencingToken: tokenA, strategyId: "gemini-paper", strategyVersion: "1",
       marketSnapshotHash: "d".repeat(64), symbol: "BTC", signal: "buy",
-      rationale: "Stable request replay test.", confidence: 0.8, observedPrice: "50000", riskPass: true,
+      rationale: "Stable request replay test.", confidence: 0.8, observedPrice: "50000", riskPass: false, riskEvaluated: false,
       snapshotRetrievedAt: Date.now(),
     });
     expect(recorded.status).toBe(201);
@@ -387,7 +387,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const decisionBase = {
       userId: userD, tickId: fencingTick, strategyId: "gemini-paper", strategyVersion: "1",
       marketSnapshotHash: "e".repeat(64), symbol: "BTC", signal: "hold",
-      rationale: "Fencing token test.", confidence: 0.5, observedPrice: "50000", riskPass: true,
+      rationale: "Fencing token test.", confidence: 0.5, observedPrice: "50000", riskPass: false, riskEvaluated: false,
       snapshotRetrievedAt: Date.now(),
     };
     const staleFinalize = await post(stub, "/ai/paper/decision", { ...decisionBase, fencingToken: firstToken });
@@ -409,7 +409,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const base = {
       userId: owner, strategyId: "gemini-paper", strategyVersion: "1",
       marketSnapshotHash: "c".repeat(64), symbol: "BTC", signal: "buy",
-      rationale: "Server snapshot validated.", confidence: 0.8, observedPrice: "50000", riskPass: true,
+      rationale: "Server snapshot validated.", confidence: 0.8, observedPrice: "50000", riskPass: false, riskEvaluated: false,
     };
     const noClaim = await post(stub, "/ai/paper/decision", {
       ...base, tickId: "tick-server-mark-no-claim", snapshotRetrievedAt: Date.now(),
