@@ -102,7 +102,7 @@ export class TradingEngine {
     sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decisions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tick_id TEXT NOT NULL, strategy_id TEXT NOT NULL, strategy_version TEXT NOT NULL, market_snapshot_hash TEXT NOT NULL, symbol TEXT NOT NULL, signal TEXT NOT NULL, rationale TEXT NOT NULL, confidence REAL, observed_price TEXT NOT NULL, risk_pass INTEGER NOT NULL, rejection_reason TEXT, position_id TEXT, created_at INTEGER NOT NULL, UNIQUE(user_id, tick_id, symbol))");
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decisions_user_created ON ai_paper_decisions(user_id, created_at)");
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decisions_user_tick ON ai_paper_decisions(user_id, tick_id, created_at DESC)");
-    sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decision_runs (user_id TEXT NOT NULL, tick_id TEXT NOT NULL, lease_expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(user_id, tick_id))");
+    sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decision_runs (user_id TEXT NOT NULL, tick_id TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'claimed', lease_expires_at INTEGER NOT NULL, external_started_at INTEGER, fencing_token INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(user_id, tick_id))");
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decision_runs_lease ON ai_paper_decision_runs(lease_expires_at)");
     sql.exec("CREATE INDEX IF NOT EXISTS live_operations_user_status ON live_operations(user_id, status, updated_at)");
     this.restorePositions();
@@ -166,16 +166,47 @@ export class TradingEngine {
         const tickId = url.searchParams.get("tickId") ?? "";
         if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
           return Response.json({ ok: false, error: "Некорректные параметры решения AI paper." }, { status: 400 });
-        const row = this.ctx.storage.sql.exec(
-          "SELECT id, tick_id, market_snapshot_hash, symbol, signal, rationale, confidence, created_at FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? ORDER BY created_at DESC, id DESC LIMIT 1",
-          userId, tickId,
-        ).toArray()[0] as Record<string, unknown> | undefined;
-        if (!row) return Response.json({ ok: false, error: "Решение AI PAPER не найдено." }, { status: 404 });
-        return Response.json({ ok: true, state: "completed", decision: {
+        let row: Record<string, unknown> | undefined;
+        let pendingState: "in_progress" | "external_outcome_unknown" | null = null;
+        const now = Date.now();
+        this.ctx.storage.transactionSync(() => {
+          row = this.ctx.storage.sql.exec(
+            "SELECT id, tick_id, market_snapshot_hash, symbol, signal, rationale, confidence, created_at FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? ORDER BY created_at DESC, id DESC LIMIT 1",
+            userId, tickId,
+          ).toArray()[0] as Record<string, unknown> | undefined;
+          if (row) {
+            this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?", userId, tickId);
+            return;
+          }
+          const pending = this.ctx.storage.sql.exec(
+            "SELECT state, lease_expires_at, external_started_at FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?",
+            userId, tickId,
+          ).toArray()[0] as { state: string; lease_expires_at: number; external_started_at: number | null } | undefined;
+          if (!pending) return;
+          if (pending.state === "external_outcome_unknown") {
+            pendingState = "external_outcome_unknown";
+          } else if (Number(pending.lease_expires_at) > now) {
+            pendingState = "in_progress";
+          } else if (pending.external_started_at !== null) {
+            this.ctx.storage.sql.exec(
+              "UPDATE ai_paper_decision_runs SET state = 'external_outcome_unknown', lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ?",
+              now, now, userId, tickId,
+            );
+            pendingState = "external_outcome_unknown";
+          } else {
+            this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?", userId, tickId);
+          }
+        });
+        if (row) return Response.json({ ok: true, state: "completed", decision: {
           id: row.id, tickId: row.tick_id, marketSnapshotHash: row.market_snapshot_hash,
           symbol: row.symbol, signal: row.signal, rationale: row.rationale,
           confidence: row.confidence === null ? null : Number(row.confidence), observedAt: Number(row.created_at),
         } });
+        if (pendingState === "external_outcome_unknown")
+          return Response.json({ ok: false, state: pendingState, error: "Внешний вызов мог завершиться до сохранения результата. Автоматический повтор заблокирован." }, { status: 409 });
+        if (pendingState === "in_progress")
+          return Response.json({ ok: false, state: pendingState, error: "Запуск AI PAPER уже выполняется." }, { status: 409 });
+        return Response.json({ ok: false, error: "Решение AI PAPER не найдено." }, { status: 404 });
       }
       if (request.method === "GET" && url.pathname === "/ai/paper/decisions") {
         const userId = url.searchParams.get("userId") ?? "";
@@ -264,6 +295,8 @@ export class TradingEngine {
       if (url.pathname === "/ai/paper/fund") return this.fundAiPaper(body);
       if (url.pathname === "/ai/paper/withdraw") return this.withdrawAiPaper(body);
       if (url.pathname === "/ai/paper/decision/claim") return this.claimAiPaperDecision(body);
+      if (url.pathname === "/ai/paper/decision/external-started") return this.markAiPaperExternalStarted(body);
+      if (url.pathname === "/ai/paper/decision/unknown") return this.markAiPaperOutcomeUnknown(body);
       if (url.pathname === "/ai/paper/decision/release") return this.releaseAiPaperDecision(body);
       if (url.pathname === "/ai/paper/decision") return this.recordAiPaperDecision(body);
       if (url.pathname === "/ai/paper/position/open") return this.openAiPaperPosition(body);
@@ -794,13 +827,15 @@ export class TradingEngine {
   private claimAiPaperDecision(body: Record<string, unknown>): Response {
     const userId = String(body.userId ?? "");
     const tickId = String(body.tickId ?? "");
-    if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
+    if (!/^\\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
       return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
 
     const now = Date.now();
     const leaseExpiresAt = now + 120_000;
     let existing: Record<string, unknown> | undefined;
     let inProgress = false;
+    let outcomeUnknown = false;
+    let fencingToken = 1;
     this.ctx.storage.transactionSync(() => {
       existing = this.ctx.storage.sql.exec(
         "SELECT id, tick_id, market_snapshot_hash, symbol, signal, rationale, confidence, created_at FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? ORDER BY created_at DESC, id DESC LIMIT 1",
@@ -811,22 +846,36 @@ export class TradingEngine {
         return;
       }
       const pending = this.ctx.storage.sql.exec(
-        "SELECT lease_expires_at FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?",
+        "SELECT state, lease_expires_at, external_started_at, fencing_token FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?",
         userId, tickId,
-      ).toArray()[0] as { lease_expires_at: number } | undefined;
-      if (pending && Number(pending.lease_expires_at) > now) {
-        inProgress = true;
-        return;
-      }
+      ).toArray()[0] as { state: string; lease_expires_at: number; external_started_at: number | null; fencing_token: number } | undefined;
       if (pending) {
+        fencingToken = Number(pending.fencing_token);
+        if (pending.state === "external_outcome_unknown") {
+          outcomeUnknown = true;
+          return;
+        }
+        if (Number(pending.lease_expires_at) > now) {
+          inProgress = true;
+          return;
+        }
+        if (pending.external_started_at !== null) {
+          this.ctx.storage.sql.exec(
+            "UPDATE ai_paper_decision_runs SET state = 'external_outcome_unknown', lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ?",
+            now, now, userId, tickId,
+          );
+          outcomeUnknown = true;
+          return;
+        }
+        fencingToken += 1;
         this.ctx.storage.sql.exec(
-          "UPDATE ai_paper_decision_runs SET lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ?",
-          leaseExpiresAt, now, userId, tickId,
+          "UPDATE ai_paper_decision_runs SET state = 'claimed', lease_expires_at = ?, fencing_token = ?, updated_at = ? WHERE user_id = ? AND tick_id = ?",
+          leaseExpiresAt, fencingToken, now, userId, tickId,
         );
       } else {
         this.ctx.storage.sql.exec(
-          "INSERT INTO ai_paper_decision_runs(user_id, tick_id, lease_expires_at, created_at, updated_at) VALUES(?,?,?,?,?)",
-          userId, tickId, leaseExpiresAt, now, now,
+          "INSERT INTO ai_paper_decision_runs(user_id, tick_id, state, lease_expires_at, external_started_at, fencing_token, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?)",
+          userId, tickId, "claimed", leaseExpiresAt, null, fencingToken, now, now,
         );
       }
     });
@@ -835,24 +884,84 @@ export class TradingEngine {
       symbol: existing.symbol, signal: existing.signal, rationale: existing.rationale,
       confidence: existing.confidence === null ? null : Number(existing.confidence), observedAt: Number(existing.created_at),
     } });
+    if (outcomeUnknown) return Response.json({ ok: false, state: "external_outcome_unknown", error: "Внешний вызов мог завершиться до сохранения результата. Автоматический повтор заблокирован." }, { status: 409 });
     if (inProgress) return Response.json({ ok: false, state: "in_progress", error: "Запуск AI PAPER уже выполняется." }, { status: 409 });
-    return Response.json({ ok: true, state: "claimed", leaseExpiresAt });
+    return Response.json({ ok: true, state: "claimed", leaseExpiresAt, fencingToken });
+  }
+
+  private markAiPaperExternalStarted(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    const tickId = String(body.tickId ?? "");
+    const fencingToken = Number(body.fencingToken);
+    if (!/^\\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
+        !Number.isSafeInteger(fencingToken) || fencingToken < 1)
+      return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
+    const now = Date.now();
+    let conflict = false;
+    this.ctx.storage.transactionSync(() => {
+      const row = this.ctx.storage.sql.exec(
+        "SELECT state, lease_expires_at, fencing_token FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?",
+        userId, tickId,
+      ).toArray()[0] as { state: string; lease_expires_at: number; fencing_token: number } | undefined;
+      if (!row || Number(row.fencing_token) !== fencingToken || row.state !== "claimed" || Number(row.lease_expires_at) <= now) {
+        conflict = true;
+        return;
+      }
+      this.ctx.storage.sql.exec(
+        "UPDATE ai_paper_decision_runs SET state = 'external_started', external_started_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ? AND fencing_token = ?",
+        now, now, userId, tickId, fencingToken,
+      );
+    });
+    if (conflict) return Response.json({ ok: false, error: "Запуск AI PAPER больше не принадлежит этому исполнителю." }, { status: 409 });
+    return Response.json({ ok: true, state: "external_started" });
+  }
+
+  private markAiPaperOutcomeUnknown(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    const tickId = String(body.tickId ?? "");
+    const fencingToken = Number(body.fencingToken);
+    if (!/^\\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
+        !Number.isSafeInteger(fencingToken) || fencingToken < 1)
+      return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
+    const now = Date.now();
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        "UPDATE ai_paper_decision_runs SET state = 'external_outcome_unknown', external_started_at = COALESCE(external_started_at, ?), lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ? AND fencing_token = ?",
+        now, now, now, userId, tickId, fencingToken,
+      );
+    });
+    return Response.json({ ok: true, state: "external_outcome_unknown" });
   }
 
   private releaseAiPaperDecision(body: Record<string, unknown>): Response {
     const userId = String(body.userId ?? "");
     const tickId = String(body.tickId ?? "");
-    if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
+    const fencingToken = Number(body.fencingToken);
+    const safeToRetry = body.safeToRetry === true;
+    if (!/^\\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
+        !Number.isSafeInteger(fencingToken) || fencingToken < 1)
       return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
+    const now = Date.now();
+    let conflict = false;
     this.ctx.storage.transactionSync(() => {
-      const existing = this.ctx.storage.sql.exec(
-        "SELECT 1 AS found FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? LIMIT 1",
+      const row = this.ctx.storage.sql.exec(
+        "SELECT state, external_started_at, fencing_token FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?",
         userId, tickId,
-      ).toArray()[0];
-      if (!existing) this.ctx.storage.sql.exec(
-        "DELETE FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?", userId, tickId,
-      );
+      ).toArray()[0] as { state: string; external_started_at: number | null; fencing_token: number } | undefined;
+      if (!row || Number(row.fencing_token) !== fencingToken) {
+        conflict = true;
+        return;
+      }
+      if (row.external_started_at === null || (safeToRetry && row.state === "external_started")) {
+        this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?", userId, tickId);
+      } else {
+        this.ctx.storage.sql.exec(
+          "UPDATE ai_paper_decision_runs SET state = 'external_outcome_unknown', lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ? AND fencing_token = ?",
+          now, now, userId, tickId, fencingToken,
+        );
+      }
     });
+    if (conflict) return Response.json({ ok: false, error: "Запуск AI PAPER больше не принадлежит этому исполнителю." }, { status: 409 });
     return Response.json({ ok: true });
   }
 
