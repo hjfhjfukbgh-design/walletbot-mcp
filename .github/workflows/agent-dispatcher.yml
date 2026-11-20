@@ -97,3 +97,5 @@ jobs:
 # Immediate queue pulse after CEO-confirmed two-level UI contract; 2026-11-20 EKB.
 
 # Queue pulse after #627 worker completed without a safe patch; advance remaining ready work.
+
+# Keep queue cycling independently of chat sessions; pulse issued 2026-11-20 EKB.
