@@ -1948,3 +1948,17 @@ html[data-theme="dark"] .kg-change-down{color:#B9A8FF}
 @media(prefers-reduced-motion:reduce){
   #kg-chart{scroll-behavior:auto}
 }
+
+
+/* Clear two-level hierarchy: market first, execution method inside DEMO. */
+.kg-market-mode{grid-template-columns:1fr 1fr;margin-bottom:8px}
+.kg-market-mode button{min-height:48px}
+.kg-method-mode{grid-template-columns:1fr 1fr;margin-top:8px;background:var(--kg-card)}
+.kg-method-mode button{min-height:48px}
+.kg-method-mode button b{font-size:13px}
+.kg-profile-mode-switch{grid-template-columns:1fr 1fr}
+.kg-product-mode button:disabled{opacity:.42}
+@media(max-width:360px){
+  .kg-market-mode button b,.kg-method-mode button b{font-size:11px}
+  .kg-market-mode button small,.kg-method-mode button small{font-size:8px}
+}
