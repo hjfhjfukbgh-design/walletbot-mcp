@@ -256,9 +256,9 @@ For example, 1,000 completed messages/day would be roughly 4,000–10,000 row wr
 
 ## 10. Implementation-sized follow-ups
 
-1. **Backend — CompanionConversation DO:** add binding/migration, SQLite schema, tenant-scoped ID, queue/claim/fencing/finalize, status endpoint, alarm recovery, and Miniflare concurrency/restart tests.
-2. **Backend — API and KV migration:** route chat/get/list/delete through the DO, add idempotent lazy import from legacy KV, maintain KV list index, and retain rollback backup window.
-3. **Frontend — stable request IDs and polling:** generate/reuse requestId per logical send, handle 202/in-progress/unknown states, and add multi-tab/retry UI tests.
+1. **#632 — Backend, CompanionConversation DO:** add binding/migration, SQLite schema, tenant-scoped ID, queue/claim/fencing/finalize, status endpoint, alarm recovery, and Miniflare concurrency/restart tests. Blocked until this ADR is accepted.
+2. **#633 — Backend, API and KV migration:** route chat/get/list/delete through the DO, add idempotent lazy import from legacy KV, maintain KV list index, and retain rollback backup window. Depends on #632.
+3. **#634 — Frontend, stable request IDs and polling:** generate/reuse requestId per logical send, handle 202/in-progress/unknown states, and add multi-tab/retry UI tests. Depends on #633.
 
 ## Conclusion
 
