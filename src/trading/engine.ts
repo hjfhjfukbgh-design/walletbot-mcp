@@ -44,6 +44,13 @@ function parseDecimal8(value: unknown): bigint | null {
   const [whole, fraction = ""] = raw.split(".");
   return BigInt(whole) * PRICE_SCALE + BigInt((fraction + "00000000").slice(0, 8));
 }
+export function parseFreshAiPaperMark(value: unknown, createdAt: unknown, now = Date.now()): bigint | null {
+  const observedAt = Number(createdAt);
+  if (!Number.isSafeInteger(observedAt) || observedAt <= 0 ||
+      observedAt > now + 1_000 || now - observedAt > AI_PAPER_MARK_MAX_AGE_MS) return null;
+  const price = parseDecimal8(value);
+  return price !== null && price > 0n ? price : null;
+}
 function estimateProportionalCost(cost: bigint, entryNotional: bigint, markNotional: bigint): bigint | null {
   if (cost < 0n || entryNotional <= 0n || markNotional < 0n) return null;
   if (cost === 0n || markNotional === 0n) return 0n;
@@ -628,14 +635,8 @@ export class TradingEngine {
       const now = Date.now();
       const decisionObservedAt = Number(decision.created_at);
       const decisionMark = parseDecimal8(decision.observed_price);
-      const latestEntryDecision = this.ctx.storage.sql.exec(
-        "SELECT MAX(created_at) AS created_at FROM ai_paper_decisions WHERE user_id = ? AND symbol = ?",
-        userId, symbol,
-      ).toArray()[0] as { created_at: number | null } | undefined;
-      if (!Number.isSafeInteger(decisionObservedAt) || decisionObservedAt <= 0 ||
-          decisionObservedAt > now + 1_000 || now - decisionObservedAt > AI_PAPER_MARK_MAX_AGE_MS ||
-          decisionMark === null || decisionMark <= 0n ||
-          Number(latestEntryDecision?.created_at) !== decisionObservedAt) {
+      if (parseFreshAiPaperMark(decision.observed_price, decisionObservedAt, now) === null ||
+          decisionMark === null || decisionMark <= 0n) {
         invalidMark = true;
         return;
       }
@@ -645,10 +646,7 @@ export class TradingEngine {
           userId, market,
         ).toArray()[0] as { observed_price: string; created_at: number } | undefined;
         if (!row) return null;
-        const observedAt = Number(row.created_at);
-        if (!Number.isSafeInteger(observedAt) || observedAt <= 0 ||
-            observedAt > now + 1_000 || now - observedAt > AI_PAPER_MARK_MAX_AGE_MS) return null;
-        return parseDecimal8(row.observed_price);
+        return parseFreshAiPaperMark(row.observed_price, row.created_at, now);
       };
 
       // Every existing open symbol must have a complete, recent server-recorded mark.
