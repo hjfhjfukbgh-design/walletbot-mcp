@@ -67,7 +67,8 @@ describe("runAiPaperDecision", () => {
     expect(recorded).toHaveLength(1);
     expect(recorded[0]).toMatchObject({
       userId: "123456789", tickId: "manual-run-0001", strategyId: "gemini-paper",
-      symbol: "BTC", signal: "buy", observedPrice: "50000.00", riskPass: true, positionId: null,
+      symbol: "BTC", signal: "buy", observedPrice: "50000.00", serverObservedAt: NOW,
+      riskPass: true, positionId: null,
     });
     expect(recorded[0]).not.toHaveProperty("leverage");
     expect(recorded[0]).not.toHaveProperty("qtyUnits");
