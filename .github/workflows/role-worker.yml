@@ -662,7 +662,7 @@ jobs:
           retention-days: 90
 
       - name: Publish failed implementation handoff
-        if: always() && job.status == 'failure' && steps.patch.outcome == 'success' && (steps.checks.outputs.mode == 'code' || steps.checks.outputs.mode == 'css-append' || steps.checks.outputs.mode == 'ts-append')
+        if: always() && job.status == 'failure' && steps.patch.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           ROLE: ${{ inputs.role }}
@@ -673,6 +673,7 @@ jobs:
         run: |
           set -euo pipefail
           mode="$(cat /tmp/worker-mode.txt 2>/dev/null || echo unknown)"
+          case "$mode" in code|css-append|ts-append) ;; *) echo "No generated implementation patch to hand off (mode=$mode)."; exit 0 ;; esac
           branch="agent/${ROLE,,}-failed-handoff-${ISSUE_NUMBER}-${RUN_ID}"
           mkdir -p team/reports
           report="team/reports/failed-implementation-${ROLE,,}-issue-${ISSUE_NUMBER}-${RUN_ID}.md"
