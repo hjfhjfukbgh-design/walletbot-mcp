@@ -36,7 +36,7 @@
   if(themeMedia?.addEventListener)themeMedia.addEventListener("change",()=>{if(getThemePreference()==="system")applyThemePreference("system");});
   else themeMedia?.addListener?.(()=>{if(getThemePreference()==="system")applyThemePreference("system");});
   const state = {
-    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, currencyMode:"RUB", productMode:"demo", sparklineCache:{},
+    screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, currencyMode:"RUB", marketMode:"demo", productMode:"demo", sparklineCache:{},
     favorites:(()=>{try{return new Set(JSON.parse(localStorage.getItem("kg:favorites:v1")||'["BTC","ETH","SOL"]'));}catch{return new Set(["BTC","ETH","SOL"]);}})(),
     equities:(()=>{try{const saved=JSON.parse(localStorage.getItem("kg:equities:v1"));return Array.isArray(saved)?saved.filter(x=>x&&typeof x.symbol==="string"&&typeof x.name==="string"):[{symbol:"AAPL",name:"Apple",kind:"Акция"}];}catch{return[{symbol:"AAPL",name:"Apple",kind:"Акция"}];}})(),
     editEquities:false,
@@ -883,7 +883,7 @@
   }
   function renderProfileSettings(){
     const mode=$("#kg-profile-mode");
-    if(mode)mode.textContent=state.productMode==="ai"?"ИИ · ВИРТУАЛЬНЫЙ":"DEMO";
+    if(mode)mode.textContent=state.marketMode==="live"?"LIVE · "+(state.productMode==="ai"?"AI Piper":"Ручная"):"DEMO · "+(state.productMode==="ai"?"AI Piper":"Ручная");
     const wallet=$("#kg-profile-wallet-status");
     const live=state.capabilities?.live;
     if(wallet){
@@ -934,24 +934,28 @@
     if(tg?.BackButton){tg.BackButton.hide();tg.BackButton.offClick?.(handleNativeBack);}
   }
   function renderProductMode(){
-    const descriptions={
-      demo:"DEMO · Виртуальный счёт. Реальные средства не используются.",
-      ai:"ИИ · виртуальный счёт. Автоматические сделки пока отключены.",
-      live:"LIVE заблокирован до проверки полного торгового и close-контракта.",
-    };
-    $$("#kg-product-mode [data-product-mode]").forEach(button=>{
+    const method=state.productMode==="ai"?"AI Piper":"Ручная";
+    const market=state.marketMode==="live"?"LIVE":"DEMO";
+    $("#kg-market-mode [data-market-mode]").forEach(button=>{
+      const selected=button.dataset.marketMode===state.marketMode;
+      button.classList.toggle("is-active",selected);
+      button.setAttribute("aria-pressed",String(selected));
+    });
+    $("#kg-product-mode [data-product-mode]").forEach(button=>{
       const selected=button.dataset.productMode===state.productMode;
       button.classList.toggle("is-active",selected);
       button.setAttribute("aria-pressed",String(selected));
     });
-    $("#kg-product-mode-status").textContent=descriptions[state.productMode]||descriptions.demo;
+    $("#kg-product-mode-status").textContent=state.marketMode==="live"
+      ?"LIVE · "+method+". Реальные сделки доступны только после отдельной проверки и авторизации."
+      :"DEMO · "+method+". Используются только виртуальные средства.";
     const assetBadge=$("#kg-asset-mode-badge"),ticketBadge=$("#kg-ticket-mode-badge");
     const modeClass=state.productMode==="ai"?"kg-mode-badge kg-mode-badge--ai":"kg-mode-badge kg-mode-badge--demo";
-    if(assetBadge){assetBadge.className=modeClass;assetBadge.textContent=state.productMode==="ai"?"ИИ":"DEMO";}
-    if(ticketBadge){ticketBadge.className=modeClass;ticketBadge.textContent=state.productMode==="ai"?"ИИ · виртуальный счёт":"DEMO · виртуальные деньги";}
-    $$("#kg-profile-mode-switch [data-profile-mode]").forEach(button=>{const active=button.dataset.profileMode===state.productMode;button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));});
+    if(assetBadge){assetBadge.className=modeClass;assetBadge.textContent=market+" · "+method;}
+    if(ticketBadge){ticketBadge.className=modeClass;ticketBadge.textContent=market+" · "+method;}
+    $("#kg-profile-mode-switch [data-profile-mode]").forEach(button=>{const active=button.dataset.profileMode===state.productMode;button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));});
     const modeBadge=$("#kg-wallet-mode-badge");
-    if(modeBadge){modeBadge.className="kg-mode-badge "+(state.productMode==="ai"?"kg-mode-badge--ai":"kg-mode-badge--demo");modeBadge.textContent=state.productMode==="ai"?"ИИ · виртуальный счёт":"DEMO · виртуальные деньги";}
+    if(modeBadge){modeBadge.className="kg-mode-badge "+(state.productMode==="ai"?"kg-mode-badge--ai":"kg-mode-badge--demo");modeBadge.textContent=market+" · "+method;}
     renderProfileSettings();
     const paperSummary=$("#kg-ai-paper-summary");
     if(paperSummary)paperSummary.hidden=state.productMode!=="ai"&&state.aiPaper?.status!=="active";
@@ -1123,6 +1127,7 @@
     $("#kg-ai-paper-stop").addEventListener("click",()=>void controlAiPaperSession("stop"));
     $("#kg-profile-theme-select").addEventListener("change",event=>{setThemePreference(event.target.value);renderProfileSettings();notify("Настройка темы сохранена.");});
     $("#kg-profile-mode-switch").addEventListener("click",event=>{const button=event.target.closest("[data-profile-mode]");if(!button||button.disabled)return;void selectProductMode(button.dataset.profileMode,button);});
+    $("#kg-market-mode").addEventListener("click",event=>{const button=event.target.closest("[data-market-mode]");if(!button||button.disabled)return;state.marketMode="demo";renderProductMode();});
     $("#kg-ai-paper-withdraw").addEventListener("click",()=>void transferAiPaper("withdraw"));
     $("#kg-product-mode").addEventListener("click",event=>{
       const button=event.target.closest("[data-product-mode]");
