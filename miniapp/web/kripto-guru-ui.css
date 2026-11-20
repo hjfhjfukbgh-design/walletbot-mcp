@@ -2091,3 +2091,13 @@ html[data-theme="dark"] .kg-nav button.is-active {
     text-align:right;
   }
 }
+
+
+/* Keep the full two-line Russian composer hint visible on narrow iPhones. */
+#kg-companion-screen .kg-ai-form textarea {
+  min-height:44px!important;
+  height:auto!important;
+  align-self:center;
+  padding-top:7px;
+  padding-bottom:7px;
+}
