@@ -11,7 +11,7 @@
 # Eleventh pulse: CEO elevated Mini App design completion to P0; prioritize #441 before other product work.
 name: Kripto Guru — continuous agent dispatcher
 # Keep scheduled queue active; push on this file triggers an immediate dispatch pass.
-# Queue pass: drain prioritized product queue; max three workers per pass. Retry fix verified on main; requeued #526 design, #332 LIVE close audit, #498 tenant isolation 2026-11-20 EKB. UI trading refinement #526 narrowed to CSS-only patch 2026-11-20 EKB.
+# Queue pass: drain prioritized product queue; max three workers per pass. 2026-11-20 CEO reconfirmed two-mode DEMO/LIVE hierarchy and triad architecture. Sort ready tasks by issue number so P0 design #441 is selected before newly created Companion/AI-context tasks.
 
 on:
   push:
@@ -51,6 +51,8 @@ jobs:
               owner, repo, state: "open", labels: "agent-ready", per_page: 100
             });
             const selected = [];
+            // Oldest explicitly prioritized work first; prevents new tasks starving P0 design.
+            ready.sort((a, b) => a.number - b.number);
             for (const issue of ready) {
               if (issue.pull_request) continue;
               const labels = (issue.labels || []).map(x => typeof x === "string" ? x : x.name);
