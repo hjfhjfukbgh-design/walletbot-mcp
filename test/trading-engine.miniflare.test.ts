@@ -457,10 +457,11 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     });
     expect(fresh.status).toBe(201);
     const decisions = await stub.fetch("https://engine.test/ai/paper/decisions?userId=" + owner);
-    const body = await decisions.json() as { decisions: Array<{ createdAt: number; snapshotRetrievedAt: number | null; riskPass: boolean; riskEvaluated: boolean }> };
+    const body = await decisions.json() as { decisions: Array<{ createdAt: number; snapshotRetrievedAt: number | null; riskPass: boolean; riskEvaluated: boolean; snapshotPayload: unknown }> };
     expect(body.decisions[0].snapshotRetrievedAt).toBe(freshAt);
     expect(body.decisions[0].riskPass).toBe(false);
     expect(body.decisions[0].riskEvaluated).toBe(false);
+    expect(body.decisions[0].snapshotPayload).toEqual({ source: "hyperliquid-public", retrievedAt: freshAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] });
     expect(body.decisions[0].createdAt).toBeGreaterThanOrEqual(freshAt);
     const savedSnapshot = { source: "hyperliquid-public", retrievedAt: freshAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] };
     const retry = await post(stub, "/ai/paper/decision", {
