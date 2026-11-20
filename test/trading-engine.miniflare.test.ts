@@ -69,6 +69,15 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     return { status: response.status, body: await response.json() as Record<string, any> };
   }
 
+  async function claimGeminiDecision(stub: EngineStub, user: string, tickId: string) {
+    const claim = await post(stub, "/ai/paper/decision/claim", { userId: user, tickId });
+    expect(claim.status).toBe(200);
+    const fencingToken = Number(claim.body.fencingToken);
+    const started = await post(stub, "/ai/paper/decision/external-started", { userId: user, tickId, fencingToken });
+    expect(started.status).toBe(200);
+    return fencingToken;
+  }
+
   async function startAiPaper(stub: EngineStub, user: string) {
     const started = await post(stub, "/ai/paper/session/start", { userId: user });
     expect(started.status).toBe(200);
@@ -402,24 +411,39 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       marketSnapshotHash: "c".repeat(64), symbol: "BTC", signal: "buy",
       rationale: "Server snapshot validated.", confidence: 0.8, observedPrice: "50000", riskPass: true,
     };
-    const stale = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: "tick-server-mark-stale", serverObservedAt: Date.now() - 10 * 60_000 - 1,
+    const noClaim = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: "tick-server-mark-no-claim", serverObservedAt: Date.now(),
     });
-    const future = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: "tick-server-mark-future", serverObservedAt: Date.now() + 5_000,
+    expect(noClaim.status).toBe(400);
+
+    const staleTick = "tick-server-mark-stale";
+    const staleToken = await claimGeminiDecision(stub, owner, staleTick);
+    const stale = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: staleTick, fencingToken: staleToken, serverObservedAt: Date.now() - 10 * 60_000 - 1,
     });
     expect(stale.status).toBe(400);
+    await post(stub, "/ai/paper/decision/unknown", { userId: owner, tickId: staleTick, fencingToken: staleToken });
+
+    const futureTick = "tick-server-mark-future";
+    const futureToken = await claimGeminiDecision(stub, owner, futureTick);
+    const future = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: futureTick, fencingToken: futureToken, serverObservedAt: Date.now() + 5_000,
+    });
     expect(future.status).toBe(400);
+    await post(stub, "/ai/paper/decision/unknown", { userId: owner, tickId: futureTick, fencingToken: futureToken });
+
     const freshAt = Date.now();
+    const freshTick = "tick-server-mark-fresh";
+    const freshToken = await claimGeminiDecision(stub, owner, freshTick);
     const fresh = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: "tick-server-mark-fresh", serverObservedAt: freshAt,
+      ...base, tickId: freshTick, fencingToken: freshToken, serverObservedAt: freshAt,
     });
     expect(fresh.status).toBe(201);
     const decisions = await stub.fetch("https://engine.test/ai/paper/decisions?userId=" + owner);
     const body = await decisions.json() as { decisions: Array<{ createdAt: number }> };
     expect(body.decisions[0].createdAt).toBe(freshAt);
     const retry = await post(stub, "/ai/paper/decision", {
-      ...base, tickId: "tick-server-mark-fresh", serverObservedAt: freshAt - 10 * 60_000 - 1,
+      ...base, tickId: freshTick, fencingToken: freshToken, serverObservedAt: freshAt - 10 * 60_000 - 1,
     });
     expect(retry.status).toBe(200);
     expect(retry.body.duplicate).toBe(true);
