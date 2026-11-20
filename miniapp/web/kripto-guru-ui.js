@@ -811,6 +811,7 @@
     if(!limits){root.innerHTML='<span>Не удалось загрузить лимиты.</span>';return;}
     const rows=[
       ["Сообщений","до "+limits.messagesPerWindow+" за "+Math.round(limits.rateWindowSeconds/60)+" мин."],
+      ["Дневной лимит","до "+limits.messagesPerDay+" сообщений на пользователя"],
       ["Длина сообщения",Number(limits.maxMessageChars).toLocaleString("ru-RU")+" символов"],
       ["История диалога","до "+limits.maxStoredMessages+" сообщений"],
       ["Контекст ответа","до "+limits.maxContextMessages+" сообщений"],
