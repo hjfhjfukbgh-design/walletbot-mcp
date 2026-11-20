@@ -967,9 +967,9 @@
     if(start){start.hidden=active;start.disabled=state.aiPaperLoading||state.aiPaperActionBusy||state.productMode!=="ai"||!Number.isFinite(balance)||balance<=0;}
     if(stop){stop.hidden=!active;stop.disabled=state.aiPaperLoading||state.aiPaperActionBusy;}
     if(note)note.textContent=active
-      ?"Сессия AI PAPER активна. Управление касается только виртуального счёта; реальные сделки и LIVE не используются."
-      :state.productMode==="ai"?"Запуск включает только виртуальную AI PAPER сессию. Для запуска нужен положительный баланс."
-      :"AI PAPER остановлен. Реальные средства и LIVE не затрагиваются.";
+      ?"Сессия AI Piper активна. Управление касается только виртуального счёта; реальные сделки и LIVE не используются."
+      :state.productMode==="ai"?"Запуск включает только виртуальную сессию AI Piper. Для запуска нужен положительный баланс."
+      :"AI Piper остановлен. Реальные средства и LIVE не затрагиваются.";
   }
   function renderAiPaperList(selector,rows,kind,errorMessage){
     const list=$(selector);if(!list)return;list.replaceChildren();
@@ -1053,14 +1053,14 @@
   async function controlAiPaperSession(action){
     if(state.aiPaperActionBusy)return;
     if(action==="start"&&(state.productMode!=="ai"||!(Number(state.aiPaper?.balanceUsd)>0)))
-      return notify("Для запуска выберите режим ИИ и пополните виртуальный AI PAPER счёт.");
+      return notify("Для запуска выберите AI Piper и пополните его виртуальный счёт.");
     state.aiPaperActionBusy=true;renderAiPaperSessionControls();
     const note=$("#kg-ai-paper-session-note");
-    if(note)note.textContent=action==="start"?"Запускаем виртуальную AI PAPER сессию…":"Останавливаем виртуальную AI PAPER сессию…";
+    if(note)note.textContent=action==="start"?"Запускаем виртуальную сессию AI Piper…":"Останавливаем виртуальную сессию AI Piper…";
     try{
       await invoke(action==="start"?"aiPaper.start":"aiPaper.stop");
       await loadAiPaperSummary(true);hapticNotice("success");
-      notify(action==="start"?"AI PAPER сессия запущена.":"AI PAPER сессия остановлена.");
+      notify(action==="start"?"Сессия AI Piper запущена.":"Сессия AI Piper остановлена.");
     }catch(error){
       if(note)note.textContent=normalizeError(error).message;notify(normalizeError(error).message);
       await loadAiPaperSummary(true);
