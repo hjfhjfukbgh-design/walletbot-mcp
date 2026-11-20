@@ -36,6 +36,28 @@ function safeSymbol(v: unknown): string {
   return s;
 }
 
+const AI_PAPER_MARK_MAX_AGE_MS = 10 * 60_000;
+const DECIMAL_8_PATTERN = /^(?:0|[1-9]\d{0,15})(?:\.\d{1,8})?$/;
+function parseDecimal8(value: unknown): bigint | null {
+  const raw = String(value ?? "");
+  if (!DECIMAL_8_PATTERN.test(raw)) return null;
+  const [whole, fraction = ""] = raw.split(".");
+  return BigInt(whole) * PRICE_SCALE + BigInt((fraction + "00000000").slice(0, 8));
+}
+export function parseFreshAiPaperMark(value: unknown, createdAt: unknown, now = Date.now()): bigint | null {
+  const observedAt = Number(createdAt);
+  if (!Number.isSafeInteger(observedAt) || observedAt <= 0 ||
+      observedAt > now || now - observedAt > AI_PAPER_MARK_MAX_AGE_MS) return null;
+  const price = parseDecimal8(value);
+  return price !== null && price > 0n ? price : null;
+}
+function estimateProportionalCost(cost: bigint, entryNotional: bigint, markNotional: bigint): bigint | null {
+  if (cost < 0n || entryNotional <= 0n || markNotional < 0n) return null;
+  if (cost === 0n || markNotional === 0n) return 0n;
+  // Reuse the observed entry cost rate as a conservative estimate for the exit.
+  return divRound(cost * markNotional, entryNotional, "ceil");
+}
+
 /**
  * One account-wide coordinator. SQLite is the source of truth; all quote and
  * trigger indexes are disposable caches rebuilt from SQLite after every eviction.
@@ -514,6 +536,8 @@ export class TradingEngine {
     let openPositionExists = false;
     let positionLimitExceeded = false;
     let invalidDecision = false;
+    let invalidMark = false;
+    let dailyLossExceeded = false;
     let sessionInactive = false;
     let balanceAfter = 0n;
 
@@ -555,9 +579,9 @@ export class TradingEngine {
       }
 
       const decision = this.ctx.storage.sql.exec(
-        "SELECT symbol, signal, risk_pass, position_id FROM ai_paper_decisions WHERE id = ? AND user_id = ?",
+        "SELECT id, symbol, signal, risk_pass, position_id, observed_price, created_at FROM ai_paper_decisions WHERE id = ? AND user_id = ?",
         decisionId, userId,
-      ).toArray()[0] as { symbol: string; signal: string; risk_pass: number; position_id: string | null } | undefined;
+      ).toArray()[0] as { id: string; symbol: string; signal: string; risk_pass: number; position_id: string | null; observed_price: string; created_at: number } | undefined;
       if (!decision || decision.symbol !== symbol || Number(decision.risk_pass) !== 1 ||
           (side === "long" && decision.signal !== "buy") || (side === "short" && decision.signal !== "sell") ||
           decision.position_id !== null) {
@@ -586,43 +610,131 @@ export class TradingEngine {
       if (before < 0n) { invalidDecision = true; return; }
       if (before < reserve) { insufficient = true; return; }
 
-      // Risk limits are server-owned Worker bindings. Missing/malformed values
-      // fail closed; never accept risk limits from the model or request body.
+      // All risk thresholds are server-owned. Missing/malformed bindings fail closed.
       const rawMaxOrderPct = this.env.MAX_ORDER_PCT;
       const rawMaxExposurePct = this.env.MAX_TOTAL_EXPOSURE_PCT;
+      const rawMaxDailyLossPct = this.env.MAX_DAILY_LOSS_PCT;
       const validPct = (value: string | undefined): boolean =>
         value !== undefined && value.trim() !== "" &&
         Number.isFinite(Number(value)) && Number(value) > 0 && Number(value) <= 100;
-      if (!validPct(rawMaxOrderPct) || !validPct(rawMaxExposurePct)) {
+      if (!validPct(rawMaxOrderPct) || !validPct(rawMaxExposurePct) || !validPct(rawMaxDailyLossPct)) {
         invalidDecision = true;
         return;
       }
       const limits = riskLimits(this.env as Parameters<typeof riskLimits>[0]);
       const maxOrderPpm = parseFixed(String(limits.maxOrderPct), 1_000_000n, 6);
       const maxExposurePpm = parseFixed(String(limits.maxTotalExposurePct), 1_000_000n, 6);
+      const maxDailyLossPpm = parseFixed(String(limits.maxDailyLossPct), 1_000_000n, 6);
       if (maxOrderPpm <= 0n || maxOrderPpm > 100_000_000n ||
-          maxExposurePpm <= 0n || maxExposurePpm > 100_000_000n) {
+          maxExposurePpm <= 0n || maxExposurePpm > 100_000_000n ||
+          maxDailyLossPpm <= 0n || maxDailyLossPpm > 100_000_000n) {
         invalidDecision = true;
         return;
       }
-      // margin_micro is stored as decimal TEXT to preserve exact fixed-point
-      // values beyond SQLite's signed 64-bit integer range. Sum in JS BigInt;
-      // SQLite SUM(CAST(...)) can overflow or silently narrow large balances.
-      const openMarginRows = this.ctx.storage.sql.exec(
-        "SELECT margin_micro FROM ai_paper_positions WHERE user_id = ? AND status = 'open'",
-        userId,
-      ).toArray() as Array<{ margin_micro: string }>;
-      let openMargin = 0n;
-      for (const row of openMarginRows) {
-        const margin = BigInt(row.margin_micro);
-        if (margin < 0n) { invalidDecision = true; return; }
-        openMargin += margin;
+
+      const now = Date.now();
+      const decisionObservedAt = Number(decision.created_at);
+      const decisionMark = parseDecimal8(decision.observed_price);
+      if (parseFreshAiPaperMark(decision.observed_price, decisionObservedAt, now) === null ||
+          decisionMark === null || decisionMark <= 0n) {
+        invalidMark = true;
+        return;
       }
-      const equity = before + openMargin;
+      const markFor = (market: string): bigint | null => {
+        const row = this.ctx.storage.sql.exec(
+          "SELECT observed_price, created_at FROM ai_paper_decisions WHERE user_id = ? AND symbol = ? ORDER BY created_at DESC, id DESC LIMIT 1",
+          userId, market,
+        ).toArray()[0] as { observed_price: string; created_at: number } | undefined;
+        if (!row) return null;
+        return parseFreshAiPaperMark(row.observed_price, row.created_at, now);
+      };
+
+      // Every existing open symbol must have a complete, recent server-recorded mark.
+      const openRows = this.ctx.storage.sql.exec(
+        "SELECT symbol, side, qty_units, entry_price, margin_micro, fees_micro, slippage_micro FROM ai_paper_positions WHERE user_id = ? AND status = 'open'",
+        userId,
+      ).toArray() as Array<{ symbol: string; side: string; qty_units: string; entry_price: string; margin_micro: string; fees_micro: string; slippage_micro: string }>;
+      let openMargin = 0n;
+      let unrealizedEquity = 0n;
+      let unrealizedDailyPnl = 0n;
+      for (const row of openRows) {
+        const mark = markFor(row.symbol);
+        const quantity = parseDecimal8(row.qty_units);
+        const entry = parseDecimal8(row.entry_price);
+        const marginValue = /^\d{1,20}$/.test(row.margin_micro) ? BigInt(row.margin_micro) : -1n;
+        const openFees = /^\d{1,20}$/.test(row.fees_micro) ? BigInt(row.fees_micro) : -1n;
+        const openSlippage = /^\d{1,20}$/.test(row.slippage_micro) ? BigInt(row.slippage_micro) : -1n;
+        if (mark === null || mark <= 0n || quantity === null || quantity <= 0n || entry === null || entry <= 0n ||
+            marginValue < 0n || openFees < 0n || openSlippage < 0n ||
+            (row.side !== "long" && row.side !== "short")) {
+          invalidMark = true;
+          return;
+        }
+        const entryNotional = quantity * entry / 10_000_000_000n;
+        const markNotional = quantity * mark / 10_000_000_000n;
+        const exitFeeEstimate = estimateProportionalCost(openFees, entryNotional, markNotional);
+        const exitSlippageEstimate = estimateProportionalCost(openSlippage, entryNotional, markNotional);
+        if (exitFeeEstimate === null || exitSlippageEstimate === null) { invalidMark = true; return; }
+        const delta = row.side === "long" ? mark - entry : entry - mark;
+        const gross = quantity * delta / 10_000_000_000n;
+        openMargin += marginValue;
+        // Entry costs already reduced free balance; do not subtract them twice from equity.
+        unrealizedEquity += gross - exitFeeEstimate - exitSlippageEstimate;
+        // Daily PnL includes the complete round-trip cost of the still-open position.
+        unrealizedDailyPnl += gross - openFees - openSlippage - exitFeeEstimate - exitSlippageEstimate;
+      }
+
+      // Realized PnL uses durable close results, never ledger payout amounts.
+      const utc = new Date(now);
+      const dayStart = Date.UTC(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate());
+      const closedRows = this.ctx.storage.sql.exec(
+        "SELECT close_json FROM ai_paper_positions WHERE user_id = ? AND status = 'closed' AND closed_at >= ? AND closed_at <= ?",
+        userId, dayStart, now,
+      ).toArray() as Array<{ close_json: string | null }>;
+      let realizedToday = 0n;
+      for (const row of closedRows) {
+        if (!row.close_json) { invalidMark = true; return; }
+        let close: { netPnlMicro?: string };
+        try { close = JSON.parse(row.close_json) as { netPnlMicro?: string }; }
+        catch { invalidMark = true; return; }
+        if (typeof close.netPnlMicro !== "string" || !/^(?:0|-?[1-9]\d{0,19})$/.test(close.netPnlMicro)) {
+          invalidMark = true;
+          return;
+        }
+        realizedToday += BigInt(close.netPnlMicro);
+      }
+
+      const equity = before + openMargin + unrealizedEquity;
+      if (equity <= 0n) { positionLimitExceeded = true; return; }
       const maxOrderReserve = divRound(equity * maxOrderPpm, 100n * 1_000_000n, "floor");
       const maxAggregateMargin = divRound(equity * maxExposurePpm, 100n * 1_000_000n, "floor");
-      if (equity <= 0n || reserve > maxOrderReserve || openMargin + margin > maxAggregateMargin) {
+      if (reserve > maxOrderReserve || openMargin + margin > maxAggregateMargin) {
         positionLimitExceeded = true;
+        return;
+      }
+      const newQuantity = parseDecimal8(qtyUnits);
+      const newEntry = parseDecimal8(entryPrice);
+      const newEntryNotional = newQuantity !== null && newEntry !== null
+        ? newQuantity * newEntry / 10_000_000_000n
+        : 0n;
+      const newMarkNotional = newQuantity !== null
+        ? newQuantity * decisionMark / 10_000_000_000n
+        : 0n;
+      const newFees = BigInt(rawFees);
+      const newSlippage = BigInt(rawSlippage);
+      const newExitFeeEstimate = estimateProportionalCost(newFees, newEntryNotional, newMarkNotional);
+      const newExitSlippageEstimate = estimateProportionalCost(newSlippage, newEntryNotional, newMarkNotional);
+      if (newQuantity === null || newEntry === null || newEntryNotional <= 0n ||
+          newExitFeeEstimate === null || newExitSlippageEstimate === null) {
+        invalidMark = true;
+        return;
+      }
+      // Include the proposed order's entry costs and a conservative same-rate exit-cost estimate.
+      const dailyPnlAfterEntry = realizedToday + unrealizedDailyPnl -
+        newFees - newSlippage - newExitFeeEstimate - newExitSlippageEstimate;
+      const dailyLossLimit = divRound(equity * maxDailyLossPpm, 100n * 1_000_000n, "floor");
+      if (dailyLossLimit <= 0n || dailyPnlAfterEntry <= -dailyLossLimit) {
+        dailyLossExceeded = true;
         return;
       }
       balanceAfter = before - reserve;
@@ -648,6 +760,8 @@ export class TradingEngine {
 
     if (conflict) return Response.json({ ok: false, error: "Idempotency key уже использован с другой операцией или параметрами позиции." }, { status: 409 });
     if (invalidDecision) return Response.json({ ok: false, error: "Нет действующего одобренного AI paper решения или счёта для этой позиции." }, { status: 409 });
+    if (invalidMark) return Response.json({ ok: false, error: "Нет полного свежего ценового снимка для всех открытых AI paper позиций. Новые сделки заблокированы." }, { status: 409 });
+    if (dailyLossExceeded) return Response.json({ ok: false, error: "Достигнут серверный дневной лимит убытка AI paper. Новые сделки заблокированы до 00:00 UTC." }, { status: 409 });
     if (sessionInactive) return Response.json({ ok: false, error: "AI paper сессия остановлена. Запустите её явно перед открытием позиции." }, { status: 409 });
     if (openPositionExists) return Response.json({ ok: false, error: "Для этого инструмента уже открыта AI paper позиция." }, { status: 409 });
     if (positionLimitExceeded) return Response.json({ ok: false, error: "Достигнут лимит в три одновременно открытые AI paper позиции." }, { status: 409 });
