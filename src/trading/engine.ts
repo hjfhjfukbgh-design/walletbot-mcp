@@ -223,7 +223,7 @@ export class TradingEngine {
         if (!/^\d{1,20}$/.test(userId) || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
           return Response.json({ ok: false, error: "Некорректные параметры истории AI paper решений." }, { status: 400 });
         const rows = this.ctx.storage.sql.exec(
-          "SELECT id, tick_id, strategy_id, strategy_version, market_snapshot_hash, symbol, signal, rationale, confidence, observed_price, risk_pass, risk_evaluated, rejection_reason, position_id, snapshot_retrieved_at, created_at FROM ai_paper_decisions WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
+          "SELECT d.id, d.tick_id, d.strategy_id, d.strategy_version, d.market_snapshot_hash, d.symbol, d.signal, d.rationale, d.confidence, d.observed_price, d.risk_pass, d.risk_evaluated, d.rejection_reason, d.position_id, d.snapshot_retrieved_at, d.created_at, s.payload_json AS snapshot_payload_json FROM ai_paper_decisions d LEFT JOIN ai_paper_market_snapshots s ON s.snapshot_hash = d.market_snapshot_hash WHERE d.user_id = ? ORDER BY d.created_at DESC, d.id DESC LIMIT ?",
           userId, limit,
         ).toArray() as Array<Record<string, unknown>>;
         return jsonResponse({ ok: true, decisions: rows.map(row => ({
@@ -231,7 +231,9 @@ export class TradingEngine {
           marketSnapshotHash: row.market_snapshot_hash, symbol: row.symbol, signal: row.signal,
           rationale: row.rationale, confidence: row.confidence, observedPrice: row.observed_price,
           riskPass: Number(row.risk_pass) === 1, riskEvaluated: Number(row.risk_evaluated) === 1, rejectionReason: row.rejection_reason,
-          positionId: row.position_id, snapshotRetrievedAt: Number(row.snapshot_retrieved_at) || null, createdAt: row.created_at,
+          positionId: row.position_id, snapshotRetrievedAt: Number(row.snapshot_retrieved_at) || null,
+          snapshotPayload: (() => { try { return row.snapshot_payload_json ? JSON.parse(String(row.snapshot_payload_json)) : null; } catch { return null; } })(),
+          createdAt: row.created_at,
         })) });
       }
       if (request.method === "GET" && url.pathname === "/ai/paper/positions") {
