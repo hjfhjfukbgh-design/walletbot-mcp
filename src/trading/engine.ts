@@ -62,6 +62,16 @@ function estimateProportionalCost(cost: bigint, entryNotional: bigint, markNotio
  * One account-wide coordinator. SQLite is the source of truth; all quote and
  * trigger indexes are disposable caches rebuilt from SQLite after every eviction.
  */
+export function ensureAiPaperDecisionColumns(sql: { exec: (query: string) => { toArray: () => unknown[] } }): void {
+  const columns = sql.exec("PRAGMA table_info(ai_paper_decisions)").toArray() as Array<{ name: string }>;
+  if (!columns.some((column) => column.name === "snapshot_retrieved_at")) {
+    sql.exec("ALTER TABLE ai_paper_decisions ADD COLUMN snapshot_retrieved_at INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!columns.some((column) => column.name === "risk_evaluated")) {
+    sql.exec("ALTER TABLE ai_paper_decisions ADD COLUMN risk_evaluated INTEGER NOT NULL DEFAULT 0");
+  }
+}
+
 export class TradingEngine {
   private quotes = new Map<string, Quote>();
   private positions = new Map<string, Position>();
@@ -100,13 +110,7 @@ export class TradingEngine {
     sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_positions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL, qty_units TEXT NOT NULL, entry_price TEXT NOT NULL, margin_micro TEXT NOT NULL, leverage TEXT NOT NULL, fees_micro TEXT NOT NULL, slippage_micro TEXT NOT NULL, stop_loss_price TEXT, take_profit_price TEXT, status TEXT NOT NULL, opened_at INTEGER NOT NULL, closed_at INTEGER, close_json TEXT)");
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_positions_user_status ON ai_paper_positions(user_id, status)");
     sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decisions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tick_id TEXT NOT NULL, strategy_id TEXT NOT NULL, strategy_version TEXT NOT NULL, market_snapshot_hash TEXT NOT NULL, symbol TEXT NOT NULL, signal TEXT NOT NULL, rationale TEXT NOT NULL, confidence REAL, observed_price TEXT NOT NULL, risk_pass INTEGER NOT NULL, risk_evaluated INTEGER NOT NULL DEFAULT 0, rejection_reason TEXT, position_id TEXT, snapshot_retrieved_at INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, UNIQUE(user_id, tick_id, symbol))");
-    const decisionColumns = sql.exec("PRAGMA table_info(ai_paper_decisions)").toArray() as Array<{ name: string }>;
-    if (!decisionColumns.some((column) => column.name === "snapshot_retrieved_at")) {
-      sql.exec("ALTER TABLE ai_paper_decisions ADD COLUMN snapshot_retrieved_at INTEGER NOT NULL DEFAULT 0");
-    }
-    if (!decisionColumns.some((column) => column.name === "risk_evaluated")) {
-      sql.exec("ALTER TABLE ai_paper_decisions ADD COLUMN risk_evaluated INTEGER NOT NULL DEFAULT 0");
-    }
+    ensureAiPaperDecisionColumns(sql);
     sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_market_snapshots (snapshot_hash TEXT PRIMARY KEY, source TEXT NOT NULL, retrieved_at INTEGER NOT NULL, payload_json TEXT NOT NULL, created_at INTEGER NOT NULL)");
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decisions_user_created ON ai_paper_decisions(user_id, created_at)");
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decisions_user_tick ON ai_paper_decisions(user_id, tick_id, created_at DESC)");
