@@ -989,6 +989,8 @@ export class TradingEngine {
     const fencingToken = body.fencingToken === undefined ? null : Number(body.fencingToken);
     if (fencingToken !== null && (!Number.isSafeInteger(fencingToken) || fencingToken < 1))
       return Response.json({ ok: false, error: "Некорректный fencing token AI paper." }, { status: 400 });
+    if (strategyId === "gemini-paper" && fencingToken === null)
+      return Response.json({ ok: false, error: "Gemini PAPER решения требуют действующий claim и fencing token." }, { status: 400 });
     if (!/^\d{1,20}$/.test(userId) ||
         !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
         !/^[A-Za-z0-9._:-]{1,64}$/.test(strategyId) ||
