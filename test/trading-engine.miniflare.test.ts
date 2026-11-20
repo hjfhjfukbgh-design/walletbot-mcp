@@ -63,8 +63,15 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   }
 
   async function post(stub: EngineStub, path: string, body: Record<string, unknown>) {
+    const requestBody = { ...body };
+    if (requestBody.strategyId === "gemini-paper" && requestBody.snapshotPayload &&
+        requestBody.skipSnapshotHash !== true) {
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(requestBody.snapshotPayload)));
+      requestBody.marketSnapshotHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    }
+    delete requestBody.skipSnapshotHash;
     const response = await stub.fetch("https://engine.test" + path, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody),
     });
     return { status: response.status, body: await response.json() as Record<string, any> };
   }
@@ -411,6 +418,16 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
       marketSnapshotHash: "c".repeat(64), symbol: "BTC", signal: "buy",
       rationale: "Server snapshot validated.", confidence: 0.8, observedPrice: "50000", riskPass: false, riskEvaluated: false,
     };
+    const badHashTick = "tick-server-mark-bad-hash";
+    const badHashToken = await claimGeminiDecision(stub, owner, badHashTick);
+    const badHashPayload = { source: "hyperliquid-public", retrievedAt: Date.now(), markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] };
+    const badHash = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: badHashTick, fencingToken: badHashToken, marketSnapshotHash: "0".repeat(64),
+      snapshotRetrievedAt: badHashPayload.retrievedAt, snapshotPayload: badHashPayload, skipSnapshotHash: true,
+    });
+    expect(badHash.status).toBe(400);
+    await post(stub, "/ai/paper/decision/unknown", { userId: owner, tickId: badHashTick, fencingToken: badHashToken });
+
     const noClaim = await post(stub, "/ai/paper/decision", {
       ...base, tickId: "tick-server-mark-no-claim", snapshotRetrievedAt: Date.now(), snapshotPayload: { source: "hyperliquid-public", retrievedAt: Date.now(), markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
     });
