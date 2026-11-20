@@ -709,9 +709,28 @@ export class TradingEngine {
         positionLimitExceeded = true;
         return;
       }
-      const dailyPnl = realizedToday + unrealized;
+      const newQuantity = parseDecimal8(qtyUnits);
+      const newEntry = parseDecimal8(entryPrice);
+      const newEntryNotional = newQuantity !== null && newEntry !== null
+        ? newQuantity * newEntry / 10_000_000_000n
+        : 0n;
+      const newMarkNotional = newQuantity !== null
+        ? newQuantity * decisionMark / 10_000_000_000n
+        : 0n;
+      const newFees = BigInt(rawFees);
+      const newSlippage = BigInt(rawSlippage);
+      const newExitFeeEstimate = estimateProportionalCost(newFees, newEntryNotional, newMarkNotional);
+      const newExitSlippageEstimate = estimateProportionalCost(newSlippage, newEntryNotional, newMarkNotional);
+      if (newQuantity === null || newEntry === null || newEntryNotional <= 0n ||
+          newExitFeeEstimate === null || newExitSlippageEstimate === null) {
+        invalidMark = true;
+        return;
+      }
+      // Include the proposed order's entry costs and a conservative same-rate exit-cost estimate.
+      const dailyPnlAfterEntry = realizedToday + unrealized -
+        newFees - newSlippage - newExitFeeEstimate - newExitSlippageEstimate;
       const dailyLossLimit = divRound(equity * maxDailyLossPpm, 100n * 1_000_000n, "floor");
-      if (dailyLossLimit <= 0n || dailyPnl <= -dailyLossLimit) {
+      if (dailyLossLimit <= 0n || dailyPnlAfterEntry <= -dailyLossLimit) {
         dailyLossExceeded = true;
         return;
       }
