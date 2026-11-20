@@ -99,8 +99,9 @@ export class TradingEngine {
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_ledger_user_created ON ai_paper_ledger(user_id, created_at)");
     sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_positions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL, qty_units TEXT NOT NULL, entry_price TEXT NOT NULL, margin_micro TEXT NOT NULL, leverage TEXT NOT NULL, fees_micro TEXT NOT NULL, slippage_micro TEXT NOT NULL, stop_loss_price TEXT, take_profit_price TEXT, status TEXT NOT NULL, opened_at INTEGER NOT NULL, closed_at INTEGER, close_json TEXT)");
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_positions_user_status ON ai_paper_positions(user_id, status)");
-    sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decisions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tick_id TEXT NOT NULL, strategy_id TEXT NOT NULL, strategy_version TEXT NOT NULL, market_snapshot_hash TEXT NOT NULL, symbol TEXT NOT NULL, signal TEXT NOT NULL, rationale TEXT NOT NULL, confidence REAL, observed_price TEXT NOT NULL, risk_pass INTEGER NOT NULL, rejection_reason TEXT, position_id TEXT, snapshot_retrieved_at INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, UNIQUE(user_id, tick_id, symbol))");
+    sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decisions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tick_id TEXT NOT NULL, strategy_id TEXT NOT NULL, strategy_version TEXT NOT NULL, market_snapshot_hash TEXT NOT NULL, symbol TEXT NOT NULL, signal TEXT NOT NULL, rationale TEXT NOT NULL, confidence REAL, observed_price TEXT NOT NULL, risk_pass INTEGER NOT NULL, risk_evaluated INTEGER NOT NULL DEFAULT 0, rejection_reason TEXT, position_id TEXT, snapshot_retrieved_at INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, UNIQUE(user_id, tick_id, symbol))");
     try { sql.exec("ALTER TABLE ai_paper_decisions ADD COLUMN snapshot_retrieved_at INTEGER NOT NULL DEFAULT 0"); } catch { /* Column already exists. */ }
+    try { sql.exec("ALTER TABLE ai_paper_decisions ADD COLUMN risk_evaluated INTEGER NOT NULL DEFAULT 0"); } catch { /* Column already exists. */ }
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decisions_user_created ON ai_paper_decisions(user_id, created_at)");
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decisions_user_tick ON ai_paper_decisions(user_id, tick_id, created_at DESC)");
     sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decision_runs (user_id TEXT NOT NULL, tick_id TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'claimed', lease_expires_at INTEGER NOT NULL, external_started_at INTEGER, fencing_token INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(user_id, tick_id))");
@@ -172,7 +173,7 @@ export class TradingEngine {
         const now = Date.now();
         this.ctx.storage.transactionSync(() => {
           row = this.ctx.storage.sql.exec(
-            "SELECT id, tick_id, market_snapshot_hash, symbol, signal, rationale, confidence, snapshot_retrieved_at, created_at FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? ORDER BY created_at DESC, id DESC LIMIT 1",
+            "SELECT id, tick_id, market_snapshot_hash, symbol, signal, rationale, confidence, risk_pass, risk_evaluated, rejection_reason, snapshot_retrieved_at, created_at FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? ORDER BY created_at DESC, id DESC LIMIT 1",
             userId, tickId,
           ).toArray()[0] as Record<string, unknown> | undefined;
           if (row) {
@@ -202,7 +203,7 @@ export class TradingEngine {
         if (row) return Response.json({ ok: true, state: "completed", decision: {
           id: row.id, tickId: row.tick_id, marketSnapshotHash: row.market_snapshot_hash,
           symbol: row.symbol, signal: row.signal, rationale: row.rationale,
-          confidence: row.confidence === null ? null : Number(row.confidence), snapshotRetrievedAt: Number(row.snapshot_retrieved_at) || null, createdAt: Number(row.created_at),
+          confidence: row.confidence === null ? null : Number(row.confidence), riskPass: Number(row.risk_pass) === 1, riskEvaluated: Number(row.risk_evaluated) === 1, rejectionReason: row.rejection_reason, snapshotRetrievedAt: Number(row.snapshot_retrieved_at) || null, createdAt: Number(row.created_at),
         } });
         if (pendingState === "external_outcome_unknown")
           return Response.json({ ok: false, state: pendingState, error: "Внешний вызов мог завершиться до сохранения результата. Автоматический повтор заблокирован." }, { status: 409 });
@@ -216,14 +217,14 @@ export class TradingEngine {
         if (!/^\d{1,20}$/.test(userId) || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
           return Response.json({ ok: false, error: "Некорректные параметры истории AI paper решений." }, { status: 400 });
         const rows = this.ctx.storage.sql.exec(
-          "SELECT id, tick_id, strategy_id, strategy_version, market_snapshot_hash, symbol, signal, rationale, confidence, observed_price, risk_pass, rejection_reason, position_id, snapshot_retrieved_at, created_at FROM ai_paper_decisions WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
+          "SELECT id, tick_id, strategy_id, strategy_version, market_snapshot_hash, symbol, signal, rationale, confidence, observed_price, risk_pass, risk_evaluated, rejection_reason, position_id, snapshot_retrieved_at, created_at FROM ai_paper_decisions WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
           userId, limit,
         ).toArray() as Array<Record<string, unknown>>;
         return jsonResponse({ ok: true, decisions: rows.map(row => ({
           id: row.id, tickId: row.tick_id, strategyId: row.strategy_id, strategyVersion: row.strategy_version,
           marketSnapshotHash: row.market_snapshot_hash, symbol: row.symbol, signal: row.signal,
           rationale: row.rationale, confidence: row.confidence, observedPrice: row.observed_price,
-          riskPass: Number(row.risk_pass) === 1, rejectionReason: row.rejection_reason,
+          riskPass: Number(row.risk_pass) === 1, riskEvaluated: Number(row.risk_evaluated) === 1, rejectionReason: row.rejection_reason,
           positionId: row.position_id, snapshotRetrievedAt: Number(row.snapshot_retrieved_at) || null, createdAt: row.created_at,
         })) });
       }
@@ -840,7 +841,7 @@ export class TradingEngine {
     let fencingToken = 1;
     this.ctx.storage.transactionSync(() => {
       existing = this.ctx.storage.sql.exec(
-        "SELECT id, tick_id, market_snapshot_hash, symbol, signal, rationale, confidence, snapshot_retrieved_at, created_at FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? ORDER BY created_at DESC, id DESC LIMIT 1",
+        "SELECT id, tick_id, market_snapshot_hash, symbol, signal, rationale, confidence, risk_pass, risk_evaluated, rejection_reason, snapshot_retrieved_at, created_at FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? ORDER BY created_at DESC, id DESC LIMIT 1",
         userId, tickId,
       ).toArray()[0] as Record<string, unknown> | undefined;
       if (existing) {
@@ -884,7 +885,7 @@ export class TradingEngine {
     if (existing) return Response.json({ ok: true, state: "completed", decision: {
       id: existing.id, tickId: existing.tick_id, marketSnapshotHash: existing.market_snapshot_hash,
       symbol: existing.symbol, signal: existing.signal, rationale: existing.rationale,
-      confidence: existing.confidence === null ? null : Number(existing.confidence), snapshotRetrievedAt: Number(existing.snapshot_retrieved_at) || null, createdAt: Number(existing.created_at),
+      confidence: existing.confidence === null ? null : Number(existing.confidence), riskPass: Number(existing.risk_pass) === 1, riskEvaluated: Number(existing.risk_evaluated) === 1, rejectionReason: existing.rejection_reason, snapshotRetrievedAt: Number(existing.snapshot_retrieved_at) || null, createdAt: Number(existing.created_at),
     } });
     if (outcomeUnknown) return Response.json({ ok: false, state: "external_outcome_unknown", error: "Внешний вызов мог завершиться до сохранения результата. Автоматический повтор заблокирован." }, { status: 409 });
     if (inProgress) return Response.json({ ok: false, state: "in_progress", error: "Запуск AI PAPER уже выполняется." }, { status: 409 });
@@ -985,13 +986,14 @@ export class TradingEngine {
     const confidence = body.confidence === undefined || body.confidence === null ? null : Number(body.confidence);
     const observedPrice = String(body.observedPrice ?? "");
     const riskPass = body.riskPass;
+    const riskEvaluated = body.riskEvaluated === undefined ? true : body.riskEvaluated;
     const rejectionReason = body.rejectionReason === undefined || body.rejectionReason === null ? null : String(body.rejectionReason).trim();
     const positionId = body.positionId === undefined || body.positionId === null ? null : String(body.positionId);
     const fencingToken = body.fencingToken === undefined ? null : Number(body.fencingToken);
     if (fencingToken !== null && (!Number.isSafeInteger(fencingToken) || fencingToken < 1))
       return Response.json({ ok: false, error: "Некорректный fencing token AI paper." }, { status: 400 });
-    if (strategyId === "gemini-paper" && fencingToken === null)
-      return Response.json({ ok: false, error: "Gemini PAPER решения требуют действующий claim и fencing token." }, { status: 400 });
+    if (strategyId === "gemini-paper" && (fencingToken === null || body.riskEvaluated !== false || body.riskPass !== false))
+      return Response.json({ ok: false, error: "Gemini PAPER решения требуют claim и явно непроверенный риск до отдельного risk-gate." }, { status: 400 });
     if (!/^\d{1,20}$/.test(userId) ||
         !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
         !/^[A-Za-z0-9._:-]{1,64}$/.test(strategyId) ||
@@ -1003,8 +1005,10 @@ export class TradingEngine {
         !/^(?:0|[1-9]\d{0,15})(?:\.\d{1,8})?$/.test(observedPrice) ||
         !Number.isFinite(Number(observedPrice)) || Number(observedPrice) <= 0 ||
         typeof riskPass !== "boolean" ||
+        typeof riskEvaluated !== "boolean" ||
         (rejectionReason !== null && rejectionReason.length > 300) ||
-        (riskPass === false && !rejectionReason) ||
+        (riskPass === false && riskEvaluated && !rejectionReason) ||
+        (!riskEvaluated && riskPass) ||
         (positionId !== null && !/^[A-Za-z0-9._:-]{1,128}$/.test(positionId))) {
       return Response.json({ ok: false, error: "Некорректные параметры решения AI paper." }, { status: 400 });
     }
@@ -1020,7 +1024,7 @@ export class TradingEngine {
     let decisionId = id;
     this.ctx.storage.transactionSync(() => {
       const existing = this.ctx.storage.sql.exec(
-        "SELECT id, strategy_id, strategy_version, market_snapshot_hash, signal, rationale, confidence, observed_price, risk_pass, rejection_reason, position_id, snapshot_retrieved_at FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? AND symbol = ?",
+        "SELECT id, strategy_id, strategy_version, market_snapshot_hash, signal, rationale, confidence, observed_price, risk_pass, risk_evaluated, rejection_reason, position_id, snapshot_retrieved_at FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? AND symbol = ?",
         userId, tickId, symbol,
       ).toArray()[0] as Record<string, unknown> | undefined;
       if (existing) {
@@ -1033,6 +1037,7 @@ export class TradingEngine {
           (existing.confidence === null ? confidence === null : Number(existing.confidence) === confidence) &&
           String(existing.observed_price) === observedPrice &&
           Number(existing.risk_pass) === (riskPass ? 1 : 0) &&
+          Number(existing.risk_evaluated) === (riskEvaluated ? 1 : 0) &&
           (existing.rejection_reason === null ? rejectionReason === null : String(existing.rejection_reason) === rejectionReason) &&
           (existing.position_id === null ? positionId === null : String(existing.position_id) === positionId) &&
           Number(existing.snapshot_retrieved_at) === snapshotRetrievedAt;
@@ -1059,9 +1064,9 @@ export class TradingEngine {
         return;
       }
       this.ctx.storage.sql.exec(
-        "INSERT INTO ai_paper_decisions(id,user_id,tick_id,strategy_id,strategy_version,market_snapshot_hash,symbol,signal,rationale,confidence,observed_price,risk_pass,rejection_reason,position_id,snapshot_retrieved_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO ai_paper_decisions(id,user_id,tick_id,strategy_id,strategy_version,market_snapshot_hash,symbol,signal,rationale,confidence,observed_price,risk_pass,risk_evaluated,rejection_reason,position_id,snapshot_retrieved_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         id, userId, tickId, strategyId, strategyVersion, marketSnapshotHash, symbol, signal, rationale,
-        confidence, observedPrice, riskPass ? 1 : 0, rejectionReason, positionId, snapshotRetrievedAt, now,
+        confidence, observedPrice, riskPass ? 1 : 0, riskEvaluated ? 1 : 0, rejectionReason, positionId, snapshotRetrievedAt, now,
       );
       this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?", userId, tickId);
     });
