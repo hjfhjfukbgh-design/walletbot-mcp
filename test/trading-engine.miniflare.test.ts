@@ -577,7 +577,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const openedEth = await paperOpen(stub, owner, eth.body.id, "ETH", "long", "0.1", "2500", 25n * U, "open-multi-mark-eth", U, U);
     expect(openedEth.status).toBe(201);
     await new Promise(resolve => setTimeout(resolve, 5));
-    const btcRefresh = await paperDecision(stub, owner, "BTC", "hold", "50000", "tick-multi-mark-btc-refresh");
+    await paperDecision(stub, owner, "BTC", "hold", "50000", "tick-multi-mark-btc-refresh");
     await mutateEngineSql(
       "UPDATE ai_paper_decisions SET created_at = ? WHERE user_id = ? AND symbol = ?",
       Date.now() - 10 * 60_000 - 1, owner, "BTC",
