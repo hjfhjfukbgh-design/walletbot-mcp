@@ -142,8 +142,9 @@ describe("CompanionConversation SQLite integration",()=>{
     const claim=await post(object,"/claim",{...identity(tenantA),requestId:"request-unknown-1",leaseMs:1000});
     const token=Number(claim.body.fencingToken);
     await post(object,"/provider-started",{...identity(tenantA),requestId:"request-unknown-1",fencingToken:token});
-    const recovered=await post(object,"/internal/recover",{...identity(tenantA),now:Date.now()+5_000});
-    expect(recovered.body.recovered).toBe(1);
+    await new Promise(resolve=>setTimeout(resolve,1_050));
+    const recovered=await post(object,"/internal/alarm",identity(tenantA));
+    expect(recovered.status).toBe(200);
     const status=await get(object,"/status?tenantId="+tenantA+"&conversationId="+conversationId+"&requestId=request-unknown-1");
     expect(status.body.state).toBe("provider_outcome_unknown");
     const retry=await post(object,"/claim",{...identity(tenantA),requestId:"request-unknown-1"});
@@ -156,8 +157,9 @@ describe("CompanionConversation SQLite integration",()=>{
     const object=stub(tenantA);
     await enqueue(object,tenantA,"request-recover-01","Not sent");
     await post(object,"/claim",{...identity(tenantA),requestId:"request-recover-01",leaseMs:1000});
-    const recovered=await post(object,"/internal/recover",{...identity(tenantA),now:Date.now()+5_000});
-    expect(recovered.body.recovered).toBe(1);
+    await new Promise(resolve=>setTimeout(resolve,1_050));
+    const recovered=await post(object,"/internal/alarm",identity(tenantA));
+    expect(recovered.status).toBe(200);
     const status=await get(object,"/status?tenantId="+tenantA+"&conversationId="+conversationId+"&requestId=request-recover-01");
     expect(status.body.state).toBe("queued");
     const retry=await post(object,"/claim",{...identity(tenantA),requestId:"request-recover-01"});

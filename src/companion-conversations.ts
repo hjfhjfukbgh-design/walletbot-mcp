@@ -103,7 +103,7 @@ export class CompanionConversation {
         case "/provider-started": return this.providerStarted(body);
         case "/finalize": return this.finalize(body);
         case "/fail": return this.fail(body);
-        case "/internal/recover": return this.recoverEndpoint(body);
+        case "/internal/alarm": return this.runAlarm();
         default: return json({ok:false,error:"Маршрут не найден."},404);
       }
     }
@@ -290,10 +290,9 @@ export class CompanionConversation {
     return json(result.body,result.status);
   }
 
-  private recoverEndpoint(body:Record<string,unknown>):Response {
-    const now=Number.isSafeInteger(body.now)?Number(body.now):Date.now();
-    const recovered=this.recoverExpired(now);
-    return json({ok:true,recovered});
+  private async runAlarm():Promise<Response> {
+    await this.alarm();
+    return json({ok:true});
   }
 
   private recoverExpired(now:number):number {
