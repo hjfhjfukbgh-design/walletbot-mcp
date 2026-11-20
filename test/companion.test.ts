@@ -5,6 +5,8 @@ import { handleCompanionApi } from "../src/companion";
 import type { Env } from "../src/env";
 import { env as baseEnv, memoryQuota } from "./helpers";
 
+type TestConversation = { id:string; title:string; createdAt:string; updatedAt:string; mode?:string; messages:Array<{role:"user"|"assistant";content:string;createdAt:string;sources?:Array<{title:string;url:string}>}> };
+
 function isolatedEnv(seed: Record<string, string> = {}, quotaSeed: Record<string, number> = {}): Env {
   const e = baseEnv();
   e.COMPANION_QUOTA = memoryQuota(quotaSeed);
@@ -571,9 +573,9 @@ describe("AI Companion API", () => {
     const e=isolatedEnv({["tenant:111:companion:conversation:"+id]:JSON.stringify(legacy)});
     const first=await call(e,"111","/api/companion/conversations/"+id);
     expect(first.status).toBe(200);
-    const body=await first.json() as {conversation:Conversation};
+    const body=await first.json() as {conversation:TestConversation};
     expect(body.conversation.messages.map(message=>message.content)).toEqual(["Старый вопрос","Старый ответ"]);
-    const backup=await e.STATE.get("tenant:111:companion:legacy:"+id,"json") as Conversation;
+    const backup=await e.STATE.get("tenant:111:companion:legacy:"+id,"json") as TestConversation;
     expect(backup.messages).toHaveLength(2);
     const index=await e.STATE.get("tenant:111:companion:conversation:"+id,"json") as {messageCount:number;mode:string};
     expect(index).toMatchObject({messageCount:2,mode:"learning"});
