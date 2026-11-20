@@ -99,8 +99,14 @@ export class TradingEngine {
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_ledger_user_created ON ai_paper_ledger(user_id, created_at)");
     sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_positions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL, qty_units TEXT NOT NULL, entry_price TEXT NOT NULL, margin_micro TEXT NOT NULL, leverage TEXT NOT NULL, fees_micro TEXT NOT NULL, slippage_micro TEXT NOT NULL, stop_loss_price TEXT, take_profit_price TEXT, status TEXT NOT NULL, opened_at INTEGER NOT NULL, closed_at INTEGER, close_json TEXT)");
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_positions_user_status ON ai_paper_positions(user_id, status)");
-    sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decisions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tick_id TEXT NOT NULL, strategy_id TEXT NOT NULL, strategy_version TEXT NOT NULL, market_snapshot_hash TEXT NOT NULL, symbol TEXT NOT NULL, signal TEXT NOT NULL, rationale TEXT NOT NULL, confidence REAL, observed_price TEXT NOT NULL, risk_pass INTEGER NOT NULL, rejection_reason TEXT, position_id TEXT, created_at INTEGER NOT NULL, UNIQUE(user_id, tick_id, symbol))");
+    sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decisions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tick_id TEXT NOT NULL, strategy_id TEXT NOT NULL, strategy_version TEXT NOT NULL, market_snapshot_hash TEXT NOT NULL, symbol TEXT NOT NULL, signal TEXT NOT NULL, rationale TEXT NOT NULL, confidence REAL, observed_price TEXT NOT NULL, risk_pass INTEGER NOT NULL, risk_evaluated INTEGER NOT NULL DEFAULT 0, rejection_reason TEXT, position_id TEXT, snapshot_retrieved_at INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, UNIQUE(user_id, tick_id, symbol))");
+    try { sql.exec("ALTER TABLE ai_paper_decisions ADD COLUMN snapshot_retrieved_at INTEGER NOT NULL DEFAULT 0"); } catch { /* Column already exists. */ }
+    try { sql.exec("ALTER TABLE ai_paper_decisions ADD COLUMN risk_evaluated INTEGER NOT NULL DEFAULT 0"); } catch { /* Column already exists. */ }
+    sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_market_snapshots (snapshot_hash TEXT PRIMARY KEY, source TEXT NOT NULL, retrieved_at INTEGER NOT NULL, payload_json TEXT NOT NULL, created_at INTEGER NOT NULL)");
     sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decisions_user_created ON ai_paper_decisions(user_id, created_at)");
+    sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decisions_user_tick ON ai_paper_decisions(user_id, tick_id, created_at DESC)");
+    sql.exec("CREATE TABLE IF NOT EXISTS ai_paper_decision_runs (user_id TEXT NOT NULL, tick_id TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'claimed', lease_expires_at INTEGER NOT NULL, external_started_at INTEGER, fencing_token INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(user_id, tick_id))");
+    sql.exec("CREATE INDEX IF NOT EXISTS ai_paper_decision_runs_lease ON ai_paper_decision_runs(lease_expires_at)");
     sql.exec("CREATE INDEX IF NOT EXISTS live_operations_user_status ON live_operations(user_id, status, updated_at)");
     this.restorePositions();
     const snapshot = sql.exec("SELECT value FROM engine_meta WHERE key = 'snapshot'").toArray()[0] as { value?: string } | undefined;
@@ -158,21 +164,76 @@ export class TradingEngine {
         const userId = url.searchParams.get("userId") ?? "";
         return jsonResponse(this.aiPaperStatus(userId));
       }
+      if (request.method === "GET" && url.pathname === "/ai/paper/decision") {
+        const userId = url.searchParams.get("userId") ?? "";
+        const tickId = url.searchParams.get("tickId") ?? "";
+        if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
+          return Response.json({ ok: false, error: "Некорректные параметры решения AI paper." }, { status: 400 });
+        let row: Record<string, unknown> | undefined;
+        let pendingState: "in_progress" | "external_outcome_unknown" | null = null;
+        const now = Date.now();
+        this.ctx.storage.transactionSync(() => {
+          row = this.ctx.storage.sql.exec(
+            "SELECT id, tick_id, market_snapshot_hash, symbol, signal, rationale, confidence, risk_pass, risk_evaluated, rejection_reason, snapshot_retrieved_at, created_at FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? ORDER BY created_at DESC, id DESC LIMIT 1",
+            userId, tickId,
+          ).toArray()[0] as Record<string, unknown> | undefined;
+          if (row) {
+            this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?", userId, tickId);
+            return;
+          }
+          const pending = this.ctx.storage.sql.exec(
+            "SELECT state, lease_expires_at, external_started_at FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?",
+            userId, tickId,
+          ).toArray()[0] as { state: string; lease_expires_at: number; external_started_at: number | null } | undefined;
+          if (!pending) return;
+          if (pending.state === "external_outcome_unknown") {
+            pendingState = "external_outcome_unknown";
+          } else if (Number(pending.lease_expires_at) > now) {
+            pendingState = "in_progress";
+          } else if (pending.external_started_at !== null) {
+            this.ctx.storage.sql.exec(
+              "UPDATE ai_paper_decision_runs SET state = 'external_outcome_unknown', lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ?",
+              now, now, userId, tickId,
+            );
+            pendingState = "external_outcome_unknown";
+          } else {
+            // Expired pre-external claim remains as a fencing-token counter; claim() advances the token.
+            pendingState = null;
+          }
+        });
+        if (row) {
+          const savedSnapshot = this.ctx.storage.sql.exec("SELECT payload_json FROM ai_paper_market_snapshots WHERE snapshot_hash = ?", String(row.market_snapshot_hash)).toArray()[0] as { payload_json: string } | undefined;
+          let snapshotPayload: unknown = null;
+          try { snapshotPayload = savedSnapshot ? JSON.parse(savedSnapshot.payload_json) : null; } catch {}
+          return Response.json({ ok: true, state: "completed", decision: {
+          id: row.id, tickId: row.tick_id, marketSnapshotHash: row.market_snapshot_hash, snapshotPayload,
+          symbol: row.symbol, signal: row.signal, rationale: row.rationale,
+          confidence: row.confidence === null ? null : Number(row.confidence), riskPass: Number(row.risk_pass) === 1, riskEvaluated: Number(row.risk_evaluated) === 1, rejectionReason: row.rejection_reason, snapshotRetrievedAt: Number(row.snapshot_retrieved_at) || null, createdAt: Number(row.created_at),
+        } });
+        }
+        if (pendingState === "external_outcome_unknown")
+          return Response.json({ ok: false, state: pendingState, error: "Внешний вызов мог завершиться до сохранения результата. Автоматический повтор заблокирован." }, { status: 409 });
+        if (pendingState === "in_progress")
+          return Response.json({ ok: false, state: pendingState, error: "Запуск AI PAPER уже выполняется." }, { status: 409 });
+        return Response.json({ ok: false, error: "Решение AI PAPER не найдено." }, { status: 404 });
+      }
       if (request.method === "GET" && url.pathname === "/ai/paper/decisions") {
         const userId = url.searchParams.get("userId") ?? "";
         const limit = Number(url.searchParams.get("limit") ?? "50");
         if (!/^\d{1,20}$/.test(userId) || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
           return Response.json({ ok: false, error: "Некорректные параметры истории AI paper решений." }, { status: 400 });
         const rows = this.ctx.storage.sql.exec(
-          "SELECT id, tick_id, strategy_id, strategy_version, market_snapshot_hash, symbol, signal, rationale, confidence, observed_price, risk_pass, rejection_reason, position_id, created_at FROM ai_paper_decisions WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
+          "SELECT d.id, d.tick_id, d.strategy_id, d.strategy_version, d.market_snapshot_hash, d.symbol, d.signal, d.rationale, d.confidence, d.observed_price, d.risk_pass, d.risk_evaluated, d.rejection_reason, d.position_id, d.snapshot_retrieved_at, d.created_at, s.payload_json AS snapshot_payload_json FROM ai_paper_decisions d LEFT JOIN ai_paper_market_snapshots s ON s.snapshot_hash = d.market_snapshot_hash WHERE d.user_id = ? ORDER BY d.created_at DESC, d.id DESC LIMIT ?",
           userId, limit,
         ).toArray() as Array<Record<string, unknown>>;
         return jsonResponse({ ok: true, decisions: rows.map(row => ({
           id: row.id, tickId: row.tick_id, strategyId: row.strategy_id, strategyVersion: row.strategy_version,
           marketSnapshotHash: row.market_snapshot_hash, symbol: row.symbol, signal: row.signal,
           rationale: row.rationale, confidence: row.confidence, observedPrice: row.observed_price,
-          riskPass: Number(row.risk_pass) === 1, rejectionReason: row.rejection_reason,
-          positionId: row.position_id, createdAt: row.created_at,
+          riskPass: Number(row.risk_pass) === 1, riskEvaluated: Number(row.risk_evaluated) === 1, rejectionReason: row.rejection_reason,
+          positionId: row.position_id, snapshotRetrievedAt: Number(row.snapshot_retrieved_at) || null,
+          snapshotPayload: (() => { try { return row.snapshot_payload_json ? JSON.parse(String(row.snapshot_payload_json)) : null; } catch { return null; } })(),
+          createdAt: row.created_at,
         })) });
       }
       if (request.method === "GET" && url.pathname === "/ai/paper/positions") {
@@ -244,6 +305,10 @@ export class TradingEngine {
       if (url.pathname === "/ai/paper/session/stop") return this.stopAiPaperSession(body);
       if (url.pathname === "/ai/paper/fund") return this.fundAiPaper(body);
       if (url.pathname === "/ai/paper/withdraw") return this.withdrawAiPaper(body);
+      if (url.pathname === "/ai/paper/decision/claim") return this.claimAiPaperDecision(body);
+      if (url.pathname === "/ai/paper/decision/external-started") return this.markAiPaperExternalStarted(body);
+      if (url.pathname === "/ai/paper/decision/unknown") return this.markAiPaperOutcomeUnknown(body);
+      if (url.pathname === "/ai/paper/decision/release") return this.releaseAiPaperDecision(body);
       if (url.pathname === "/ai/paper/decision") return this.recordAiPaperDecision(body);
       if (url.pathname === "/ai/paper/position/open") return this.openAiPaperPosition(body);
       if (url.pathname === "/ai/paper/position/close") return this.closeAiPaperPosition(body);
@@ -285,6 +350,7 @@ export class TradingEngine {
     let existing: Record<string, unknown> | undefined;
     let claimed = false;
     this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE lease_expires_at <= ?", now);
       existing = this.ctx.storage.sql.exec(
         "SELECT user_id, status FROM live_operations WHERE handle = ?", handle,
       ).toArray()[0] as Record<string, unknown> | undefined;
@@ -769,7 +835,151 @@ export class TradingEngine {
     return Response.json({ ok: true, positionId, duplicate, balanceMicro: duplicate ? undefined : balanceAfter.toString() }, { status: duplicate ? 200 : 201 });
   }
 
-  private recordAiPaperDecision(body: Record<string, unknown>): Response {
+  private claimAiPaperDecision(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    const tickId = String(body.tickId ?? "");
+    if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId))
+      return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
+
+    const now = Date.now();
+    const leaseExpiresAt = now + 120_000;
+    let existing: Record<string, unknown> | undefined;
+    let inProgress = false;
+    let outcomeUnknown = false;
+    let fencingToken = 1;
+    this.ctx.storage.transactionSync(() => {
+      existing = this.ctx.storage.sql.exec(
+        "SELECT id, tick_id, market_snapshot_hash, symbol, signal, rationale, confidence, risk_pass, risk_evaluated, rejection_reason, snapshot_retrieved_at, created_at FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? ORDER BY created_at DESC, id DESC LIMIT 1",
+        userId, tickId,
+      ).toArray()[0] as Record<string, unknown> | undefined;
+      if (existing) {
+        this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?", userId, tickId);
+        return;
+      }
+      const pending = this.ctx.storage.sql.exec(
+        "SELECT state, lease_expires_at, external_started_at, fencing_token FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?",
+        userId, tickId,
+      ).toArray()[0] as { state: string; lease_expires_at: number; external_started_at: number | null; fencing_token: number } | undefined;
+      if (pending) {
+        fencingToken = Number(pending.fencing_token);
+        if (pending.state === "external_outcome_unknown") {
+          outcomeUnknown = true;
+          return;
+        }
+        if (Number(pending.lease_expires_at) > now) {
+          inProgress = true;
+          return;
+        }
+        if (pending.external_started_at !== null) {
+          this.ctx.storage.sql.exec(
+            "UPDATE ai_paper_decision_runs SET state = 'external_outcome_unknown', lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ?",
+            now, now, userId, tickId,
+          );
+          outcomeUnknown = true;
+          return;
+        }
+        fencingToken += 1;
+        this.ctx.storage.sql.exec(
+          "UPDATE ai_paper_decision_runs SET state = 'claimed', lease_expires_at = ?, fencing_token = ?, updated_at = ? WHERE user_id = ? AND tick_id = ?",
+          leaseExpiresAt, fencingToken, now, userId, tickId,
+        );
+      } else {
+        this.ctx.storage.sql.exec(
+          "INSERT INTO ai_paper_decision_runs(user_id, tick_id, state, lease_expires_at, external_started_at, fencing_token, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?)",
+          userId, tickId, "claimed", leaseExpiresAt, null, fencingToken, now, now,
+        );
+      }
+    });
+    if (existing) return Response.json({ ok: true, state: "completed", decision: {
+      id: existing.id, tickId: existing.tick_id, marketSnapshotHash: existing.market_snapshot_hash,
+      symbol: existing.symbol, signal: existing.signal, rationale: existing.rationale,
+      confidence: existing.confidence === null ? null : Number(existing.confidence), riskPass: Number(existing.risk_pass) === 1, riskEvaluated: Number(existing.risk_evaluated) === 1, rejectionReason: existing.rejection_reason, snapshotRetrievedAt: Number(existing.snapshot_retrieved_at) || null, createdAt: Number(existing.created_at),
+    } });
+    if (outcomeUnknown) return Response.json({ ok: false, state: "external_outcome_unknown", error: "Внешний вызов мог завершиться до сохранения результата. Автоматический повтор заблокирован." }, { status: 409 });
+    if (inProgress) return Response.json({ ok: false, state: "in_progress", error: "Запуск AI PAPER уже выполняется." }, { status: 409 });
+    return Response.json({ ok: true, state: "claimed", leaseExpiresAt, fencingToken });
+  }
+
+  private markAiPaperExternalStarted(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    const tickId = String(body.tickId ?? "");
+    const fencingToken = Number(body.fencingToken);
+    if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
+        !Number.isSafeInteger(fencingToken) || fencingToken < 1)
+      return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
+    const now = Date.now();
+    let conflict = false;
+    this.ctx.storage.transactionSync(() => {
+      const row = this.ctx.storage.sql.exec(
+        "SELECT state, lease_expires_at, fencing_token FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?",
+        userId, tickId,
+      ).toArray()[0] as { state: string; lease_expires_at: number; fencing_token: number } | undefined;
+      if (!row || Number(row.fencing_token) !== fencingToken || row.state !== "claimed" || Number(row.lease_expires_at) <= now) {
+        conflict = true;
+        return;
+      }
+      this.ctx.storage.sql.exec(
+        "UPDATE ai_paper_decision_runs SET state = 'external_started', external_started_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ? AND fencing_token = ?",
+        now, now, userId, tickId, fencingToken,
+      );
+    });
+    if (conflict) return Response.json({ ok: false, error: "Запуск AI PAPER больше не принадлежит этому исполнителю." }, { status: 409 });
+    return Response.json({ ok: true, state: "external_started" });
+  }
+
+  private markAiPaperOutcomeUnknown(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    const tickId = String(body.tickId ?? "");
+    const fencingToken = Number(body.fencingToken);
+    if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
+        !Number.isSafeInteger(fencingToken) || fencingToken < 1)
+      return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
+    const now = Date.now();
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        "UPDATE ai_paper_decision_runs SET state = 'external_outcome_unknown', external_started_at = COALESCE(external_started_at, ?), lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ? AND fencing_token = ? AND state IN ('claimed', 'external_started')",
+        now, now, now, userId, tickId, fencingToken,
+      );
+    });
+    return Response.json({ ok: true, state: "external_outcome_unknown" });
+  }
+
+  private releaseAiPaperDecision(body: Record<string, unknown>): Response {
+    const userId = String(body.userId ?? "");
+    const tickId = String(body.tickId ?? "");
+    const fencingToken = Number(body.fencingToken);
+    const safeToRetry = body.safeToRetry === true;
+    if (!/^\d{1,20}$/.test(userId) || !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
+        !Number.isSafeInteger(fencingToken) || fencingToken < 1)
+      return Response.json({ ok: false, error: "Некорректные параметры запуска AI paper." }, { status: 400 });
+    const now = Date.now();
+    let conflict = false;
+    this.ctx.storage.transactionSync(() => {
+      const row = this.ctx.storage.sql.exec(
+        "SELECT state, external_started_at, fencing_token FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?",
+        userId, tickId,
+      ).toArray()[0] as { state: string; external_started_at: number | null; fencing_token: number } | undefined;
+      if (!row || Number(row.fencing_token) !== fencingToken) {
+        conflict = true;
+        return;
+      }
+      if (row.external_started_at === null || (safeToRetry && row.state === "external_started")) {
+        this.ctx.storage.sql.exec(
+          "UPDATE ai_paper_decision_runs SET state = 'retryable', external_started_at = NULL, lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ? AND fencing_token = ?",
+          now, now, userId, tickId, fencingToken,
+        );
+      } else {
+        this.ctx.storage.sql.exec(
+          "UPDATE ai_paper_decision_runs SET state = 'external_outcome_unknown', lease_expires_at = ?, updated_at = ? WHERE user_id = ? AND tick_id = ? AND fencing_token = ?",
+          now, now, userId, tickId, fencingToken,
+        );
+      }
+    });
+    if (conflict) return Response.json({ ok: false, error: "Запуск AI PAPER больше не принадлежит этому исполнителю." }, { status: 409 });
+    return Response.json({ ok: true });
+  }
+
+  private async recordAiPaperDecision(body: Record<string, unknown>): Promise<Response> {
     const userId = String(body.userId ?? "");
     const tickId = String(body.tickId ?? "");
     const strategyId = String(body.strategyId ?? "");
@@ -784,8 +994,14 @@ export class TradingEngine {
     const confidence = body.confidence === undefined || body.confidence === null ? null : Number(body.confidence);
     const observedPrice = String(body.observedPrice ?? "");
     const riskPass = body.riskPass;
+    const riskEvaluated = body.riskEvaluated === undefined ? true : body.riskEvaluated;
     const rejectionReason = body.rejectionReason === undefined || body.rejectionReason === null ? null : String(body.rejectionReason).trim();
     const positionId = body.positionId === undefined || body.positionId === null ? null : String(body.positionId);
+    const fencingToken = body.fencingToken === undefined ? null : Number(body.fencingToken);
+    if (fencingToken !== null && (!Number.isSafeInteger(fencingToken) || fencingToken < 1))
+      return Response.json({ ok: false, error: "Некорректный fencing token AI paper." }, { status: 400 });
+    if (strategyId === "gemini-paper" && (fencingToken === null || body.riskEvaluated !== false || body.riskPass !== false))
+      return Response.json({ ok: false, error: "Gemini PAPER решения требуют claim и явно непроверенный риск до отдельного risk-gate." }, { status: 400 });
     if (!/^\d{1,20}$/.test(userId) ||
         !/^[A-Za-z0-9._:-]{8,128}$/.test(tickId) ||
         !/^[A-Za-z0-9._:-]{1,64}$/.test(strategyId) ||
@@ -797,25 +1013,53 @@ export class TradingEngine {
         !/^(?:0|[1-9]\d{0,15})(?:\.\d{1,8})?$/.test(observedPrice) ||
         !Number.isFinite(Number(observedPrice)) || Number(observedPrice) <= 0 ||
         typeof riskPass !== "boolean" ||
+        typeof riskEvaluated !== "boolean" ||
         (rejectionReason !== null && rejectionReason.length > 300) ||
-        (riskPass === false && !rejectionReason) ||
+        (riskPass === false && riskEvaluated && !rejectionReason) ||
+        (!riskEvaluated && riskPass) ||
         (positionId !== null && !/^[A-Za-z0-9._:-]{1,128}$/.test(positionId))) {
       return Response.json({ ok: false, error: "Некорректные параметры решения AI paper." }, { status: 400 });
     }
 
     const now = Date.now();
+    const snapshotRetrievedAt = body.snapshotRetrievedAt === undefined ? now : Number(body.snapshotRetrievedAt);
+    const snapshotPayload = body.snapshotPayload;
+    let snapshotJson = "";
+    if (strategyId === "gemini-paper") {
+      if (body.snapshotRetrievedAt === undefined || !snapshotPayload || typeof snapshotPayload !== "object" || Array.isArray(snapshotPayload))
+        return Response.json({ ok: false, error: "Для Gemini PAPER требуется полный серверный снимок рынка." }, { status: 400 });
+      const snapshot = snapshotPayload as Record<string, unknown>;
+      const markets = snapshot.markets;
+      if (snapshot.source !== "hyperliquid-public" || Number(snapshot.retrievedAt) !== snapshotRetrievedAt || !Array.isArray(markets) || markets.length < 1 || markets.length > 10)
+        return Response.json({ ok: false, error: "Некорректный серверный снимок рынка." }, { status: 400 });
+      const selected = markets.find((item) => item && typeof item === "object" && String((item as Record<string, unknown>).symbol) === symbol) as Record<string, unknown> | undefined;
+      if (!selected || String(selected.price) !== observedPrice || !Number.isFinite(Number(selected.volume24hUsd)) || Number(selected.volume24hUsd) < 0)
+        return Response.json({ ok: false, error: "Цена решения не совпадает с сохранённым снимком рынка." }, { status: 400 });
+      try { snapshotJson = JSON.stringify(snapshotPayload); } catch { return Response.json({ ok: false, error: "Не удалось сериализовать снимок рынка." }, { status: 400 }); }
+      if (snapshotJson.length > 32_768) return Response.json({ ok: false, error: "Снимок рынка превышает допустимый размер." }, { status: 413 });
+      if (!/^[a-f0-9]{64}$/i.test(marketSnapshotHash)) return Response.json({ ok: false, error: "Некорректный SHA-256 снимка рынка." }, { status: 400 });
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(snapshotJson));
+      const computedHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      if (computedHash !== marketSnapshotHash.toLowerCase())
+        return Response.json({ ok: false, error: "SHA-256 не соответствует содержимому снимка рынка." }, { status: 400 });
+    }
     const id = crypto.randomUUID();
     let duplicate = false;
     let conflict = false;
+    let invalidTimestamp = false;
     let decisionId = id;
     this.ctx.storage.transactionSync(() => {
       const existing = this.ctx.storage.sql.exec(
-        "SELECT id, strategy_id, strategy_version, market_snapshot_hash, signal, rationale, confidence, observed_price, risk_pass, rejection_reason, position_id FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? AND symbol = ?",
+        "SELECT id, strategy_id, strategy_version, market_snapshot_hash, signal, rationale, confidence, observed_price, risk_pass, risk_evaluated, rejection_reason, position_id, snapshot_retrieved_at FROM ai_paper_decisions WHERE user_id = ? AND tick_id = ? AND symbol = ?",
         userId, tickId, symbol,
       ).toArray()[0] as Record<string, unknown> | undefined;
       if (existing) {
         decisionId = String(existing.id);
-        const same = String(existing.strategy_id) === strategyId &&
+        const savedSnapshot = strategyId === "gemini-paper"
+          ? this.ctx.storage.sql.exec("SELECT payload_json FROM ai_paper_market_snapshots WHERE snapshot_hash = ?", marketSnapshotHash).toArray()[0] as { payload_json: string } | undefined
+          : undefined;
+        const sameSnapshot = strategyId !== "gemini-paper" || Boolean(savedSnapshot && savedSnapshot.payload_json === snapshotJson);
+        const same = sameSnapshot && String(existing.strategy_id) === strategyId &&
           String(existing.strategy_version) === strategyVersion &&
           String(existing.market_snapshot_hash) === marketSnapshotHash &&
           String(existing.signal) === signal &&
@@ -823,19 +1067,45 @@ export class TradingEngine {
           (existing.confidence === null ? confidence === null : Number(existing.confidence) === confidence) &&
           String(existing.observed_price) === observedPrice &&
           Number(existing.risk_pass) === (riskPass ? 1 : 0) &&
+          Number(existing.risk_evaluated) === (riskEvaluated ? 1 : 0) &&
           (existing.rejection_reason === null ? rejectionReason === null : String(existing.rejection_reason) === rejectionReason) &&
           (existing.position_id === null ? positionId === null : String(existing.position_id) === positionId);
-        if (same) duplicate = true;
-        else conflict = true;
+        if (same) {
+          duplicate = true;
+          this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?", userId, tickId);
+        } else conflict = true;
         return;
       }
+      if (fencingToken !== null) {
+        const claim = this.ctx.storage.sql.exec(
+          "SELECT state, lease_expires_at, fencing_token FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?",
+          userId, tickId,
+        ).toArray()[0] as { state: string; lease_expires_at: number; fencing_token: number } | undefined;
+        if (!claim || Number(claim.fencing_token) !== fencingToken || claim.state !== "external_started" ||
+            Number(claim.lease_expires_at) <= now) {
+          conflict = true;
+          return;
+        }
+      }
+      if (!Number.isSafeInteger(snapshotRetrievedAt) || snapshotRetrievedAt <= 0 ||
+          snapshotRetrievedAt > now || now - snapshotRetrievedAt > AI_PAPER_MARK_MAX_AGE_MS) {
+        invalidTimestamp = true;
+        return;
+      }
+      if (strategyId === "gemini-paper") {
+        const priorSnapshot = this.ctx.storage.sql.exec("SELECT payload_json FROM ai_paper_market_snapshots WHERE snapshot_hash = ?", marketSnapshotHash).toArray()[0] as { payload_json: string } | undefined;
+        if (priorSnapshot && priorSnapshot.payload_json !== snapshotJson) { conflict = true; return; }
+        this.ctx.storage.sql.exec("INSERT OR IGNORE INTO ai_paper_market_snapshots(snapshot_hash,source,retrieved_at,payload_json,created_at) VALUES(?,?,?,?,?)", marketSnapshotHash, "hyperliquid-public", snapshotRetrievedAt, snapshotJson, now);
+      }
       this.ctx.storage.sql.exec(
-        "INSERT INTO ai_paper_decisions(id,user_id,tick_id,strategy_id,strategy_version,market_snapshot_hash,symbol,signal,rationale,confidence,observed_price,risk_pass,rejection_reason,position_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO ai_paper_decisions(id,user_id,tick_id,strategy_id,strategy_version,market_snapshot_hash,symbol,signal,rationale,confidence,observed_price,risk_pass,risk_evaluated,rejection_reason,position_id,snapshot_retrieved_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         id, userId, tickId, strategyId, strategyVersion, marketSnapshotHash, symbol, signal, rationale,
-        confidence, observedPrice, riskPass ? 1 : 0, rejectionReason, positionId, now,
+        confidence, observedPrice, riskPass ? 1 : 0, riskEvaluated ? 1 : 0, rejectionReason, positionId, snapshotRetrievedAt, now,
       );
+      this.ctx.storage.sql.exec("DELETE FROM ai_paper_decision_runs WHERE user_id = ? AND tick_id = ?", userId, tickId);
     });
     if (conflict) return Response.json({ ok: false, error: "Tick id уже записан с другим решением." }, { status: 409 });
+    if (invalidTimestamp) return Response.json({ ok: false, error: "Серверная котировка отсутствует, устарела или имеет неверное время." }, { status: 400 });
     return Response.json({ ok: true, id: decisionId, duplicate }, { status: duplicate ? 200 : 201 });
   }
 
