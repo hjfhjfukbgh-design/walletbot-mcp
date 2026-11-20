@@ -117,9 +117,11 @@ describe("runAiPaperDecision", () => {
       }
       return Response.json({ ok: false }, { status: 404 });
     };
+    let modeChecks = 0;
     const dependencies = {
       now: () => NOW,
       engineRequest,
+      isAiMode: async () => { modeChecks++; return modeChecks === 1; },
       getContracts: async () => contracts,
       consumeQuota: async () => { quotaCalls++; return Response.json({ ok: true }); },
       fetcher: async () => { modelCalls++; return geminiResponse(JSON.stringify({
@@ -136,6 +138,20 @@ describe("runAiPaperDecision", () => {
     expect(modelCalls).toBe(1);
     expect(statusCalls).toBe(1);
     expect(recordCalls).toBe(1);
+    expect(modeChecks).toBe(1);
+  });
+
+  it("blocks new AI PAPER analysis when method is not AI, without spending quota or calling Gemini", async () => {
+    const quota = vi.fn(async () => Response.json({ ok: true }));
+    const model = vi.fn(async () => geminiResponse("{}"));
+    const engineRequest = claimAwareEngine(async () => Response.json({ status: "active" }));
+    const result = await runAiPaperDecision(makeEnv(), "123456789", "stable-request-manual-01", {
+      engineRequest, isAiMode: async () => false,
+      consumeQuota: quota, fetcher: model,
+    });
+    expect(result.status).toBe(409);
+    expect(quota).not.toHaveBeenCalled();
+    expect(model).not.toHaveBeenCalled();
   });
 
   it("requires a caller-supplied stable requestId before any engine, quota or model call", async () => {
