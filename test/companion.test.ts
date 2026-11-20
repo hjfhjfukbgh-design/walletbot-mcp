@@ -592,7 +592,7 @@ describe("AI Companion API", () => {
     const first=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify(request)});
     expect(first.status).toBe(200);
     const firstBody=await first.json() as {conversationId:string;answer:string};
-    const replay=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify(request)});
+    const replay=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({...request,conversationId:firstBody.conversationId})});
     expect(replay.status).toBe(200);
     expect((await replay.json() as {answer:string}).answer).toBe(firstBody.answer);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -607,7 +607,8 @@ describe("AI Companion API", () => {
     vi.stubGlobal("fetch",fetchMock);
     const first=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({message:"Первый",requestId:"req-conflict-01"})});
     expect(first.status).toBe(200);
-    const conflict=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({message:"Другой",requestId:"req-conflict-01"})});
+    const conversationId=(await first.json() as {conversationId:string}).conversationId;
+    const conflict=await call(e,"111","/api/companion/chat",{method:"POST",body:JSON.stringify({message:"Другой",requestId:"req-conflict-01",conversationId})});
     expect(conflict.status).toBe(409);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
