@@ -115,7 +115,7 @@ describe("runAiPaperDecision", () => {
         stored = {
           tickId: body?.tickId, marketSnapshotHash: body?.marketSnapshotHash,
           snapshotRetrievedAt: body?.snapshotRetrievedAt, symbol: body?.symbol, signal: body?.signal,
-          rationale: body?.rationale, confidence: body?.confidence,
+          rationale: body?.rationale, confidence: body?.confidence, snapshotPayload: body?.snapshotPayload,
         };
         claimed = false;
         return Response.json({ ok: true, id: "decision-replayed", duplicate: false }, { status: 201 });
@@ -138,7 +138,10 @@ describe("runAiPaperDecision", () => {
     expect(first.status).toBe(201);
     expect(second.status).toBe(200);
     expect(await second.json()).toMatchObject({ ok: true, tickId: "stable-request-0001", duplicate: true,
-      decision: { signal: "buy", symbol: "BTC", confidence: 0.75 } });
+      decision: { signal: "buy", symbol: "BTC", confidence: 0.75, snapshotPayload: {
+        source: "hyperliquid-public", retrievedAt: NOW,
+        markets: [{ symbol: "BTC", price: "50000.00", volume24hUsd: 50_000_000 }, { symbol: "ETH", price: "2500.00", volume24hUsd: 20_000_000 }],
+      } } });
     expect(quotaCalls).toBe(1);
     expect(modelCalls).toBe(1);
     expect(statusCalls).toBe(1);
