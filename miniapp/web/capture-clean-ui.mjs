@@ -64,7 +64,7 @@ async function captureDarkVariant(page,name,device){
     throw new Error("Dark theme token/surface mismatch: "+JSON.stringify(colors));
   }
   await assertMutedContrast(page,"dark");
-  await page.screenshot({path:`clean-${name}-dark-${device.width}x${device.height}.png`,fullPage:false});
+  await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-${name}-dark-${device.width}x${device.height}.png`,fullPage:false});
   await page.evaluate(()=>{const select=document.querySelector("#kg-profile-theme-select");select.value="light";select.dispatchEvent(new Event("change",{bubbles:true}));const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
   await page.waitForTimeout(240);
   await assertMutedContrast(page,"light");
@@ -185,13 +185,18 @@ try{
     await page.evaluate(()=>document.dispatchEvent(new Event("visibilitychange")));
     await page.waitForFunction(before=>window.__marketListCalls>before,marketCallsBefore);
 
-    if(!(await page.locator("#kg-product-mode").isVisible()))throw new Error("product mode selector must be visible on wallet home");
-    if(await page.locator('[data-product-mode="ai"] b').innerText()!=="ИИ")throw new Error("AI mode label must be Russian");
-    if(await page.locator('[data-product-mode="ai"] small').innerText()!=="СЧЁТ")throw new Error("AI mode subtitle must be Russian");
-    if(!(await page.locator('[data-product-mode="live"]').isDisabled()))throw new Error("LIVE selector must remain disabled until full close contract is verified");
+    if(!(await page.locator("#kg-market-mode").isVisible()))throw new Error("top-level market mode selector must be visible on wallet home");
+    if(await page.locator("#kg-market-mode [data-market-mode]").count()!==2)throw new Error("only DEMO and LIVE may exist as top-level market modes");
+    if(!(await page.locator('[data-market-mode="demo"]').evaluate(node=>node.classList.contains("is-active"))))throw new Error("DEMO must be the active top-level market mode");
+    if(!(await page.locator('[data-market-mode="live"]').isDisabled()))throw new Error("LIVE selector must remain disabled until full close contract is verified");
+    if(!(await page.locator("#kg-product-mode").isVisible()))throw new Error("trading method selector must be visible on wallet home");
+    if(await page.locator("#kg-product-mode [data-product-mode]").count()!==2)throw new Error("only Manual and AI Piper may exist as trading methods");
+    if(await page.locator('[data-product-mode="ai"] b').innerText()!=="AI Piper")throw new Error("AI trading method must be labelled AI Piper");
+    if(await page.locator('[data-product-mode="ai"] small').innerText()!=="Автономный DEMO")throw new Error("AI Piper subtitle must identify its DEMO scope");
     await page.locator('[data-product-mode="ai"]').click();
     await page.waitForFunction(()=>document.querySelector('[data-product-mode="ai"]')?.classList.contains("is-active"));
-    if(!(await page.locator("#kg-product-mode-status").innerText()).includes("Автоматические сделки пока отключены"))throw new Error("AI Trading selector must disclose paper-only/no-auto-execution status");
+    const aiModeStatus=await page.locator("#kg-product-mode-status").innerText();
+    if(!aiModeStatus.includes("DEMO · AI Piper")||!aiModeStatus.includes("виртуальные средства"))throw new Error("AI Piper must disclose DEMO-only virtual funds");
     await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-status-note")?.textContent.includes("Состояние из защищённого API"));
     if(!(await page.locator(".kg-ai-paper-transfer").isVisible()))throw new Error("AI paper virtual funding controls should be visible in AI mode");
     await page.locator("#kg-ai-paper-amount").fill("25");
