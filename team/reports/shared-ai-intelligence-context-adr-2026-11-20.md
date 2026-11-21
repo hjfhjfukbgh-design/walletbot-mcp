@@ -26,7 +26,7 @@ For the future LIVE path, AI LIVE may execute only inside an explicitly started,
 
 - `src/api.ts:25-42` validates Telegram initData, obtains `telegramUserId`, and constructs `scopedEnv = tenantEnv(env, telegramUserId)`. It rejects unauthenticated requests before parsing their bodies.
 - `src/tenants.ts:13-45` prefixes per-user KV keys with `tenant:<userId>:`.
-- `src/companion.ts:18-29` independently validates Telegram initData and uses the same tenant-scoped KV wrapper.
+- `src/companion.ts:19-30` independently validates Telegram initData and uses the same tenant-scoped KV wrapper.
 - AI PAPER engine queries in `src/trading/engine.ts:154-194`, `:492-759`, and `:772-840` bind SQL reads/writes to the authenticated `user_id`.
 
 **Implication:** the context provider must derive tenant ID from the authenticated Worker request, never from a client-supplied `userId` field. Every private SQL lookup must include `user_id = ?`. Public market/news evidence may be global, but private account data must never enter a shared cache without a tenant key.
@@ -90,7 +90,7 @@ The current Companion is more than a KV chat handler: it has a dedicated Durable
 
 - `src/state.ts:4, 29-35` currently retains a legacy `ProductMode = "demo" | "live" | "ai"` value. The approved product hierarchy is two top-level market modes (DEMO/LIVE) with Manual/AI as the method inside each. The pending UI work in PR #696 reflects that hierarchy; it does not by itself migrate the backend state contract.
 - Manual DEMO positions are also represented in `src/manual.ts:8-24, 47-53, 82-118` using tenant-scoped KV.
-- The engine has separate manual account/positions/ledger tables and separate AI PAPER account/positions/ledger/decisions tables (`src/trading/engine.ts:80-104`).
+- The engine has separate manual account/positions/ledger tables and separate AI PAPER account/positions/ledger/decisions tables (`src/trading/engine.ts:97-104`).
 - Manual LIVE preview/execute/status routes exist in `src/api.ts:75-80, 87-90`. `src/walt.ts:79-92` explicitly disables legacy automatic open/close methods and requires the separate preview/confirmation path.
 - The `live_operations` table in `src/trading/engine.ts:94` is for bounded manual LIVE operation records. No AI LIVE session authorization table or AI LIVE audit stream is present.
 
