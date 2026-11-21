@@ -1,6 +1,6 @@
 # ADR — Shared intelligence context for Companion, Analyst and AI PAPER
 
-**Date:** 2026-11-20  
+**Date:** 2026-11-21  
 **Status:** Report-only recommendation; no source code, schema, migration, or deployment changes.  
 **Decision:** Build a versioned, tenant-scoped, read-only context contract. It is an evidence boundary between the three components, not a shared writable memory and not a new trading mode.
 
@@ -33,7 +33,7 @@ For the future LIVE path, AI LIVE may execute only inside an explicitly started,
 
 ### 2.2 AI PAPER account, ledger, positions and decisions
 
-The current `TradingEngine` SQLite schema in `src/trading/engine.ts:80-104` contains separate AI PAPER tables:
+The current `TradingEngine` SQLite schema in `src/trading/engine.ts:97-104` contains separate AI PAPER tables:
 
 - `ai_paper_accounts`: `user_id`, virtual balance, `status`, strategy ID/version, risk config JSON, created/updated timestamps.
 - `ai_paper_ledger`: idempotency key, kind, amount, balance before/after, reference ID, created timestamp.
@@ -56,7 +56,7 @@ A draft, unmerged implementation in [PR #616](https://github.com/hjfhjfukbgh-des
 
 ### 2.3 Market and news evidence
 
-- `src/prices.ts:20-56` reads public Hyperliquid `metaAndAssetCtxs` data and maps symbol, price, 24h volume, funding and 24h change.
+- `src/prices.ts:21-58` reads public Hyperliquid `metaAndAssetCtxs` data and maps symbol, price, 24h volume, funding and 24h change.
 - `src/prices.ts:3-14` reads public mid prices.
 - The draft AI PAPER generator in PR #616 uses the public Hyperliquid source, a Worker retrieval timestamp, and a maximum 10-minute age since retrieval (`src/ai-paper.ts:17-18, 140-145`). The upstream response does not provide a per-quote observation timestamp, so this is not proof of exchange-side quote freshness.
 - No `src/analyst.ts`, news ingestion service, Analyst findings table, or persistent market-snapshot table exists in `src/`. `src/strategy/grid.ts` is a trading/grid strategy module, not an AI Analyst.
@@ -64,21 +64,31 @@ A draft, unmerged implementation in [PR #616](https://github.com/hjfhjfukbgh-des
 
 **Status:** market prices exist; persistent immutable snapshots and Analyst news findings are NOT IMPLEMENTED. Do not describe public price retrieval as a completed Analyst/news pipeline.
 
-### 2.4 Companion is currently isolated from account context
+### 2.4 Companion has a durable request pipeline but no account-context integration
 
-- `src/companion.ts:4-16` defines chat message/conversation records and the 20-message storage cap / 8-message context window.
-- `src/companion.ts:18-29` authenticates Telegram and scopes KV to the user.
-- `src/companion.ts:43-60` lists, reads and deletes Companion conversations.
-- `src/companion.ts:62-70` accepts only Companion modes `general`, `learning`, and `research`. These are chat modes, not product market modes.
-- The general Companion system prompt in `src/companion.ts:100-110` explicitly says it has no access to accounts, API tools or trade execution.
-- `src/companion.ts:180-240` calls Gemini and persists chat messages/sources. Research sources are currently title+URL; no source published-at, retrieved-at, content hash or freshness state is persisted.
-- There is no Companion route that reads AI PAPER status, decisions, positions or ledger.
+The current Companion is more than a KV chat handler: it has a dedicated Durable Object for per-conversation persistence/request ordering and a separate Durable Object for atomic quotas. These are implemented on main.
 
-**Implication:** the requested “What is my AI doing and why?” experience does not exist yet. It needs a dedicated read-only context provider; simply changing the Companion prompt would be unsafe because the required evidence is not currently supplied.
+- `src/companion.ts:19-30` validates Telegram initData, derives the user ID server-side and creates a tenant-scoped environment.
+- `src/companion.ts:32-40` exposes current limits: 8 messages per 60-second window, message/context/output caps, and a 50-conversation cap. It does not currently expose a general daily app limit.
+- `src/companion.ts:48-78` lists conversation indexes and reads request status/history; private conversation state is fetched through the conversation Durable Object.
+- `src/companion.ts:180-220` enqueues requests, claims them with a lease/fencing token, reads the saved conversation and selects the model. General/learning use `env.GEMINI_MODEL || "gemini-3.5-flash-lite"`; research uses `gemini-2.5-flash-lite`.
+- `src/companion.ts:225-275` records provider-started state, atomically reserves applicable quotas through `COMPANION_QUOTA`, and then calls Gemini. Research retains 20 global/day and 5/user/day; all modes retain the 8/minute per-user sliding limit.
+- `src/companion-conversations.ts:30-80` implements the `CompanionConversation` Durable Object with SQLite tables for conversation metadata, messages and requests. Its identity is derived from the object name `tenant:<userId>:conversation:<uuid>`.
+- `src/companion-conversations.ts:82-114` exposes read/delete/status and internal enqueue/import/claim/provider-started/finalize/fail/alarm routes. Every request checks that the supplied tenant and conversation IDs match the identity derived from the DO ID.
+- `src/companion-conversations.ts:204-240` enqueues requests in sequence and preserves request IDs for idempotency.
+- `src/companion-conversations.ts:241-290` uses a lease and fencing token to serialize work. If a provider call may have started and the lease expires, the request becomes `provider_outcome_unknown`; it is not blindly retried.
+- `src/companion-conversations.ts:291-368` finalizes saved answers/sources only for the current fencing token and records failure states. `recoverExpired` distinguishes requests that expired before provider start from ambiguous provider outcomes.
+- `src/companion-quota.ts:10-105` implements the separate `CompanionQuota` Durable Object. It reserves multiple sliding/fixed-window quotas atomically in SQLite transactions; this avoids racy KV read-modify-write counters.
+- `src/index.ts:12-14,32`, `src/env.ts:3-4`, and `wrangler.toml:8-24` export/bind/migrate both Companion Durable Objects.
+- The Companion system prompts still explicitly prohibit account access and trade execution. Research sources are persisted as title+URL; no source publication time, retrieval time, content hash or freshness state is stored.
+
+**Current quota gap:** general/learning chat has an app-side 8/minute per-user limit but no general daily app cap on main. The user-reported approximately 20/day is not explained by the app's general-chat code. The default general model ID is valid and listed by Google as Free Tier priced, but active project-level RPM/TPM/RPD are dynamic and must be read from AI Studio. Issue #622 is blocked pending those non-secret project values; a 50/day per-user cap cannot be claimed to fit a project-level provider quota without them. Research's 20 global/day and 5/user/day remain separate.
+
+**Still missing:** no Companion route reads AI PAPER status, decisions, positions or ledger; no shared read-only AI context provider exists. The requested “What is my AI doing and why?” experience therefore does not exist yet. It requires the evidence contract described below; changing only the Companion prompt would be unsafe because the required account/decision evidence is not supplied.
 
 ### 2.5 Manual DEMO, AI PAPER and LIVE are distinct data domains
 
-- `src/state.ts:4, 29-35` currently retains a legacy `ProductMode = "demo" | "live" | "ai"` value. The approved product hierarchy is two top-level market modes (DEMO/LIVE) with Manual/AI as the method inside each. The pending UI work in PR #630 reflects that hierarchy; it does not by itself migrate the backend state contract.
+- `src/state.ts:4, 29-35` currently retains a legacy `ProductMode = "demo" | "live" | "ai"` value. The approved product hierarchy is two top-level market modes (DEMO/LIVE) with Manual/AI as the method inside each. The pending UI work in PR #696 reflects that hierarchy; it does not by itself migrate the backend state contract.
 - Manual DEMO positions are also represented in `src/manual.ts:8-24, 47-53, 82-118` using tenant-scoped KV.
 - The engine has separate manual account/positions/ledger tables and separate AI PAPER account/positions/ledger/decisions tables (`src/trading/engine.ts:80-104`).
 - Manual LIVE preview/execute/status routes exist in `src/api.ts:75-80, 87-90`. `src/walt.ts:79-92` explicitly disables legacy automatic open/close methods and requires the separate preview/confirmation path.
@@ -338,6 +348,6 @@ Do not create a third top-level mode called AI. Do not infer AI LIVE readiness f
 
 ## Conclusion
 
-The repository already has useful building blocks—Telegram-derived tenant identity, separate AI PAPER account/ledger/positions/decisions, public Hyperliquid market data, and a read-only Companion chat boundary—but it does **not** yet have an Analyst runtime, immutable market-snapshot store, shared context API, complete session lifecycle/audit stream, or AI LIVE authorization context.
+The repository now has useful building blocks—Telegram-derived tenant identity, a Durable Object-backed Companion request queue with leases/fencing, an atomic quota coordinator, separate AI PAPER account/ledger/positions/decisions, public Hyperliquid market data, and a read-only Companion conversation boundary—but it does **not** yet have an Analyst runtime, immutable market-snapshot store, shared account-context API, complete AI PAPER session/audit lifecycle, or AI LIVE authorization context.
 
 The safe architecture is a versioned evidence contract with explicit provenance, freshness, tenant scope and read-only permissions. It must make missing capabilities visible rather than fabricate them. All new fields/endpoints in this ADR are proposals until implemented and tested.
