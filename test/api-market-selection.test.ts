@@ -51,7 +51,7 @@ describe("legacy product-mode API compatibility with canonical selection", () =>
     expect(await response.json()).toMatchObject({
       ok: true, marketMode: "demo", tradingMethod: "manual", productMode: "demo",
     });
-    const state = await e.STATE.get("bot:state", "json") as Record<string, unknown>;
+    const state = await e.STATE.get("tenant:71002:bot:state", "json") as Record<string, unknown>;
     expect(state).toMatchObject({ marketMode: "demo", tradingMethod: "manual", productMode: "demo" });
   });
 
@@ -59,7 +59,7 @@ describe("legacy product-mode API compatibility with canonical selection", () =>
     const e = env();
     const response = await postMode(e, "71003", "live");
     expect(response.status).toBe(409);
-    const state = await e.STATE.get("bot:state", "json");
+    const state = await e.STATE.get("tenant:71003:bot:state", "json");
     expect(state).toBeNull();
   });
 });
