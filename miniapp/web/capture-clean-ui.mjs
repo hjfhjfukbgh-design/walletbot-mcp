@@ -1,3 +1,5 @@
+// CSS theme regression coverage: preserve semantic icon accents and theme-safe surfaces.
+// PR #695: capture the current-main two-level mode hierarchy and theme-safe surfaces.
 import { chromium } from "playwright";
 import http from "node:http";
 import fs from "node:fs";
@@ -64,7 +66,7 @@ async function captureDarkVariant(page,name,device){
     throw new Error("Dark theme token/surface mismatch: "+JSON.stringify(colors));
   }
   await assertMutedContrast(page,"dark");
-  await page.screenshot({path:`clean-${name}-dark-${device.width}x${device.height}.png`,fullPage:false});
+  await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-${name}-dark-${device.width}x${device.height}.png`,fullPage:false});
   await page.evaluate(()=>{const select=document.querySelector("#kg-profile-theme-select");select.value="light";select.dispatchEvent(new Event("change",{bubbles:true}));const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
   await page.waitForTimeout(240);
   await assertMutedContrast(page,"light");
@@ -185,13 +187,18 @@ try{
     await page.evaluate(()=>document.dispatchEvent(new Event("visibilitychange")));
     await page.waitForFunction(before=>window.__marketListCalls>before,marketCallsBefore);
 
-    if(!(await page.locator("#kg-product-mode").isVisible()))throw new Error("product mode selector must be visible on wallet home");
-    if(await page.locator('[data-product-mode="ai"] b').innerText()!=="ИИ")throw new Error("AI mode label must be Russian");
-    if(await page.locator('[data-product-mode="ai"] small').innerText()!=="СЧЁТ")throw new Error("AI mode subtitle must be Russian");
-    if(!(await page.locator('[data-product-mode="live"]').isDisabled()))throw new Error("LIVE selector must remain disabled until full close contract is verified");
+    if(!(await page.locator("#kg-market-mode").isVisible()))throw new Error("top-level market mode selector must be visible on wallet home");
+    if(await page.locator("#kg-market-mode [data-market-mode]").count()!==2)throw new Error("only DEMO and LIVE may exist as top-level market modes");
+    if(!(await page.locator('[data-market-mode="demo"]').evaluate(node=>node.classList.contains("is-active"))))throw new Error("DEMO must be the active top-level market mode");
+    if(!(await page.locator('[data-market-mode="live"]').isDisabled()))throw new Error("LIVE selector must remain disabled until full close contract is verified");
+    if(!(await page.locator("#kg-product-mode").isVisible()))throw new Error("trading method selector must be visible on wallet home");
+    if(await page.locator("#kg-product-mode [data-product-mode]").count()!==2)throw new Error("only Manual and AI Piper may exist as trading methods");
+    if(await page.locator('[data-product-mode="ai"] b').innerText()!=="AI Piper")throw new Error("AI trading method must be labelled AI Piper");
+    if(await page.locator('[data-product-mode="ai"] small').innerText()!=="Автономный DEMO")throw new Error("AI Piper subtitle must identify its DEMO scope");
     await page.locator('[data-product-mode="ai"]').click();
     await page.waitForFunction(()=>document.querySelector('[data-product-mode="ai"]')?.classList.contains("is-active"));
-    if(!(await page.locator("#kg-product-mode-status").innerText()).includes("Автоматические сделки пока отключены"))throw new Error("AI Trading selector must disclose paper-only/no-auto-execution status");
+    const aiModeStatus=await page.locator("#kg-product-mode-status").innerText();
+    if(!aiModeStatus.includes("DEMO · AI Piper")||!aiModeStatus.includes("виртуальные средства"))throw new Error("AI Piper must disclose DEMO-only virtual funds");
     await page.waitForFunction(()=>document.querySelector("#kg-ai-paper-status-note")?.textContent.includes("Состояние из защищённого API"));
     if(!(await page.locator(".kg-ai-paper-transfer").isVisible()))throw new Error("AI paper virtual funding controls should be visible in AI mode");
     await page.locator("#kg-ai-paper-amount").fill("25");
@@ -232,7 +239,7 @@ try{
     if(paperLists.injected!==0||!paperLists.rationale.includes("<img src=x onerror=alert(1)>"))throw new Error("Model-provided rationale must render as text, never HTML: "+JSON.stringify(paperLists));
     await page.mouse.move(0,0);
     await page.evaluate(()=>document.activeElement?.blur());
-    await page.screenshot({path:`clean-product-mode-ai-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-product-mode-ai-${device.width}x${device.height}.png`,fullPage:false});
     await captureDarkVariant(page,"product-mode-ai",device);
     await page.locator('[data-product-mode="demo"]').click();
     await page.waitForFunction(()=>document.querySelector('[data-product-mode="demo"]')?.classList.contains("is-active"));
@@ -257,7 +264,7 @@ try{
     if(!(await page.locator("#kg-wallet-currency").isVisible()))throw new Error("wallet currency row should be visible");
     const walletOrder=await page.locator("#kg-wallet-screen").evaluate(el=>[...el.children].filter(x=>["kg-wallet-hero","kg-wallet-quick-actions","kg-wallet-currency"].some(id=>x.id===id||x.classList.contains(id))).slice(0,3).map(x=>x.className||x.id).join(","));
     if(!walletOrder.includes("kg-wallet-hero,kg-wallet-quick-actions,kg-wallet-currency"))throw new Error("wallet first-screen order is incorrect: "+walletOrder);
-    await page.screenshot({path:`clean-wallet-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-wallet-${device.width}x${device.height}.png`,fullPage:false});
     await captureDarkVariant(page,"wallet",device);
     const agentHeading=page.locator("#kg-wallet-screen .kg-section-head").filter({hasText:"Аккаунты ИИ-агента"});
     await agentHeading.evaluate(el=>el.scrollIntoView({block:"center",behavior:"instant"}));
@@ -269,7 +276,7 @@ try{
       return {headingTop:h?.top,headingBottom:h?.bottom,cardTop:card?.top,cardBottom:card?.bottom,navTop:nav.top,viewportHeight:innerHeight,scrollY:scrollY};
     });
     if(agentLayout.scrollY<=0||agentLayout.headingTop<0||agentLayout.headingBottom>agentLayout.navTop-8||agentLayout.cardTop<agentLayout.headingBottom||agentLayout.cardBottom>agentLayout.navTop-8)throw new Error("AI-agent heading and full card must be reachable above fixed navigation: "+JSON.stringify(agentLayout));
-    await page.screenshot({path:`clean-wallet-agent-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-wallet-agent-${device.width}x${device.height}.png`,fullPage:false});
     await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
     const walletScrollCheck=await page.evaluate(()=>{
       const nav=document.querySelector("#kg-nav").getBoundingClientRect();
@@ -289,7 +296,7 @@ try{
     if((await page.locator("#kg-agents-paper-positions").innerText()).trim()!=="12")throw new Error("Agents screen must show the confirmed paper position count");
     if(!(await page.locator("#kg-agents-paper-status").innerText()).includes("Остановлен"))throw new Error("Agents screen must show the real stopped status");
     if(!(await page.locator(".kg-agents-safety-note").innerText()).includes("виртуальные средства"))throw new Error("Agents screen must disclose virtual-only funds");
-    await page.screenshot({path:`clean-agents-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-agents-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-agents-open-funding").click();
     await page.waitForFunction(()=>document.querySelector("#kg-wallet-screen").classList.contains("is-active")&&document.querySelector('#kg-product-mode [data-product-mode="ai"]').classList.contains("is-active"));
     if(await page.evaluate(()=>document.activeElement?.id)!=="kg-ai-paper-amount")throw new Error("Agents virtual funding entry must focus the AI paper amount field");
@@ -299,7 +306,7 @@ try{
     await page.waitForFunction(()=>document.querySelector('#kg-product-mode [data-product-mode="demo"]').classList.contains("is-active"));
     await page.locator('#kg-nav button[data-screen="trading"]').click();
     await page.waitForSelector("#kg-market-list .kg-market-row");
-    await page.screenshot({path:`clean-catalog-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-catalog-${device.width}x${device.height}.png`,fullPage:false});
     await captureDarkVariant(page,"catalog",device);
     await page.locator("#kg-search-open").click();
     await page.waitForSelector("#kg-search-filters:not([hidden])");
@@ -311,7 +318,7 @@ try{
     await page.locator("#kg-market-search").fill("BTC");
     await page.waitForFunction(() => document.querySelectorAll("#kg-market-list .kg-market-row").length === 1, null, {timeout:3000});
     if(await page.locator("#kg-market-list .kg-market-row").count()!==1)throw new Error("all-market search should filter BTC once");
-    await page.screenshot({path:`clean-search-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-search-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-search-close").click();
     if(await page.locator('[data-category="stocks"]:visible,[data-category="funds"]:visible').count())throw new Error("stocks and funds categories must be removed from product navigation");
     await page.locator('[data-category="futures"]').click();
@@ -356,7 +363,7 @@ try{
     const scrollAfterRefresh=await page.locator("#kg-chart").evaluate(el=>el.scrollLeft);
     if(Math.abs(scrollAfterRefresh-scrollBeforeRefresh)>1)throw new Error("realtime candle refresh must preserve historical scroll position: "+JSON.stringify({scrollBeforeRefresh,scrollAfterRefresh}));
     if(!(await page.locator("#kg-asset-name").innerText()).includes("Bitcoin"))throw new Error("asset detail title missing");
-    await page.screenshot({path:`clean-asset-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-asset-${device.width}x${device.height}.png`,fullPage:false});
     const assetScreen=page.locator("#kg-asset-screen");
     await assetScreen.evaluate(el=>{el.scrollTop=el.scrollHeight;});
     const aboutLayout=await page.evaluate(()=>{
@@ -367,7 +374,7 @@ try{
       return {aboutTop:a.top,aboutBottom:a.bottom,actionsTop:b.top,viewportBottom:innerHeight,scrollTop:document.querySelector("#kg-asset-screen").scrollTop};
     });
     if(aboutLayout.scrollTop<=0||aboutLayout.aboutTop<0||aboutLayout.aboutBottom>aboutLayout.actionsTop+1)throw new Error("asset about section must be fully reachable above fixed trade actions: "+JSON.stringify(aboutLayout));
-    await page.screenshot({path:`clean-asset-about-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-asset-about-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-long").click();
     await page.waitForSelector("#kg-ticket-screen:not([hidden])");
     await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
@@ -390,7 +397,7 @@ try{
     if(!volumeText.startsWith("Объём: $"))throw new Error("ticket volume label should appear exactly once: "+volumeText);
     const feePreview=await page.locator("#kg-ticket-preview").innerText();
     if(!feePreview.includes("Комиссия открытия")||!feePreview.includes("Комиссия закрытия"))throw new Error("Supported open/close fees must appear in ticket preview: "+feePreview);
-    await page.screenshot({path:`clean-ticket-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-ticket-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-ticket-leverage").click();
     await page.waitForSelector("#kg-leverage-screen:not([hidden])");
     await page.evaluate(()=>window.Telegram.WebApp.BackButton.handler?.());
@@ -398,7 +405,7 @@ try{
     if(!(await page.locator("#kg-ticket-screen:not([hidden])").count()))throw new Error("dismissing leverage modal must preserve the trade ticket");
     await page.locator("#kg-ticket-leverage").click();
     await page.waitForSelector("#kg-leverage-screen:not([hidden])");
-    await page.screenshot({path:`clean-leverage-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-leverage-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-lev-max").click();
     await page.locator("#kg-lev-apply").click();
     await page.locator("#kg-ticket-check").click();
@@ -408,7 +415,7 @@ try{
     if(!(await page.locator("#kg-ticket-screen:not([hidden])").count()))throw new Error("dismissing trade confirmation must preserve the ticket");
     await page.locator("#kg-ticket-check").click();
     await page.waitForSelector("#kg-confirm-screen:not([hidden])");
-    await page.screenshot({path:`clean-confirm-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-confirm-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-trade-confirm").click();
     const submittedTrade=await page.evaluate(()=>window.__lastTradeOpen);
     if("takeProfitUsd" in (submittedTrade||{})||"stopLossUsd" in (submittedTrade||{}))throw new Error("Unverified TP/SL fields must not be sent to the trade API: "+JSON.stringify(submittedTrade));
@@ -423,14 +430,16 @@ try{
     if(!(await missingPnl.evaluate(el=>el.classList.contains("kg-muted"))))throw new Error("missing position PnL must use neutral styling");
     await page.locator("#kg-income-tabs [data-income-tab=history]").click();
     if(!(await page.locator("#kg-income-history-panel").isVisible())||await page.locator("#kg-income-open-panel").isVisible())throw new Error("income tabs must switch between open positions and history");
-    await page.screenshot({path:`clean-income-history-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-income-history-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator('#kg-nav button[data-screen="companion"]').click();
     await page.waitForSelector("#kg-companion-screen.is-active");
     await page.waitForSelector("#kg-companion-screen .kg-ai-welcome");
     await page.waitForFunction(()=>getComputedStyle(document.querySelector("#kg-nav")).display!=="none");
     if(!(await page.locator("#kg-ai-input").isVisible()))throw new Error("AI Companion composer must be visible on the home screen");
+    const composerHeight=await page.locator("#kg-ai-input").evaluate(el=>el.getBoundingClientRect().height);
+    if(composerHeight<44)throw new Error("AI Companion composer must be at least 44px high so the two-line placeholder is not clipped: "+composerHeight);
     if(!(await page.locator("#kg-companion-screen .kg-ai-welcome").isVisible()))throw new Error("AI Companion welcome must be visible on the home screen");
-    await page.screenshot({path:`clean-companion-home-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-companion-home-${device.width}x${device.height}.png`,fullPage:false});
     await captureDarkVariant(page,"companion-home",device);
 
     // Playwright cannot open the native iOS keyboard. Emulate the reduced app viewport
@@ -472,7 +481,7 @@ try{
       return composer.bottom<=keyboard.top+1;
     });
     if(!composerAboveKeyboard)throw new Error("AI composer must remain above the on-screen keyboard");
-    await page.screenshot({path:`clean-companion-keyboard-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-companion-keyboard-${device.width}x${device.height}.png`,fullPage:false});
     await page.evaluate(()=>{document.querySelector("#kg-test-keyboard")?.remove();document.querySelector("#kg-test-keyboard-style")?.remove();document.querySelector("#kg-companion-screen").classList.remove("kg-keyboard-open");document.querySelector("#kg-nav").hidden=false;document.querySelector("#kg-ai-input").blur();});
     await page.locator("#kg-ai-input").fill("Проверь связь");
     await page.locator("#kg-ai-send").click();
@@ -491,7 +500,7 @@ try{
       throw new Error("AI Companion send failed: "+JSON.stringify(debug)+" pageErrors="+pageErrors.join("; ")+" "+error.message);
     }
     if(!(await page.locator("#kg-ai-messages").innerText()).includes("Проверь связь"))throw new Error("AI Companion should render the sent user message");
-    await page.screenshot({path:`clean-companion-${device.width}x${device.height}.png`,fullPage:false});
+    await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-companion-${device.width}x${device.height}.png`,fullPage:false});
     await page.locator("#kg-ai-menu-open").click();
     await page.waitForSelector("#kg-ai-menu.is-open");
     const historySearch=page.locator("#kg-ai-history-search");
