@@ -26,12 +26,15 @@
         <div class="kg-wallet-pnl" aria-label="Прибыль и убыток"><span>Нереализованный PnL</span><strong id="kg-wallet-pnl-value">—</strong><small id="kg-wallet-pnl-note">По открытым виртуальным позициям</small></div>
       </section>
       <div class="kg-product-mode-wrap">
-        <div id="kg-product-mode" class="kg-product-mode" role="group" aria-label="Режим продукта">
-          <button type="button" data-product-mode="demo" class="is-active" aria-pressed="true"><b>DEMO</b><small>Счёт</small></button>
-          <button type="button" data-product-mode="ai" aria-pressed="false"><b>ИИ</b><small>СЧЁТ</small></button>
-          <button type="button" data-product-mode="live" aria-pressed="false" disabled aria-disabled="true" title="LIVE заблокирован до проверки полного торгового контракта"><b>LIVE</b><small>Заблокирован</small></button>
+        <div id="kg-market-mode" class="kg-product-mode kg-market-mode" role="group" aria-label="Рынок">
+          <button type="button" data-market-mode="demo" class="is-active" aria-pressed="true"><b>DEMO</b><small>Виртуальный рынок</small></button>
+          <button type="button" data-market-mode="live" aria-pressed="false" disabled aria-disabled="true" title="LIVE заблокирован до завершения проверки безопасности"><b>LIVE</b><small>Скоро · заблокирован</small></button>
         </div>
-        <p id="kg-product-mode-status" class="kg-product-mode-status" aria-live="polite">DEMO · Виртуальный счёт. Реальные средства не используются.</p>
+        <div id="kg-product-mode" class="kg-product-mode kg-method-mode" role="group" aria-label="Способ торговли в DEMO">
+          <button type="button" data-product-mode="demo" class="is-active" aria-pressed="true"><b>Ручная</b><small>Торговля</small></button>
+          <button type="button" data-product-mode="ai" aria-pressed="false"><b>AI Piper</b><small>Автономный DEMO</small></button>
+        </div>
+        <p id="kg-product-mode-status" class="kg-product-mode-status" aria-live="polite">DEMO · Ручная торговля. Используются только виртуальные средства.</p>
       </div>
       <section id="kg-ai-paper-summary" class="kg-ai-paper-summary" aria-label="Состояние виртуального счёта ИИ" hidden>
         <div class="kg-section-head"><h2>Счёт ИИ</h2><span class="kg-muted">Виртуальный</span></div>
@@ -52,10 +55,10 @@
         </div>
         <div class="kg-ai-paper-session">
           <div class="kg-ai-paper-session-actions">
-            <button id="kg-ai-paper-start" type="button" class="kg-primary">Запустить AI paper</button>
-            <button id="kg-ai-paper-stop" type="button" class="kg-ghost" hidden>Остановить AI paper</button>
+            <button id="kg-ai-paper-start" type="button" class="kg-primary">Запустить AI Piper</button>
+            <button id="kg-ai-paper-stop" type="button" class="kg-ghost" hidden>Остановить AI Piper</button>
           </div>
-          <p id="kg-ai-paper-session-note" role="status" aria-live="polite">Запуск и остановка затрагивают только виртуальный счёт AI PAPER. Реальные сделки не выполняются.</p>
+          <p id="kg-ai-paper-session-note" role="status" aria-live="polite">Запуск и остановка затрагивают только виртуальный счёт AI Piper. Реальные сделки не выполняются.</p>
         </div>
         <div class="kg-ai-paper-history">
           <section class="kg-ai-paper-history-section" aria-label="Открытые виртуальные позиции">
@@ -71,7 +74,7 @@
             <ul id="kg-ai-paper-decisions-list" class="kg-ai-paper-history-list"><li class="is-empty">Нет записанных решений</li></ul>
           </section>
         </div>
-        <p class="kg-empty-card">Только виртуальный AI PAPER. LIVE и реальные средства недоступны.</p>
+        <p class="kg-empty-card">Только виртуальный AI Piper. LIVE и реальные средства недоступны.</p>
       </section>
       <div id="kg-wallet-quick-actions" class="kg-wallet-quick-actions" aria-label="Быстрые действия">
         <button type="button" data-wallet-shortcut="trading"><span class="kg-wallet-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18.5 9 13l3.5 3.5L20 8"/><path d="M14.5 8H20v5.5"/></svg></span><small>Торговля</small></button>
@@ -224,7 +227,7 @@
     <div class="kg-profile-islands">
       <section class="kg-profile-island" aria-label="Аккаунт и режим">
         <h3>Аккаунт и режим</h3>
-        <p><span>Режим продукта</span><strong id="kg-profile-mode">—</strong></p><div id="kg-profile-mode-switch" class="kg-profile-mode-switch" role="group" aria-label="Выбор режима"><button type="button" data-profile-mode="demo">DEMO</button><button type="button" data-profile-mode="ai">ИИ</button><button type="button" data-profile-mode="live" disabled aria-disabled="true">LIVE</button></div>
+        <p><span>Рынок и способ торговли</span><strong id="kg-profile-mode">DEMO · Ручная</strong></p><div id="kg-profile-mode-switch" class="kg-profile-mode-switch" role="group" aria-label="Способ торговли в DEMO"><button type="button" data-profile-mode="demo">Ручная</button><button type="button" data-profile-mode="ai">AI Piper</button></div>
       </section>
       <section class="kg-profile-island" aria-label="Внешний кошелёк">
         <h3>Внешний кошелёк</h3>
