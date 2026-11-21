@@ -40,7 +40,7 @@ describe("legacy product-mode API compatibility with canonical selection", () =>
       ok: true, marketMode: "demo", tradingMethod: "ai_piper",
       productMode: "ai", executionMode: "paper",
     });
-    const state = await e.STATE.get("bot:state", "json") as Record<string, unknown>;
+    const state = await e.STATE.get("tenant:71001:bot:state", "json") as Record<string, unknown>;
     expect(state).toMatchObject({ marketMode: "demo", tradingMethod: "ai_piper", productMode: "ai" });
   });
 
