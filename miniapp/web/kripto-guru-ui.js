@@ -1078,7 +1078,7 @@
   function renderAiPaperSessionControls(){
     const start=$("#kg-ai-paper-start"),stop=$("#kg-ai-paper-stop"),note=$("#kg-ai-paper-session-note");
     const active=state.aiPaper?.status==="active",balance=Number(state.aiPaper?.balanceUsd);
-    if(start){start.hidden=active;start.disabled=state.aiPaperLoading||state.aiPaperActionBusy||state.productMode!=="ai"||!Number.isFinite(balance)||balance<=0;}
+    if(start){start.hidden=active;start.disabled=state.aiPaperLoading||state.aiPaperActionBusy||state.marketMode!=="demo"||state.productMode!=="ai"||!Number.isFinite(balance)||balance<=0;}
     if(stop){stop.hidden=!active;stop.disabled=state.aiPaperLoading||state.aiPaperActionBusy;}
     if(note)note.textContent=active
       ?"Сессия AI Piper активна. Управление касается только виртуального счёта; реальные сделки и LIVE не используются."
