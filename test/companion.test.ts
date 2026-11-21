@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { Miniflare } from "miniflare";
 import { build } from "esbuild";
 import { handleCompanionApi } from "../src/companion";
@@ -58,6 +59,12 @@ async function call(e: Env, userId: string, path: string, init: RequestInit = {}
 }
 
 describe("AI Companion API", () => {
+  it("labels the daily cap as ordinary chat and keeps research separate", () => {
+    const ui = readFileSync(new URL("../miniapp/web/kripto-guru-ui.js", import.meta.url), "utf8");
+    expect(ui).toContain('["Обычные сообщения в день","до "+limits.messagesPerDay+" сообщений на пользователя"]');
+    expect(ui).not.toContain('["Дневной лимит","до "+limits.messagesPerDay');
+  });
+
   afterEach(() => vi.unstubAllGlobals());
 
   it("rejects requests without valid Telegram initData", async () => {
