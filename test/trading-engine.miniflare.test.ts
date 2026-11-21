@@ -67,7 +67,7 @@ export class LegacySchemaTradingEngine extends TradingEngine {
     super(ctx, env);
   }
 }
-export default { fetch() { return new Response('ok'); } };`;";
+export default { fetch() { return new Response('ok'); } };`;
   });
 
   afterAll(async () => {
