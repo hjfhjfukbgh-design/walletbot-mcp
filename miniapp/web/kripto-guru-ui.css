@@ -1948,3 +1948,175 @@ html[data-theme="dark"] .kg-change-down{color:#B9A8FF}
 @media(prefers-reduced-motion:reduce){
   #kg-chart{scroll-behavior:auto}
 }
+
+
+/* Clear two-level hierarchy: market first, execution method inside DEMO. */
+.kg-market-mode{grid-template-columns:1fr 1fr;margin-bottom:8px}
+.kg-market-mode button{min-height:48px}
+.kg-method-mode{grid-template-columns:1fr 1fr;margin-top:8px;background:var(--kg-card)}
+.kg-method-mode button{min-height:48px}
+.kg-method-mode button b{font-size:13px}
+.kg-profile-mode-switch{grid-template-columns:1fr 1fr}
+.kg-product-mode button:disabled{opacity:.42}
+@media(max-width:360px){
+  .kg-market-mode button b,.kg-method-mode button b{font-size:11px}
+  .kg-market-mode button small,.kg-method-mode button small{font-size:8px}
+}
+
+/* Keep the last wallet rows clear of the floating bottom navigation. */
+#kg-main:has(#kg-wallet-screen.is-active){padding-bottom:calc(154px + var(--kg-safe-bottom))}
+
+/* Keep four quick-action labels inside their tiles on narrow iPhone widths. */
+#kg-wallet-screen .kg-wallet-quick-actions button small{
+  white-space:normal;
+  line-height:1.15;
+  text-align:center;
+}
+
+
+/* Keep the full two-line Russian Companion hint visible on narrow iPhones. */
+#kg-companion-screen .kg-ai-form textarea{
+  min-height:44px!important;
+  height:auto!important;
+  align-self:center;
+  padding-top:7px;
+  padding-bottom:7px;
+}
+
+
+/* Theme finish: remove residual light-only card surfaces from the shared UI.
+   Keep semantic accents (DEMO/AI, PnL, LONG/SHORT) untouched. */
+html[data-theme="dark"] .kg-list,
+html[data-theme="dark"] .kg-favorite,
+html[data-theme="dark"] .kg-discover-card,
+html[data-theme="dark"] .kg-category,
+html[data-theme="dark"] .kg-top-item,
+html[data-theme="dark"] .kg-recent-chip,
+html[data-theme="dark"] .kg-unavailable-panel,
+html[data-theme="dark"] .kg-empty-inline,
+html[data-theme="dark"] .kg-empty-card,
+html[data-theme="dark"] .kg-position,
+html[data-theme="dark"] .kg-bonus-card,
+html[data-theme="dark"] .kg-settings-note,
+html[data-theme="dark"] .kg-search-toggle,
+html[data-theme="dark"] .kg-search-close,
+html[data-theme="dark"] #kg-market-search,
+html[data-theme="dark"] .kg-chart-card,
+html[data-theme="dark"] .kg-asset-about,
+html[data-theme="dark"] .kg-modal-card,
+html[data-theme="dark"] .kg-ai-messages,
+html[data-theme="dark"] .kg-ai-history-item,
+html[data-theme="dark"] .kg-ai-history-delete,
+html[data-theme="dark"] .kg-wallet-currency,
+html[data-theme="dark"] .kg-wallet-quick-actions button,
+html[data-theme="dark"] .kg-profile-menu,
+html[data-theme="dark"] .kg-profile-sheet {
+  color:var(--kg-ink);
+  background:var(--kg-card);
+  border-color:var(--kg-line);
+  box-shadow:none;
+}
+
+html[data-theme="dark"] .kg-asset-row,
+html[data-theme="dark"] .kg-market-row,
+html[data-theme="dark"] .kg-history-row {
+  color:var(--kg-ink);
+  background:transparent;
+  border-color:var(--kg-line);
+}
+
+html[data-theme="dark"] .kg-unavailable-icon,
+html[data-theme="dark"] .kg-sort,
+html[data-theme="dark"] .kg-timeframes,
+html[data-theme="dark"] .kg-ticket-actions .kg-badge,
+html[data-theme="dark"] .kg-ticket-close,
+html[data-theme="dark"] .kg-leverage-value button {
+  color:var(--kg-muted);
+  background:var(--kg-surface-2);
+  border-color:var(--kg-line);
+}
+
+html[data-theme="dark"] .kg-sort button.is-selected,
+html[data-theme="dark"] .kg-timeframes button.is-selected,
+html[data-theme="dark"] .kg-income-tabs button.is-active,
+html[data-theme="dark"] .kg-profile-mode-switch button.is-active {
+  color:var(--kg-ink);
+  background:var(--kg-card);
+}
+
+html[data-theme="dark"] .kg-row-copy small,
+html[data-theme="dark"] .kg-card-copy small,
+html[data-theme="dark"] .kg-market-copy small,
+html[data-theme="dark"] .kg-history-copy small,
+html[data-theme="dark"] .kg-detail-row span,
+html[data-theme="dark"] .kg-position-meta,
+html[data-theme="dark"] .kg-page-title p,
+html[data-theme="dark"] .kg-unavailable-panel p,
+html[data-theme="dark"] .kg-asset-about p,
+html[data-theme="dark"] .kg-ticket-available,
+html[data-theme="dark"] .kg-ticket-preview,
+html[data-theme="dark"] .kg-settings-note {
+  color:var(--kg-muted);
+}
+
+html[data-theme="dark"] .kg-category.is-selected,
+html[data-theme="dark"] .kg-ai-history-item.is-selected {
+  background:color-mix(in srgb,var(--kg-blue) 16%,var(--kg-card));
+  border-color:color-mix(in srgb,var(--kg-blue) 48%,var(--kg-line));
+}
+
+html[data-theme="dark"] .kg-ticket-settings,
+html[data-theme="dark"] .kg-ticket-preview,
+html[data-theme="dark"] .kg-income-tabs,
+html[data-theme="dark"] .kg-position-details {
+  background:var(--kg-surface-2);
+  border-color:var(--kg-line);
+}
+
+html[data-theme="dark"] .kg-ai-form {
+  color:var(--kg-ink);
+  background:var(--kg-glass);
+  border-color:var(--kg-glass-border);
+}
+
+html[data-theme="dark"] .kg-ai-form textarea,
+html[data-theme="dark"] #kg-market-search {
+  color:var(--kg-ink);
+}
+
+html[data-theme="dark"] .kg-ai-form textarea::placeholder,
+html[data-theme="dark"] #kg-market-search::placeholder {
+  color:var(--kg-muted);
+}
+
+html[data-theme="dark"] .kg-ticket-check:disabled {
+  color:var(--kg-muted);
+  background:var(--kg-surface-2);
+}
+
+html[data-theme="dark"] .kg-asset-change {
+  background:color-mix(in srgb,var(--kg-green) 16%,var(--kg-card));
+  color:var(--kg-green);
+}
+
+html[data-theme="dark"] .kg-close-position {
+  background:color-mix(in srgb,var(--kg-red) 15%,var(--kg-card));
+  color:var(--kg-red);
+}
+
+html[data-theme="dark"] .kg-nav button.is-active {
+  color:var(--kg-ink);
+  background:var(--kg-surface-2);
+}
+
+@media(max-width:360px) {
+  #kg-wallet-screen .kg-wallet-hero-label {
+    align-items:flex-start;
+    flex-wrap:wrap;
+  }
+  #kg-wallet-screen .kg-mode-badge {
+    max-width:100%;
+    white-space:normal;
+    text-align:right;
+  }
+}
