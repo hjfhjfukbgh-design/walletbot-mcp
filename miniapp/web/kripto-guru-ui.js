@@ -35,6 +35,7 @@
   const themeMedia=window.matchMedia?.("(prefers-color-scheme: dark)");
   if(themeMedia?.addEventListener)themeMedia.addEventListener("change",()=>{if(getThemePreference()==="system")applyThemePreference("system");});
   else themeMedia?.addListener?.(()=>{if(getThemePreference()==="system")applyThemePreference("system");});
+  // PR #695: keep market mode separate from the Manual/AI Piper method selector.
   const state = {
     screen:"wallet", previousScreen:"trading", category:"crypto", markets:[], futures:[], fxRateRub:null, currencyMode:"RUB", marketMode:"demo", productMode:"demo", sparklineCache:{},
     favorites:(()=>{try{return new Set(JSON.parse(localStorage.getItem("kg:favorites:v1")||'["BTC","ETH","SOL"]'));}catch{return new Set(["BTC","ETH","SOL"]);}})(),
