@@ -923,6 +923,8 @@ async function stateView(env: Env) {
   }
   return {
     mode: s.mode,
+    marketMode: s.marketMode ?? "demo",
+    tradingMethod: s.tradingMethod ?? "manual",
     productMode: normalizeProductMode(s.productMode),
     running: s.running,
     paused: s.paused ?? null,
