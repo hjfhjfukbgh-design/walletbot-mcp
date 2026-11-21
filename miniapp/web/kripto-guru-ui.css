@@ -1948,3 +1948,27 @@ html[data-theme="dark"] .kg-change-down{color:#B9A8FF}
 @media(prefers-reduced-motion:reduce){
   #kg-chart{scroll-behavior:auto}
 }
+
+
+/* Clear two-level hierarchy: market first, execution method inside DEMO. */
+.kg-market-mode{grid-template-columns:1fr 1fr;margin-bottom:8px}
+.kg-market-mode button{min-height:48px}
+.kg-method-mode{grid-template-columns:1fr 1fr;margin-top:8px;background:var(--kg-card)}
+.kg-method-mode button{min-height:48px}
+.kg-method-mode button b{font-size:13px}
+.kg-profile-mode-switch{grid-template-columns:1fr 1fr}
+.kg-product-mode button:disabled{opacity:.42}
+@media(max-width:360px){
+  .kg-market-mode button b,.kg-method-mode button b{font-size:11px}
+  .kg-market-mode button small,.kg-method-mode button small{font-size:8px}
+}
+
+/* Keep the last wallet rows clear of the floating bottom navigation. */
+#kg-main:has(#kg-wallet-screen.is-active){padding-bottom:calc(154px + var(--kg-safe-bottom))}
+
+/* Keep four quick-action labels inside their tiles on narrow iPhone widths. */
+#kg-wallet-screen .kg-wallet-quick-actions button small{
+  white-space:normal;
+  line-height:1.15;
+  text-align:center;
+}
