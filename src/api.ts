@@ -837,9 +837,17 @@ async function updateProductMode(env: Env, userId: string, body: Json): Promise<
       return fail("Не удалось связаться с AI paper счётом для безопасной остановки сессии.", 503);
     }
   }
-  state.productMode = nextMode;
+  state.marketMode = "demo";
+  state.tradingMethod = nextMode === "ai" ? "ai_piper" : "manual";
+  state.productMode = nextMode === "ai" ? "ai" : "demo";
   await saveState(env, state);
-  return json({ ok: true, productMode: state.productMode, executionMode: state.mode });
+  return json({
+    ok: true,
+    marketMode: state.marketMode,
+    tradingMethod: state.tradingMethod,
+    productMode: state.productMode,
+    executionMode: state.mode,
+  });
 }
 
 async function startAiPaperSession(env: Env, userId: string): Promise<Response> {
