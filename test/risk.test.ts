@@ -72,12 +72,15 @@ describe("evaluateLiveRisk", () => {
     expect(evaluateLiveRisk({ ...liveInput(), proposedNotionalUsd: -1 }, limits).ok).toBe(false);
     expect(evaluateLiveRisk({ ...liveInput(), estimatedTakerFeeUsd: Number.POSITIVE_INFINITY }, limits).ok).toBe(false);
     expect(evaluateLiveRisk({ ...liveInput(), dailyLossUsd: -1 }, limits).ok).toBe(false);
+    const missingEquity = { ...liveInput() } as Record<string, unknown>;
+    delete missingEquity.equityUsd;
+    expect(evaluateLiveRisk(missingEquity as never, limits).reason).toBe("INVALID_INPUTS");
   });
 
   it("rejects missing or invalid limits and an empty market allowlist", () => {
     expect(evaluateLiveRisk(liveInput(), { ...limits, maxOrderPct: Number.NaN }).reason).toBe("INVALID_LIMITS");
     expect(evaluateLiveRisk(liveInput(), { ...limits, maxDailyLossPct: 101 }).reason).toBe("INVALID_LIMITS");
-    expect(evaluateLiveRisk(liveInput(), { ...limits, maxTotalExposurePct: 150 }).ok).toBe(true);
+    expect(evaluateLiveRisk(liveInput(), { ...limits, maxTotalExposurePct: 150 }).reason).toBe("INVALID_LIMITS");
     expect(evaluateLiveRisk(liveInput(), { ...limits, allowedMarkets: [] }).reason).toBe("INVALID_LIMITS");
   });
 
