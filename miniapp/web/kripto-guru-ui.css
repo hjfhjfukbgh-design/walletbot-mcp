@@ -1972,3 +1972,13 @@ html[data-theme="dark"] .kg-change-down{color:#B9A8FF}
   line-height:1.15;
   text-align:center;
 }
+
+
+/* Keep the full two-line Russian Companion hint visible on narrow iPhones. */
+#kg-companion-screen .kg-ai-form textarea{
+  min-height:44px!important;
+  height:auto!important;
+  align-self:center;
+  padding-top:7px;
+  padding-bottom:7px;
+}
