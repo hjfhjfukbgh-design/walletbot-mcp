@@ -1,5 +1,5 @@
 import { applyAdverseSlippage, applyEntrySlippage } from "../src/trading/positions";
-import { parseFreshAiPaperMark } from "../src/trading/engine";
+import { ensureAiPaperDecisionColumns, parseFreshAiPaperMark } from "../src/trading/engine";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { Miniflare } from "miniflare";
 import { build } from "esbuild";
@@ -8,6 +8,42 @@ const P = 100_000_000n;
 const U = 1_000_000n;
 const userId = "123456789";
 type EngineStub = any;
+
+
+describe("AI PAPER decision schema migration", () => {
+  it("adds only columns missing from a legacy decisions table", () => {
+    const statements: string[] = [];
+    const sql = {
+      exec(query: string) {
+        statements.push(query);
+        return { toArray: () => [{ name: "id" }, { name: "user_id" }, { name: "created_at" }] };
+      },
+    };
+    ensureAiPaperDecisionColumns(sql);
+    expect(statements).toEqual([
+      "PRAGMA table_info(ai_paper_decisions)",
+      "ALTER TABLE ai_paper_decisions ADD COLUMN snapshot_retrieved_at INTEGER NOT NULL DEFAULT 0",
+      "ALTER TABLE ai_paper_decisions ADD COLUMN risk_evaluated INTEGER NOT NULL DEFAULT 0",
+    ]);
+  });
+
+  it("does not alter a schema that already has both columns", () => {
+    const statements: string[] = [];
+    const sql = {
+      exec(query: string) {
+        statements.push(query);
+        return { toArray: () => [{ name: "snapshot_retrieved_at" }, { name: "risk_evaluated" }] };
+      },
+    };
+    ensureAiPaperDecisionColumns(sql);
+    expect(statements).toEqual(["PRAGMA table_info(ai_paper_decisions)"]);
+  });
+
+  it("does not swallow schema inspection errors", () => {
+    const sql = { exec() { throw new Error("sqlite unavailable"); } };
+    expect(() => ensureAiPaperDecisionColumns(sql)).toThrow("sqlite unavailable");
+  });
+});
 
 describe("TradingEngine SQLite integration (Miniflare)", () => {
   let source = "";
@@ -19,7 +55,19 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   beforeAll(async () => {
     root = ".mf-engine-test-" + Date.now() + "-" + Math.random().toString(36).slice(2);
     const bundle = await build({ entryPoints: ["src/trading/engine.ts"], bundle: true, platform: "browser", format: "esm", write: false });
-    source = bundle.outputFiles[0].text + "\nexport default { fetch() { return new Response('ok'); } };";
+    source = bundle.outputFiles[0].text + `
+export class LegacySchemaTradingEngine extends TradingEngine {
+  constructor(ctx, env) {
+    ctx.storage.sql.exec("CREATE TABLE ai_paper_decisions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tick_id TEXT NOT NULL, strategy_id TEXT NOT NULL, strategy_version TEXT NOT NULL, market_snapshot_hash TEXT NOT NULL, symbol TEXT NOT NULL, signal TEXT NOT NULL, rationale TEXT NOT NULL, confidence REAL, observed_price TEXT NOT NULL, risk_pass INTEGER NOT NULL, rejection_reason TEXT, position_id TEXT, created_at INTEGER NOT NULL, UNIQUE(user_id, tick_id, symbol))");
+    ctx.storage.sql.exec(
+      "INSERT INTO ai_paper_decisions (id,user_id,tick_id,strategy_id,strategy_version,market_snapshot_hash,symbol,signal,rationale,confidence,observed_price,risk_pass,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      "legacy-decision", "123456789", "legacy-tick", "ma-crossover", "1", "c".repeat(64),
+      "BTC", "hold", "legacy row", 0.5, "50000", 1, 1234567890
+    );
+    super(ctx, env);
+  }
+}
+export default { fetch() { return new Response('ok'); } };`;
   });
 
   afterAll(async () => {
@@ -28,14 +76,14 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
 
   beforeEach(async () => { await mf?.dispose(); mf = undefined; objectName = "engine-test-" + (++testSequence); });
 
-  async function boot(envOverrides: Record<string, string> = {}) {
+  async function boot(envOverrides: Record<string, string> = {}, legacySchema = false) {
     mf = new Miniflare({
       workers: [{
         config: {
           name: "engine-test",
           compatibilityDate: "2025-06-01",
           env: {
-            ENGINE: { type: "durable-object", worker: "engine-test", exportName: "TradingEngine" },
+            ENGINE: { type: "durable-object", worker: "engine-test", exportName: legacySchema ? "LegacySchemaTradingEngine" : "TradingEngine" },
             ENGINE_MAX_QUOTE_AGE_MS: { type: "text", value: "10000" },
             ENGINE_DISABLE_SOCKET: { type: "text", value: "true" },
             MAX_ORDER_PCT: { type: "text", value: "100" },
@@ -46,7 +94,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
             ...Object.fromEntries(Object.entries(envOverrides).map(([key, value]) => [key, { type: "text", value }])),
           },
           exports: {
-            TradingEngine: { type: "durable-object", storage: "sqlite" },
+            [legacySchema ? "LegacySchemaTradingEngine" : "TradingEngine"]: { type: "durable-object", storage: "sqlite" },
           },
           manifest: {
             mainModule: "engine.mjs",
@@ -63,10 +111,26 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   }
 
   async function post(stub: EngineStub, path: string, body: Record<string, unknown>) {
+    const requestBody = { ...body };
+    if (requestBody.strategyId === "gemini-paper" && requestBody.snapshotPayload &&
+        requestBody.skipSnapshotHash !== true) {
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(requestBody.snapshotPayload)));
+      requestBody.marketSnapshotHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    }
+    delete requestBody.skipSnapshotHash;
     const response = await stub.fetch("https://engine.test" + path, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody),
     });
     return { status: response.status, body: await response.json() as Record<string, any> };
+  }
+
+  async function claimGeminiDecision(stub: EngineStub, user: string, tickId: string) {
+    const claim = await post(stub, "/ai/paper/decision/claim", { userId: user, tickId });
+    expect(claim.status).toBe(200);
+    const fencingToken = Number(claim.body.fencingToken);
+    const started = await post(stub, "/ai/paper/decision/external-started", { userId: user, tickId, fencingToken });
+    expect(started.status).toBe(200);
+    return fencingToken;
   }
 
   async function startAiPaper(stub: EngineStub, user: string) {
@@ -310,6 +374,169 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     }
     const history = await stub.fetch("https://engine.test/ai/paper/decisions?userId=111111111");
     expect((await history.json() as { decisions: unknown[] }).decisions).toHaveLength(0);
+  });
+
+  it("claims AI paper runs once per tenant/tick and replays the completed ledger row", async () => {
+    const stub = await boot();
+    const userA = "777777771";
+    const userB = "888888881";
+    const tickId = "stable-tick-claim-001";
+    const sameUserClaims = await Promise.all([
+      post(stub, "/ai/paper/decision/claim", { userId: userA, tickId }),
+      post(stub, "/ai/paper/decision/claim", { userId: userA, tickId }),
+    ]);
+    expect(sameUserClaims.map((result) => result.status).sort()).toEqual([200, 409]);
+    const claimA = sameUserClaims.find((result) => result.status === 200)!;
+    const concurrentRetry = sameUserClaims.find((result) => result.status === 409)!;
+    expect(claimA.body).toMatchObject({ ok: true, state: "claimed" });
+    expect(concurrentRetry.body.state).toBe("in_progress");
+
+    const sameTickOtherUser = await post(stub, "/ai/paper/decision/claim", { userId: userB, tickId });
+    expect(sameTickOtherUser.status).toBe(200);
+    expect(sameTickOtherUser.body.state).toBe("claimed");
+
+    const tokenA = Number(claimA.body.fencingToken);
+    await post(stub, "/ai/paper/decision/external-started", { userId: userA, tickId, fencingToken: tokenA });
+    const recordedAt = Date.now();
+    const recorded = await post(stub, "/ai/paper/decision", {
+      userId: userA, tickId, fencingToken: tokenA, strategyId: "gemini-paper", strategyVersion: "1",
+      marketSnapshotHash: "d".repeat(64), symbol: "BTC", signal: "buy",
+      rationale: "Stable request replay test.", confidence: 0.8, observedPrice: "50000", riskPass: false, riskEvaluated: false,
+      snapshotRetrievedAt: recordedAt, snapshotPayload: { source: "hyperliquid-public", retrievedAt: recordedAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
+    });
+    expect(recorded.status).toBe(201);
+
+    const lookup = await stub.fetch("https://engine.test/ai/paper/decision?userId=" + userA + "&tickId=" + tickId);
+    expect(lookup.status).toBe(200);
+    expect(await lookup.json()).toMatchObject({
+      ok: true, state: "completed",
+      decision: { tickId, symbol: "BTC", signal: "buy", rationale: "Stable request replay test." },
+    });
+
+    const replay = await post(stub, "/ai/paper/decision/claim", { userId: userA, tickId });
+    expect(replay.status).toBe(200);
+    expect(replay.body).toMatchObject({
+      ok: true, state: "completed",
+      decision: {
+        id: recorded.body.id, tickId,
+        snapshotPayload: { source: "hyperliquid-public", markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
+      },
+    });
+
+    const tokenB = Number(sameTickOtherUser.body.fencingToken);
+    await post(stub, "/ai/paper/decision/release", { userId: userB, tickId, fencingToken: tokenB });
+    const retryOtherUser = await post(stub, "/ai/paper/decision/claim", { userId: userB, tickId });
+    expect(retryOtherUser.status).toBe(200);
+    expect(retryOtherUser.body.state).toBe("claimed");
+    expect(Number(retryOtherUser.body.fencingToken)).toBeGreaterThan(tokenB);
+
+    const userC = "999999991";
+    const unknownTick = "provider-unknown-001";
+    const claimC = await post(stub, "/ai/paper/decision/claim", { userId: userC, tickId: unknownTick });
+    const tokenC = Number(claimC.body.fencingToken);
+    await post(stub, "/ai/paper/decision/external-started", { userId: userC, tickId: unknownTick, fencingToken: tokenC });
+    await post(stub, "/ai/paper/decision/unknown", { userId: userC, tickId: unknownTick, fencingToken: tokenC });
+    const userD = "666666661";
+    const fencingTick = "fencing-token-test-01";
+    const firstClaim = await post(stub, "/ai/paper/decision/claim", { userId: userD, tickId: fencingTick });
+    const firstToken = Number(firstClaim.body.fencingToken);
+    await post(stub, "/ai/paper/decision/external-started", { userId: userD, tickId: fencingTick, fencingToken: firstToken });
+    await post(stub, "/ai/paper/decision/release", { userId: userD, tickId: fencingTick, fencingToken: firstToken, safeToRetry: true });
+    const secondClaim = await post(stub, "/ai/paper/decision/claim", { userId: userD, tickId: fencingTick });
+    const secondToken = Number(secondClaim.body.fencingToken);
+    expect(secondToken).toBeGreaterThan(firstToken);
+    await post(stub, "/ai/paper/decision/external-started", { userId: userD, tickId: fencingTick, fencingToken: secondToken });
+    const decisionAt = Date.now();
+    const decisionBase = {
+      userId: userD, tickId: fencingTick, strategyId: "gemini-paper", strategyVersion: "1",
+      marketSnapshotHash: "e".repeat(64), symbol: "BTC", signal: "hold",
+      rationale: "Fencing token test.", confidence: 0.5, observedPrice: "50000", riskPass: false, riskEvaluated: false,
+      snapshotRetrievedAt: decisionAt, snapshotPayload: { source: "hyperliquid-public", retrievedAt: decisionAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
+    };
+    const staleFinalize = await post(stub, "/ai/paper/decision", { ...decisionBase, fencingToken: firstToken });
+    expect(staleFinalize.status).toBe(409);
+    const currentFinalize = await post(stub, "/ai/paper/decision", { ...decisionBase, fencingToken: secondToken });
+    expect(currentFinalize.status).toBe(201);
+
+    const unknownLookup = await stub.fetch("https://engine.test/ai/paper/decision?userId=" + userC + "&tickId=" + unknownTick);
+    expect(unknownLookup.status).toBe(409);
+    expect(await unknownLookup.json()).toMatchObject({ state: "external_outcome_unknown" });
+    const unknownRetry = await post(stub, "/ai/paper/decision/claim", { userId: userC, tickId: unknownTick });
+    expect(unknownRetry.status).toBe(409);
+    expect(unknownRetry.body.state).toBe("external_outcome_unknown");
+  });
+
+  it("records only fresh non-future server observation timestamps for AI paper decisions", async () => {
+    const stub = await boot();
+    const owner = "777777771";
+    const base = {
+      userId: owner, strategyId: "gemini-paper", strategyVersion: "1",
+      marketSnapshotHash: "c".repeat(64), symbol: "BTC", signal: "buy",
+      rationale: "Server snapshot validated.", confidence: 0.8, observedPrice: "50000", riskPass: false, riskEvaluated: false,
+    };
+    const badHashTick = "tick-server-mark-bad-hash";
+    const badHashToken = await claimGeminiDecision(stub, owner, badHashTick);
+    const badHashPayload = { source: "hyperliquid-public", retrievedAt: Date.now(), markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] };
+    const badHash = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: badHashTick, fencingToken: badHashToken, marketSnapshotHash: "0".repeat(64),
+      snapshotRetrievedAt: badHashPayload.retrievedAt, snapshotPayload: badHashPayload, skipSnapshotHash: true,
+    });
+    expect(badHash.status).toBe(400);
+    await post(stub, "/ai/paper/decision/unknown", { userId: owner, tickId: badHashTick, fencingToken: badHashToken });
+
+    const noClaimAt = Date.now();
+    const noClaim = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: "tick-server-mark-no-claim", snapshotRetrievedAt: noClaimAt, snapshotPayload: { source: "hyperliquid-public", retrievedAt: noClaimAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
+    });
+    expect(noClaim.status).toBe(400);
+
+    const staleTick = "tick-server-mark-stale";
+    const staleToken = await claimGeminiDecision(stub, owner, staleTick);
+    const staleAt = Date.now() - 10 * 60_000 - 1;
+    const stale = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: staleTick, fencingToken: staleToken, snapshotRetrievedAt: staleAt, snapshotPayload: { source: "hyperliquid-public", retrievedAt: staleAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
+    });
+    expect(stale.status).toBe(400);
+    await post(stub, "/ai/paper/decision/unknown", { userId: owner, tickId: staleTick, fencingToken: staleToken });
+
+    const futureTick = "tick-server-mark-future";
+    const futureToken = await claimGeminiDecision(stub, owner, futureTick);
+    const futureAt = Date.now() + 5_000;
+    const future = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: futureTick, fencingToken: futureToken, snapshotRetrievedAt: futureAt, snapshotPayload: { source: "hyperliquid-public", retrievedAt: futureAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
+    });
+    expect(future.status).toBe(400);
+    await post(stub, "/ai/paper/decision/unknown", { userId: owner, tickId: futureTick, fencingToken: futureToken });
+
+    const freshAt = Date.now();
+    const freshTick = "tick-server-mark-fresh";
+    const freshToken = await claimGeminiDecision(stub, owner, freshTick);
+    const fresh = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: freshTick, fencingToken: freshToken, snapshotRetrievedAt: freshAt, snapshotPayload: { source: "hyperliquid-public", retrievedAt: freshAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] },
+    });
+    expect(fresh.status).toBe(201);
+    const decisions = await stub.fetch("https://engine.test/ai/paper/decisions?userId=" + owner);
+    const body = await decisions.json() as { decisions: Array<{ createdAt: number; snapshotRetrievedAt: number | null; riskPass: boolean; riskEvaluated: boolean; snapshotPayload: unknown }> };
+    expect(body.decisions[0].snapshotRetrievedAt).toBe(freshAt);
+    expect(body.decisions[0].riskPass).toBe(false);
+    expect(body.decisions[0].riskEvaluated).toBe(false);
+    expect(body.decisions[0].snapshotPayload).toEqual({ source: "hyperliquid-public", retrievedAt: freshAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] });
+    expect(body.decisions[0].createdAt).toBeGreaterThanOrEqual(freshAt);
+    const savedSnapshot = { source: "hyperliquid-public", retrievedAt: freshAt, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_000 }] };
+    const retry = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: freshTick, fencingToken: freshToken, snapshotRetrievedAt: freshAt, snapshotPayload: savedSnapshot,
+    });
+    expect(retry.status).toBe(200);
+    expect(retry.body.duplicate).toBe(true);
+    const replay = await stub.fetch("https://engine.test/ai/paper/decision?userId=" + owner + "&tickId=" + freshTick);
+    const replayBody = await replay.json() as { state: string; decision: { snapshotPayload: unknown } };
+    expect(replayBody.state).toBe("completed");
+    expect(replayBody.decision.snapshotPayload).toEqual(savedSnapshot);
+    const alteredReplay = await post(stub, "/ai/paper/decision", {
+      ...base, tickId: freshTick, fencingToken: freshToken, snapshotRetrievedAt: freshAt,
+      snapshotPayload: { ...savedSnapshot, markets: [{ symbol: "BTC", price: "50000", volume24hUsd: 50_000_001 }] },
+    });
+    expect(alteredReplay.status).toBe(409);
   });
 
   it("bounds AI paper decision history queries", async () => {
@@ -1043,6 +1270,30 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     const audit = await post(stub, "/reconcile", {});
     expect(audit.body.openPositions).toBe(0);
     expect(audit.body.ledgerRows).toBe(5); // seed + 2 opens + 2 closes
+  });
+
+  it("upgrades a persisted legacy AI PAPER decisions table and preserves its rows", async () => {
+    // A test-only Durable Object subclass seeds the old schema before the
+    // TradingEngine constructor runs its normal production migration.
+    const stub = await boot({}, true);
+    const response = await stub.fetch("https://engine.test/account?userId=" + userId);
+    expect(response.status).toBe(200);
+
+    const history = await stub.fetch("https://engine.test/ai/paper/decisions?userId=" + userId);
+    expect(history.status).toBe(200);
+    const body = await history.json() as { decisions: Array<{
+      id: string; tickId: string; snapshotRetrievedAt: number | null; riskEvaluated: boolean;
+      signal: string; rationale: string;
+    }> };
+    expect(body.decisions).toHaveLength(1);
+    expect(body.decisions[0]).toMatchObject({
+      id: "legacy-decision",
+      tickId: "legacy-tick",
+      snapshotRetrievedAt: null,
+      riskEvaluated: false,
+      signal: "hold",
+      rationale: "legacy row",
+    });
   });
 
   it("rebuilds open positions from SQLite after Engine eviction/restart", async () => {
