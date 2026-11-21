@@ -77,6 +77,7 @@ describe("evaluateLiveRisk", () => {
   it("rejects missing or invalid limits and an empty market allowlist", () => {
     expect(evaluateLiveRisk(liveInput(), { ...limits, maxOrderPct: Number.NaN }).reason).toBe("INVALID_LIMITS");
     expect(evaluateLiveRisk(liveInput(), { ...limits, maxDailyLossPct: 101 }).reason).toBe("INVALID_LIMITS");
+    expect(evaluateLiveRisk(liveInput(), { ...limits, maxTotalExposurePct: 150 }).ok).toBe(true);
     expect(evaluateLiveRisk(liveInput(), { ...limits, allowedMarkets: [] }).reason).toBe("INVALID_LIMITS");
   });
 
