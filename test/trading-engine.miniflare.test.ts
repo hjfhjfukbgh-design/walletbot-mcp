@@ -1260,6 +1260,57 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     expect(audit.body.ledgerRows).toBe(5); // seed + 2 opens + 2 closes
   });
 
+  it("upgrades a persisted legacy AI PAPER decisions table and preserves its rows", async () => {
+    const stub = await boot();
+    const namespace = await mf!.getDurableObjectNamespace("ENGINE");
+    const id = namespace.idFromName(objectName);
+    const storage = await (mf as any).getDurableObjectStorage(id);
+    storage.sql.exec(`
+      CREATE TABLE ai_paper_decisions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        tick_id TEXT NOT NULL,
+        strategy_id TEXT NOT NULL,
+        strategy_version TEXT NOT NULL,
+        market_snapshot_hash TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        signal TEXT NOT NULL,
+        rationale TEXT NOT NULL,
+        confidence REAL,
+        observed_price TEXT NOT NULL,
+        risk_pass INTEGER NOT NULL,
+        rejection_reason TEXT,
+        position_id TEXT,
+        created_at INTEGER NOT NULL,
+        UNIQUE(user_id, tick_id, symbol)
+      )
+    `);
+    storage.sql.exec(
+      "INSERT INTO ai_paper_decisions (id,user_id,tick_id,strategy_id,strategy_version,market_snapshot_hash,symbol,signal,rationale,confidence,observed_price,risk_pass,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      "legacy-decision", userId, "legacy-tick", "ma-crossover", "1", "c".repeat(64),
+      "BTC", "hold", "legacy row", 0.5, "50000", 1, 1234567890,
+    );
+
+    // First request constructs TradingEngine against the pre-existing SQLite table.
+    const response = await stub.fetch("https://engine.test/account?userId=" + userId);
+    expect(response.status).toBe(200);
+
+    const columns = storage.sql.exec("PRAGMA table_info(ai_paper_decisions)").toArray()
+      .map((column: { name: string }) => column.name);
+    expect(columns).toContain("snapshot_retrieved_at");
+    expect(columns).toContain("risk_evaluated");
+
+    const migrated = storage.sql.exec(
+      "SELECT id, snapshot_retrieved_at, risk_evaluated FROM ai_paper_decisions WHERE id = ?",
+      "legacy-decision",
+    ).toArray()[0] as { id: string; snapshot_retrieved_at: number; risk_evaluated: number };
+    expect(migrated).toEqual({
+      id: "legacy-decision",
+      snapshot_retrieved_at: 0,
+      risk_evaluated: 0,
+    });
+  });
+
   it("rebuilds open positions from SQLite after Engine eviction/restart", async () => {
     let stub = await boot();
     await quote(stub, 50_000n * P);
