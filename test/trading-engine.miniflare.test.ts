@@ -55,7 +55,26 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   beforeAll(async () => {
     root = ".mf-engine-test-" + Date.now() + "-" + Math.random().toString(36).slice(2);
     const bundle = await build({ entryPoints: ["src/trading/engine.ts"], bundle: true, platform: "browser", format: "esm", write: false });
-    source = bundle.outputFiles[0].text + "\nexport default { fetch() { return new Response('ok'); } };";
+    source = bundle.outputFiles[0].text + `
+export class LegacySchemaTradingEngine extends TradingEngine {
+  constructor(ctx, env) {
+    ctx.storage.sql.exec(`CREATE TABLE ai_paper_decisions (
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tick_id TEXT NOT NULL,
+      strategy_id TEXT NOT NULL, strategy_version TEXT NOT NULL,
+      market_snapshot_hash TEXT NOT NULL, symbol TEXT NOT NULL, signal TEXT NOT NULL,
+      rationale TEXT NOT NULL, confidence REAL, observed_price TEXT NOT NULL,
+      risk_pass INTEGER NOT NULL, rejection_reason TEXT, position_id TEXT,
+      created_at INTEGER NOT NULL, UNIQUE(user_id, tick_id, symbol)
+    )`);
+    ctx.storage.sql.exec(
+      "INSERT INTO ai_paper_decisions (id,user_id,tick_id,strategy_id,strategy_version,market_snapshot_hash,symbol,signal,rationale,confidence,observed_price,risk_pass,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      "legacy-decision", "123456789", "legacy-tick", "ma-crossover", "1", "c".repeat(64),
+      "BTC", "hold", "legacy row", 0.5, "50000", 1, 1234567890
+    );
+    super(ctx, env);
+  }
+}
+export default { fetch() { return new Response('ok'); } };`;";
   });
 
   afterAll(async () => {
@@ -64,14 +83,14 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
 
   beforeEach(async () => { await mf?.dispose(); mf = undefined; objectName = "engine-test-" + (++testSequence); });
 
-  async function boot(envOverrides: Record<string, string> = {}) {
+  async function boot(envOverrides: Record<string, string> = {}, legacySchema = false) {
     mf = new Miniflare({
       workers: [{
         config: {
           name: "engine-test",
           compatibilityDate: "2025-06-01",
           env: {
-            ENGINE: { type: "durable-object", worker: "engine-test", exportName: "TradingEngine" },
+            ENGINE: { type: "durable-object", worker: "engine-test", exportName: legacySchema ? "LegacySchemaTradingEngine" : "TradingEngine" },
             ENGINE_MAX_QUOTE_AGE_MS: { type: "text", value: "10000" },
             ENGINE_DISABLE_SOCKET: { type: "text", value: "true" },
             MAX_ORDER_PCT: { type: "text", value: "100" },
@@ -82,7 +101,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
             ...Object.fromEntries(Object.entries(envOverrides).map(([key, value]) => [key, { type: "text", value }])),
           },
           exports: {
-            TradingEngine: { type: "durable-object", storage: "sqlite" },
+            [legacySchema ? "LegacySchemaTradingEngine" : "TradingEngine"]: { type: "durable-object", storage: "sqlite" },
           },
           manifest: {
             mainModule: "engine.mjs",
@@ -1261,53 +1280,26 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
   });
 
   it("upgrades a persisted legacy AI PAPER decisions table and preserves its rows", async () => {
-    const stub = await boot();
-    const namespace = await mf!.getDurableObjectNamespace("ENGINE");
-    const id = namespace.idFromName(objectName);
-    const storage = await (mf as any).getDurableObjectStorage(id);
-    storage.sql.exec(`
-      CREATE TABLE ai_paper_decisions (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        tick_id TEXT NOT NULL,
-        strategy_id TEXT NOT NULL,
-        strategy_version TEXT NOT NULL,
-        market_snapshot_hash TEXT NOT NULL,
-        symbol TEXT NOT NULL,
-        signal TEXT NOT NULL,
-        rationale TEXT NOT NULL,
-        confidence REAL,
-        observed_price TEXT NOT NULL,
-        risk_pass INTEGER NOT NULL,
-        rejection_reason TEXT,
-        position_id TEXT,
-        created_at INTEGER NOT NULL,
-        UNIQUE(user_id, tick_id, symbol)
-      )
-    `);
-    storage.sql.exec(
-      "INSERT INTO ai_paper_decisions (id,user_id,tick_id,strategy_id,strategy_version,market_snapshot_hash,symbol,signal,rationale,confidence,observed_price,risk_pass,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-      "legacy-decision", userId, "legacy-tick", "ma-crossover", "1", "c".repeat(64),
-      "BTC", "hold", "legacy row", 0.5, "50000", 1, 1234567890,
-    );
-
-    // First request constructs TradingEngine against the pre-existing SQLite table.
+    // A test-only Durable Object subclass seeds the old schema before the
+    // TradingEngine constructor runs its normal production migration.
+    const stub = await boot({}, true);
     const response = await stub.fetch("https://engine.test/account?userId=" + userId);
     expect(response.status).toBe(200);
 
-    const columns = storage.sql.exec("PRAGMA table_info(ai_paper_decisions)").toArray()
-      .map((column: { name: string }) => column.name);
-    expect(columns).toContain("snapshot_retrieved_at");
-    expect(columns).toContain("risk_evaluated");
-
-    const migrated = storage.sql.exec(
-      "SELECT id, snapshot_retrieved_at, risk_evaluated FROM ai_paper_decisions WHERE id = ?",
-      "legacy-decision",
-    ).toArray()[0] as { id: string; snapshot_retrieved_at: number; risk_evaluated: number };
-    expect(migrated).toEqual({
+    const history = await stub.fetch("https://engine.test/ai/paper/decisions?userId=" + userId);
+    expect(history.status).toBe(200);
+    const body = await history.json() as { decisions: Array<{
+      id: string; tickId: string; snapshotRetrievedAt: number | null; riskEvaluated: boolean;
+      signal: string; rationale: string;
+    }> };
+    expect(body.decisions).toHaveLength(1);
+    expect(body.decisions[0]).toMatchObject({
       id: "legacy-decision",
-      snapshot_retrieved_at: 0,
-      risk_evaluated: 0,
+      tickId: "legacy-tick",
+      snapshotRetrievedAt: 0,
+      riskEvaluated: false,
+      signal: "hold",
+      rationale: "legacy row",
     });
   });
 
