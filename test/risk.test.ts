@@ -74,42 +74,42 @@ describe("evaluateLiveRisk", () => {
     expect(evaluateLiveRisk({ ...liveInput(), dailyLossUsd: -1 }, limits).ok).toBe(false);
     const missingEquity = { ...liveInput() } as Record<string, unknown>;
     delete missingEquity.equityUsd;
-    expect(evaluateLiveRisk(missingEquity as never, limits).reason).toBe("INVALID_INPUTS");
+    expect(evaluateLiveRisk(missingEquity as never, limits)).toEqual({ ok: false, reason: "INVALID_INPUTS" });
   });
 
   it("rejects missing or invalid limits and an empty market allowlist", () => {
-    expect(evaluateLiveRisk(liveInput(), { ...limits, maxOrderPct: Number.NaN }).reason).toBe("INVALID_LIMITS");
-    expect(evaluateLiveRisk(liveInput(), { ...limits, maxDailyLossPct: 101 }).reason).toBe("INVALID_LIMITS");
-    expect(evaluateLiveRisk(liveInput(), { ...limits, maxTotalExposurePct: 150 }).reason).toBe("INVALID_LIMITS");
-    expect(evaluateLiveRisk(liveInput(), { ...limits, allowedMarkets: [] }).reason).toBe("INVALID_LIMITS");
+    expect(evaluateLiveRisk(liveInput(), { ...limits, maxOrderPct: Number.NaN })).toEqual({ ok: false, reason: "INVALID_LIMITS" });
+    expect(evaluateLiveRisk(liveInput(), { ...limits, maxDailyLossPct: 101 })).toEqual({ ok: false, reason: "INVALID_LIMITS" });
+    expect(evaluateLiveRisk(liveInput(), { ...limits, maxTotalExposurePct: 150 })).toEqual({ ok: false, reason: "INVALID_LIMITS" });
+    expect(evaluateLiveRisk(liveInput(), { ...limits, allowedMarkets: [] })).toEqual({ ok: false, reason: "INVALID_LIMITS" });
   });
 
   it("rejects stale, future and invalid-age observations", () => {
-    expect(evaluateLiveRisk({ ...liveInput(), observedAtMs: 0, nowMs: 100_000, maxDataAgeMs: 60_000 }, limits).reason).toBe("STALE_DATA");
-    expect(evaluateLiveRisk({ ...liveInput(), observedAtMs: 3_000 }, limits).reason).toBe("INVALID_TIMESTAMP");
-    expect(evaluateLiveRisk({ ...liveInput(), maxDataAgeMs: 0 }, limits).reason).toBe("INVALID_TIMESTAMP");
+    expect(evaluateLiveRisk({ ...liveInput(), observedAtMs: 0, nowMs: 100_000, maxDataAgeMs: 60_000 }, limits)).toEqual({ ok: false, reason: "STALE_DATA" });
+    expect(evaluateLiveRisk({ ...liveInput(), observedAtMs: 3_000 }, limits)).toEqual({ ok: false, reason: "INVALID_TIMESTAMP" });
+    expect(evaluateLiveRisk({ ...liveInput(), maxDataAgeMs: 0 }, limits)).toEqual({ ok: false, reason: "INVALID_TIMESTAMP" });
   });
 
   it("enforces allowlist and order-margin cap including equality boundary", () => {
-    expect(evaluateLiveRisk({ ...liveInput(), market: "DOGE" }, limits).reason).toBe("MARKET_NOT_ALLOWED");
+    expect(evaluateLiveRisk({ ...liveInput(), market: "DOGE" }, limits)).toEqual({ ok: false, reason: "MARKET_NOT_ALLOWED" });
     expect(evaluateLiveRisk({ ...liveInput(), proposedMarginUsd: 50 }, limits)).toEqual({ ok: true });
-    expect(evaluateLiveRisk({ ...liveInput(), proposedMarginUsd: 50.01 }, limits).reason).toBe("ORDER_TOO_LARGE");
+    expect(evaluateLiveRisk({ ...liveInput(), proposedMarginUsd: 50.01 }, limits)).toEqual({ ok: false, reason: "ORDER_TOO_LARGE" });
   });
 
   it("enforces aggregate notional exposure across all contracts", () => {
     expect(evaluateLiveRisk({ ...liveInput(), aggregateOpenNotionalUsd: 400 }, limits)).toEqual({ ok: true });
-    expect(evaluateLiveRisk({ ...liveInput(), aggregateOpenNotionalUsd: 400.01 }, limits).reason).toBe("EXPOSURE_LIMIT_EXCEEDED");
+    expect(evaluateLiveRisk({ ...liveInput(), aggregateOpenNotionalUsd: 400.01 }, limits)).toEqual({ ok: false, reason: "EXPOSURE_LIMIT_EXCEEDED" });
   });
 
   it("blocks at the daily-loss threshold and includes fees/funding provenance", () => {
     expect(evaluateLiveRisk({ ...liveInput(), dailyLossUsd: 49.99 }, limits)).toEqual({ ok: true });
-    expect(evaluateLiveRisk({ ...liveInput(), dailyLossUsd: 50 }, limits).reason).toBe("DAILY_LOSS_LIMIT_REACHED");
+    expect(evaluateLiveRisk({ ...liveInput(), dailyLossUsd: 50 }, limits)).toEqual({ ok: false, reason: "DAILY_LOSS_LIMIT_REACHED" });
     expect(evaluateLiveRisk({ ...liveInput(), dailyPnlIncludesFees: false }, limits).ok).toBe(false);
     expect(evaluateLiveRisk({ ...liveInput(), dailyPnlIncludesFunding: false }, limits).ok).toBe(false);
   });
 
   it("checks fee affordability against available balance", () => {
     expect(evaluateLiveRisk({ ...liveInput(), availableBalanceUsd: 41 }, limits)).toEqual({ ok: true });
-    expect(evaluateLiveRisk({ ...liveInput(), availableBalanceUsd: 40.99 }, limits).reason).toBe("INSUFFICIENT_BALANCE_FOR_MARGIN_AND_FEES");
+    expect(evaluateLiveRisk({ ...liveInput(), availableBalanceUsd: 40.99 }, limits)).toEqual({ ok: false, reason: "INSUFFICIENT_BALANCE_FOR_MARGIN_AND_FEES" });
   });
 });
