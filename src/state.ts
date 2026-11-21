@@ -93,8 +93,10 @@ export function defaultState(): BotState {
 
 export async function loadState(env: Env): Promise<BotState> {
   const saved = (await env.STATE.get<BotState>(K_STATE, "json")) ?? {};
-  const s = { ...defaultState(), ...saved };
-  Object.assign(s, normalizeMarketSelection(s));
+  // Normalize the persisted record before defaults are merged. Otherwise the
+  // new default marketMode/tradingMethod fields mask legacy productMode values.
+  const selection = normalizeMarketSelection(saved);
+  const s = { ...defaultState(), ...saved, ...selection };
   s.stats = { ...defaultState().stats, ...s.stats };
   if (s.grid && !(s.grid.cfg as Partial<GridConfig>).contract) s.grid = undefined;
   return s;
