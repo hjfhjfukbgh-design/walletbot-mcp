@@ -1,0 +1,114 @@
+diff --git a/src/env.ts b/src/env.ts
+index 3347b2a..e7f3567 100644
+--- a/src/env.ts
++++ b/src/env.ts
+@@ -59,3 +59,109 @@ export function riskLimits(env: Env): RiskLimits {
+       .filter(Boolean),
+   };
+ }
++
++export interface LiveRiskInput {
++  currentEquity: number;
++  aggregateExposure: number;
++  dayStartEquity: number;
++  currentDailyEquity: number;
++  proposedMargin: number;
++  proposedNotional: number;
++  takerFeeAmount: number;
++  observationTimestamp: number;
++  currentTimestamp: number;
++  maxAgeMs?: number;
++  limits: RiskLimits;
++  market: string;
++}
++
++export interface LiveRiskResult {
++  allowed: boolean;
++  rejections: string[];
++  descriptions: string[];
++}
++
++export function evaluateLiveRisk(input: LiveRiskInput): LiveRiskResult {
++  const rejections: string[] = [];
++  const descriptions: string[] = [];
++
++  const reject = (code: string, desc: string) => {
++    if (!rejections.includes(code)) {
++      rejections.push(code);
++      descriptions.push(desc);
++    }
++  };
++
++  if (!input || typeof input !== "object") {
++    return { allowed: false, rejections: ["INVALID_INPUT"], descriptions: ["Input missing or malformed"] };
++  }
++
++  const fields: Array<[string, number]> = [
++    ["currentEquity", input.currentEquity],
++    ["aggregateExposure", input.aggregateExposure],
++    ["dayStartEquity", input.dayStartEquity],
++    ["currentDailyEquity", input.currentDailyEquity],
++    ["proposedMargin", input.proposedMargin],
++    ["proposedNotional", input.proposedNotional],
++    ["takerFeeAmount", input.takerFeeAmount],
++    ["observationTimestamp", input.observationTimestamp],
++    ["currentTimestamp", input.currentTimestamp],
++  ];
++
++  for (const [name, val] of fields) {
++    if (val === undefined || val === null || typeof val !== "number" || !Number.isFinite(val)) {
++      reject("NON_FINITE_OR_MISSING_INPUT", `Field ${name} is missing, non-finite, or malformed`);
++    }
++  }
++
++  if (rejections.length > 0) {
++    return { allowed: false, rejections, descriptions };
++  }
++
++  if (input.currentEquity <= 0) {
++    reject("ZERO_OR_NEGATIVE_EQUITY", "Current equity must be strictly positive");
++  }
++  if (input.dayStartEquity <= 0) {
++    reject("ZERO_OR_NEGATIVE_DAY_START_EQUITY", "Day start equity must be strictly positive");
++  }
++  if (input.proposedMargin < 0 || input.proposedNotional < 0 || input.takerFeeAmount < 0 || input.aggregateExposure < 0) {
++    reject("NEGATIVE_AMOUNTS", "Margin, notional, fee, and exposure cannot be negative");
++  }
++
++  const maxAge = input.maxAgeMs ?? 60_000;
++  const age = input.currentTimestamp - input.observationTimestamp;
++  if (age < 0) {
++    reject("FUTURE_TIMESTAMP", "Observation timestamp is in the future");
++  } else if (age > maxAge) {
++    reject("STALE_DATA", "Observation data is stale beyond allowed max age");
++  }
++
++  if (input.currentEquity > 0 && input.proposedMargin > input.currentEquity) {
++    reject("FEE_OR_MARGIN_INSUFFICIENT", "Proposed margin exceeds current equity");
++  }
++
++  if (input.currentEquity > 0 && (input.proposedMargin + input.takerFeeAmount) > input.currentEquity) {
++    reject("FEE_INSUFFICIENCY", "Proposed margin plus taker fee exceeds current equity");
++  }
++
++  const limits = input.limits;
++  if (limits) {
++    if (input.currentEquity > 0) {
++      const orderPct = (input.proposedMargin / input.currentEquity) * 100;
++      if (orderPct > limits.maxOrderPct) {
++        reject("MAX_ORDER_PCT_EXCEEDED", `Order margin pct ${orderPct.toFixed(2)} exceeds limit ${limits.maxOrderPct}`);
++      }
++      const totalExpPct = ((input.aggregateExposure + input.proposedNotional) / input.currentEquity) * 100;
++      if (totalExpPct > limits.maxTotalExposurePct) {
++        reject("MAX_TOTAL_EXPOSURE_EXCEEDED", `Total exposure pct ${totalExpPct.toFixed(2)} exceeds limit ${limits.maxTotalExposurePct}`);
++      }
++      const dailyLossUsd = input.dayStartEquity - input.currentDailyEquity;
++      const dailyLossPct = (dailyLossUsd / input.dayStartEquity) * 100;
++      if (dailyLossPct > limits.maxDailyLossPct) {
++        reject("MAX_DAILY_LOSS_EXCEEDED", `Daily loss pct ${dailyLossPct.toFixed(2)} exceeds limit ${limits.maxDailyLossPct}`);
++      }
++    }
++  }
++
++  return { allowed: rejections.length === 0, rejections, descriptions };
++}
