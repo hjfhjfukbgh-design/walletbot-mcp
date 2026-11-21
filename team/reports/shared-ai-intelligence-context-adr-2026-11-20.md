@@ -71,7 +71,7 @@ The current Companion is more than a KV chat handler: it has a dedicated Durable
 - `src/companion.ts:19-30` validates Telegram initData, derives the user ID server-side and creates a tenant-scoped environment.
 - `src/companion.ts:32-40` exposes current limits: 8 messages per 60-second window, message/context/output caps, and a 50-conversation cap. It does not currently expose a general daily app limit.
 - `src/companion.ts:48-78` lists conversation indexes and reads request status/history; private conversation state is fetched through the conversation Durable Object.
-- `src/companion.ts:180-220` enqueues requests, claims them with a lease/fencing token, reads the saved conversation and selects the model. General/learning use `env.GEMINI_MODEL || "gemini-3.5-flash-lite"`; research uses `gemini-2.5-flash-lite`.
+- `src/companion.ts:180-225` enqueues requests, claims them with a lease/fencing token, reads the saved conversation and selects the model. General/learning use `env.GEMINI_MODEL || "gemini-3.5-flash-lite"`; research uses `gemini-2.5-flash-lite`.
 - `src/companion.ts:225-275` records provider-started state, atomically reserves applicable quotas through `COMPANION_QUOTA`, and then calls Gemini. Research retains 20 global/day and 5/user/day; all modes retain the 8/minute per-user sliding limit.
 - `src/companion-conversations.ts:30-80` implements the `CompanionConversation` Durable Object with SQLite tables for conversation metadata, messages and requests. Its identity is derived from the object name `tenant:<userId>:conversation:<uuid>`.
 - `src/companion-conversations.ts:82-114` exposes read/delete/status and internal enqueue/import/claim/provider-started/finalize/fail/alarm routes. Every request checks that the supplied tenant and conversation IDs match the identity derived from the DO ID.
@@ -92,7 +92,7 @@ The current Companion is more than a KV chat handler: it has a dedicated Durable
 - Manual DEMO positions are also represented in `src/manual.ts:8-24, 47-53, 82-118` using tenant-scoped KV.
 - The engine has separate manual account/positions/ledger tables and separate AI PAPER account/positions/ledger/decisions tables (`src/trading/engine.ts:97-104`).
 - Manual LIVE preview/execute/status routes exist in `src/api.ts:75-80, 87-90`. `src/walt.ts:79-92` explicitly disables legacy automatic open/close methods and requires the separate preview/confirmation path.
-- The `live_operations` table in `src/trading/engine.ts:94` is for bounded manual LIVE operation records. No AI LIVE session authorization table or AI LIVE audit stream is present.
+- The `live_operations` table in `src/trading/engine.ts:95` is for bounded manual LIVE operation records. No AI LIVE session authorization table or AI LIVE audit stream is present.
 
 **Implication:** the context contract must carry both `marketMode` and `method` as separate dimensions. It must never merge Manual DEMO positions with AI PAPER positions or present a Manual LIVE operation as an AI LIVE action.
 
