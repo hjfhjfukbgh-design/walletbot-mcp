@@ -64,7 +64,7 @@ async function captureDarkVariant(page,name,device){
     throw new Error("Dark theme token/surface mismatch: "+JSON.stringify(colors));
   }
   await assertMutedContrast(page,"dark");
-  await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-${name}-dark-${device.width}x${device.height}.png`,fullPage:false});
+  await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-${name}-dark-${device.width}x${device.height}.png`,fullPage:false});
   await page.evaluate(()=>{const select=document.querySelector("#kg-profile-theme-select");select.value="light";select.dispatchEvent(new Event("change",{bubbles:true}));const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";});
   await page.waitForTimeout(240);
   await assertMutedContrast(page,"light");
@@ -434,6 +434,8 @@ try{
     await page.waitForSelector("#kg-companion-screen .kg-ai-welcome");
     await page.waitForFunction(()=>getComputedStyle(document.querySelector("#kg-nav")).display!=="none");
     if(!(await page.locator("#kg-ai-input").isVisible()))throw new Error("AI Companion composer must be visible on the home screen");
+    const composerHeight=await page.locator("#kg-ai-input").evaluate(el=>el.getBoundingClientRect().height);
+    if(composerHeight<44)throw new Error("AI Companion composer must be at least 44px high so the two-line placeholder is not clipped: "+composerHeight);
     if(!(await page.locator("#kg-companion-screen .kg-ai-welcome").isVisible()))throw new Error("AI Companion welcome must be visible on the home screen");
     await page.evaluate(()=>{const toast=document.querySelector("#kg-toast");toast?.classList.remove("is-visible");if(toast)toast.textContent="";}); await page.screenshot({path:`clean-companion-home-${device.width}x${device.height}.png`,fullPage:false});
     await captureDarkVariant(page,"companion-home",device);
