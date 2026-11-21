@@ -1,0 +1,43 @@
+--- a/src/state.ts
++++ b/src/state.ts
+@@ -4,6 +4,8 @@
+ export type ProductMode = "demo" | "live" | "ai";
+ 
+ export interface BotState {
++  marketMode?: "demo" | "live";
++  tradingMethod?: "manual" | "ai_piper";
+   mode: "paper" | "live";
+   running: boolean;
+   paused?: string; // motivo da pausa automática (perda diária, erro de execução)
+@@ -25,7 +27,15 @@
+ export interface BotState {
+   productMode?: ProductMode;
+ }
+ 
+ export function normalizeProductMode(value: unknown): ProductMode {
+-  return value === "demo" || value === "live" || value === "ai" ? value : "demo";
++  if (value === "live" || value === "ai" || value === "demo") return value;
++  return "demo";
+ }
+ 
+ export function withProductMode(state: BotState, value: unknown): BotState {
+-  return { ...state, productMode: normalizeProductMode(value) };
++  const pm = normalizeProductMode(value);
++  return {
++    ...state,
++    productMode: pm,
++    marketMode: pm === "live" ? "live" : "demo",
++    tradingMethod: pm === "ai" ? "ai_piper" : "manual",
++  };
+ }
+--- a/src/api.ts
++++ b/src/api.ts
+@@ -91,7 +91,7 @@
+       case "GET live/position":
+         return livePositionView(scopedEnv, url.searchParams.get("symbol") ?? "");
+       case "POST product-mode":
+-        return updateProductMode(scopedEnv, telegramUserId, body);
++        return fail("Используйте раздельные поля marketMode и tradingMethod.", 400);
+       case "POST ai/paper/session/start":
+         return startAiPaperSession(scopedEnv, telegramUserId);
+       case "POST ai/paper/session/stop":
