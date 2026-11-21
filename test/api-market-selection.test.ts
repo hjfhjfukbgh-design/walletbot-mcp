@@ -32,6 +32,22 @@ async function postMode(e: ReturnType<typeof env>, userId: string, productMode: 
 }
 
 describe("legacy product-mode API compatibility with canonical selection", () => {
+  it("returns canonical DEMO/Manual and DEMO/AI Piper fields from GET state", async () => {
+    const e = env();
+    const auth = await telegramAuth(e.TELEGRAM_BOT_TOKEN, "71004");
+    const read = () => handleApi(new Request("https://w.dev/api/state", {
+      headers: { Authorization: `tma ${auth}` },
+    }), e, ctx);
+    expect(await (await read()).json()).toMatchObject({
+      ok: true, marketMode: "demo", tradingMethod: "manual",
+    });
+    const selected = await postMode(e, "71004", "ai");
+    expect(selected.status).toBe(200);
+    expect(await (await read()).json()).toMatchObject({
+      ok: true, marketMode: "demo", tradingMethod: "ai_piper", productMode: "ai",
+    });
+  });
+
   it("persists DEMO + AI Piper and returns both canonical fields", async () => {
     const e = env();
     const response = await postMode(e, "71001", "ai");
