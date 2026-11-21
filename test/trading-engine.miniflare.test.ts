@@ -58,14 +58,7 @@ describe("TradingEngine SQLite integration (Miniflare)", () => {
     source = bundle.outputFiles[0].text + `
 export class LegacySchemaTradingEngine extends TradingEngine {
   constructor(ctx, env) {
-    ctx.storage.sql.exec(`CREATE TABLE ai_paper_decisions (
-      id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tick_id TEXT NOT NULL,
-      strategy_id TEXT NOT NULL, strategy_version TEXT NOT NULL,
-      market_snapshot_hash TEXT NOT NULL, symbol TEXT NOT NULL, signal TEXT NOT NULL,
-      rationale TEXT NOT NULL, confidence REAL, observed_price TEXT NOT NULL,
-      risk_pass INTEGER NOT NULL, rejection_reason TEXT, position_id TEXT,
-      created_at INTEGER NOT NULL, UNIQUE(user_id, tick_id, symbol)
-    )`);
+    ctx.storage.sql.exec("CREATE TABLE ai_paper_decisions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tick_id TEXT NOT NULL, strategy_id TEXT NOT NULL, strategy_version TEXT NOT NULL, market_snapshot_hash TEXT NOT NULL, symbol TEXT NOT NULL, signal TEXT NOT NULL, rationale TEXT NOT NULL, confidence REAL, observed_price TEXT NOT NULL, risk_pass INTEGER NOT NULL, rejection_reason TEXT, position_id TEXT, created_at INTEGER NOT NULL, UNIQUE(user_id, tick_id, symbol))");
     ctx.storage.sql.exec(
       "INSERT INTO ai_paper_decisions (id,user_id,tick_id,strategy_id,strategy_version,market_snapshot_hash,symbol,signal,rationale,confidence,observed_price,risk_pass,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
       "legacy-decision", "123456789", "legacy-tick", "ma-crossover", "1", "c".repeat(64),
