@@ -1289,7 +1289,7 @@ export default { fetch() { return new Response('ok'); } };`;
     expect(body.decisions[0]).toMatchObject({
       id: "legacy-decision",
       tickId: "legacy-tick",
-      snapshotRetrievedAt: 0,
+      snapshotRetrievedAt: null,
       riskEvaluated: false,
       signal: "hold",
       rationale: "legacy row",
