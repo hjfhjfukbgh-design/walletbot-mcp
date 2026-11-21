@@ -2025,12 +2025,7 @@ html[data-theme="dark"] .kg-history-row {
   border-color:var(--kg-line);
 }
 
-html[data-theme="dark"] .kg-asset-icon,
-html[data-theme="dark"] .kg-currency-icon,
-html[data-theme="dark"] .kg-discover-icon,
 html[data-theme="dark"] .kg-unavailable-icon,
-html[data-theme="dark"] .kg-history-dot,
-html[data-theme="dark"] .kg-wallet-action-icon,
 html[data-theme="dark"] .kg-sort,
 html[data-theme="dark"] .kg-timeframes,
 html[data-theme="dark"] .kg-ticket-actions .kg-badge,
