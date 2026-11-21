@@ -1,3 +1,4 @@
+// CSS theme regression coverage: preserve semantic icon accents and theme-safe surfaces.
 // PR #695: capture the current-main two-level mode hierarchy and theme-safe surfaces.
 import { chromium } from "playwright";
 import http from "node:http";
